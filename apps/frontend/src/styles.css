@@ -503,10 +503,12 @@ button {
   text-align: left;
   cursor: pointer;
   transition: border-color 140ms ease, opacity 140ms ease;
+  user-select: none;
 }
 
 .canvas-node.is-selected {
   border-color: rgba(100, 230, 195, 0.38);
+  cursor: grab;
 }
 
 .canvas-node-head {

@@ -62,6 +62,20 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /add flow variable/i })).toBeInTheDocument();
   });
 
+  it("lets authors drag canvas nodes to new positions", () => {
+    render(<App />);
+
+    const node = screen.getByRole("button", { name: /Select CSV Reader/i });
+    expect(node).toHaveStyle({ left: "36px", top: "44px" });
+
+    fireEvent.mouseDown(node, { clientX: 100, clientY: 100 });
+    fireEvent.mouseMove(window, { clientX: 160, clientY: 150 });
+    fireEvent.mouseUp(window);
+
+    expect(node).toHaveStyle({ left: "96px", top: "94px" });
+    expect(screen.getByText(/Unsaved draft changes/i)).toBeInTheDocument();
+  });
+
   it("lets authors add repository nodes, edit flow variables, and get demo run feedback", async () => {
     render(<App />);
 

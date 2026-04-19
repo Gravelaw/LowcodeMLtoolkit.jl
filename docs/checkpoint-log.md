@@ -84,16 +84,17 @@ Each checkpoint entry must contain:
 - Realtime execution-state notifications now update live execution rail
 - Manual connection authoring/removal delivered in inspector
 - Compatibility preview now blocks invalid edge types, duplicate edges, and occupied target inputs
+- Canvas drag/drop positioning delivered for current draft session
 - Test suite green after gateway regression fixes
 
 ### Gaps Pending
 
-- Drag/drop node placement not built
 - BI dashboard v0 still missing
 - Streaming MVP still missing
 - GPU lane still missing
 - Hub v0 still missing
 - Realtime still request-scoped; no durable multi-subscriber broadcast layer yet
+- Node positions not yet durably persisted through workflow schema/save path
 
 ### Next Items To Implement
 

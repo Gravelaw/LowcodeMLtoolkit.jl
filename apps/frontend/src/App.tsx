@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState, useTransition } from "react";
+import { useDeferredValue, useEffect, useRef, useState, useTransition } from "react";
 import {
   createGatewayClient,
   createGatewayRealtimeClient,
@@ -71,6 +71,14 @@ interface RealtimeNodeState {
   checkpointTag?: string;
   runtime: string;
   status: WorkflowStatus;
+}
+
+interface DragState {
+  nodeId: string;
+  originX: number;
+  originY: number;
+  pointerStartX: number;
+  pointerStartY: number;
 }
 
 interface ConnectionDraftPreview {
@@ -762,6 +770,28 @@ function mergeNodeLayouts(
   return nextLayouts;
 }
 
+function mergeLayoutPositions(
+  baseLayouts: Record<string, CanvasNodeLayout>,
+  overrides: Record<string, { x: number; y: number }>
+): Record<string, CanvasNodeLayout> {
+  const nextLayouts = { ...baseLayouts };
+
+  for (const [nodeId, override] of Object.entries(overrides)) {
+    const currentLayout = nextLayouts[nodeId];
+    if (!currentLayout) {
+      continue;
+    }
+
+    nextLayouts[nodeId] = {
+      ...currentLayout,
+      x: override.x,
+      y: override.y
+    };
+  }
+
+  return nextLayouts;
+}
+
 function parseNumericValue(rawValue: string, type: FlowVariableDefinition["type"]): number {
   if (type === "Integer") {
     return Number.parseInt(rawValue || "0", 10);
@@ -796,6 +826,7 @@ function NodeCard({
   isSelected,
   layout,
   node,
+  onDragStart,
   onSelect,
   validation
 }: {
@@ -804,6 +835,7 @@ function NodeCard({
   isSelected: boolean;
   layout: CanvasNodeLayout;
   node: NodeDefinition;
+  onDragStart: (nodeId: string, clientX: number, clientY: number) => void;
   onSelect: (nodeId: string) => void;
   validation: NodeValidationSummary;
 }) {
@@ -814,6 +846,9 @@ function NodeCard({
     <button
       aria-label={`Select ${node.name}`}
       className={`canvas-node is-${validation.tone} ${isSelected ? "is-selected" : ""} ${isDimmed ? "is-dimmed" : ""}`}
+      onMouseDown={(event) => {
+        onDragStart(node.id, event.clientX, event.clientY);
+      }}
       onClick={() => {
         onSelect(node.id);
       }}
@@ -964,6 +999,9 @@ function App() {
   const [activeRail, setActiveRail] = useState<ExecutionTab>("executions");
   const [workflow, setWorkflow] = useState<WorkflowDefinition>(workspaceData.workflow);
   const [executionItems, setExecutionItems] = useState<ExecutionRailItem[]>(workspaceData.executionItems);
+  const [nodePositionOverrides, setNodePositionOverrides] = useState<Record<string, { x: number; y: number }>>(
+    {}
+  );
   const [knownWorkflowIds, setKnownWorkflowIds] = useState<string[]>(
     workspaceData.workflows.map((item) => item.workflowId)
   );
@@ -981,6 +1019,7 @@ function App() {
   const [realtimeNodeStates, setRealtimeNodeStates] = useState<Record<string, RealtimeNodeState>>(
     {}
   );
+  const dragStateRef = useRef<DragState | null>(null);
   const [isPending, startTransition] = useTransition();
   const deferredQuery = useDeferredValue(query);
   const normalizedNeedle = deferredQuery.trim().toLowerCase();
@@ -988,6 +1027,7 @@ function App() {
   useEffect(() => {
     setWorkflow(workspaceData.workflow);
     setExecutionItems(workspaceData.executionItems);
+    setNodePositionOverrides({});
     setKnownWorkflowIds(workspaceData.workflows.map((item) => item.workflowId));
     setRealtimeNodeStates({});
     setIsDirty(false);
@@ -1185,9 +1225,9 @@ function App() {
     return `${phase.id} ${phase.title} ${phase.exitGate}`.toLowerCase().includes(normalizedNeedle);
   });
 
-  const nodeLayouts = mergeNodeLayouts(
-    buildNodeLayoutsForWorkflow(workflow, workspaceData.mode),
-    realtimeNodeStates
+  const nodeLayouts = mergeLayoutPositions(
+    mergeNodeLayouts(buildNodeLayoutsForWorkflow(workflow, workspaceData.mode), realtimeNodeStates),
+    nodePositionOverrides
   );
   const matchedNodeIds = new Set(
     workflow.nodes
@@ -1260,6 +1300,56 @@ function App() {
     setWorkflow((currentWorkflow) => updater(currentWorkflow));
     setIsDirty(true);
   }
+
+  function handleNodeDragStart(nodeId: string, clientX: number, clientY: number) {
+    const layout = nodeLayouts[nodeId];
+    if (!layout) {
+      return;
+    }
+
+    dragStateRef.current = {
+      nodeId,
+      originX: layout.x,
+      originY: layout.y,
+      pointerStartX: clientX,
+      pointerStartY: clientY
+    };
+    setSelectedNodeId(nodeId);
+  }
+
+  useEffect(() => {
+    function handleMouseMove(event: MouseEvent) {
+      const dragState = dragStateRef.current;
+      if (!dragState) {
+        return;
+      }
+
+      const nextX = Math.max(20, dragState.originX + event.clientX - dragState.pointerStartX);
+      const nextY = Math.max(20, dragState.originY + event.clientY - dragState.pointerStartY);
+
+      setNodePositionOverrides((currentOverrides) => ({
+        ...currentOverrides,
+        [dragState.nodeId]: { x: nextX, y: nextY }
+      }));
+    }
+
+    function handleMouseUp() {
+      if (dragStateRef.current === null) {
+        return;
+      }
+
+      dragStateRef.current = null;
+      setIsDirty(true);
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   async function persistWorkflow(reason: "save" | "run"): Promise<string | null> {
     if (gatewayBaseUrl.length === 0) {
@@ -1758,6 +1848,7 @@ function App() {
                       key={node.id}
                       layout={nodeLayouts[node.id]}
                       node={node}
+                      onDragStart={handleNodeDragStart}
                       onSelect={(nodeId) => {
                         startTransition(() => {
                           setSelectedNodeId(nodeId);

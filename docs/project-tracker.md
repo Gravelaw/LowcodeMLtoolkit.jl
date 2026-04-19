@@ -81,6 +81,7 @@ Tracker always records 3 things:
 - Realtime execution state events now update execution rail directly without waiting for full refetch
 - Inspector now supports manual connection add/remove actions
 - Connection editor now previews compatibility errors for type mismatch, duplicate edges, and occupied target inputs
+- Canvas nodes now support drag/drop repositioning inside current draft session
 - Demo fallback still works when no gateway configured
 
 ### Runtime / Execution
@@ -113,7 +114,6 @@ Tracker always records 3 things:
 
 ### Phase 1 Critical Gaps
 
-- No real drag-and-drop node placement yet
 - Inspector edits save through TOML serialization bridge, but not yet full durable graph editor model
 - BI path is visible, but dashboard designer v0 not yet real
 - Streaming MVP not yet real
@@ -132,9 +132,9 @@ Tracker always records 3 things:
 
 1. Merge starter base extension node pack into active branch if not already present
 2. Build minimal BI dashboard v0 shell from BI outlet path
-3. Canvas drag/drop positioning
-4. Deepen graph editor model beyond TOML bridge semantics
-5. Add richer server-side realtime broadcast beyond request-scoped websocket replies
+3. Deepen graph editor model beyond TOML bridge semantics
+4. Add richer server-side realtime broadcast beyond request-scoped websocket replies
+5. Persist node positions beyond current draft session
 
 ### After That
 
