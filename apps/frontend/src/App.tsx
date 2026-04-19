@@ -6,6 +6,9 @@ import {
   phaseSummaries,
   workflowStatuses,
   type ConnectionDefinition,
+  type DashboardChartDefinition,
+  type DashboardChartFamily,
+  type DashboardDefinition,
   type ExecutionHint,
   type GatewayExecutionStateChangedEvent,
   type FlowVariableDefinition,
@@ -44,6 +47,7 @@ type RealtimeConnectionState = "idle" | "connecting" | "live" | "error";
 type WorkflowPortDefinition = NodeDefinition["ports"][number];
 type ValidationTone = "good" | "warn" | "live";
 type ActionTone = "info" | "success" | "error" | "demo";
+const dashboardChartFamilies: DashboardChartFamily[] = ["line", "bar", "area", "table", "metric"];
 
 interface WorkspaceDataState {
   checkpoints: CheckpointRailItem[];
@@ -249,6 +253,50 @@ function buildStatusCounts(items: ExecutionRailItem[]): Array<{ count: number; l
     count: items.filter((item) => item.status === status).length,
     label: status
   }));
+}
+
+function buildDashboardId(workflow: WorkflowDefinition): string {
+  const takenIds = new Set((workflow.dashboards ?? []).map((dashboard) => dashboard.dashboardId));
+  let index = Math.max(1, takenIds.size + 1);
+  while (takenIds.has(`dashboard-${index}`)) {
+    index += 1;
+  }
+  return `dashboard-${index}`;
+}
+
+function buildDashboardChartId(dashboard: DashboardDefinition): string {
+  const takenIds = new Set(dashboard.charts.map((chart) => chart.chartId));
+  let index = Math.max(1, takenIds.size + 1);
+  while (takenIds.has(`chart-${index}`)) {
+    index += 1;
+  }
+  return `chart-${index}`;
+}
+
+function createDefaultDashboard(workflow: WorkflowDefinition): DashboardDefinition {
+  const outletNode =
+    workflow.nodes.find((node) => node.type === "bi.outlet") ??
+    workflow.nodes.find((node) => node.ports.some((port) => port.direction === "output" && port.type === "stream_channel")) ??
+    workflow.nodes[0];
+
+  return {
+    dashboardId: buildDashboardId(workflow),
+    name: `Dashboard ${((workflow.dashboards ?? []).length || 0) + 1}`,
+    binding: {
+      outletNodeId: outletNode?.id ?? workflow.workflowId,
+      datasetKey: "dataset_main",
+      refreshMode: "manual"
+    },
+    charts: [
+      {
+        chartId: "chart-1",
+        title: "Primary Chart",
+        family: "line",
+        xField: "x",
+        yField: "y"
+      }
+    ]
+  };
 }
 
 function findPortConnections(
@@ -1631,6 +1679,93 @@ function App() {
     });
   }
 
+  function ensureDashboardDraft(): DashboardDefinition {
+    return primaryDashboard ?? createDefaultDashboard(workflow);
+  }
+
+  function handleCreateDashboard() {
+    const nextDashboard = createDefaultDashboard(workflow);
+    updateWorkflowDraft((currentWorkflow) => ({
+      ...currentWorkflow,
+      dashboards: [...(currentWorkflow.dashboards ?? []), nextDashboard]
+    }));
+    setActionFeedback({
+      text: `Added dashboard draft ${nextDashboard.dashboardId}.`,
+      tone: "success"
+    });
+  }
+
+  function handleDashboardChange(updates: Partial<DashboardDefinition>) {
+    const seedDashboard = ensureDashboardDraft();
+    const hasExistingDashboard = (workflow.dashboards?.length ?? 0) > 0;
+    const nextDashboard = {
+      ...seedDashboard,
+      ...updates
+    };
+
+    updateWorkflowDraft((currentWorkflow) => ({
+      ...currentWorkflow,
+      dashboards: hasExistingDashboard
+        ? (currentWorkflow.dashboards ?? []).map((dashboard, index) =>
+            index === 0 ? nextDashboard : dashboard
+          )
+        : [nextDashboard]
+    }));
+  }
+
+  function handleDashboardBindingChange(
+    updates: Partial<DashboardDefinition["binding"]>
+  ) {
+    const seedDashboard = ensureDashboardDraft();
+    handleDashboardChange({
+      binding: {
+        ...seedDashboard.binding,
+        ...updates
+      }
+    });
+  }
+
+  function handleDashboardChartChange(
+    chartId: string,
+    updates: Partial<DashboardChartDefinition>
+  ) {
+    const seedDashboard = ensureDashboardDraft();
+    handleDashboardChange({
+      charts: seedDashboard.charts.map((chart) =>
+        chart.chartId === chartId ? { ...chart, ...updates } : chart
+      )
+    });
+  }
+
+  function handleAddDashboardChart() {
+    const seedDashboard = ensureDashboardDraft();
+    const nextChart: DashboardChartDefinition = {
+      chartId: buildDashboardChartId(seedDashboard),
+      title: `Chart ${seedDashboard.charts.length + 1}`,
+      family: "bar",
+      xField: "dimension",
+      yField: "value"
+    };
+    handleDashboardChange({
+      charts: [...seedDashboard.charts, nextChart]
+    });
+    setActionFeedback({
+      text: `Added dashboard chart ${nextChart.chartId}.`,
+      tone: "info"
+    });
+  }
+
+  function handleRemoveDashboardChart(chartId: string) {
+    const seedDashboard = ensureDashboardDraft();
+    handleDashboardChange({
+      charts: seedDashboard.charts.filter((chart) => chart.chartId !== chartId)
+    });
+    setActionFeedback({
+      text: `Removed dashboard chart ${chartId}.`,
+      tone: "info"
+    });
+  }
+
   return (
     <div className="app-shell">
       <header className="workspace-header">
@@ -2270,20 +2405,155 @@ function App() {
             <div className="checkpoint-policy">
               <h2>Dashboard v0</h2>
               {primaryDashboard ? (
-                <ul className="checkpoint-list">
-                  <li>
-                    <strong>{primaryDashboard.name}</strong>
-                    <span>{primaryDashboard.binding.refreshMode} refresh via {primaryDashboard.binding.datasetKey}</span>
-                  </li>
-                  {primaryDashboard.charts.map((chart) => (
-                    <li key={chart.chartId}>
-                      <strong>{chart.family}</strong>
-                      <span>{chart.title}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="flow-variable-editor-list">
+                  <article className="flow-variable-editor">
+                    <div className="flow-variable-editor-head">
+                      <strong>{primaryDashboard.dashboardId}</strong>
+                      <button className="secondary-action-button" onClick={handleAddDashboardChart} type="button">
+                        Add chart
+                      </button>
+                    </div>
+                    <label className="flow-variable-field">
+                      <span>Dashboard name</span>
+                      <input
+                        aria-label="Dashboard name"
+                        onChange={(event) => {
+                          handleDashboardChange({ name: event.target.value });
+                        }}
+                        type="text"
+                        value={primaryDashboard.name}
+                      />
+                    </label>
+                    <label className="flow-variable-field">
+                      <span>Outlet node</span>
+                      <select
+                        aria-label="Dashboard outlet node"
+                        onChange={(event) => {
+                          handleDashboardBindingChange({ outletNodeId: event.target.value });
+                        }}
+                        value={primaryDashboard.binding.outletNodeId}
+                      >
+                        {workflow.nodes
+                          .filter(
+                            (node) =>
+                              node.type === "bi.outlet" ||
+                              node.ports.some(
+                                (port) => port.direction === "output" && port.type === "stream_channel"
+                              )
+                          )
+                          .map((node) => (
+                            <option key={node.id} value={node.id}>
+                              {node.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <label className="flow-variable-field">
+                      <span>Dataset key</span>
+                      <input
+                        aria-label="Dashboard dataset key"
+                        onChange={(event) => {
+                          handleDashboardBindingChange({ datasetKey: event.target.value });
+                        }}
+                        type="text"
+                        value={primaryDashboard.binding.datasetKey}
+                      />
+                    </label>
+                    <label className="flow-variable-field">
+                      <span>Refresh mode</span>
+                      <select
+                        aria-label="Dashboard refresh mode"
+                        onChange={(event) => {
+                          handleDashboardBindingChange({
+                            refreshMode: event.target.value as DashboardDefinition["binding"]["refreshMode"]
+                          });
+                        }}
+                        value={primaryDashboard.binding.refreshMode}
+                      >
+                        <option value="manual">manual</option>
+                        <option value="live">live</option>
+                      </select>
+                    </label>
+                    <div className="connection-list">
+                      {primaryDashboard.charts.map((chart) => (
+                        <div className="flow-variable-editor" key={chart.chartId}>
+                          <div className="flow-variable-editor-head">
+                            <strong>{chart.chartId}</strong>
+                            <button
+                              aria-label={`Remove ${chart.chartId}`}
+                              className="danger-action-button"
+                              disabled={primaryDashboard.charts.length <= 1}
+                              onClick={() => {
+                                handleRemoveDashboardChart(chart.chartId);
+                              }}
+                              type="button"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <label className="flow-variable-field">
+                            <span>Chart title</span>
+                            <input
+                              aria-label={`Chart title ${chart.chartId}`}
+                              onChange={(event) => {
+                                handleDashboardChartChange(chart.chartId, { title: event.target.value });
+                              }}
+                              type="text"
+                              value={chart.title}
+                            />
+                          </label>
+                          <label className="flow-variable-field">
+                            <span>Chart family</span>
+                            <select
+                              aria-label={`Chart family ${chart.chartId}`}
+                              onChange={(event) => {
+                                handleDashboardChartChange(chart.chartId, {
+                                  family: event.target.value as DashboardChartFamily
+                                });
+                              }}
+                              value={chart.family}
+                            >
+                              {dashboardChartFamilies.map((family) => (
+                                <option key={family} value={family}>
+                                  {family}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="flow-variable-field">
+                            <span>X field</span>
+                            <input
+                              aria-label={`Chart x field ${chart.chartId}`}
+                              onChange={(event) => {
+                                handleDashboardChartChange(chart.chartId, { xField: event.target.value });
+                              }}
+                              type="text"
+                              value={chart.xField ?? ""}
+                            />
+                          </label>
+                          <label className="flow-variable-field">
+                            <span>Y field</span>
+                            <input
+                              aria-label={`Chart y field ${chart.chartId}`}
+                              onChange={(event) => {
+                                handleDashboardChartChange(chart.chartId, { yField: event.target.value });
+                              }}
+                              type="text"
+                              value={chart.yField ?? ""}
+                            />
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                </div>
               ) : (
-                <p>No dashboard definitions attached to this workflow yet.</p>
+                <div className="repository-empty">
+                  <strong>No dashboard definitions attached yet.</strong>
+                  <button className="secondary-action-button" onClick={handleCreateDashboard} type="button">
+                    Create dashboard
+                  </button>
+                </div>
               )}
             </div>
             <div aria-busy={isPending} className="phase-list">

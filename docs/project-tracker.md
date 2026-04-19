@@ -96,6 +96,13 @@ Tracker always records 3 things:
   - BI outlet
   - sink
 - Dashboard v0 shell now renders workflow-bound dashboard/chart definitions in workspace support panels
+- Dashboard v0 composer now supports in-workflow editing for:
+  - dashboard name
+  - outlet binding
+  - dataset key
+  - refresh mode
+  - chart add/remove
+  - chart title/family/field edits
 - Demo fallback still works when no gateway configured
 
 ### Runtime / Execution
@@ -146,7 +153,7 @@ Tracker always records 3 things:
 
 ### Phase 1 Critical Gaps
 
-- BI path now has a thin workflow-bound shell, but dashboard editing/composition is still minimal
+- BI path now has editable dashboard v0 authoring, but not yet a richer layout/composition/publish flow
 - Streaming MVP contract exists, but broker-backed long-running runtime is not implemented yet
 - GPU lane planning exists, but no isolated GPU worker/runtime lane exists yet
 - Hub v0 not yet started
@@ -164,14 +171,14 @@ Tracker always records 3 things:
 ### Next Priority
 
 1. Ensure future sessions honor the new caveman-default repo instruction
-2. Build editable BI dashboard v0 composer beyond current read-only shell
-3. Implement broker-backed streaming MVP execution loop on top of the new runtime contract
-4. Add isolated GPU worker lane behind existing resource-plan contract
-5. Start Hub v0 extension catalog/install skeleton
+2. Implement broker-backed streaming MVP execution loop on top of the new runtime contract
+3. Add isolated GPU worker lane behind existing resource-plan contract
+4. Start Hub v0 extension catalog/install skeleton
+5. Refresh OpenAPI for graph/dashboard/runtime payloads
 
 ### After That
 
-1. Refresh OpenAPI for graph/dashboard/runtime payloads
+1. Expand dashboard v0 into multi-panel layout/publish flow
 2. Expand starter/base node pack depth toward Alpha node-library target
 3. Add durable multi-process realtime/event backbone
 4. Begin Beta security/RBAC contract slice

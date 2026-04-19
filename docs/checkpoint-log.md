@@ -99,12 +99,13 @@ Each checkpoint entry must contain:
 - Realtime gateway now keeps subscriber state and broadcasts workflow save/execution changes beyond request-scoped replies
 - Execution records now expose CPU/GPU resource-plan metadata and starter stream lifecycle metadata
 - Frontend now renders thin dashboard v0 summary from workflow-bound dashboard definitions
+- Frontend dashboard v0 composer now supports direct draft editing of dashboard bindings and chart definitions
 - Starter Alpha node catalog expanded across source/transform/aggregate/control/stream/BI/sink categories
 - Test suite green after gateway regression fixes
 
 ### Gaps Pending
 
-- BI dashboard path now exists, but editor/composer depth is still thin
+- BI dashboard path now supports basic editing, but not yet multi-panel layout/publish/share behavior
 - Streaming MVP runtime implementation still missing beyond contract shape
 - GPU worker lane still missing beyond planner/resource metadata
 - Hub v0 still missing
@@ -114,7 +115,7 @@ Each checkpoint entry must contain:
 ### Next Items To Implement
 
 - ensure future sessions honor caveman-default repo instruction
-- editable BI dashboard v0 composer
 - broker-backed streaming MVP execution slice
 - isolated GPU worker lane using existing resource-plan contract
 - Hub v0 extension catalog/install skeleton
+- OpenAPI refresh for expanded payloads

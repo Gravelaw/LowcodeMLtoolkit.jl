@@ -137,6 +137,31 @@ describe("App", () => {
     expect(screen.getAllByText(/Demo canvas run/i).length).toBeGreaterThan(0);
   });
 
+  it("lets authors edit the dashboard composer in the workflow draft", () => {
+    render(<App />);
+
+    expect(screen.getByLabelText(/Dashboard name/i)).toHaveValue("Ops Forecast Overview");
+
+    fireEvent.change(screen.getByLabelText(/Dashboard name/i), {
+      target: { value: "Executive Overview" }
+    });
+    expect(screen.getByLabelText(/Dashboard name/i)).toHaveValue("Executive Overview");
+
+    fireEvent.change(screen.getByLabelText(/Dashboard dataset key/i), {
+      target: { value: "exec_dataset" }
+    });
+    expect(screen.getByLabelText(/Dashboard dataset key/i)).toHaveValue("exec_dataset");
+
+    fireEvent.click(screen.getByRole("button", { name: /Add chart/i }));
+    expect(screen.getByText(/Added dashboard chart/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Chart title chart-6/i), {
+      target: { value: "Executive KPI" }
+    });
+    expect(screen.getByLabelText(/Chart title chart-6/i)).toHaveValue("Executive KPI");
+    expect(screen.getByText(/Unsaved draft changes/i)).toBeInTheDocument();
+  });
+
   it("updates the workflow through the gateway and surfaces live run feedback", async () => {
     vi.stubEnv("VITE_JULIAFLOW_GATEWAY_BASE_URL", "http://gateway.test");
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
