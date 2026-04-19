@@ -103,6 +103,7 @@ Tracker always records 3 things:
   - refresh mode
   - chart add/remove
   - chart title/family/field edits
+- Hub v0 shell now renders extension catalog entries and install/enable controls in the frontend repository panel
 - Demo fallback still works when no gateway configured
 
 ### Runtime / Execution
@@ -130,6 +131,7 @@ Tracker always records 3 things:
 - Gateway now auto-queues GPU-tagged batch workflows onto an isolated GPU worker lane instead of leaving them as passive planner metadata
 - Frontend execution rail now surfaces GPU lane dispatch context from gateway execution records
 - Local Docker Compose now includes an optional `gpu` profile hook for a dev GPU worker container
+- Gateway now exposes Hub v0 catalog/install endpoints with persisted extension records for file and PostgreSQL repository backends
 
 ### Alpha Core Contract Deepening
 
@@ -142,6 +144,7 @@ Tracker always records 3 things:
   - fixed BI chart families
   - node capability descriptors
   - runtime/streaming metadata
+- Gateway contracts now support Hub v0 extension manifest/catalog/install payloads and client endpoints
 - Workflow fixtures and tests now exercise graph persistence, dashboard payloads, streaming runtime config, and execution resource planning
 - Execution contracts and tests now also exercise dispatch planning and isolated GPU queue metadata
 
@@ -168,7 +171,7 @@ Tracker always records 3 things:
 - BI path now has editable dashboard v0 authoring, but not yet a richer layout/composition/publish flow
 - Streaming MVP lifecycle now exists in gateway/runtime, but not yet as a separate durable broker worker service
 - GPU dispatch lane now exists for isolated batch worker routing, but no dedicated long-running GPU worker/runtime service exists yet
-- Hub v0 not yet started
+- Hub v0 skeleton now exists, but publish flow, compatibility matrix, enable/disable lifecycle hardening, and richer marketplace UX are still missing
 - Node library breadth still far below Phase 1 target
 
 ### Quality / Delivery Gaps
@@ -183,10 +186,10 @@ Tracker always records 3 things:
 ### Next Priority
 
 1. Ensure future sessions honor the new caveman-default repo instruction
-2. Start Hub v0 extension catalog/install skeleton
-3. Refresh OpenAPI for graph/dashboard/runtime payloads
-4. Split streaming MVP from in-process gateway handling into a dedicated worker path
-5. Deepen GPU lane from isolated dispatch queue into a dedicated worker/service process
+2. Refresh OpenAPI for graph/dashboard/runtime payloads, including Hub v0 endpoints
+3. Split streaming MVP from in-process gateway handling into a dedicated worker path
+4. Deepen GPU lane from isolated dispatch queue into a dedicated worker/service process
+5. Expand Hub v0 into compatibility matrix, publish flow, and richer extension management UX
 
 ### After That
 

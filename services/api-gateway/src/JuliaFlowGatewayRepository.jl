@@ -9,6 +9,7 @@ using LibPQ
 
 export GatewayCheckpoint,
     GatewayExecution,
+    HubExtensionRecord,
     AbstractGatewayRepository,
     FileGatewayRepository,
     PostgreSQLGatewayRepository,
@@ -16,9 +17,11 @@ export GatewayCheckpoint,
     load_workflows,
     load_checkpoints,
     load_executions,
+    load_hub_extensions,
     save_workflow!,
     save_checkpoint!,
     save_execution!,
+    save_hub_extension!,
     create_postgres_schema!,
     load_repository
 
@@ -46,6 +49,20 @@ Base.@kwdef mutable struct GatewayExecution
     started_at::Union{Nothing,String} = nothing
     finished_at::Union{Nothing,String} = nothing
     metadata::Dict{String,Any} = Dict{String,Any}()
+end
+
+Base.@kwdef mutable struct HubExtensionRecord
+    extension_id::String
+    name::String
+    version::String
+    publisher::String
+    summary::String
+    package_ref::String
+    tags::Vector{String} = String[]
+    compatible_checkpoints::Vector{String} = String[]
+    install_state::String = "available"
+    installed_at::Union{Nothing,String} = nothing
+    enabled_at::Union{Nothing,String} = nothing
 end
 
 abstract type AbstractGatewayRepository end
@@ -195,6 +212,26 @@ function checkpoint_payload(checkpoint::GatewayCheckpoint)
     )
 end
 
+function hub_extension_payload(extension::HubExtensionRecord)
+    payload = Dict{String,Any}(
+        "extensionId" => extension.extension_id,
+        "manifest" => Dict{String,Any}(
+            "extensionId" => extension.extension_id,
+            "name" => extension.name,
+            "version" => extension.version,
+            "publisher" => extension.publisher,
+            "summary" => extension.summary,
+            "packageRef" => extension.package_ref,
+            "tags" => extension.tags,
+            "compatibleCheckpoints" => extension.compatible_checkpoints,
+        ),
+        "installState" => extension.install_state,
+    )
+    extension.installed_at === nothing || (payload["installedAt"] = extension.installed_at)
+    extension.enabled_at === nothing || (payload["enabledAt"] = extension.enabled_at)
+    return payload
+end
+
 function execution_payload(execution::GatewayExecution)
     payload = Dict(
         "executionId" => execution.execution_id,
@@ -312,6 +349,23 @@ function gateway_execution(item)
     )
 end
 
+function gateway_hub_extension(item)
+    manifest = Dict{String,Any}(String(key) => value for (key, value) in pairs(item["manifest"]))
+    return HubExtensionRecord(
+        extension_id = String(item["extensionId"]),
+        name = String(manifest["name"]),
+        version = String(manifest["version"]),
+        publisher = String(manifest["publisher"]),
+        summary = String(manifest["summary"]),
+        package_ref = String(manifest["packageRef"]),
+        tags = [String(entry) for entry in get(manifest, "tags", Any[])],
+        compatible_checkpoints = [String(entry) for entry in get(manifest, "compatibleCheckpoints", Any[])],
+        install_state = String(get(item, "installState", "available")),
+        installed_at = haskey(item, "installedAt") ? String(item["installedAt"]) : nothing,
+        enabled_at = haskey(item, "enabledAt") ? String(item["enabledAt"]) : nothing,
+    )
+end
+
 function FileGatewayRepository(root::AbstractString)
     return FileGatewayRepository(root = String(root))
 end
@@ -330,6 +384,37 @@ end
 
 function executions_file(repo::FileGatewayRepository)
     return joinpath(repo.root, "executions.json")
+end
+
+function hub_extensions_file(repo::FileGatewayRepository)
+    return joinpath(repo.root, "hub-extensions.json")
+end
+
+function default_hub_extensions()
+    return HubExtensionRecord[
+        HubExtensionRecord(
+            extension_id = "juliaflow-base",
+            name = "JuliaFlow Base",
+            version = "0.1.0",
+            publisher = "official",
+            summary = "Official starter node pack with source, transform, trainer, BI, and sink nodes.",
+            package_ref = "extensions/base",
+            tags = ["official", "starter", "alpha"],
+            compatible_checkpoints = ["cp/02-alpha-core", "cp/03-alpha-gpu-bi"],
+            install_state = "enabled",
+        ),
+        HubExtensionRecord(
+            extension_id = "juliaflow-ops-preview",
+            name = "Ops Preview Pack",
+            version = "0.1.0-alpha",
+            publisher = "partner",
+            summary = "Preview extension catalog entry for install/enable flow scaffolding.",
+            package_ref = "hub://preview/ops-pack",
+            tags = ["preview", "ops", "hub-v0"],
+            compatible_checkpoints = ["cp/03-alpha-gpu-bi"],
+            install_state = "available",
+        ),
+    ]
 end
 
 function ensure_repository!(repo::FileGatewayRepository)
@@ -383,6 +468,16 @@ function create_postgres_schema!(repo::PostgreSQLGatewayRepository)
             );
             """,
         )
+        execute(
+            conn,
+            """
+            CREATE TABLE IF NOT EXISTS $(repo.schema).hub_extensions (
+                extension_id TEXT PRIMARY KEY,
+                extension_payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            """,
+        )
     finally
         close(conn)
     end
@@ -418,6 +513,16 @@ function load_executions(repo::FileGatewayRepository)
         push!(executions, gateway_execution(item))
     end
     return executions
+end
+
+function load_hub_extensions(repo::FileGatewayRepository)
+    isfile(hub_extensions_file(repo)) || return default_hub_extensions()
+    raw = JSON3.read(read(hub_extensions_file(repo), String))
+    extensions = HubExtensionRecord[]
+    for item in raw
+        push!(extensions, gateway_hub_extension(item))
+    end
+    return extensions
 end
 
 function load_workflows(repo::FileGatewayRepository)
@@ -460,6 +565,15 @@ function save_execution!(repo::FileGatewayRepository, execution::GatewayExecutio
     return execution
 end
 
+function save_hub_extension!(repo::FileGatewayRepository, extension::HubExtensionRecord)
+    extensions = load_hub_extensions(repo)
+    filtered = [item for item in extensions if item.extension_id != extension.extension_id]
+    push!(filtered, extension)
+    sort!(filtered, by = item -> item.extension_id)
+    persist_json_file!(hub_extensions_file(repo), [hub_extension_payload(item) for item in filtered])
+    return extension
+end
+
 function load_checkpoints(repo::PostgreSQLGatewayRepository)
     ensure_repository!(repo)
     conn = connect(repo)
@@ -496,6 +610,23 @@ function load_executions(repo::PostgreSQLGatewayRepository)
         close(conn)
     end
     return executions
+end
+
+function load_hub_extensions(repo::PostgreSQLGatewayRepository)
+    ensure_repository!(repo)
+    conn = connect(repo)
+    extensions = HubExtensionRecord[]
+    try
+        result = execute(conn, "SELECT extension_payload FROM $(repo.schema).hub_extensions ORDER BY extension_id ASC;")
+        for row in result
+            item = JSON3.read(String(row[1]))
+            push!(extensions, gateway_hub_extension(item))
+        end
+    finally
+        close(conn)
+    end
+    isempty(extensions) && return default_hub_extensions()
+    return extensions
 end
 
 function load_workflows(repo::PostgreSQLGatewayRepository)
@@ -600,6 +731,27 @@ function save_execution!(repo::PostgreSQLGatewayRepository, execution::GatewayEx
         close(conn)
     end
     return execution
+end
+
+function save_hub_extension!(repo::PostgreSQLGatewayRepository, extension::HubExtensionRecord)
+    ensure_repository!(repo)
+    conn = connect(repo)
+    try
+        execute(
+            conn,
+            """
+            INSERT INTO $(repo.schema).hub_extensions (extension_id, extension_payload, updated_at)
+            VALUES (\$1, \$2::jsonb, NOW())
+            ON CONFLICT (extension_id) DO UPDATE
+            SET extension_payload = EXCLUDED.extension_payload,
+                updated_at = NOW();
+            """,
+            [extension.extension_id, JSON3.write(hub_extension_payload(extension))],
+        )
+    finally
+        close(conn)
+    end
+    return extension
 end
 
 function load_repository(; backend::Symbol = :file, store_root::AbstractString = mktempdir(), connection_string::AbstractString = "", schema::AbstractString = "public")

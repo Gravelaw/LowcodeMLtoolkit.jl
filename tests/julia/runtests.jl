@@ -289,6 +289,7 @@ end
         @test occursin("\"nodes\":[", get_workflow_response(state, "wf-foundation"))
         @test occursin("\"connections\":[", get_workflow_response(state, "wf-foundation"))
         @test occursin("\"graphRevision\":2", get_workflow_response(state, "wf-foundation"))
+        @test occursin("\"extensionId\":\"juliaflow-base\"", JuliaFlowApiGateway.list_hub_extensions_response(state))
         execution_json = execution_accept_response(state, "wf-foundation")
         accepted_execution = JSON3.read(execution_json, Dict{String,Any})
         @test occursin("\"accepted\"", execution_json)
@@ -374,6 +375,16 @@ end
                 ),
             ),
         )
+        hub_list_response = route_request(state, HTTP.Request("GET", "/api/v1/hub/extensions"))
+        hub_install_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/juliaflow-ops-preview/install",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("action" => "enable")),
+            ),
+        )
         execution_list = route_request(state, HTTP.Request("GET", "/api/v1/executions"))
         checkpoint_post = route_request(
             state,
@@ -414,6 +425,11 @@ end
         @test occursin("wf-foundation", String(list_response.body))
         @test detail_response.status == 200
         @test occursin("\"workflowId\":\"wf-foundation\"", String(detail_response.body))
+        @test hub_list_response.status == 200
+        @test occursin("\"extensionId\":\"juliaflow-base\"", String(hub_list_response.body))
+        @test hub_install_response.status == 200
+        @test occursin("\"extensionId\":\"juliaflow-ops-preview\"", String(hub_install_response.body))
+        @test occursin("\"installState\":\"enabled\"", String(hub_install_response.body))
         @test create_response.status == 201
         @test occursin("\"status\":\"created\"", String(create_response.body))
         @test json_create_response.status == 201

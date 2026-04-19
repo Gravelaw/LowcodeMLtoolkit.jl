@@ -40,6 +40,7 @@ Base.@kwdef mutable struct GatewayState
     workflows::Dict{String,JuliaFlowGatewayRepository.JuliaFlowExecutionService.WorkflowDefinition} = Dict{String,JuliaFlowGatewayRepository.JuliaFlowExecutionService.WorkflowDefinition}()
     checkpoints::Vector{GatewayCheckpoint} = GatewayCheckpoint[]
     executions::Vector{GatewayExecution} = GatewayExecution[]
+    hub_extensions::Dict{String,JuliaFlowGatewayRepository.HubExtensionRecord} = Dict{String,JuliaFlowGatewayRepository.HubExtensionRecord}()
     canvas_subscriptions::Dict{String,Any} = Dict{String,Any}()
     dashboard_subscriptions::Dict{String,Any} = Dict{String,Any}()
 end
@@ -65,6 +66,7 @@ function reload_state!(state::GatewayState)
     state.workflows = load_workflows(state.repository)
     state.checkpoints = load_checkpoints(state.repository)
     state.executions = load_executions(state.repository)
+    state.hub_extensions = Dict(item.extension_id => item for item in JuliaFlowGatewayRepository.load_hub_extensions(state.repository))
     return state
 end
 
@@ -564,6 +566,38 @@ end
 
 function checkpoint_list_response(state::GatewayState)
     return JSON3.write(Dict("items" => [checkpoint_payload(checkpoint) for checkpoint in state.checkpoints]))
+end
+
+function list_hub_extensions_response(state::GatewayState)
+    extensions = sort(collect(values(state.hub_extensions)); by = item -> item.extension_id)
+    return JSON3.write(Dict("items" => [JuliaFlowGatewayRepository.hub_extension_payload(item) for item in extensions]))
+end
+
+function install_hub_extension_response!(
+    state::GatewayState,
+    extension_id::AbstractString;
+    action::AbstractString = "install",
+)
+    haskey(state.hub_extensions, extension_id) || error("hub extension not found: $(extension_id)")
+    current = state.hub_extensions[extension_id]
+    timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+
+    updated = JuliaFlowGatewayRepository.HubExtensionRecord(
+        extension_id = current.extension_id,
+        name = current.name,
+        version = current.version,
+        publisher = current.publisher,
+        summary = current.summary,
+        package_ref = current.package_ref,
+        tags = current.tags,
+        compatible_checkpoints = current.compatible_checkpoints,
+        install_state = action == "enable" ? "enabled" : (current.install_state == "enabled" ? "enabled" : "installed"),
+        installed_at = current.installed_at === nothing ? timestamp : current.installed_at,
+        enabled_at = action == "enable" ? timestamp : current.enabled_at,
+    )
+    state.hub_extensions[extension_id] = updated
+    JuliaFlowGatewayRepository.save_hub_extension!(state.repository, updated)
+    return JSON3.write(Dict("status" => "ok", "extension" => JuliaFlowGatewayRepository.hub_extension_payload(updated)))
 end
 
 function import_workflow_response!(state::GatewayState; source_path::AbstractString)
@@ -1148,9 +1182,15 @@ function route_request(state::GatewayState, request::HTTP.Request)
         method == "GET" && segments == ["health"] && return json_response(200, healthcheck(state))
         method == "GET" && segments == ["api", "v1", "workflows"] && return json_response(200, list_workflows_response(state))
         method == "GET" && segments == ["api", "v1", "executions"] && return json_response(200, execution_list_response(state))
+        method == "GET" && segments == ["api", "v1", "hub", "extensions"] && return json_response(200, list_hub_extensions_response(state))
         method == "POST" && segments == ["api", "v1", "workflows"] && begin
             body = parse_request_body(request)
             return json_response(201, create_workflow_response_from_body!(state, body))
+        end
+        method == "POST" && length(segments) == 6 && segments[1:4] == ["api", "v1", "hub", "extensions"] && segments[6] == "install" && begin
+            body = parse_request_body(request)
+            action = haskey(body, "action") ? String(body["action"]) : "install"
+            return json_response(200, install_hub_extension_response!(state, segments[5]; action = action))
         end
         method == "POST" && segments == ["api", "v1", "workflows", "import"] && begin
             body = parse_request_body(request)

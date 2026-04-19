@@ -57,6 +57,8 @@ describe("App", () => {
     expect(screen.getByText(/Primary authoring workspace/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Phase 0 CPU Forecast Demo/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Browse and quick-add/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Hub v0$/i)).toBeInTheDocument();
+    expect(screen.getByText(/JuliaFlow Base/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /save workflow/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run workflow/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /add flow variable/i })).toBeInTheDocument();
@@ -280,6 +282,43 @@ describe("App", () => {
         return new Response(
           JSON.stringify({
             items: executionItems
+          })
+        );
+      }
+
+      if (url.endsWith("/api/v1/hub/extensions") && init?.method === "GET") {
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                extensionId: "juliaflow-base",
+                manifest: {
+                  extensionId: "juliaflow-base",
+                  name: "JuliaFlow Base",
+                  version: "0.1.0",
+                  publisher: "official",
+                  summary: "Official starter node pack.",
+                  packageRef: "extensions/base",
+                  tags: ["official", "starter"],
+                  compatibleCheckpoints: ["cp/02-alpha-core"]
+                },
+                installState: "enabled"
+              },
+              {
+                extensionId: "juliaflow-ops-preview",
+                manifest: {
+                  extensionId: "juliaflow-ops-preview",
+                  name: "Ops Preview Pack",
+                  version: "0.1.0-alpha",
+                  publisher: "partner",
+                  summary: "Preview Hub extension.",
+                  packageRef: "hub://preview/ops-pack",
+                  tags: ["preview", "ops"],
+                  compatibleCheckpoints: ["cp/03-alpha-gpu-bi"]
+                },
+                installState: "available"
+              }
+            ]
           })
         );
       }

@@ -265,6 +265,38 @@ export interface GatewayCheckpointCreateResponse {
   checkpointCount: number;
 }
 
+export type HubExtensionPublisher = "official" | "partner";
+export type HubInstallState = "available" | "installed" | "enabled";
+export type HubInstallAction = "install" | "enable";
+
+export interface HubExtensionManifest {
+  extensionId: string;
+  name: string;
+  version: string;
+  publisher: HubExtensionPublisher;
+  summary: string;
+  packageRef: string;
+  tags: string[];
+  compatibleCheckpoints: string[];
+}
+
+export interface GatewayHubExtensionRecord {
+  extensionId: string;
+  manifest: HubExtensionManifest;
+  installState: HubInstallState;
+  installedAt?: string;
+  enabledAt?: string;
+}
+
+export interface GatewayHubInstallRequest {
+  action: HubInstallAction;
+}
+
+export interface GatewayHubInstallResponse {
+  extension: GatewayHubExtensionRecord;
+  status: "ok";
+}
+
 export interface GatewayExecutionStatusEvent {
   status: GatewayExecutionStatus;
   at: string;
@@ -367,7 +399,10 @@ export const gatewayEndpointPaths = {
   executionDetail: (executionId: string) => `/api/v1/executions/${encodeURIComponent(executionId)}`,
   executionStatus: (executionId: string) =>
     `/api/v1/executions/${encodeURIComponent(executionId)}/status`,
-  checkpoints: "/api/v1/checkpoints"
+  checkpoints: "/api/v1/checkpoints",
+  hubExtensions: "/api/v1/hub/extensions",
+  hubExtensionInstall: (extensionId: string) =>
+    `/api/v1/hub/extensions/${encodeURIComponent(extensionId)}/install`
 } as const;
 
 export type GatewayStaticEndpointPath = Extract<
@@ -532,6 +567,14 @@ export interface GatewayApiClient {
     request: CreateCheckpointRequest,
     options?: GatewayRequestOptions
   ): Promise<GatewayCheckpointCreateResponse>;
+  listHubExtensions(
+    options?: GatewayRequestOptions
+  ): Promise<GatewayListResponse<GatewayHubExtensionRecord>>;
+  installHubExtension(
+    extensionId: string,
+    request: GatewayHubInstallRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayHubInstallResponse>;
 }
 
 export class GatewayClientError extends Error {
@@ -704,6 +747,20 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "POST",
         gatewayEndpointPaths.checkpoints,
         checkpoint,
+        requestOptions
+      ),
+    listHubExtensions: (requestOptions) =>
+      request<GatewayListResponse<GatewayHubExtensionRecord>>(
+        "GET",
+        gatewayEndpointPaths.hubExtensions,
+        undefined,
+        requestOptions
+      ),
+    installHubExtension: (extensionId, installRequest, requestOptions) =>
+      request<GatewayHubInstallResponse>(
+        "POST",
+        gatewayEndpointPaths.hubExtensionInstall(extensionId),
+        installRequest,
         requestOptions
       )
   };

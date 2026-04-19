@@ -107,6 +107,7 @@ Each checkpoint entry must contain:
 - Batch GPU workflows now auto-transition into a queued isolated GPU lane with worker identity metadata
 - Frontend execution rail now renders GPU dispatch context from live gateway payloads
 - Docker Compose now includes an optional `gpu` profile hook for local isolated worker experiments
+- Hub v0 skeleton now exists across contracts, gateway persistence/routes, frontend catalog shell, and install/enable flow scaffolding
 - Test suite green after gateway regression fixes
 
 ### Gaps Pending
@@ -114,14 +115,14 @@ Each checkpoint entry must contain:
 - BI dashboard path now supports basic editing, but not yet multi-panel layout/publish/share behavior
 - Streaming MVP still runs in-process through gateway/runtime and is not yet split into a dedicated broker worker lane
 - GPU dispatch lane now exists, but a dedicated long-running GPU worker service is still missing
-- Hub v0 still missing
+- Hub v0 skeleton exists, but compatibility matrix, publish flow, and richer lifecycle controls are still missing
 - Durable multi-process event backbone still missing even though in-process subscriber broadcast exists
 - Repo instruction change depends on session runtime loading repo instructions and the caveman skill remaining available
 
 ### Next Items To Implement
 
 - ensure future sessions honor caveman-default repo instruction
-- Hub v0 extension catalog/install skeleton
 - OpenAPI refresh for expanded payloads
 - dedicated worker/service split for streaming execution
 - dedicated GPU worker/service split behind the new dispatch lane
+- Hub compatibility matrix and publish/install hardening beyond skeleton

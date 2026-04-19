@@ -11,6 +11,8 @@ import {
   type DashboardDefinition,
   type ExecutionHint,
   type GatewayExecutionStateChangedEvent,
+  type GatewayHubExtensionRecord,
+  type GatewayHubInstallRequest,
   type FlowVariableDefinition,
   type GatewayHealthcheck,
   type GatewayNodeStateChangedEvent,
@@ -55,6 +57,7 @@ interface WorkspaceDataState {
   error: string | null;
   executionItems: ExecutionRailItem[];
   health: GatewayHealthcheck | null;
+  hubExtensions: GatewayHubExtensionRecord[];
   isLoading: boolean;
   mode: DataSourceMode;
   workflow: WorkflowDefinition;
@@ -97,6 +100,37 @@ function getGatewayBaseUrl(): string {
   return String(import.meta.env.VITE_JULIAFLOW_GATEWAY_BASE_URL ?? "").trim();
 }
 
+const demoHubExtensions: GatewayHubExtensionRecord[] = [
+  {
+    extensionId: "juliaflow-base",
+    manifest: {
+      extensionId: "juliaflow-base",
+      name: "JuliaFlow Base",
+      version: "0.1.0",
+      publisher: "official",
+      summary: "Official starter node pack with source, transform, trainer, BI, and sink nodes.",
+      packageRef: "extensions/base",
+      tags: ["official", "starter", "alpha"],
+      compatibleCheckpoints: ["cp/02-alpha-core", "cp/03-alpha-gpu-bi"]
+    },
+    installState: "enabled"
+  },
+  {
+    extensionId: "juliaflow-ops-preview",
+    manifest: {
+      extensionId: "juliaflow-ops-preview",
+      name: "Ops Preview Pack",
+      version: "0.1.0-alpha",
+      publisher: "partner",
+      summary: "Preview catalog entry for Hub v0 install and enable flows.",
+      packageRef: "hub://preview/ops-pack",
+      tags: ["preview", "ops", "hub-v0"],
+      compatibleCheckpoints: ["cp/03-alpha-gpu-bi"]
+    },
+    installState: "available"
+  }
+];
+
 function createDemoState(): WorkspaceDataState {
   return {
     checkpoints: checkpointRailItems,
@@ -104,6 +138,7 @@ function createDemoState(): WorkspaceDataState {
     error: null,
     executionItems: executionRailItems,
     health: null,
+    hubExtensions: demoHubExtensions,
     isLoading: false,
     mode: "demo",
     workflow: sampleWorkflow,
@@ -160,11 +195,12 @@ function useWorkspaceData(): WorkspaceDataState {
 
     async function load() {
       try {
-        const [health, workflowResponse, executionResponse, checkpointResponse] = await Promise.all([
+        const [health, workflowResponse, executionResponse, checkpointResponse, hubExtensionResponse] = await Promise.all([
           gatewayClient.healthcheck({ signal: abortController.signal }),
           gatewayClient.listWorkflows({ signal: abortController.signal }),
           gatewayClient.listExecutions({ signal: abortController.signal }),
-          gatewayClient.listCheckpoints({ signal: abortController.signal })
+          gatewayClient.listCheckpoints({ signal: abortController.signal }),
+          gatewayClient.listHubExtensions({ signal: abortController.signal })
         ]);
 
         const activeWorkflow = workflowResponse.items[0] ?? null;
@@ -191,6 +227,8 @@ function useWorkspaceData(): WorkspaceDataState {
               ? buildExecutionRailItems(executionResponse.items)
               : executionRailItems,
           health,
+          hubExtensions:
+            hubExtensionResponse.items.length > 0 ? hubExtensionResponse.items : demoHubExtensions,
           isLoading: false,
           mode: "live",
           workflow:
@@ -1121,6 +1159,7 @@ function App() {
   const [activeRail, setActiveRail] = useState<ExecutionTab>("executions");
   const [workflow, setWorkflow] = useState<WorkflowDefinition>(workspaceData.workflow);
   const [executionItems, setExecutionItems] = useState<ExecutionRailItem[]>(workspaceData.executionItems);
+  const [hubExtensions, setHubExtensions] = useState<GatewayHubExtensionRecord[]>(workspaceData.hubExtensions);
   const [nodePositionOverrides, setNodePositionOverrides] = useState<Record<string, { x: number; y: number }>>(
     {}
   );
@@ -1149,11 +1188,12 @@ function App() {
   useEffect(() => {
     setWorkflow(workspaceData.workflow);
     setExecutionItems(workspaceData.executionItems);
+    setHubExtensions(workspaceData.hubExtensions);
     setNodePositionOverrides({});
     setKnownWorkflowIds(workspaceData.workflows.map((item) => item.workflowId));
     setRealtimeNodeStates({});
     setIsDirty(false);
-  }, [workspaceData.executionItems, workspaceData.workflow, workspaceData.workflows]);
+  }, [workspaceData.executionItems, workspaceData.hubExtensions, workspaceData.workflow, workspaceData.workflows]);
 
   useEffect(() => {
     if (gatewayBaseUrl.length === 0 || workflow.workflowId.length === 0) {
@@ -1338,6 +1378,14 @@ function App() {
       return true;
     }
     return `${node.name} ${node.type} ${node.executionHint}`.toLowerCase().includes(normalizedNeedle);
+  });
+  const filteredHubExtensions = hubExtensions.filter((extension) => {
+    if (!normalizedNeedle) {
+      return true;
+    }
+    return `${extension.manifest.name} ${extension.manifest.publisher} ${extension.manifest.summary} ${extension.manifest.tags.join(" ")}`
+      .toLowerCase()
+      .includes(normalizedNeedle);
   });
 
   const filteredPhases = phaseSummaries.filter((phase) => {
@@ -1766,6 +1814,47 @@ function App() {
     });
   }
 
+  async function handleHubInstall(extension: GatewayHubExtensionRecord) {
+    const nextAction: GatewayHubInstallRequest = {
+      action: extension.installState === "available" ? "install" : "enable"
+    };
+
+    if (gatewayBaseUrl.length === 0) {
+      setHubExtensions((currentExtensions) =>
+        currentExtensions.map((item) =>
+          item.extensionId === extension.extensionId
+            ? {
+                ...item,
+                installState: nextAction.action === "install" ? "installed" : "enabled"
+              }
+            : item
+        )
+      );
+      setActionFeedback({
+        text: `Demo Hub ${nextAction.action} queued for ${extension.extensionId}.`,
+        tone: "demo"
+      });
+      return;
+    }
+
+    try {
+      const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+      const response = await gatewayClient.installHubExtension(extension.extensionId, nextAction);
+      setHubExtensions((currentExtensions) =>
+        currentExtensions.map((item) =>
+          item.extensionId === extension.extensionId ? response.extension : item
+        )
+      );
+      setActionFeedback({
+        text: `Hub ${nextAction.action} completed for ${extension.extensionId}.`,
+        tone: "success"
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to update Hub extension.";
+      setActionFeedback({ text: `Hub update failed: ${message}`, tone: "error" });
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="workspace-header">
@@ -1967,6 +2056,60 @@ function App() {
                         )}
                       </article>
                     ))}
+                  </div>
+                </div>
+
+                <div className="flow-variable-panel">
+                  <div className="quick-add-head">
+                    <span>Hub v0</span>
+                    <small>{filteredHubExtensions.length} entries</small>
+                  </div>
+                  <div className="flow-variable-editor-list">
+                    {filteredHubExtensions.map((extension) => (
+                      <article className="flow-variable-editor" key={extension.extensionId}>
+                        <div className="flow-variable-editor-head">
+                          <strong>{extension.manifest.name}</strong>
+                          <button
+                            className="secondary-action-button"
+                            disabled={extension.installState === "enabled"}
+                            onClick={() => {
+                              void handleHubInstall(extension);
+                            }}
+                            type="button"
+                          >
+                            {extension.installState === "available"
+                              ? "Install"
+                              : extension.installState === "installed"
+                                ? "Enable"
+                                : "Enabled"}
+                          </button>
+                        </div>
+                        <div className="inspector-stack">
+                          <div className="inspector-row">
+                            <strong>{extension.extensionId}</strong>
+                            <span>{extension.manifest.publisher} · {extension.installState}</span>
+                          </div>
+                          <div className="inspector-row">
+                            <strong>Package</strong>
+                            <span>{extension.manifest.packageRef}</span>
+                          </div>
+                          <div className="inspector-row">
+                            <strong>Checkpoints</strong>
+                            <span>{extension.manifest.compatibleCheckpoints.join(", ")}</span>
+                          </div>
+                          <div className="inspector-row">
+                            <strong>Summary</strong>
+                            <span>{extension.manifest.summary}</span>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                    {filteredHubExtensions.length === 0 ? (
+                      <div className="repository-empty">
+                        <strong>No Hub extensions match.</strong>
+                        <span>Search publisher, summary, or compatibility tag.</span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
