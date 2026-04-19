@@ -1,0 +1,8 @@
+name = "JuliaFlowBaseExtension"
+uuid = "0b7cdd41-1a4d-4f6f-a271-e96997853aa3"
+authors = ["OpenAI Codex"]
+version = "0.1.0"
+
+[compat]
+julia = "1.10"
+

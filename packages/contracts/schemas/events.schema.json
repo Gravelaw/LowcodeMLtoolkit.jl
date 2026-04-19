@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://juliaflow.dev/schemas/events.schema.json",
+  "title": "JuliaFlow Event Contracts",
+  "type": "object",
+  "required": [
+    "workflowOutputReady",
+    "streamingCheckpointCompleted"
+  ],
+  "properties": {
+    "workflowOutputReady": {
+      "type": "object",
+      "required": [
+        "workflow_id",
+        "node_id",
+        "execution_id",
+        "object_path"
+      ],
+      "properties": {
+        "workflow_id": {
+          "type": "string"
+        },
+        "node_id": {
+          "type": "string"
+        },
+        "execution_id": {
+          "type": "string"
+        },
+        "object_path": {
+          "type": "string"
+        }
+      }
+    },
+    "streamingCheckpointCompleted": {
+      "type": "object",
+      "required": [
+        "workflow_id",
+        "checkpoint_id",
+        "offsets",
+        "state_version"
+      ],
+      "properties": {
+        "workflow_id": {
+          "type": "string"
+        },
+        "checkpoint_id": {
+          "type": "string"
+        },
+        "offsets": {
+          "type": "object"
+        },
+        "state_version": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}
+

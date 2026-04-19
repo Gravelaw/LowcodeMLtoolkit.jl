@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://juliaflow.dev/schemas/workflow.schema.json",
+  "title": "JuliaFlow WorkflowDefinition",
+  "type": "object",
+  "required": [
+    "version",
+    "workflow",
+    "nodes",
+    "connections"
+  ],
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "workflow": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "bi_outlets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "node_id",
+              "name"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "flow_variables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "String",
+              "Integer",
+              "Float64",
+              "Bool",
+              "DateTime",
+              "GPUDeviceID"
+            ]
+          }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "execution_hint",
+          "ports"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "execution_hint": {
+            "enum": [
+              "cpu_only",
+              "gpu_preferred",
+              "gpu_required"
+            ]
+          },
+          "gpu_device_preference": {
+            "type": "string"
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "direction",
+                "type"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "direction": {
+                  "enum": [
+                    "input",
+                    "output"
+                  ]
+                },
+                "type": {
+                  "enum": [
+                    "data_table",
+                    "model",
+                    "flow_variable",
+                    "image",
+                    "stream_channel",
+                    "gpu_buffer"
+                  ]
+                }
+              }
+            }
+          },
+          "config": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_node_id",
+          "source_port_id",
+          "target_node_id",
+          "target_port_id",
+          "data_type"
+        ],
+        "properties": {
+          "source_node_id": {
+            "type": "string"
+          },
+          "source_port_id": {
+            "type": "string"
+          },
+          "target_node_id": {
+            "type": "string"
+          },
+          "target_port_id": {
+            "type": "string"
+          },
+          "data_type": {
+            "enum": [
+              "data_table",
+              "model",
+              "flow_variable",
+              "image",
+              "stream_channel",
+              "gpu_buffer"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+

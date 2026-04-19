@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: juliaflow
+  namespace: argocd
+spec:
+  description: JuliaFlow foundation project for GitOps-managed core platform apps.
+  sourceRepos:
+    - "*"
+  destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+    - namespace: juliaflow
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: Service
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: StatefulSet
+    - group: batch
+      kind: Job
+    - group: networking.k8s.io
+      kind: Ingress
+  orphanedResources:
+    warn: true

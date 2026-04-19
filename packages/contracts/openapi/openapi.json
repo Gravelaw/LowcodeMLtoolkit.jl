@@ -1,0 +1,59 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "JuliaFlow API",
+    "version": "0.1.0",
+    "description": "Foundation REST surface for workflow persistence, execution control, and checkpoint metadata."
+  },
+  "paths": {
+    "/api/v1/workflows": {
+      "get": {
+        "summary": "List workflows",
+        "responses": {
+          "200": {
+            "description": "Workflow summaries"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create workflow",
+        "responses": {
+          "201": {
+            "description": "Workflow created"
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}/execute": {
+      "post": {
+        "summary": "Execute workflow",
+        "parameters": [
+          {
+            "name": "workflowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Execution accepted"
+          }
+        }
+      }
+    },
+    "/api/v1/checkpoints": {
+      "post": {
+        "summary": "Create checkpoint record",
+        "responses": {
+          "201": {
+            "description": "Checkpoint created"
+          }
+        }
+      }
+    }
+  }
+}
+

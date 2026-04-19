@@ -567,6 +567,10 @@ function dashboard_outlet_updated_payload(state::GatewayState, dashboard_id::Abs
     )
 end
 
+function execution_state_changed_payload(execution::GatewayExecution)
+    return execution_payload(execution)
+end
+
 function realtime_method_result!(state::GatewayState, method::AbstractString, params::Dict{String,Any})
     if method == "canvas.subscribe"
         haskey(params, "workflowId") || error("missing workflowId")
@@ -584,6 +588,16 @@ function realtime_method_result!(state::GatewayState, method::AbstractString, pa
                 jsonrpc_notification(
                     "node.state.changed",
                     merge(Dict("subscriptionId" => subscription_id), payload),
+                ),
+            )
+        end
+        latest_execution = latest_execution_for_workflow(state, workflow_id)
+        if latest_execution !== nothing
+            push!(
+                notifications,
+                jsonrpc_notification(
+                    "execution.state.changed",
+                    merge(Dict("subscriptionId" => subscription_id), execution_state_changed_payload(latest_execution)),
                 ),
             )
         end
@@ -620,6 +634,7 @@ function realtime_method_result!(state::GatewayState, method::AbstractString, pa
         execution_record = latest_execution_for_workflow(state, workflow_id)
         notifications = String[
             jsonrpc_notification("workflow.state.changed", workflow_state_changed_payload(state, workflow_id)),
+            jsonrpc_notification("execution.state.changed", execution_state_changed_payload(execution_record)),
         ]
         for payload in node_state_changed_payloads(state, workflow_id; execution = execution_record)
             push!(notifications, jsonrpc_notification("node.state.changed", payload))

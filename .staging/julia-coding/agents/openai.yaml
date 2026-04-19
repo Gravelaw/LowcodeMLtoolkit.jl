@@ -1,0 +1,4 @@
+interface:
+  display_name: "Julia Coding"
+  short_description: "Julia coding workflow and package guidance"
+  default_prompt: "Use $julia-coding to implement or review Julia code and choose packages for the task."

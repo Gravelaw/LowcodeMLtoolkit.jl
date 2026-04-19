@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juliaflow-platform-deps-intent
+  namespace: juliaflow
+data:
+  postgres: "required; source today=compose; target=stateful workload or Helm chart"
+  redis: "required; source today=compose; target=stateful workload or Helm chart"
+  kafka: "required; source today=compose; target=stateful workload or operator-backed chart"
+  minio: "required; source today=compose; target=stateful workload or tenant operator"
+  keycloak: "required; source today=compose; target=deployment plus external DB integration"
+  note: "Replace this scaffold configmap with real dependency manifests before cp/02-alpha-core."

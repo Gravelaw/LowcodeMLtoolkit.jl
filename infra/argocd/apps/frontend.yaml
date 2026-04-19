@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: juliaflow-frontend
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  project: juliaflow
+  source:
+    repoURL: https://example.invalid/juliaflow.git
+    targetRevision: HEAD
+    path: infra/argocd/workloads/frontend/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: juliaflow
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

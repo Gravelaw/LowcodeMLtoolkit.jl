@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juliaflow-execution-service-intent
+  namespace: juliaflow
+data:
+  servicePath: "services/execution-service/"
+  contractInputs: "packages/contracts/schemas/workflow.schema.json; services/node-sdk/src/JuliaFlowNodeSDK.jl"
+  runtimeDependencies: "redis, kafka, minio"
+  executionMode: "foundation cpu_only; future gpu and streaming"
+  rolloutGoal: "replace with Deployment, Service, worker config, and checkpoint storage refs before cp/02-alpha-core"

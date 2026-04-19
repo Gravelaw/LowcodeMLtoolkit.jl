@@ -81,6 +81,7 @@ Each checkpoint entry must contain:
 - Frontend realtime websocket subscription delivered for live gateway mode
 - Canvas node runtime/status overlay now reacts to realtime node state events
 - Gateway realtime path now emits full node state notifications for subscribe and execute flows
+- Realtime execution-state notifications now update live execution rail
 - Manual connection authoring/removal delivered in inspector
 - Compatibility preview now blocks invalid edge types, duplicate edges, and occupied target inputs
 - Test suite green after gateway regression fixes
@@ -88,14 +89,14 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - Drag/drop node placement not built
-- Realtime execution lifecycle still shallow beyond current workflow/node pulse
 - BI dashboard v0 still missing
 - Streaming MVP still missing
 - GPU lane still missing
 - Hub v0 still missing
+- Realtime still request-scoped; no durable multi-subscriber broadcast layer yet
 
 ### Next Items To Implement
 
-- deepen realtime execution/event model
 - merge/use starter node pack expansion
 - minimal BI dashboard v0
+- durable realtime broadcast model

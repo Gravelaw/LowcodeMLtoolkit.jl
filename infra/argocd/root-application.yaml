@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: juliaflow-root
+  namespace: argocd
+spec:
+  project: juliaflow
+  source:
+    repoURL: https://example.invalid/juliaflow.git
+    targetRevision: HEAD
+    path: infra/argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

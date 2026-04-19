@@ -366,7 +366,63 @@ describe("App", () => {
       expect(screen.getByText(/Run started for wf-live-contracts/i)).toBeInTheDocument();
     });
 
+    executionItems = [
+      {
+        executionId: "exec-live-003",
+        workflowId: "wf-live-contracts",
+        workflowVersion: "0.2.0",
+        checkpointTag: "cp/02-alpha-core",
+        status: "completed",
+        mode: "cpu-batch-v1",
+        plan: ["ingest", "score"],
+        stages: [["ingest"], ["score"]],
+        nodeCount: 5,
+        connectionCount: 4,
+        createdAt: "2026-04-18T12:05:00Z",
+        updatedAt: "2026-04-18T12:06:00Z",
+        statusHistory: [
+          {
+            status: "completed",
+            at: "2026-04-18T12:06:00Z",
+            message: "Realtime completion event"
+          }
+        ],
+        startedAt: "2026-04-18T12:05:05Z",
+        finishedAt: "2026-04-18T12:06:00Z"
+      },
+      ...executionItems
+    ];
+
     await act(async () => {
+      MockWebSocket.instances.at(-1)?.emit("message", {
+        data: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "execution.state.changed",
+          params: {
+            executionId: "exec-live-003",
+            workflowId: "wf-live-contracts",
+            workflowVersion: "0.2.0",
+            checkpointTag: "cp/02-alpha-core",
+            status: "completed",
+            mode: "cpu-batch-v1",
+            plan: ["ingest", "score"],
+            stages: [["ingest"], ["score"]],
+            nodeCount: 5,
+            connectionCount: 4,
+            createdAt: "2026-04-18T12:05:00Z",
+            updatedAt: "2026-04-18T12:06:00Z",
+            statusHistory: [
+              {
+                status: "completed",
+                at: "2026-04-18T12:06:00Z",
+                message: "Realtime completion event"
+              }
+            ],
+            startedAt: "2026-04-18T12:05:05Z",
+            finishedAt: "2026-04-18T12:06:00Z"
+          }
+        })
+      });
       MockWebSocket.instances.at(-1)?.emit("message", {
         data: JSON.stringify({
           jsonrpc: "2.0",
@@ -402,6 +458,8 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByText(/Realtime canvas pulse: accelerated stage active./i)).toBeInTheDocument();
     });
+    expect(screen.getAllByText(/exec-live-003/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Realtime completion event/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/exec-live-002/i).length).toBeGreaterThan(0);
     expect(fetchMock).toHaveBeenCalled();
   });

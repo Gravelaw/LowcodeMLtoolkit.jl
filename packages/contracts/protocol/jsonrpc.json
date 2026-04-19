@@ -1,0 +1,45 @@
+{
+  "version": "2.0",
+  "channel": "workflow-realtime",
+  "methods": [
+    {
+      "name": "canvas.subscribe",
+      "params": {
+        "workflowId": "string"
+      },
+      "result": {
+        "subscriptionId": "string"
+      }
+    },
+    {
+      "name": "workflow.execute",
+      "params": {
+        "workflowId": "string",
+        "executionMode": "cpu_only | gpu_preferred | gpu_required"
+      },
+      "result": {
+        "jobId": "string",
+        "status": "accepted"
+      }
+    },
+    {
+      "name": "dashboard.subscribe",
+      "params": {
+        "dashboardId": "string",
+        "outletIds": [
+          "string"
+        ]
+      },
+      "result": {
+        "subscriptionId": "string"
+      }
+    }
+  ],
+  "events": [
+    "workflow.state.changed",
+    "node.state.changed",
+    "execution.state.changed",
+    "dashboard.outlet.updated",
+    "streaming.checkpoint.completed"
+  ]
+}

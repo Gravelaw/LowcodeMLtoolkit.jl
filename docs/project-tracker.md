@@ -78,6 +78,7 @@ Tracker always records 3 things:
 - Frontend now opens realtime websocket subscription to `/api/v1/realtime` when gateway configured
 - Realtime node state events now overlay live canvas/runtime status in UI
 - Realtime workflow state events now refresh execution rail and workflow snapshot when draft is clean
+- Realtime execution state events now update execution rail directly without waiting for full refetch
 - Inspector now supports manual connection add/remove actions
 - Connection editor now previews compatibility errors for type mismatch, duplicate edges, and occupied target inputs
 - Demo fallback still works when no gateway configured
@@ -90,6 +91,7 @@ Tracker always records 3 things:
   - `flowVariables`
 - Execution metadata and status history aligned closer to frontend contract
 - Realtime gateway notifications now emit full node state set for canvas subscribe and workflow execute flows
+- Realtime gateway notifications now emit explicit `execution.state.changed` payloads for latest execution lifecycle state
 
 ### Extension / Node Pack
 
@@ -128,11 +130,11 @@ Tracker always records 3 things:
 
 ### Next Priority
 
-1. Deepen realtime state beyond current node/workflow pulse into richer execution lifecycle updates
-2. Merge starter base extension node pack into active branch if not already present
-3. Build minimal BI dashboard v0 shell from BI outlet path
-4. Canvas drag/drop positioning
-5. Deepen graph editor model beyond TOML bridge semantics
+1. Merge starter base extension node pack into active branch if not already present
+2. Build minimal BI dashboard v0 shell from BI outlet path
+3. Canvas drag/drop positioning
+4. Deepen graph editor model beyond TOML bridge semantics
+5. Add richer server-side realtime broadcast beyond request-scoped websocket replies
 
 ### After That
 

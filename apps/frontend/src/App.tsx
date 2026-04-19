@@ -7,6 +7,7 @@ import {
   workflowStatuses,
   type ConnectionDefinition,
   type ExecutionHint,
+  type GatewayExecutionStateChangedEvent,
   type FlowVariableDefinition,
   type GatewayHealthcheck,
   type GatewayNodeStateChangedEvent,
@@ -731,6 +732,13 @@ function buildRealtimeRuntimeLabel(
     : "Realtime canvas pulse: stage configured with GPU-aware path.";
 }
 
+function mergeExecutionRailItem(
+  currentItems: ExecutionRailItem[],
+  nextItem: ExecutionRailItem
+): ExecutionRailItem[] {
+  return [nextItem, ...currentItems.filter((item) => item.id !== nextItem.id)];
+}
+
 function mergeNodeLayouts(
   baseLayouts: Record<string, CanvasNodeLayout>,
   overrides: Record<string, RealtimeNodeState>
@@ -1049,6 +1057,13 @@ function App() {
       });
     }
 
+    function handleExecutionStateChanged(event: GatewayExecutionStateChangedEvent) {
+      const nextExecutionItem = buildExecutionRailItems([event])[0];
+      startTransition(() => {
+        setExecutionItems((currentItems) => mergeExecutionRailItem(currentItems, nextExecutionItem));
+      });
+    }
+
     async function handleRealtimeMessage(message: MessageEvent) {
       const payload = JSON.parse(String(message.data)) as GatewayRealtimeNotification | { id?: number };
       if (!("method" in payload)) {
@@ -1057,6 +1072,11 @@ function App() {
 
       if (payload.method === "node.state.changed") {
         handleNodeStateChanged(payload.params);
+        return;
+      }
+
+      if (payload.method === "execution.state.changed") {
+        handleExecutionStateChanged(payload.params);
         return;
       }
 

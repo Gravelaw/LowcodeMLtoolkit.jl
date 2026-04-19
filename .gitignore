@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+*.log
+*.pid
+.env
+.env.*
+!.env.example
+.julia/
+Manifest.toml
+tmp/
+artifacts/
+

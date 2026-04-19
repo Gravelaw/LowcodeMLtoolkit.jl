@@ -326,10 +326,15 @@ export interface GatewayDashboardOutletUpdatedEvent {
   updatedAt: string;
 }
 
+export interface GatewayExecutionStateChangedEvent extends GatewayExecutionRecord {
+  subscriptionId?: string;
+}
+
 export interface GatewayRealtimeNotificationMap {
   "workflow.state.changed": GatewayWorkflowStateChangedEvent;
   "node.state.changed": GatewayNodeStateChangedEvent;
   "dashboard.outlet.updated": GatewayDashboardOutletUpdatedEvent;
+  "execution.state.changed": GatewayExecutionStateChangedEvent;
 }
 
 export type GatewayRealtimeNotificationMethod = keyof GatewayRealtimeNotificationMap;
