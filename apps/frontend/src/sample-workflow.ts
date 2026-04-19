@@ -528,6 +528,9 @@ export function buildExecutionRailItems(records: GatewayExecutionRecord[]): Exec
       status: executionRecordToWorkflowStatus(record),
       trigger:
         statusEvent?.message ??
+        (record.dispatchLane
+          ? `Dispatched to ${record.dispatchLane} lane`
+          : undefined) ??
         (record.streamLifecycleStatus
           ? `Stream lifecycle ${record.streamLifecycleStatus}`
           : `Gateway execution ${record.status}`),
@@ -535,7 +538,9 @@ export function buildExecutionRailItems(records: GatewayExecutionRecord[]): Exec
       duration: start === end ? "in-flight" : `${start} -> ${end}`,
       planner: record.streamLifecycleStatus
         ? `${record.mode} · ${record.streamLifecycleStatus}`
-        : record.mode
+        : record.dispatchLane
+          ? `${record.mode} · ${record.dispatchLane}/${record.dispatchWorkerPool ?? "default"}`
+          : record.mode
     };
   });
 }

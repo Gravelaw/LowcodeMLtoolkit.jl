@@ -126,6 +126,10 @@ Tracker always records 3 things:
   - realtime pause/resume/stop handling through JSON-RPC
   - streaming checkpoint notification on stream stop
 - Stream executions now surface `streaming_active` runtime state to canvas/rail consumers
+- Batch GPU executions now emit a first-class dispatch plan with lane, worker pool, isolation mode, and accelerator metadata
+- Gateway now auto-queues GPU-tagged batch workflows onto an isolated GPU worker lane instead of leaving them as passive planner metadata
+- Frontend execution rail now surfaces GPU lane dispatch context from gateway execution records
+- Local Docker Compose now includes an optional `gpu` profile hook for a dev GPU worker container
 
 ### Alpha Core Contract Deepening
 
@@ -139,6 +143,7 @@ Tracker always records 3 things:
   - node capability descriptors
   - runtime/streaming metadata
 - Workflow fixtures and tests now exercise graph persistence, dashboard payloads, streaming runtime config, and execution resource planning
+- Execution contracts and tests now also exercise dispatch planning and isolated GPU queue metadata
 
 ### Extension / Node Pack
 
@@ -162,7 +167,7 @@ Tracker always records 3 things:
 
 - BI path now has editable dashboard v0 authoring, but not yet a richer layout/composition/publish flow
 - Streaming MVP lifecycle now exists in gateway/runtime, but not yet as a separate durable broker worker service
-- GPU lane planning exists, but no isolated GPU worker/runtime lane exists yet
+- GPU dispatch lane now exists for isolated batch worker routing, but no dedicated long-running GPU worker/runtime service exists yet
 - Hub v0 not yet started
 - Node library breadth still far below Phase 1 target
 
@@ -178,10 +183,10 @@ Tracker always records 3 things:
 ### Next Priority
 
 1. Ensure future sessions honor the new caveman-default repo instruction
-2. Add isolated GPU worker lane behind existing resource-plan contract
-3. Start Hub v0 extension catalog/install skeleton
-4. Refresh OpenAPI for graph/dashboard/runtime payloads
-5. Split streaming MVP from in-process gateway handling into a dedicated worker path
+2. Start Hub v0 extension catalog/install skeleton
+3. Refresh OpenAPI for graph/dashboard/runtime payloads
+4. Split streaming MVP from in-process gateway handling into a dedicated worker path
+5. Deepen GPU lane from isolated dispatch queue into a dedicated worker/service process
 
 ### After That
 

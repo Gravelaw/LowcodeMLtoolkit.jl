@@ -32,6 +32,22 @@ services:
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
     ports:
       - "9092:9092"
+  gpu-worker:
+    image: julia:1.11
+    profiles:
+      - gpu
+    command:
+      - bash
+      - -lc
+      - |
+        echo "JuliaFlow GPU worker profile ready for isolated lane dispatch"
+        sleep infinity
+    environment:
+      JULIAFLOW_WORKER_LANE: gpu
+      JULIAFLOW_WORKER_POOL: alpha-gpu
+      JULIAFLOW_ACCELERATOR: cuda
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
     command: start-dev
@@ -40,4 +56,3 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin
     ports:
       - "8080:8080"
-

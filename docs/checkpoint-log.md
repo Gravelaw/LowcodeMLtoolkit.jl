@@ -103,13 +103,17 @@ Each checkpoint entry must contain:
 - Starter Alpha node catalog expanded across source/transform/aggregate/control/stream/BI/sink categories
 - Streaming MVP execution path now activates stream workflows through gateway/runtime and supports pause/resume/stop over JSON-RPC
 - Stream stop now emits a `streaming.checkpoint.completed` notification payload for subscribed canvases
+- Execution records now also expose dispatch plans with lane, worker pool, isolation mode, and accelerator metadata
+- Batch GPU workflows now auto-transition into a queued isolated GPU lane with worker identity metadata
+- Frontend execution rail now renders GPU dispatch context from live gateway payloads
+- Docker Compose now includes an optional `gpu` profile hook for local isolated worker experiments
 - Test suite green after gateway regression fixes
 
 ### Gaps Pending
 
 - BI dashboard path now supports basic editing, but not yet multi-panel layout/publish/share behavior
 - Streaming MVP still runs in-process through gateway/runtime and is not yet split into a dedicated broker worker lane
-- GPU worker lane still missing beyond planner/resource metadata
+- GPU dispatch lane now exists, but a dedicated long-running GPU worker service is still missing
 - Hub v0 still missing
 - Durable multi-process event backbone still missing even though in-process subscriber broadcast exists
 - Repo instruction change depends on session runtime loading repo instructions and the caveman skill remaining available
@@ -117,7 +121,7 @@ Each checkpoint entry must contain:
 ### Next Items To Implement
 
 - ensure future sessions honor caveman-default repo instruction
-- isolated GPU worker lane using existing resource-plan contract
 - Hub v0 extension catalog/install skeleton
 - OpenAPI refresh for expanded payloads
 - dedicated worker/service split for streaming execution
+- dedicated GPU worker/service split behind the new dispatch lane

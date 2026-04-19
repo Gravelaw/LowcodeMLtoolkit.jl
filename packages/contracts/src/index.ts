@@ -293,6 +293,18 @@ export interface GatewayExecutionRecord {
     lane: WorkflowResourceClass;
     nodeIds: string[];
   }>;
+  dispatchPlan?: Array<{
+    lane: WorkflowResourceClass;
+    nodeIds: string[];
+    workerPool: string;
+    isolationMode: "shared" | "isolated";
+    accelerator?: "cuda";
+  }>;
+  dispatchLane?: WorkflowResourceClass;
+  dispatchWorkerPool?: string;
+  dispatchIsolationMode?: "shared" | "isolated";
+  dispatchAccelerator?: "cuda";
+  workerId?: string;
   streamLifecycleStatus?: StreamLifecycleStatus;
 }
 

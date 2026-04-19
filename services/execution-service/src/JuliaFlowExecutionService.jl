@@ -191,6 +191,7 @@ function create_execution_record(
         "updated_at" => created_at,
         "status_history" => history,
         "resource_plan" => build_resource_plan(workflow),
+        "dispatch_plan" => build_dispatch_plan(workflow),
     )
     workflow.runtime.run_mode == :stream && (record["stream_lifecycle_status"] = "starting")
 
@@ -651,6 +652,29 @@ function node_resource_class(node::WorkflowNode)
     return :cpu
 end
 
+function lane_worker_pool(workflow::WorkflowDefinition, lane::Symbol)
+    pools = String[]
+    for node in workflow.nodes
+        node_resource_class(node) == lane || continue
+        node.capabilities === nothing && continue
+        node.capabilities.worker_pool === nothing && continue
+        push!(pools, node.capabilities.worker_pool)
+    end
+    isempty(pools) && return lane == :gpu ? "alpha-gpu" : "alpha-cpu"
+    return sort(unique(pools))[1]
+end
+
+function lane_accelerator(workflow::WorkflowDefinition, lane::Symbol)
+    lane == :gpu || return nothing
+    for node in workflow.nodes
+        node_resource_class(node) == :gpu || continue
+        node.capabilities === nothing && continue
+        node.capabilities.accelerator === nothing && continue
+        return node.capabilities.accelerator
+    end
+    return "cuda"
+end
+
 function build_resource_plan(workflow::WorkflowDefinition)
     lanes = Dict(:cpu => String[], :gpu => String[])
     for node in workflow.nodes
@@ -664,6 +688,26 @@ function build_resource_plan(workflow::WorkflowDefinition)
     end
 
     return result
+end
+
+function build_dispatch_plan(workflow::WorkflowDefinition)
+    resource_plan = build_resource_plan(workflow)
+    dispatch_plan = Dict{String,Any}[]
+
+    for lane_entry in resource_plan
+        lane = Symbol(get(lane_entry, "lane", "cpu"))
+        entry = Dict{String,Any}(
+            "lane" => String(lane),
+            "node_ids" => get(lane_entry, "node_ids", String[]),
+            "worker_pool" => lane_worker_pool(workflow, lane),
+            "isolation_mode" => lane == :gpu ? "isolated" : "shared",
+        )
+        accelerator = lane_accelerator(workflow, lane)
+        accelerator === nothing || (entry["accelerator"] = accelerator)
+        push!(dispatch_plan, entry)
+    end
+
+    return dispatch_plan
 end
 
 function execution_mode(workflow::WorkflowDefinition)

@@ -413,6 +413,49 @@ function materialize_execution(job::Dict{String,Any})
     )
 end
 
+function gpu_dispatch_plan(execution::GatewayExecution)
+    dispatch_plan = get(execution.metadata, "dispatch_plan", Any[])
+    for entry in dispatch_plan
+        String(get(entry, "lane", "")) == "gpu" || continue
+        return Dict{String,Any}(String(key) => value for (key, value) in pairs(entry))
+    end
+    return nothing
+end
+
+function should_dispatch_gpu_execution(workflow, execution::GatewayExecution)
+    JuliaFlowGatewayRepository.JuliaFlowExecutionService.is_stream_workflow(workflow) && return false
+    return gpu_dispatch_plan(execution) !== nothing
+end
+
+function gpu_dispatch_metadata(execution::GatewayExecution)
+    dispatch = gpu_dispatch_plan(execution)
+    dispatch === nothing && return Dict{String,Any}()
+
+    metadata = Dict{String,Any}(
+        "dispatch_lane" => "gpu",
+        "dispatch_worker_pool" => String(get(dispatch, "worker_pool", "alpha-gpu")),
+        "dispatch_isolation_mode" => String(get(dispatch, "isolation_mode", "isolated")),
+        "worker_id" => "gpu-worker-" * execution.execution_id[1:8],
+    )
+    haskey(dispatch, "accelerator") && (metadata["dispatch_accelerator"] = String(dispatch["accelerator"]))
+    return metadata
+end
+
+function activate_gpu_execution!(state::GatewayState, execution::GatewayExecution)
+    index = find_execution_index(state, execution.execution_id)
+    queued = JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record(
+        execution_record(execution),
+        "queued";
+        message = "Queued for isolated GPU worker lane",
+        metadata = gpu_dispatch_metadata(execution),
+    )
+    updated_execution = materialize_execution(queued)
+    state.executions[index] = updated_execution
+    save_execution!(state.repository, updated_execution)
+    broadcast_execution_update!(state, updated_execution.workflow_id, updated_execution)
+    return updated_execution
+end
+
 function execution_accept_response(
     state::GatewayState,
     workflow_id::AbstractString;
@@ -432,6 +475,9 @@ function execution_accept_response(
     workflow = state.workflows[workflow_id]
     if JuliaFlowGatewayRepository.JuliaFlowExecutionService.is_stream_workflow(workflow)
         execution = activate_stream_execution!(state, execution)
+        return JSON3.write(execution_payload(execution))
+    elseif should_dispatch_gpu_execution(workflow, execution)
+        execution = activate_gpu_execution!(state, execution)
         return JSON3.write(execution_payload(execution))
     end
     broadcast_execution_update!(state, workflow_id, execution)
@@ -1008,7 +1054,7 @@ function realtime_method_result!(state::GatewayState, method::AbstractString, pa
             ),
             Dict{String,Any},
         )
-        return Dict("jobId" => String(execution["executionId"]), "status" => "accepted"), String[]
+        return Dict("jobId" => String(execution["executionId"]), "status" => String(execution["status"])), String[]
     elseif method == "workflow.pause"
         haskey(params, "workflowId") || error("missing workflowId")
         workflow_id = String(params["workflowId"])

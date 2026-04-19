@@ -224,8 +224,31 @@ function execution_payload(execution::GatewayExecution)
                         "nodeIds" => [String(node_id) for node_id in get(item, "node_ids", Any[])],
                     ) for item in value
                 ]
+            elseif string_key == "dispatch_plan"
+                payload["dispatchPlan"] = [
+                    Dict{String,Any}(
+                        "lane" => String(get(item, "lane", "")),
+                        "nodeIds" => [String(node_id) for node_id in get(item, "node_ids", Any[])],
+                        "workerPool" => String(get(item, "worker_pool", "")),
+                        "isolationMode" => String(get(item, "isolation_mode", "shared")),
+                    ) for item in value
+                ]
+                for (index, item) in enumerate(value)
+                    haskey(item, "accelerator") || continue
+                    payload["dispatchPlan"][index]["accelerator"] = String(item["accelerator"])
+                end
             elseif string_key == "stream_lifecycle_status"
                 payload["streamLifecycleStatus"] = String(value)
+            elseif string_key == "dispatch_lane"
+                payload["dispatchLane"] = String(value)
+            elseif string_key == "dispatch_worker_pool"
+                payload["dispatchWorkerPool"] = String(value)
+            elseif string_key == "dispatch_isolation_mode"
+                payload["dispatchIsolationMode"] = String(value)
+            elseif string_key == "dispatch_accelerator"
+                payload["dispatchAccelerator"] = String(value)
+            elseif string_key == "worker_id"
+                payload["workerId"] = String(value)
             else
                 payload[string_key] = value
             end

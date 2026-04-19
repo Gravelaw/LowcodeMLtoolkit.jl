@@ -35,8 +35,46 @@ end
     invalid_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "invalid.workflow.toml")
 
     workflow_text = read(foundation_path, String)
+    gpu_workflow_text = """
+    version = "0.3.0"
+
+    [workflow]
+    id = "wf-gpu-alpha"
+    name = "GPU Alpha"
+
+    [runtime]
+    run_mode = "batch"
+
+    [[nodes]]
+    id = "node-source"
+    type = "JuliaFlow.Base.CSVReader"
+    name = "CSV Reader"
+    execution_hint = "cpu_only"
+    ports = [{ id = "out", direction = "output", type = "data_table" }]
+    config = { path = "assets/sample.csv" }
+
+    [[nodes]]
+    id = "node-train"
+    type = "JuliaFlow.Base.ModelTrain"
+    name = "GPU Trainer"
+    execution_hint = "gpu_required"
+    ports = [
+        { id = "in", direction = "input", type = "data_table" },
+        { id = "model", direction = "output", type = "model" },
+    ]
+    config = { target = "amount", gpuDevicePreference = "nvidia:0" }
+    capabilities = { execution_mode = "batch", resource_class = "gpu", accelerator = "cuda", worker_pool = "alpha-gpu" }
+
+    [[connections]]
+    source_node_id = "node-source"
+    source_port_id = "out"
+    target_node_id = "node-train"
+    target_port_id = "in"
+    data_type = "data_table"
+    """
     workflow = load_workflow_definition(foundation_path)
     parallel_workflow = load_workflow_definition(parallel_path)
+    gpu_workflow = load_workflow_definition_text(gpu_workflow_text)
     invalid_workflow = load_workflow_definition(invalid_path)
     workflow_from_text = load_workflow_definition_text(workflow_text)
     plan = build_execution_plan(workflow)
@@ -65,6 +103,7 @@ end
     @test length(workflow.dashboards) == 1
     @test parallel_workflow.runtime.run_mode == :stream
     @test spec["resource_plan"][1]["lane"] == "cpu"
+    @test spec["dispatch_plan"][1]["worker_pool"] == "alpha-cpu"
     @test spec["stream_lifecycle_status"] == "starting"
     appended = append_execution_event(spec; message = "heartbeat", metadata = Dict("stream_lifecycle_status" => "active"))
     @test appended["stream_lifecycle_status"] == "active"
@@ -72,6 +111,12 @@ end
     @test is_stream_workflow(parallel_workflow)
     @test spec["stages"][2] == ["node-left", "node-right"]
     @test spec["checkpoint_tag"] == "cp/01-contracts-frozen"
+    gpu_spec = serialize_job_spec(gpu_workflow; checkpoint_tag = "cp/03-alpha-gpu-bi")
+    @test gpu_spec["mode"] == "batch_gpu_required"
+    @test gpu_spec["resource_plan"][2]["lane"] == "gpu"
+    @test gpu_spec["dispatch_plan"][2]["worker_pool"] == "alpha-gpu"
+    @test gpu_spec["dispatch_plan"][2]["isolation_mode"] == "isolated"
+    @test gpu_spec["dispatch_plan"][2]["accelerator"] == "cuda"
     @test_throws ErrorException validate_workflow(invalid_workflow)
     @test_throws ErrorException execute_workflow(workflow; flow_variable_values = Dict("MISSING_VAR" => "oops"))
 end
@@ -189,6 +234,54 @@ end
                 ],
             ),
         )
+        gpu_workflow_payload = Dict{String,Any}(
+            "workflow" => Dict(
+                "version" => "0.3.0",
+                "workflowId" => "wf-gpu-alpha",
+                "name" => "GPU Alpha",
+                "flowVariables" => [
+                    Dict("name" => "JULIAFLOW_GPU_DEVICE", "type" => "GPUDeviceID", "default" => "nvidia:0"),
+                ],
+                "runtime" => Dict("runMode" => "batch"),
+                "nodes" => [
+                    Dict(
+                        "id" => "node-source",
+                        "type" => "JuliaFlow.Base.CSVReader",
+                        "name" => "CSV Reader",
+                        "executionHint" => "cpu_only",
+                        "capabilities" => Dict("executionMode" => "batch", "resourceClass" => "cpu", "workerPool" => "alpha-cpu"),
+                        "ports" => [Dict("id" => "out", "direction" => "output", "type" => "data_table")],
+                        "config" => Dict("path" => "assets/sample.csv"),
+                    ),
+                    Dict(
+                        "id" => "node-train",
+                        "type" => "JuliaFlow.Base.ModelTrain",
+                        "name" => "GPU Trainer",
+                        "executionHint" => "gpu_required",
+                        "capabilities" => Dict(
+                            "executionMode" => "batch",
+                            "resourceClass" => "gpu",
+                            "accelerator" => "cuda",
+                            "workerPool" => "alpha-gpu",
+                        ),
+                        "ports" => [
+                            Dict("id" => "in", "direction" => "input", "type" => "data_table"),
+                            Dict("id" => "model", "direction" => "output", "type" => "model"),
+                        ],
+                        "config" => Dict("target" => "amount", "gpuDevicePreference" => "nvidia:0"),
+                    ),
+                ],
+                "connections" => [
+                    Dict(
+                        "sourceNodeId" => "node-source",
+                        "sourcePortId" => "out",
+                        "targetNodeId" => "node-train",
+                        "targetPortId" => "in",
+                        "dataType" => "data_table",
+                    ),
+                ],
+            ),
+        )
 
         @test occursin("\"status\":\"ok\"", healthcheck(state))
         @test occursin("wf-foundation", list_workflows_response(state))
@@ -226,7 +319,18 @@ end
         @test stream_execution["streamLifecycleStatus"] == "active"
         @test stream_execution["stream_topic"] == "parallel.events"
         json_update = JuliaFlowApiGateway.update_workflow_response_from_body!(state, "wf-foundation", foundation_workflow_payload)
+        json_gpu_create = JuliaFlowApiGateway.create_workflow_response_from_body!(state, gpu_workflow_payload)
+        gpu_execution_json = execution_accept_response(state, "wf-gpu-alpha")
+        gpu_execution = JSON3.read(gpu_execution_json, Dict{String,Any})
         @test occursin("\"status\":\"updated\"", json_update)
+        @test occursin("\"status\":\"created\"", json_gpu_create)
+        @test gpu_execution["status"] == "queued"
+        @test gpu_execution["dispatchLane"] == "gpu"
+        @test gpu_execution["dispatchWorkerPool"] == "alpha-gpu"
+        @test gpu_execution["dispatchIsolationMode"] == "isolated"
+        @test gpu_execution["dispatchAccelerator"] == "cuda"
+        @test startswith(gpu_execution["workerId"], "gpu-worker-")
+        @test gpu_execution["dispatchPlan"][2]["lane"] == "gpu"
         json_updated_workflow = JSON3.read(get_workflow_response(state, "wf-foundation"), Dict{String,Any})
         @test json_updated_workflow["name"] == "Foundation JSON Save"
         @test length(json_updated_workflow["flowVariables"]) == 2
@@ -281,6 +385,16 @@ end
         )
         execute_payload = JSON3.read(String(execute_response.body), Dict{String,Any})
         execute_payload_id = get(execute_payload, "executionId", "missing-execution-id")
+        gpu_execute_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-gpu-alpha/execute",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("executionMode" => "gpu_required")),
+            ),
+        )
+        gpu_execute_payload = JSON3.read(String(gpu_execute_response.body), Dict{String,Any})
         preflight = route_request(
             state,
             HTTP.Request(
@@ -312,6 +426,11 @@ end
         @test occursin("\"requested_execution_mode\":\"gpu_preferred\"", String(execute_response.body))
         @test occursin("\"flow_variables\":{\"JULIAFLOW_GPU_DEVICE\":\"nvidia:0\"}", String(execute_response.body))
         @test occursin("\"resourcePlan\":[", String(execute_response.body))
+        @test gpu_execute_response.status == 202
+        @test gpu_execute_payload["status"] == "queued"
+        @test gpu_execute_payload["dispatchLane"] == "gpu"
+        @test gpu_execute_payload["dispatchWorkerPool"] == "alpha-gpu"
+        @test startswith(gpu_execute_payload["workerId"], "gpu-worker-")
         transition_response = route_request(
             state,
             HTTP.Request(
@@ -430,6 +549,77 @@ end
         @test execution_record["flow_variables"]["JULIAFLOW_GPU_DEVICE"] == "cpu-fallback"
         @test execution_record["resourcePlan"][1]["lane"] == "cpu"
 
+        gpu_create_response = JuliaFlowApiGateway.create_workflow_response_from_body!(
+            state,
+            Dict(
+                "workflow" => Dict(
+                    "version" => "0.3.0",
+                    "workflowId" => "wf-gpu-alpha",
+                    "name" => "GPU Alpha",
+                    "flowVariables" => [Dict("name" => "JULIAFLOW_GPU_DEVICE", "type" => "GPUDeviceID", "default" => "nvidia:0")],
+                    "runtime" => Dict("runMode" => "batch"),
+                    "nodes" => [
+                        Dict(
+                            "id" => "node-source",
+                            "type" => "JuliaFlow.Base.CSVReader",
+                            "name" => "CSV Reader",
+                            "executionHint" => "cpu_only",
+                            "capabilities" => Dict("executionMode" => "batch", "resourceClass" => "cpu", "workerPool" => "alpha-cpu"),
+                            "ports" => [Dict("id" => "out", "direction" => "output", "type" => "data_table")],
+                            "config" => Dict("path" => "assets/sample.csv"),
+                        ),
+                        Dict(
+                            "id" => "node-train",
+                            "type" => "JuliaFlow.Base.ModelTrain",
+                            "name" => "GPU Trainer",
+                            "executionHint" => "gpu_required",
+                            "capabilities" => Dict(
+                                "executionMode" => "batch",
+                                "resourceClass" => "gpu",
+                                "accelerator" => "cuda",
+                                "workerPool" => "alpha-gpu",
+                            ),
+                            "ports" => [
+                                Dict("id" => "in", "direction" => "input", "type" => "data_table"),
+                                Dict("id" => "model", "direction" => "output", "type" => "model"),
+                            ],
+                            "config" => Dict("target" => "amount", "gpuDevicePreference" => "nvidia:0"),
+                        ),
+                    ],
+                    "connections" => [
+                        Dict(
+                            "sourceNodeId" => "node-source",
+                            "sourcePortId" => "out",
+                            "targetNodeId" => "node-train",
+                            "targetPortId" => "in",
+                            "dataType" => "data_table",
+                        ),
+                    ],
+                ),
+            ),
+        )
+        @test occursin("\"status\":\"created\"", gpu_create_response)
+
+        gpu_execute_response, gpu_execute_notifications = JuliaFlowApiGateway.handle_realtime_request!(
+            state,
+            JSON3.write(
+                Dict(
+                    "jsonrpc" => "2.0",
+                    "id" => 40,
+                    "method" => "workflow.execute",
+                    "params" => Dict("workflowId" => "wf-gpu-alpha", "executionMode" => "gpu_required"),
+                ),
+            ),
+        )
+        gpu_execute_reply = JSON3.read(String(gpu_execute_response), Dict{String,Any})
+        @test gpu_execute_reply["result"]["status"] == "queued"
+        @test isempty(gpu_execute_notifications)
+        gpu_execution_record = JSON3.read(execution_detail_response(state, gpu_execute_reply["result"]["jobId"]), Dict{String,Any})
+        @test gpu_execution_record["dispatchLane"] == "gpu"
+        @test gpu_execution_record["dispatchWorkerPool"] == "alpha-gpu"
+        @test gpu_execution_record["dispatchIsolationMode"] == "isolated"
+        @test startswith(gpu_execution_record["workerId"], "gpu-worker-")
+
         stream_execute_response, stream_execute_notifications = JuliaFlowApiGateway.handle_realtime_request!(
             state,
             JSON3.write(
@@ -442,7 +632,7 @@ end
             ),
         )
         stream_execute_reply = JSON3.read(String(stream_execute_response), Dict{String,Any})
-        @test stream_execute_reply["result"]["status"] == "accepted"
+        @test stream_execute_reply["result"]["status"] == "running"
         @test isempty(stream_execute_notifications)
         stream_record = JSON3.read(execution_detail_response(state, stream_execute_reply["result"]["jobId"]), Dict{String,Any})
         @test stream_record["streamLifecycleStatus"] == "active"
