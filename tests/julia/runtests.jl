@@ -51,10 +51,15 @@ end
     )
     spec = serialize_job_spec(parallel_workflow; checkpoint_tag = "cp/01-contracts-frozen")
     @test result["status"] == "accepted"
-    @test result["mode"] == "cpu_only"
+    @test result["mode"] == "batch_cpu"
     @test execute_with_flow_variables["flow_variables"]["JULIAFLOW_GPU_DEVICE"] == "nvidia:0"
     @test execute_with_flow_variables["requested_execution_mode"] == "gpu_preferred"
     @test execute_with_flow_variables["status_history"][1]["at"] isa AbstractString
+    @test workflow.graph.revision == 2
+    @test length(workflow.dashboards) == 1
+    @test parallel_workflow.runtime.run_mode == :stream
+    @test spec["resource_plan"][1]["lane"] == "cpu"
+    @test spec["stream_lifecycle_status"] == "starting"
     @test spec["stages"][2] == ["node-left", "node-right"]
     @test spec["checkpoint_tag"] == "cp/01-contracts-frozen"
     @test_throws ErrorException validate_workflow(invalid_workflow)
@@ -93,12 +98,44 @@ end
                     Dict("name" => "JULIAFLOW_GPU_DEVICE", "type" => "GPUDeviceID", "default" => "nvidia:0"),
                     Dict("name" => "BATCH_WINDOW", "type" => "String", "default" => "2026-Q2"),
                 ],
+                "graph" => Dict(
+                    "revision" => 3,
+                    "selectedNodeId" => "node-transform",
+                    "viewport" => Dict("x" => 0.0, "y" => 0.0, "zoom" => 1.0),
+                    "nodeLayouts" => [
+                        Dict("nodeId" => "node-source", "x" => 44.0, "y" => 72.0, "width" => 180.0),
+                        Dict("nodeId" => "node-transform", "x" => 280.0, "y" => 148.0, "width" => 188.0),
+                        Dict("nodeId" => "node-bi", "x" => 560.0, "y" => 148.0, "width" => 176.0),
+                    ],
+                ),
+                "dashboards" => [
+                    Dict(
+                        "dashboardId" => "dashboard-foundation",
+                        "name" => "Foundation Overview",
+                        "binding" => Dict(
+                            "outletNodeId" => "node-bi",
+                            "datasetKey" => "sales_overview",
+                            "refreshMode" => "live",
+                        ),
+                        "charts" => [
+                            Dict("chartId" => "chart-line", "title" => "Trend", "family" => "line", "xField" => "window", "yField" => "amount"),
+                            Dict("chartId" => "chart-bar", "title" => "By Region", "family" => "bar", "xField" => "region", "yField" => "amount"),
+                            Dict("chartId" => "chart-area", "title" => "Capacity", "family" => "area", "xField" => "window", "yField" => "capacity"),
+                            Dict("chartId" => "chart-table", "title" => "Rows", "family" => "table"),
+                            Dict("chartId" => "chart-metric", "title" => "Latest", "family" => "metric", "yField" => "amount"),
+                        ],
+                    ),
+                ],
+                "runtime" => Dict(
+                    "runMode" => "batch",
+                ),
                 "nodes" => [
                     Dict(
                         "id" => "node-source",
                         "type" => "JuliaFlow.Base.CSVReader",
                         "name" => "CSV Reader",
                         "executionHint" => "cpu_only",
+                        "capabilities" => Dict("executionMode" => "batch", "resourceClass" => "cpu"),
                         "ports" => [Dict("id" => "out", "direction" => "output", "type" => "data_table")],
                         "config" => Dict("path" => "assets/sample.csv"),
                     ),
@@ -107,6 +144,7 @@ end
                         "type" => "JuliaFlow.Base.ColumnSelect",
                         "name" => "Column Select",
                         "executionHint" => "cpu_only",
+                        "capabilities" => Dict("executionMode" => "batch", "resourceClass" => "cpu"),
                         "ports" => [
                             Dict("id" => "in", "direction" => "input", "type" => "data_table"),
                             Dict("id" => "out", "direction" => "output", "type" => "data_table"),
@@ -118,6 +156,7 @@ end
                         "type" => "JuliaFlow.BI.DataOutlet",
                         "name" => "BI Outlet",
                         "executionHint" => "cpu_only",
+                        "capabilities" => Dict("executionMode" => "hybrid", "resourceClass" => "cpu"),
                         "ports" => [Dict("id" => "in", "direction" => "input", "type" => "data_table")],
                         "config" => Dict("outlet" => "sales-overview"),
                     ),
@@ -146,12 +185,14 @@ end
         @test occursin("\"nodeCount\":3", get_workflow_response(state, "wf-foundation"))
         @test occursin("\"nodes\":[", get_workflow_response(state, "wf-foundation"))
         @test occursin("\"connections\":[", get_workflow_response(state, "wf-foundation"))
+        @test occursin("\"graphRevision\":2", get_workflow_response(state, "wf-foundation"))
         execution_json = execution_accept_response(state, "wf-foundation")
         accepted_execution = JSON3.read(execution_json, Dict{String,Any})
         @test occursin("\"accepted\"", execution_json)
         @test occursin("\"executionId\":", execution_json)
-        @test occursin("\"mode\":\"cpu_only\"", execution_json)
+        @test occursin("\"mode\":\"batch_cpu\"", execution_json)
         @test occursin("\"statusHistory\":[", execution_json)
+        @test occursin("\"resourcePlan\":[", execution_json)
         @test accepted_execution["statusHistory"][1]["at"] isa AbstractString
         queued_execution_json = transition_execution_response!(
             state,
@@ -175,8 +216,11 @@ end
         @test json_updated_workflow["name"] == "Foundation JSON Save"
         @test length(json_updated_workflow["flowVariables"]) == 2
         @test json_updated_workflow["flowVariables"][2]["name"] == "BATCH_WINDOW"
+        @test json_updated_workflow["graph"]["revision"] == 3
+        @test length(json_updated_workflow["dashboards"][1]["charts"]) == 5
         persisted_workflow = TOML.parse(read(joinpath(store_root, "workflows", "wf-foundation.toml"), String))
         @test persisted_workflow["flow_variables"][2]["default"] == "2026-Q2"
+        @test persisted_workflow["workflow"]["graph"]["revision"] == 3
         @test occursin("\"status\":\"updated\"", update_workflow_response!(state, "wf-foundation"; workflow_toml = updated_toml))
         @test occursin("Foundation PoC Updated", get_workflow_response(state, "wf-foundation"))
         @test occursin("\"items\":[", execution_list_response(state))
@@ -252,6 +296,7 @@ end
         @test occursin("\"checkpointTag\":\"cp/01-contracts-frozen\"", String(execute_response.body))
         @test occursin("\"requested_execution_mode\":\"gpu_preferred\"", String(execute_response.body))
         @test occursin("\"flow_variables\":{\"JULIAFLOW_GPU_DEVICE\":\"nvidia:0\"}", String(execute_response.body))
+        @test occursin("\"resourcePlan\":[", String(execute_response.body))
         transition_response = route_request(
             state,
             HTTP.Request(
@@ -358,17 +403,14 @@ end
             ),
         )
         execute_reply = JSON3.read(String(execute_response), Dict{String,Any})
-        execute_event = JSON3.read(execute_notifications[1], Dict{String,Any})
-        execute_state_event = JSON3.read(execute_notifications[2], Dict{String,Any})
 
         @test execute_reply["result"]["status"] == "accepted"
         @test execute_reply["result"]["jobId"] isa AbstractString
-        @test execute_event["method"] == "workflow.state.changed"
-        @test execute_state_event["method"] == "execution.state.changed"
-        @test execute_state_event["params"]["executionId"] == execute_reply["result"]["jobId"]
+        @test isempty(execute_notifications)
         execution_record = JSON3.read(execution_detail_response(state, execute_reply["result"]["jobId"]), Dict{String,Any})
         @test execution_record["requested_execution_mode"] == "cpu_only"
         @test execution_record["flow_variables"]["JULIAFLOW_GPU_DEVICE"] == "cpu-fallback"
+        @test execution_record["resourcePlan"][1]["lane"] == "cpu"
     end
 end
 

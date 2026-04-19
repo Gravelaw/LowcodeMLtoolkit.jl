@@ -34,15 +34,102 @@ export interface FlowVariableDefinition {
   default?: string | number | boolean | null;
 }
 
+export type WorkflowRunMode = "batch" | "stream";
+export type WorkflowResourceClass = "cpu" | "gpu";
+export type NodeExecutionMode = "batch" | "stream" | "hybrid";
+export type DashboardChartFamily = "line" | "bar" | "area" | "table" | "metric";
+export type StreamingWindowKind = "tumbling" | "sliding";
+export type StreamingWatermarkMode = "processing_time" | "event_time";
+export type StreamLifecycleStatus = "idle" | "starting" | "active" | "paused" | "stopped";
+
+export interface WorkflowNodeLayout {
+  nodeId: string;
+  x: number;
+  y: number;
+  width?: number;
+  checkpointTag?: string;
+  notes?: string;
+}
+
+export interface WorkflowViewportState {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+export interface WorkflowGraphDefinition {
+  revision: number;
+  nodeLayouts: WorkflowNodeLayout[];
+  viewport?: WorkflowViewportState;
+  selectedNodeId?: string;
+}
+
+export interface NodeCapabilityDescriptor {
+  executionMode: NodeExecutionMode;
+  resourceClass: WorkflowResourceClass;
+  accelerator?: "cuda";
+  workerPool?: string;
+}
+
+export interface DashboardBindingDefinition {
+  outletNodeId: string;
+  datasetKey: string;
+  refreshMode: "manual" | "live";
+}
+
+export interface DashboardChartDefinition {
+  chartId: string;
+  title: string;
+  family: DashboardChartFamily;
+  xField?: string;
+  yField?: string;
+  seriesField?: string;
+}
+
+export interface DashboardDefinition {
+  dashboardId: string;
+  name: string;
+  binding: DashboardBindingDefinition;
+  charts: DashboardChartDefinition[];
+}
+
+export interface StreamingSourceDefinition {
+  kind: "kafka";
+  topic: string;
+  consumerGroup: string;
+  bootstrapServers: string[];
+}
+
+export interface StreamingWindowDefinition {
+  kind: StreamingWindowKind;
+  sizeSeconds: number;
+  slideSeconds?: number;
+}
+
+export interface StreamingPolicyDefinition {
+  watermarkMode: StreamingWatermarkMode;
+  allowedLatenessSeconds: number;
+  maxInFlightBatches: number;
+}
+
+export interface WorkflowRuntimeDefinition {
+  runMode: WorkflowRunMode;
+  source?: StreamingSourceDefinition;
+  window?: StreamingWindowDefinition;
+  policy?: StreamingPolicyDefinition;
+}
+
 export interface NodeDefinition {
   id: string;
   type: string;
   name: string;
   executionHint: ExecutionHint;
+  capabilities?: NodeCapabilityDescriptor;
   ports: Array<{
     id: string;
     direction: "input" | "output";
     type: WorkflowPortType;
+    label?: string;
   }>;
   config: Record<string, unknown>;
   gpuDevicePreference?: string;
@@ -54,6 +141,7 @@ export interface ConnectionDefinition {
   targetNodeId: string;
   targetPortId: string;
   dataType: WorkflowPortType;
+  label?: string;
 }
 
 export interface WorkflowDefinition {
@@ -63,6 +151,9 @@ export interface WorkflowDefinition {
   nodes: NodeDefinition[];
   connections: ConnectionDefinition[];
   flowVariables: FlowVariableDefinition[];
+  graph?: WorkflowGraphDefinition;
+  dashboards?: DashboardDefinition[];
+  runtime?: WorkflowRuntimeDefinition;
 }
 
 export const jsonRpcMethods = [
@@ -141,6 +232,9 @@ export interface GatewayWorkflowSummary {
   version: string;
   nodeCount: number;
   latestCheckpoint: string;
+  graphRevision?: number;
+  dashboardCount?: number;
+  runMode?: WorkflowRunMode;
 }
 
 export interface GatewayWorkflowMetadata {
@@ -155,6 +249,9 @@ export interface GatewayWorkflowMetadata {
   connections: ConnectionDefinition[];
   flowVariables: FlowVariableDefinition[];
   biOutlets: Array<Record<string, unknown>>;
+  graph?: WorkflowGraphDefinition;
+  dashboards?: DashboardDefinition[];
+  runtime?: WorkflowRuntimeDefinition;
 }
 
 export interface GatewayCheckpointRecord {
@@ -192,6 +289,11 @@ export interface GatewayExecutionRecord {
   queuedAt?: string;
   startedAt?: string;
   finishedAt?: string;
+  resourcePlan?: Array<{
+    lane: WorkflowResourceClass;
+    nodeIds: string[];
+  }>;
+  streamLifecycleStatus?: StreamLifecycleStatus;
 }
 
 export interface GatewayListResponse<TItem> {
@@ -199,7 +301,8 @@ export interface GatewayListResponse<TItem> {
 }
 
 export interface CreateWorkflowRequest {
-  workflowToml: string;
+  workflowToml?: string;
+  workflow?: WorkflowDefinition;
 }
 
 export interface ImportWorkflowRequest {
@@ -307,6 +410,9 @@ export interface GatewayWorkflowStateChangedEvent {
   connectionCount: number;
   latestCheckpoint: string;
   executionCount: number;
+  graphRevision?: number;
+  dashboardCount?: number;
+  runMode?: WorkflowRunMode;
 }
 
 export interface GatewayNodeStateChangedEvent {
@@ -330,11 +436,20 @@ export interface GatewayExecutionStateChangedEvent extends GatewayExecutionRecor
   subscriptionId?: string;
 }
 
+export interface GatewayRepositorySaveChangedEvent {
+  subscriptionId?: string;
+  workflowId: string;
+  workflowVersion: string;
+  graphRevision?: number;
+  savedAt: string;
+}
+
 export interface GatewayRealtimeNotificationMap {
   "workflow.state.changed": GatewayWorkflowStateChangedEvent;
   "node.state.changed": GatewayNodeStateChangedEvent;
   "dashboard.outlet.updated": GatewayDashboardOutletUpdatedEvent;
   "execution.state.changed": GatewayExecutionStateChangedEvent;
+  "repository.save.changed": GatewayRepositorySaveChangedEvent;
 }
 
 export type GatewayRealtimeNotificationMethod = keyof GatewayRealtimeNotificationMap;

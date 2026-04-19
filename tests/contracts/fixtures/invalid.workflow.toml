@@ -1,0 +1,33 @@
+version = "0.1.0"
+
+[workflow]
+id = "wf-invalid"
+name = "Invalid PoC"
+
+[[nodes]]
+id = "node-source"
+name = "CSV Reader"
+type = "JuliaFlow.Base.CSVReader"
+execution_hint = "cpu_only"
+config = { path = "assets/sample.csv" }
+ports = [
+  { id = "out", direction = "output", type = "data_table" }
+]
+
+[[nodes]]
+id = "node-target"
+name = "Broken Target"
+type = "JuliaFlow.Base.Filter"
+execution_hint = "cpu_only"
+config = { keep = "region = west" }
+ports = [
+  { id = "in", direction = "output", type = "data_table" }
+]
+
+[[connections]]
+source_node_id = "node-source"
+source_port_id = "out"
+target_node_id = "node-target"
+target_port_id = "in"
+data_type = "data_table"
+

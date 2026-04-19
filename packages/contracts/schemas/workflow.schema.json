@@ -26,6 +26,54 @@
         "name": {
           "type": "string"
         },
+        "graph": {
+          "type": "object",
+          "required": [
+            "revision",
+            "node_layouts"
+          ],
+          "properties": {
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "selected_node_id": {
+              "type": "string"
+            },
+            "viewport": {
+              "type": "object",
+              "required": [
+                "x",
+                "y",
+                "zoom"
+              ],
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "zoom": { "type": "number" }
+              }
+            },
+            "node_layouts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "node_id",
+                  "x",
+                  "y"
+                ],
+                "properties": {
+                  "node_id": { "type": "string" },
+                  "x": { "type": "number" },
+                  "y": { "type": "number" },
+                  "width": { "type": "number" },
+                  "checkpoint_tag": { "type": "string" },
+                  "notes": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
         "bi_outlets": {
           "type": "array",
           "items": {
@@ -42,6 +90,138 @@
                 "type": "string"
               }
             }
+          }
+        },
+        "dashboards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "binding",
+              "charts"
+            ],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "binding": {
+                "type": "object",
+                "required": [
+                  "outlet_node_id",
+                  "dataset_key",
+                  "refresh_mode"
+                ],
+                "properties": {
+                  "outlet_node_id": { "type": "string" },
+                  "dataset_key": { "type": "string" },
+                  "refresh_mode": {
+                    "enum": [
+                      "manual",
+                      "live"
+                    ]
+                  }
+                }
+              },
+              "charts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "title",
+                    "family"
+                  ],
+                  "properties": {
+                    "id": { "type": "string" },
+                    "title": { "type": "string" },
+                    "family": {
+                      "enum": [
+                        "line",
+                        "bar",
+                        "area",
+                        "table",
+                        "metric"
+                      ]
+                    },
+                    "x_field": { "type": "string" },
+                    "y_field": { "type": "string" },
+                    "series_field": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "required": [
+        "run_mode"
+      ],
+      "properties": {
+        "run_mode": {
+          "enum": [
+            "batch",
+            "stream"
+          ]
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "kind",
+            "topic",
+            "consumer_group",
+            "bootstrap_servers"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "kafka"
+              ]
+            },
+            "topic": { "type": "string" },
+            "consumer_group": { "type": "string" },
+            "bootstrap_servers": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "window": {
+          "type": "object",
+          "required": [
+            "kind",
+            "size_seconds"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "tumbling",
+                "sliding"
+              ]
+            },
+            "size_seconds": { "type": "integer", "minimum": 1 },
+            "slide_seconds": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "policy": {
+          "type": "object",
+          "required": [
+            "watermark_mode",
+            "allowed_lateness_seconds",
+            "max_in_flight_batches"
+          ],
+          "properties": {
+            "watermark_mode": {
+              "enum": [
+                "processing_time",
+                "event_time"
+              ]
+            },
+            "allowed_lateness_seconds": { "type": "integer", "minimum": 0 },
+            "max_in_flight_batches": { "type": "integer", "minimum": 1 }
           }
         }
       }
@@ -99,6 +279,36 @@
               "gpu_required"
             ]
           },
+          "capabilities": {
+            "type": "object",
+            "required": [
+              "execution_mode",
+              "resource_class"
+            ],
+            "properties": {
+              "execution_mode": {
+                "enum": [
+                  "batch",
+                  "stream",
+                  "hybrid"
+                ]
+              },
+              "resource_class": {
+                "enum": [
+                  "cpu",
+                  "gpu"
+                ]
+              },
+              "accelerator": {
+                "enum": [
+                  "cuda"
+                ]
+              },
+              "worker_pool": {
+                "type": "string"
+              }
+            }
+          },
           "gpu_device_preference": {
             "type": "string"
           },
@@ -130,6 +340,9 @@
                     "stream_channel",
                     "gpu_buffer"
                   ]
+                },
+                "label": {
+                  "type": "string"
                 }
               }
             }
@@ -173,10 +386,12 @@
               "stream_channel",
               "gpu_buffer"
             ]
+          },
+          "label": {
+            "type": "string"
           }
         }
       }
     }
   }
 }
-

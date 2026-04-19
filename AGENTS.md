@@ -92,6 +92,17 @@ Pull requests should include:
 ## Agent-Specific Notes
 Do not assume missing tooling exists. Read current architecture and onboarding docs before making broad repo changes.
 
+### Default Session Communication Mode
+
+For every session in this repository, agent must use the `caveman:caveman` skill by default.
+Treat this as the repo-wide communication baseline unless the user explicitly asks for a different style.
+
+Requirements:
+- activate `caveman:caveman` at session start when available
+- prefer brief, compressed, high-signal responses in all commentary and final messages
+- keep technical accuracy intact while reducing filler
+- if the caveman skill is unavailable in a session, fall back to the closest concise style possible and note that briefly only when needed
+
 Useful docs:
 - `README.md`
 - `docs/architecture.md`

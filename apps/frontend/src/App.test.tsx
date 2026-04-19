@@ -274,8 +274,12 @@ describe("App", () => {
       }
 
       if (url.endsWith("/api/v1/workflows/wf-live-contracts") && init?.method === "PUT") {
-        const body = JSON.parse(String(init.body)) as { workflowToml: string };
-        expect(body.workflowToml).toContain('default = "tomorrow"');
+        const body = JSON.parse(String(init.body)) as {
+          workflow: {
+            flowVariables: Array<{ default?: string; name: string }>;
+          };
+        };
+        expect(body.workflow.flowVariables.find((item) => item.name === "live_window")?.default).toBe("tomorrow");
 
         return new Response(
           JSON.stringify({

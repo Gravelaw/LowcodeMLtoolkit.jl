@@ -40,6 +40,21 @@ Base.@kwdef mutable struct GatewayState
     workflows::Dict{String,JuliaFlowGatewayRepository.JuliaFlowExecutionService.WorkflowDefinition} = Dict{String,JuliaFlowGatewayRepository.JuliaFlowExecutionService.WorkflowDefinition}()
     checkpoints::Vector{GatewayCheckpoint} = GatewayCheckpoint[]
     executions::Vector{GatewayExecution} = GatewayExecution[]
+    canvas_subscriptions::Dict{String,Any} = Dict{String,Any}()
+    dashboard_subscriptions::Dict{String,Any} = Dict{String,Any}()
+end
+
+Base.@kwdef mutable struct CanvasSubscription
+    subscription_id::String
+    workflow_id::String
+    socket
+end
+
+Base.@kwdef mutable struct DashboardSubscription
+    subscription_id::String
+    dashboard_id::String
+    outlet_ids::Vector{String} = String[]
+    socket
 end
 
 function repository_backend(state::GatewayState)
@@ -104,7 +119,24 @@ function normalize_node_payload(node)
         config["gpuDevicePreference"] = normalized["gpuDevicePreference"]
     end
 
-    return Dict{String,Any}(
+    capabilities = if haskey(normalized, "capabilities")
+        normalized_capabilities = normalized_string_dict(normalized["capabilities"])
+        capability_payload = Dict{String,Any}(
+            "execution_mode" => String(get(normalized_capabilities, "executionMode", get(normalized_capabilities, "execution_mode", "batch"))),
+            "resource_class" => String(get(normalized_capabilities, "resourceClass", get(normalized_capabilities, "resource_class", "cpu"))),
+        )
+        haskey(normalized_capabilities, "accelerator") && (capability_payload["accelerator"] = String(normalized_capabilities["accelerator"]))
+        if haskey(normalized_capabilities, "workerPool")
+            capability_payload["worker_pool"] = String(normalized_capabilities["workerPool"])
+        elseif haskey(normalized_capabilities, "worker_pool")
+            capability_payload["worker_pool"] = String(normalized_capabilities["worker_pool"])
+        end
+        capability_payload
+    else
+        nothing
+    end
+
+    payload = Dict{String,Any}(
         "id" => String(normalized["id"]),
         "name" => String(normalized["name"]),
         "type" => String(normalized["type"]),
@@ -112,17 +144,97 @@ function normalize_node_payload(node)
         "config" => config,
         "ports" => ports,
     )
+    capabilities === nothing || (payload["capabilities"] = capabilities)
+    return payload
 end
 
 function normalize_connection_payload(connection)
     normalized = normalized_string_dict(connection)
-    return Dict{String,Any}(
+    payload = Dict{String,Any}(
         "source_node_id" => String(normalized["sourceNodeId"]),
         "source_port_id" => String(normalized["sourcePortId"]),
         "target_node_id" => String(normalized["targetNodeId"]),
         "target_port_id" => String(normalized["targetPortId"]),
         "data_type" => String(normalized["dataType"]),
     )
+    haskey(normalized, "label") && (payload["label"] = String(normalized["label"]))
+    return payload
+end
+
+function normalize_graph_payload(graph)
+    normalized = normalized_string_dict(graph)
+    payload = Dict{String,Any}(
+        "revision" => Int(get(normalized, "revision", 1)),
+        "node_layouts" => [
+            let
+                layout = normalized_string_dict(item)
+                node_layout = Dict{String,Any}(
+                    "node_id" => String(get(layout, "nodeId", get(layout, "node_id", ""))),
+                    "x" => Float64(layout["x"]),
+                    "y" => Float64(layout["y"]),
+                )
+                haskey(layout, "width") && (node_layout["width"] = Float64(layout["width"]))
+                if haskey(layout, "checkpointTag")
+                    node_layout["checkpoint_tag"] = String(layout["checkpointTag"])
+                elseif haskey(layout, "checkpoint_tag")
+                    node_layout["checkpoint_tag"] = String(layout["checkpoint_tag"])
+                end
+                haskey(layout, "notes") && (node_layout["notes"] = String(layout["notes"]))
+                node_layout
+            end for item in get(normalized, "nodeLayouts", get(normalized, "node_layouts", Any[]))
+        ],
+    )
+    if haskey(normalized, "viewport")
+        payload["viewport"] = normalized_string_dict(normalized["viewport"])
+    end
+    if haskey(normalized, "selectedNodeId")
+        payload["selected_node_id"] = String(normalized["selectedNodeId"])
+    elseif haskey(normalized, "selected_node_id")
+        payload["selected_node_id"] = String(normalized["selected_node_id"])
+    end
+    return payload
+end
+
+function normalize_dashboard_payload(dashboard)
+    normalized = normalized_string_dict(dashboard)
+    binding = normalized_string_dict(normalized["binding"])
+    return Dict{String,Any}(
+        "id" => String(get(normalized, "dashboardId", get(normalized, "id", ""))),
+        "name" => String(normalized["name"]),
+        "binding" => Dict{String,Any}(
+            "outlet_node_id" => String(get(binding, "outletNodeId", get(binding, "outlet_node_id", ""))),
+            "dataset_key" => String(get(binding, "datasetKey", get(binding, "dataset_key", ""))),
+            "refresh_mode" => String(get(binding, "refreshMode", get(binding, "refresh_mode", "manual"))),
+        ),
+        "charts" => [
+            let
+                chart = normalized_string_dict(item)
+                payload = Dict{String,Any}(
+                    "id" => String(get(chart, "chartId", get(chart, "id", ""))),
+                    "title" => String(chart["title"]),
+                    "family" => String(chart["family"]),
+                )
+                haskey(chart, "xField") && (payload["x_field"] = String(chart["xField"]))
+                haskey(chart, "x_field") && (payload["x_field"] = String(chart["x_field"]))
+                haskey(chart, "yField") && (payload["y_field"] = String(chart["yField"]))
+                haskey(chart, "y_field") && (payload["y_field"] = String(chart["y_field"]))
+                haskey(chart, "seriesField") && (payload["series_field"] = String(chart["seriesField"]))
+                haskey(chart, "series_field") && (payload["series_field"] = String(chart["series_field"]))
+                payload
+            end for item in get(normalized, "charts", Any[])
+        ],
+    )
+end
+
+function normalize_runtime_payload(runtime)
+    normalized = normalized_string_dict(runtime)
+    payload = Dict{String,Any}(
+        "run_mode" => String(get(normalized, "runMode", get(normalized, "run_mode", "batch"))),
+    )
+    haskey(normalized, "source") && (payload["source"] = normalized_string_dict(normalized["source"]))
+    haskey(normalized, "window") && (payload["window"] = normalized_string_dict(normalized["window"]))
+    haskey(normalized, "policy") && (payload["policy"] = normalized_string_dict(normalized["policy"]))
+    return payload
 end
 
 function workflow_toml_from_request(body::AbstractDict{<:Any,<:Any})
@@ -153,6 +265,17 @@ function workflow_toml_from_request(body::AbstractDict{<:Any,<:Any})
         raw["workflow"]["bi_outlets"] = [
             normalized_string_dict(outlet) for outlet in workflow_payload["biOutlets"]
         ]
+    end
+    if haskey(workflow_payload, "graph")
+        raw["workflow"]["graph"] = normalize_graph_payload(workflow_payload["graph"])
+    end
+    if haskey(workflow_payload, "dashboards")
+        raw["workflow"]["dashboards"] = [
+            normalize_dashboard_payload(dashboard) for dashboard in workflow_payload["dashboards"]
+        ]
+    end
+    if haskey(workflow_payload, "runtime")
+        raw["runtime"] = normalize_runtime_payload(workflow_payload["runtime"])
     end
 
     workflow = JuliaFlowGatewayRepository.JuliaFlowExecutionService.parse_workflow_definition(raw)
@@ -306,6 +429,7 @@ function execution_accept_response(
     execution = materialize_execution(job)
     save_execution!(state.repository, execution)
     push!(state.executions, execution)
+    broadcast_execution_update!(state, workflow_id, execution)
     return JSON3.write(execution_payload(execution))
 end
 
@@ -367,6 +491,7 @@ function transition_execution_response!(
     execution = materialize_execution(updated)
     state.executions[index] = execution
     save_execution!(state.repository, execution)
+    broadcast_execution_update!(state, execution.workflow_id, execution)
     return JSON3.write(execution_payload(execution))
 end
 
@@ -392,6 +517,7 @@ end
 
 function import_workflow_response!(state::GatewayState; source_path::AbstractString)
     workflow = persist_workflow_file!(state, source_path)
+    broadcast_workflow_save!(state, workflow.id)
     return JSON3.write(
         Dict(
             "workflowId" => workflow.id,
@@ -404,6 +530,7 @@ end
 function create_workflow_response!(state::GatewayState; workflow_toml::AbstractString)
     payload = String(workflow_toml)
     workflow = persist_workflow_text!(state, payload)
+    broadcast_workflow_save!(state, workflow.id)
     return JSON3.write(
         Dict(
             "workflowId" => workflow.id,
@@ -427,6 +554,7 @@ function update_workflow_response!(
     updated = JuliaFlowGatewayRepository.JuliaFlowExecutionService.load_workflow_definition_text(payload)
     updated.id == workflow_id || error("workflow id mismatch: expected $(workflow_id), got $(updated.id)")
     workflow = persist_workflow_text!(state, payload)
+    broadcast_workflow_save!(state, workflow.id)
     return JSON3.write(
         Dict(
             "workflowId" => workflow.id,
@@ -492,7 +620,7 @@ end
 function workflow_state_changed_payload(state::GatewayState, workflow_id::AbstractString)
     haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
     workflow = state.workflows[workflow_id]
-    return Dict(
+    payload = Dict(
         "workflowId" => workflow.id,
         "name" => workflow.name,
         "version" => workflow.version,
@@ -500,7 +628,67 @@ function workflow_state_changed_payload(state::GatewayState, workflow_id::Abstra
         "connectionCount" => length(workflow.connections),
         "latestCheckpoint" => latest_checkpoint_tag(state),
         "executionCount" => count(execution -> execution.workflow_id == workflow_id, state.executions),
+        "dashboardCount" => length(workflow.dashboards),
+        "runMode" => String(workflow.runtime.run_mode),
     )
+    workflow.graph === nothing || (payload["graphRevision"] = workflow.graph.revision)
+    return payload
+end
+
+function repository_save_changed_payload(state::GatewayState, workflow_id::AbstractString)
+    haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
+    workflow = state.workflows[workflow_id]
+    payload = Dict{String,Any}(
+        "workflowId" => workflow.id,
+        "workflowVersion" => workflow.version,
+        "savedAt" => string(now(UTC)),
+    )
+    workflow.graph === nothing || (payload["graphRevision"] = workflow.graph.revision)
+    return payload
+end
+
+function workflow_dashboard_ids(state::GatewayState, workflow_id::AbstractString)
+    haskey(state.workflows, workflow_id) || return String[]
+    return [dashboard.id for dashboard in state.workflows[workflow_id].dashboards]
+end
+
+function broadcast_workflow_save!(state::GatewayState, workflow_id::AbstractString)
+    notifications = String[
+        jsonrpc_notification("repository.save.changed", repository_save_changed_payload(state, workflow_id)),
+        jsonrpc_notification("workflow.state.changed", workflow_state_changed_payload(state, workflow_id)),
+    ]
+    broadcast_canvas_notifications!(state, workflow_id, notifications)
+    for dashboard_id in workflow_dashboard_ids(state, workflow_id)
+        dashboard_notifications = String[
+            jsonrpc_notification(
+                "dashboard.outlet.updated",
+                dashboard_outlet_updated_payload(state, dashboard_id, String[]),
+            ),
+        ]
+        broadcast_dashboard_notifications!(state, dashboard_id, dashboard_notifications)
+    end
+    return nothing
+end
+
+function broadcast_execution_update!(state::GatewayState, workflow_id::AbstractString, execution::GatewayExecution)
+    notifications = String[
+        jsonrpc_notification("workflow.state.changed", workflow_state_changed_payload(state, workflow_id)),
+        jsonrpc_notification("execution.state.changed", execution_state_changed_payload(execution)),
+    ]
+    for payload in node_state_changed_payloads(state, workflow_id; execution = execution)
+        push!(notifications, jsonrpc_notification("node.state.changed", payload))
+    end
+    broadcast_canvas_notifications!(state, workflow_id, notifications)
+    for dashboard_id in workflow_dashboard_ids(state, workflow_id)
+        dashboard_notifications = String[
+            jsonrpc_notification(
+                "dashboard.outlet.updated",
+                dashboard_outlet_updated_payload(state, dashboard_id, String[]),
+            ),
+        ]
+        broadcast_dashboard_notifications!(state, dashboard_id, dashboard_notifications)
+    end
+    return nothing
 end
 
 function latest_execution_for_workflow(state::GatewayState, workflow_id::AbstractString)
@@ -571,18 +759,85 @@ function execution_state_changed_payload(execution::GatewayExecution)
     return execution_payload(execution)
 end
 
-function realtime_method_result!(state::GatewayState, method::AbstractString, params::Dict{String,Any})
+function register_canvas_subscription!(state::GatewayState, subscription_id::AbstractString, workflow_id::AbstractString, ws)
+    state.canvas_subscriptions[String(subscription_id)] = CanvasSubscription(
+        subscription_id = String(subscription_id),
+        workflow_id = String(workflow_id),
+        socket = ws,
+    )
+    return subscription_id
+end
+
+function register_dashboard_subscription!(state::GatewayState, subscription_id::AbstractString, dashboard_id::AbstractString, outlet_ids, ws)
+    state.dashboard_subscriptions[String(subscription_id)] = DashboardSubscription(
+        subscription_id = String(subscription_id),
+        dashboard_id = String(dashboard_id),
+        outlet_ids = [String(outlet_id) for outlet_id in outlet_ids],
+        socket = ws,
+    )
+    return subscription_id
+end
+
+function drop_socket_subscriptions!(state::GatewayState, ws)
+    filter!((_, subscription) -> subscription.socket !== ws, state.canvas_subscriptions)
+    filter!((_, subscription) -> subscription.socket !== ws, state.dashboard_subscriptions)
+    return nothing
+end
+
+function send_notification_safely!(socket, notification::AbstractString)
+    try
+        HTTP.WebSockets.send(socket, notification)
+        return true
+    catch
+        return false
+    end
+end
+
+function broadcast_canvas_notifications!(state::GatewayState, workflow_id::AbstractString, notifications::Vector{String})
+    stale_ids = String[]
+    for (subscription_id, subscription) in state.canvas_subscriptions
+        subscription.workflow_id == workflow_id || continue
+        delivered = true
+        for notification in notifications
+            delivered = send_notification_safely!(subscription.socket, notification) && delivered
+        end
+        delivered || push!(stale_ids, subscription_id)
+    end
+    for subscription_id in stale_ids
+        delete!(state.canvas_subscriptions, subscription_id)
+    end
+    return nothing
+end
+
+function broadcast_dashboard_notifications!(state::GatewayState, dashboard_id::AbstractString, notifications::Vector{String})
+    stale_ids = String[]
+    for (subscription_id, subscription) in state.dashboard_subscriptions
+        subscription.dashboard_id == dashboard_id || continue
+        delivered = true
+        for notification in notifications
+            delivered = send_notification_safely!(subscription.socket, notification) && delivered
+        end
+        delivered || push!(stale_ids, subscription_id)
+    end
+    for subscription_id in stale_ids
+        delete!(state.dashboard_subscriptions, subscription_id)
+    end
+    return nothing
+end
+
+function realtime_method_result!(state::GatewayState, method::AbstractString, params::Dict{String,Any}, ws = nothing)
     if method == "canvas.subscribe"
         haskey(params, "workflowId") || error("missing workflowId")
         workflow_id = String(params["workflowId"])
         subscription_id = "canvas-" * string(uuid4())
+        ws === nothing || register_canvas_subscription!(state, subscription_id, workflow_id, ws)
         notifications = String[
             jsonrpc_notification(
                 "workflow.state.changed",
                 merge(Dict("subscriptionId" => subscription_id), workflow_state_changed_payload(state, workflow_id)),
             ),
         ]
-        for payload in Iterators.take(node_state_changed_payloads(state, workflow_id), 1)
+        for payload in node_state_changed_payloads(state, workflow_id)
             push!(
                 notifications,
                 jsonrpc_notification(
@@ -607,6 +862,7 @@ function realtime_method_result!(state::GatewayState, method::AbstractString, pa
         dashboard_id = String(params["dashboardId"])
         outlet_ids = get(params, "outletIds", Any[])
         subscription_id = "dashboard-" * string(uuid4())
+        ws === nothing || register_dashboard_subscription!(state, subscription_id, dashboard_id, outlet_ids, ws)
         notifications = String[
             jsonrpc_notification(
                 "dashboard.outlet.updated",
@@ -631,21 +887,13 @@ function realtime_method_result!(state::GatewayState, method::AbstractString, pa
             ),
             Dict{String,Any},
         )
-        execution_record = latest_execution_for_workflow(state, workflow_id)
-        notifications = String[
-            jsonrpc_notification("workflow.state.changed", workflow_state_changed_payload(state, workflow_id)),
-            jsonrpc_notification("execution.state.changed", execution_state_changed_payload(execution_record)),
-        ]
-        for payload in node_state_changed_payloads(state, workflow_id; execution = execution_record)
-            push!(notifications, jsonrpc_notification("node.state.changed", payload))
-        end
-        return Dict("jobId" => String(execution["executionId"]), "status" => "accepted"), notifications
+        return Dict("jobId" => String(execution["executionId"]), "status" => "accepted"), String[]
     end
 
     error("method not found: $(method)")
 end
 
-function handle_realtime_request!(state::GatewayState, raw_message)
+function handle_realtime_request!(state::GatewayState, raw_message, ws = nothing)
     request_id = nothing
     try
         request = copy(JSON3.read(String(raw_message), Dict{String,Any}))
@@ -655,7 +903,7 @@ function handle_realtime_request!(state::GatewayState, raw_message)
         method = String(request["method"])
         params = haskey(request, "params") ? Dict{String,Any}(String(key) => value for (key, value) in pairs(request["params"])) : Dict{String,Any}()
         request_id = get(request, "id", nothing)
-        result, notifications = realtime_method_result!(state, method, params)
+        result, notifications = realtime_method_result!(state, method, params, ws)
         return jsonrpc_success(request_id, result), notifications
     catch err
         message = sprint(showerror, err)
@@ -669,12 +917,16 @@ function handle_realtime_request!(state::GatewayState, raw_message)
 end
 
 function handle_realtime_socket!(state::GatewayState, ws)
-    for message in ws
-        response, notifications = handle_realtime_request!(state, message)
-        HTTP.WebSockets.send(ws, response)
-        for notification in notifications
-            HTTP.WebSockets.send(ws, notification)
+    try
+        for message in ws
+            response, notifications = handle_realtime_request!(state, message, ws)
+            HTTP.WebSockets.send(ws, response)
+            for notification in notifications
+                HTTP.WebSockets.send(ws, notification)
+            end
         end
+    finally
+        drop_socket_subscriptions!(state, ws)
     end
     return nothing
 end

@@ -29,6 +29,7 @@ import {
   checkpointRailItems,
   executionRailItems,
   sampleWorkflow,
+  starterNodeCatalog,
   type CanvasNodeLayout,
   type CheckpointRailItem,
   type ExecutionRailItem
@@ -370,7 +371,8 @@ function cloneNodeDefinition(node: NodeDefinition): NodeDefinition {
   return {
     ...node,
     ports: node.ports.map((port) => ({ ...port })),
-    config: { ...node.config }
+    config: { ...node.config },
+    capabilities: node.capabilities ? { ...node.capabilities } : undefined
   };
 }
 
@@ -378,7 +380,7 @@ function buildRepositoryCatalog(workflow: WorkflowDefinition): NodeDefinition[] 
   const catalog: NodeDefinition[] = [];
   const seenTypes = new Set<string>();
 
-  for (const node of [...sampleWorkflow.nodes, ...workflow.nodes]) {
+  for (const node of [...sampleWorkflow.nodes, ...workflow.nodes, ...starterNodeCatalog]) {
     if (seenTypes.has(node.type)) {
       continue;
     }
@@ -389,12 +391,84 @@ function buildRepositoryCatalog(workflow: WorkflowDefinition): NodeDefinition[] 
   return catalog;
 }
 
+function findGraphLayout(workflow: WorkflowDefinition, nodeId: string) {
+  return workflow.graph?.nodeLayouts.find((layout) => layout.nodeId === nodeId);
+}
+
+function upsertGraphLayout(
+  workflow: WorkflowDefinition,
+  nodeId: string,
+  updates: Partial<NonNullable<WorkflowDefinition["graph"]>["nodeLayouts"][number]>
+): WorkflowDefinition {
+  const currentLayouts = workflow.graph?.nodeLayouts ?? [];
+  const existingLayout = currentLayouts.find((layout) => layout.nodeId === nodeId);
+  const nextLayout =
+    existingLayout === undefined
+      ? {
+          nodeId,
+          x: updates.x ?? 44,
+          y: updates.y ?? 56,
+          width: updates.width,
+          checkpointTag: updates.checkpointTag,
+          notes: updates.notes
+        }
+      : { ...existingLayout, ...updates };
+  const nodeLayouts = existingLayout
+    ? currentLayouts.map((layout) => (layout.nodeId === nodeId ? nextLayout : layout))
+    : [...currentLayouts, nextLayout];
+
+  return {
+    ...workflow,
+    graph: {
+      revision: (workflow.graph?.revision ?? 0) + 1,
+      nodeLayouts,
+      selectedNodeId: workflow.graph?.selectedNodeId ?? nodeId,
+      viewport: workflow.graph?.viewport ?? { x: 0, y: 0, zoom: 1 }
+    }
+  };
+}
+
+function applyNodePositionOverrides(
+  workflow: WorkflowDefinition,
+  overrides: Record<string, { x: number; y: number }>,
+  selectedNodeId: string
+): WorkflowDefinition {
+  let nextWorkflow: WorkflowDefinition = {
+    ...workflow,
+    graph: workflow.graph ?? {
+      revision: 1,
+      nodeLayouts: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      selectedNodeId
+    }
+  };
+
+  for (const [nodeId, position] of Object.entries(overrides)) {
+    nextWorkflow = upsertGraphLayout(nextWorkflow, nodeId, position);
+  }
+
+  if (nextWorkflow.graph) {
+    nextWorkflow = {
+      ...nextWorkflow,
+      graph: {
+        ...nextWorkflow.graph,
+        selectedNodeId
+      }
+    };
+  }
+
+  return nextWorkflow;
+}
+
 function buildNodeLayoutsForWorkflow(
   workflow: WorkflowDefinition,
   mode: DataSourceMode
 ): Record<string, CanvasNodeLayout> {
+  const hasPersistedGraph = (workflow.graph?.nodeLayouts.length ?? 0) > 0;
   const baseLayouts =
-    mode === "live" ? buildCanvasNodeLayouts(workflow) : Object.fromEntries(Object.entries(canvasNodeLayouts));
+    mode === "live" || hasPersistedGraph
+      ? buildCanvasNodeLayouts(workflow)
+      : Object.fromEntries(Object.entries(canvasNodeLayouts));
   const nextLayouts = { ...baseLayouts };
   let supplementalIndex = 0;
 
@@ -1257,6 +1331,8 @@ function App() {
   const sampleOutput = buildSampleOutput(selectedNode);
   const repositoryFamilies = new Set(workflow.nodes.map((node) => buildRepositoryGroupLabel(node.type)));
   const biOutletNode = workflow.nodes.find((node) => node.type === "bi.outlet") ?? null;
+  const dashboards = workflow.dashboards ?? [];
+  const primaryDashboard = dashboards[0] ?? null;
   const selectedSliceNodeIds = new Set<string>([selectedNode.id]);
   const statusCounts = buildStatusCounts(executionItems);
   const unresolvedNodeCount = workflow.nodes.filter((node) => validationByNodeId[node.id].tone === "warn").length;
@@ -1334,11 +1410,16 @@ function App() {
     }
 
     function handleMouseUp() {
-      if (dragStateRef.current === null) {
+      const dragState = dragStateRef.current;
+      if (dragState === null) {
         return;
       }
 
       dragStateRef.current = null;
+      setWorkflow((currentWorkflow) =>
+        applyNodePositionOverrides(currentWorkflow, nodePositionOverrides, dragState.nodeId)
+      );
+      setNodePositionOverrides({});
       setIsDirty(true);
     }
 
@@ -1349,16 +1430,19 @@ function App() {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, []);
+  }, [nodePositionOverrides]);
 
   async function persistWorkflow(reason: "save" | "run"): Promise<string | null> {
+    const persistableWorkflow = applyNodePositionOverrides(workflow, nodePositionOverrides, selectedNodeId);
     if (gatewayBaseUrl.length === 0) {
       setActionFeedback({
         text: `${reason === "save" ? "Draft saved" : "Draft prepared"} locally at ${buildActionTimestampLabel()}.`,
         tone: "demo"
       });
+      setWorkflow(persistableWorkflow);
+      setNodePositionOverrides({});
       setIsDirty(false);
-      return workflow.workflowId;
+      return persistableWorkflow.workflowId;
     }
 
     setIsSaving(true);
@@ -1369,20 +1453,20 @@ function App() {
 
     try {
       const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
-      const workflowToml = serializeWorkflowToToml(workflow);
       const response = workflowExistsOnGateway
-        ? await gatewayClient.updateWorkflow(workflow.workflowId, { workflowToml })
-        : await gatewayClient.createWorkflow({ workflowToml });
+        ? await gatewayClient.updateWorkflow(workflow.workflowId, { workflow: persistableWorkflow })
+        : await gatewayClient.createWorkflow({ workflow: persistableWorkflow });
 
       setKnownWorkflowIds((currentIds) =>
         currentIds.includes(response.workflowId) ? currentIds : [...currentIds, response.workflowId]
       );
-      setWorkflow((currentWorkflow) => ({
-        ...currentWorkflow,
+      setWorkflow({
+        ...persistableWorkflow,
         workflowId: response.workflowId,
         name: response.name,
         version: response.version
-      }));
+      });
+      setNodePositionOverrides({});
       setIsDirty(false);
       setActionFeedback({
         text: `${response.status === "created" ? "Created" : "Updated"} ${response.workflowId} at ${buildActionTimestampLabel()}.`,
@@ -1445,12 +1529,23 @@ function App() {
     const autoConnection = buildAutoConnection(workflow, selectedNodeId, nextNode);
 
     updateWorkflowDraft((currentWorkflow) => ({
-      ...currentWorkflow,
-      nodes: [...currentWorkflow.nodes, nextNode],
-      connections:
-        autoConnection === null
-          ? currentWorkflow.connections
-          : [...currentWorkflow.connections, autoConnection]
+      ...upsertGraphLayout(
+        {
+          ...currentWorkflow,
+          nodes: [...currentWorkflow.nodes, nextNode],
+          connections:
+            autoConnection === null
+              ? currentWorkflow.connections
+              : [...currentWorkflow.connections, autoConnection]
+        },
+        nextNode.id,
+        {
+          x: 44 + (currentWorkflow.nodes.length % 4) * 220,
+          y: 56 + Math.floor(currentWorkflow.nodes.length / 4) * 164,
+          width: 180,
+          notes: `Draft node ${nextNode.name} has not been persisted yet.`
+        }
+      )
     }));
 
     setSelectedNodeId(nextNode.id);
@@ -2159,6 +2254,38 @@ function App() {
               title="Program phases"
               detail="Milestones stay visible as support context, not as the dominant screen story."
             />
+            <div className="rail-spotlight">
+              <div className="rail-spotlight-copy">
+                <span>Alpha runtime contract</span>
+                <strong>{workflow.runtime?.runMode === "stream" ? "Streaming MVP" : "Batch-first authoring"}</strong>
+                <p>
+                  {workflow.runtime?.runMode === "stream"
+                    ? `Kafka topic ${String(workflow.runtime.source?.topic ?? "unset")} with ${String(workflow.runtime.window?.kind ?? "window")} windows`
+                    : "Batch persistence, GPU hints, dashboards, and realtime sync are all contract-backed."}
+                </p>
+              </div>
+              <StatusBadge label={workflow.runtime?.runMode === "stream" ? "streaming_active" : "configured"} />
+            </div>
+
+            <div className="checkpoint-policy">
+              <h2>Dashboard v0</h2>
+              {primaryDashboard ? (
+                <ul className="checkpoint-list">
+                  <li>
+                    <strong>{primaryDashboard.name}</strong>
+                    <span>{primaryDashboard.binding.refreshMode} refresh via {primaryDashboard.binding.datasetKey}</span>
+                  </li>
+                  {primaryDashboard.charts.map((chart) => (
+                    <li key={chart.chartId}>
+                      <strong>{chart.family}</strong>
+                      <span>{chart.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No dashboard definitions attached to this workflow yet.</p>
+              )}
+            </div>
             <div aria-busy={isPending} className="phase-list">
               {filteredPhases.map((phase) => (
                 <article className="phase-card" key={phase.id}>

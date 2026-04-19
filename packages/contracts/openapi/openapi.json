@@ -3,9 +3,19 @@
   "info": {
     "title": "JuliaFlow API",
     "version": "0.1.0",
-    "description": "Foundation REST surface for workflow persistence, execution control, and checkpoint metadata."
+    "description": "Foundation REST surface for workflow persistence, execution control, checkpoint metadata, and file-backed gateway import."
   },
   "paths": {
+    "/health": {
+      "get": {
+        "summary": "Gateway healthcheck",
+        "responses": {
+          "200": {
+            "description": "Gateway health and store summary"
+          }
+        }
+      }
+    },
     "/api/v1/workflows": {
       "get": {
         "summary": "List workflows",
@@ -16,10 +26,127 @@
         }
       },
       "post": {
-        "summary": "Create workflow",
+        "summary": "Create workflow from TOML payload",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workflowToml"
+                ],
+                "properties": {
+                  "workflowToml": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
-            "description": "Workflow created"
+            "description": "Workflow created and persisted"
+          },
+          "400": {
+            "description": "Invalid create payload"
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/import": {
+      "post": {
+        "summary": "Import workflow TOML file into persisted store",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sourcePath"
+                ],
+                "properties": {
+                  "sourcePath": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Workflow imported and persisted"
+          },
+          "400": {
+            "description": "Invalid import payload"
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}": {
+      "get": {
+        "summary": "Get workflow details",
+        "parameters": [
+          {
+            "name": "workflowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflow details"
+          },
+          "500": {
+            "description": "Workflow not found or failed"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update workflow from TOML payload",
+        "parameters": [
+          {
+            "name": "workflowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workflowToml"
+                ],
+                "properties": {
+                  "workflowToml": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workflow updated"
+          },
+          "400": {
+            "description": "Invalid update payload"
+          },
+          "500": {
+            "description": "Workflow id mismatch or update failed"
           }
         }
       }
@@ -40,20 +167,146 @@
         "responses": {
           "202": {
             "description": "Execution accepted"
+          },
+          "500": {
+            "description": "Workflow not found or execution failed"
+          }
+        }
+      }
+    },
+    "/api/v1/executions": {
+      "get": {
+        "summary": "List persisted execution jobs",
+        "responses": {
+          "200": {
+            "description": "Execution job records"
+          }
+        }
+      }
+    },
+    "/api/v1/executions/{executionId}": {
+      "get": {
+        "summary": "Get execution job details",
+        "parameters": [
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Execution job details"
+          },
+          "500": {
+            "description": "Execution not found"
+          }
+        }
+      }
+    },
+    "/api/v1/executions/{executionId}/status": {
+      "post": {
+        "summary": "Transition execution job status",
+        "parameters": [
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "accepted",
+                      "queued",
+                      "running",
+                      "completed",
+                      "failed"
+                    ]
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Execution status updated"
+          },
+          "400": {
+            "description": "Invalid status transition payload"
+          },
+          "500": {
+            "description": "Execution not found or transition failed"
           }
         }
       }
     },
     "/api/v1/checkpoints": {
+      "get": {
+        "summary": "List checkpoint records",
+        "responses": {
+          "200": {
+            "description": "Checkpoint records"
+          }
+        }
+      },
       "post": {
         "summary": "Create checkpoint record",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tag",
+                  "summary"
+                ],
+                "properties": {
+                  "tag": {
+                    "type": "string"
+                  },
+                  "summary": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "Checkpoint created"
+          },
+          "400": {
+            "description": "Invalid checkpoint payload"
           }
         }
       }
     }
   }
 }
-

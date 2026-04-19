@@ -39,6 +39,7 @@
     "workflow.state.changed",
     "node.state.changed",
     "execution.state.changed",
+    "repository.save.changed",
     "dashboard.outlet.updated",
     "streaming.checkpoint.completed"
   ]

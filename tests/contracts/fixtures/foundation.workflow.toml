@@ -4,6 +4,31 @@ version = "0.1.0"
 id = "wf-foundation"
 name = "Foundation PoC"
 
+[workflow.graph]
+revision = 2
+selected_node_id = "node-transform"
+viewport = { x = 0.0, y = 0.0, zoom = 1.0 }
+node_layouts = [
+  { node_id = "node-source", x = 44.0, y = 72.0, width = 180.0, checkpoint_tag = "cp/00-foundation" },
+  { node_id = "node-transform", x = 280.0, y = 148.0, width = 188.0, checkpoint_tag = "cp/01-contracts-frozen" },
+  { node_id = "node-bi", x = 560.0, y = 148.0, width = 176.0, checkpoint_tag = "cp/02-alpha-core" }
+]
+
+[[workflow.dashboards]]
+id = "dashboard-foundation"
+name = "Foundation Overview"
+binding = { outlet_node_id = "node-bi", dataset_key = "sales_overview", refresh_mode = "live" }
+charts = [
+  { id = "chart-line", title = "Trend", family = "line", x_field = "window", y_field = "amount" },
+  { id = "chart-bar", title = "By Region", family = "bar", x_field = "region", y_field = "amount" },
+  { id = "chart-area", title = "Capacity", family = "area", x_field = "window", y_field = "capacity" },
+  { id = "chart-table", title = "Rows", family = "table" },
+  { id = "chart-metric", title = "Latest", family = "metric", y_field = "amount" }
+]
+
+[runtime]
+run_mode = "batch"
+
 [[flow_variables]]
 name = "JULIAFLOW_GPU_DEVICE"
 type = "GPUDeviceID"
@@ -13,6 +38,7 @@ id = "node-source"
 name = "CSV Reader"
 type = "JuliaFlow.Base.CSVReader"
 execution_hint = "cpu_only"
+capabilities = { execution_mode = "batch", resource_class = "cpu" }
 config = { path = "assets/sample.csv" }
 ports = [
   { id = "out", direction = "output", type = "data_table" }
@@ -23,6 +49,7 @@ id = "node-transform"
 name = "Column Select"
 type = "JuliaFlow.Base.ColumnSelect"
 execution_hint = "cpu_only"
+capabilities = { execution_mode = "batch", resource_class = "cpu" }
 config = { columns = ["amount", "region"] }
 ports = [
   { id = "in", direction = "input", type = "data_table" },
@@ -34,6 +61,7 @@ id = "node-bi"
 name = "BI Outlet"
 type = "JuliaFlow.BI.DataOutlet"
 execution_hint = "cpu_only"
+capabilities = { execution_mode = "hybrid", resource_class = "cpu" }
 config = { outlet = "sales-overview" }
 ports = [
   { id = "in", direction = "input", type = "data_table" }
@@ -52,4 +80,3 @@ source_port_id = "out"
 target_node_id = "node-bi"
 target_port_id = "in"
 data_type = "data_table"
-

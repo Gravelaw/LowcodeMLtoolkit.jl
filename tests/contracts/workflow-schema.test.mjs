@@ -20,6 +20,9 @@ test("workflow fixture matches foundation contract expectations", async () => {
   assert.equal(workflow.connections.length, 2);
   assert.equal(workflow.nodes[0].ports[0].type, "data_table");
   assert.equal(workflow.flow_variables[0].type, "GPUDeviceID");
+  assert.equal(workflow.workflow.graph.revision, 2);
+  assert.equal(workflow.workflow.dashboards[0].charts.length, 5);
+  assert.equal(workflow.runtime.run_mode, "batch");
 });
 
 test("openapi spec exposes workflow and checkpoint surfaces", async () => {

@@ -1,0 +1,96 @@
+version = "0.1.0"
+
+[workflow]
+id = "wf-parallel"
+name = "Parallel PoC"
+
+[workflow.graph]
+revision = 1
+node_layouts = [
+  { node_id = "node-source", x = 32.0, y = 44.0 },
+  { node_id = "node-left", x = 260.0, y = 24.0 },
+  { node_id = "node-right", x = 260.0, y = 196.0 },
+  { node_id = "node-sink", x = 520.0, y = 110.0 }
+]
+
+[runtime]
+run_mode = "stream"
+source = { kind = "kafka", topic = "parallel.events", consumer_group = "juliaflow-dev", bootstrap_servers = ["localhost:9092"] }
+window = { kind = "tumbling", size_seconds = 30 }
+policy = { watermark_mode = "processing_time", allowed_lateness_seconds = 5, max_in_flight_batches = 2 }
+
+[[nodes]]
+id = "node-source"
+name = "CSV Reader"
+type = "JuliaFlow.Base.CSVReader"
+execution_hint = "cpu_only"
+capabilities = { execution_mode = "stream", resource_class = "cpu" }
+config = { path = "assets/sample.csv" }
+ports = [
+  { id = "out", direction = "output", type = "data_table", label = "Rows" }
+]
+
+[[nodes]]
+id = "node-left"
+name = "Clean Left"
+type = "JuliaFlow.Base.Filter"
+execution_hint = "cpu_only"
+capabilities = { execution_mode = "stream", resource_class = "cpu" }
+config = { keep = "region = north" }
+ports = [
+  { id = "in", direction = "input", type = "data_table" },
+  { id = "out", direction = "output", type = "data_table" }
+]
+
+[[nodes]]
+id = "node-right"
+name = "Clean Right"
+type = "JuliaFlow.Base.Filter"
+execution_hint = "cpu_only"
+capabilities = { execution_mode = "stream", resource_class = "cpu" }
+config = { keep = "region = south" }
+ports = [
+  { id = "in", direction = "input", type = "data_table" },
+  { id = "out", direction = "output", type = "data_table" }
+]
+
+[[nodes]]
+id = "node-sink"
+name = "Union Sink"
+type = "JuliaFlow.Base.Union"
+execution_hint = "cpu_only"
+capabilities = { execution_mode = "stream", resource_class = "cpu" }
+config = { mode = "append" }
+ports = [
+  { id = "left", direction = "input", type = "data_table" },
+  { id = "right", direction = "input", type = "data_table" },
+  { id = "out", direction = "output", type = "data_table" }
+]
+
+[[connections]]
+source_node_id = "node-source"
+source_port_id = "out"
+target_node_id = "node-left"
+target_port_id = "in"
+data_type = "data_table"
+
+[[connections]]
+source_node_id = "node-source"
+source_port_id = "out"
+target_node_id = "node-right"
+target_port_id = "in"
+data_type = "data_table"
+
+[[connections]]
+source_node_id = "node-left"
+source_port_id = "out"
+target_node_id = "node-sink"
+target_port_id = "left"
+data_type = "data_table"
+
+[[connections]]
+source_node_id = "node-right"
+source_port_id = "out"
+target_node_id = "node-sink"
+target_port_id = "right"
+data_type = "data_table"

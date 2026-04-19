@@ -5,11 +5,44 @@ using .JuliaFlowNodeSDK
 using UUIDs
 
 include(joinpath(@__DIR__, "nodes", "ArrowPassthroughNode.jl"))
+include(joinpath(@__DIR__, "nodes", "ArrowTableSourceNode.jl"))
+include(joinpath(@__DIR__, "nodes", "ArrowTableSinkNode.jl"))
+include(joinpath(@__DIR__, "nodes", "SelectColumnsNode.jl"))
+include(joinpath(@__DIR__, "nodes", "LinearModelTrainerNode.jl"))
 
 const DEFAULT_NODE_KEY = "base.arrow_passthrough"
-const NODE_REGISTRY = Dict(DEFAULT_NODE_KEY => ArrowPassthroughNode)
+const ARROW_TABLE_SOURCE_NODE_KEY = "base.arrow_table_source"
+const ARROW_TABLE_SINK_NODE_KEY = "base.arrow_table_sink"
+const SELECT_COLUMNS_NODE_KEY = "base.select_columns"
+const LINEAR_MODEL_TRAINER_NODE_KEY = "base.linear_model_trainer"
+const NODE_REGISTRY = Dict(
+    DEFAULT_NODE_KEY => ArrowPassthroughNode,
+    ARROW_TABLE_SOURCE_NODE_KEY => ArrowTableSourceNode,
+    ARROW_TABLE_SINK_NODE_KEY => ArrowTableSinkNode,
+    SELECT_COLUMNS_NODE_KEY => SelectColumnsNode,
+    LINEAR_MODEL_TRAINER_NODE_KEY => LinearModelTrainerNode,
+)
 
-export ArrowPassthroughNode, DEFAULT_INPUT_PORT_ID, DEFAULT_OUTPUT_PORT_ID, DEFAULT_NODE_KEY, available_nodes, execute_passthrough
+export ArrowPassthroughNode,
+    ArrowTableSourceNode,
+    ArrowTableSinkNode,
+    SelectColumnsNode,
+    LinearModelTrainerNode,
+    DEFAULT_INPUT_PORT_ID,
+    DEFAULT_OUTPUT_PORT_ID,
+    DEFAULT_NODE_KEY,
+    ARROW_TABLE_SOURCE_NODE_KEY,
+    ARROW_TABLE_SINK_NODE_KEY,
+    SELECT_COLUMNS_NODE_KEY,
+    LINEAR_MODEL_TRAINER_NODE_KEY,
+    SOURCE_OUTPUT_PORT_ID,
+    SINK_INPUT_PORT_ID,
+    SELECT_COLUMNS_INPUT_PORT_ID,
+    SELECT_COLUMNS_OUTPUT_PORT_ID,
+    TRAINER_INPUT_PORT_ID,
+    TRAINER_OUTPUT_PORT_ID,
+    available_nodes,
+    execute_passthrough
 
 function available_nodes()
     return copy(NODE_REGISTRY)

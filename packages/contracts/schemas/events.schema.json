@@ -5,7 +5,8 @@
   "type": "object",
   "required": [
     "workflowOutputReady",
-    "streamingCheckpointCompleted"
+    "streamingCheckpointCompleted",
+    "repositorySaveChanged"
   ],
   "properties": {
     "workflowOutputReady": {
@@ -53,7 +54,28 @@
           "type": "integer"
         }
       }
+    },
+    "repositorySaveChanged": {
+      "type": "object",
+      "required": [
+        "workflow_id",
+        "workflow_version",
+        "saved_at"
+      ],
+      "properties": {
+        "workflow_id": {
+          "type": "string"
+        },
+        "workflow_version": {
+          "type": "string"
+        },
+        "graph_revision": {
+          "type": "integer"
+        },
+        "saved_at": {
+          "type": "string"
+        }
+      }
     }
   }
 }
-

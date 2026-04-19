@@ -71,6 +71,7 @@ Each checkpoint entry must contain:
 - Repository canvas refreshed against current tree, docs, frontend, Julia services, contracts, and infra
 - Repo onboarding summary added in `docs/repo-onboarding.md`
 - `AGENTS.md` updated to reflect current monorepo structure and active commands
+- `AGENTS.md` updated again to make `caveman:caveman` the default session communication mode for this repo
 - Authoring-first frontend layout delivered
 - Editable draft workflow graph delivered
 - Flow variable editing delivered
@@ -84,20 +85,36 @@ Each checkpoint entry must contain:
 - Realtime execution-state notifications now update live execution rail
 - Manual connection authoring/removal delivered in inspector
 - Compatibility preview now blocks invalid edge types, duplicate edges, and occupied target inputs
-- Canvas drag/drop positioning delivered for current draft session
+- Canvas drag/drop positioning now persists through shared workflow graph metadata
+- Shared workflow contracts now carry:
+  - graph revision
+  - node layouts
+  - viewport
+  - selected node
+  - dashboards
+  - node capabilities
+  - runtime/streaming metadata
+- Frontend save/update now uses contract-first workflow JSON payloads
+- Gateway workflow detail/summary payloads now expose graph revision, dashboards, and run mode
+- Realtime gateway now keeps subscriber state and broadcasts workflow save/execution changes beyond request-scoped replies
+- Execution records now expose CPU/GPU resource-plan metadata and starter stream lifecycle metadata
+- Frontend now renders thin dashboard v0 summary from workflow-bound dashboard definitions
+- Starter Alpha node catalog expanded across source/transform/aggregate/control/stream/BI/sink categories
 - Test suite green after gateway regression fixes
 
 ### Gaps Pending
 
-- BI dashboard v0 still missing
-- Streaming MVP still missing
-- GPU lane still missing
+- BI dashboard path now exists, but editor/composer depth is still thin
+- Streaming MVP runtime implementation still missing beyond contract shape
+- GPU worker lane still missing beyond planner/resource metadata
 - Hub v0 still missing
-- Realtime still request-scoped; no durable multi-subscriber broadcast layer yet
-- Node positions not yet durably persisted through workflow schema/save path
+- Durable multi-process event backbone still missing even though in-process subscriber broadcast exists
+- Repo instruction change depends on session runtime loading repo instructions and the caveman skill remaining available
 
 ### Next Items To Implement
 
-- merge/use starter node pack expansion
-- minimal BI dashboard v0
-- durable realtime broadcast model
+- ensure future sessions honor caveman-default repo instruction
+- editable BI dashboard v0 composer
+- broker-backed streaming MVP execution slice
+- isolated GPU worker lane using existing resource-plan contract
+- Hub v0 extension catalog/install skeleton

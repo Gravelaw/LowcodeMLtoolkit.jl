@@ -43,6 +43,7 @@ Tracker always records 3 things:
 - Added onboarding map:
   - [docs/repo-onboarding.md](/home/akshayrj00/my_project/docs/repo-onboarding.md)
 - Reconciled `AGENTS.md` with actual monorepo structure, commands, and language/tooling conventions
+- Reconciled `AGENTS.md` again on `2026-04-19` to make `caveman:caveman` the default session communication mode for this repo
 
 ### Foundation / Contracts
 
@@ -82,6 +83,19 @@ Tracker always records 3 things:
 - Inspector now supports manual connection add/remove actions
 - Connection editor now previews compatibility errors for type mismatch, duplicate edges, and occupied target inputs
 - Canvas nodes now support drag/drop repositioning inside current draft session
+- Canvas positions now persist through contract-first workflow save/load path
+- Frontend workflow save/update now sends shared workflow JSON instead of draft-only TOML bridge payloads
+- Starter node catalog now covers representative Alpha categories:
+  - source
+  - filter
+  - join
+  - aggregate
+  - trainer
+  - stream source
+  - control trigger
+  - BI outlet
+  - sink
+- Dashboard v0 shell now renders workflow-bound dashboard/chart definitions in workspace support panels
 - Demo fallback still works when no gateway configured
 
 ### Runtime / Execution
@@ -93,6 +107,24 @@ Tracker always records 3 things:
 - Execution metadata and status history aligned closer to frontend contract
 - Realtime gateway notifications now emit full node state set for canvas subscribe and workflow execute flows
 - Realtime gateway notifications now emit explicit `execution.state.changed` payloads for latest execution lifecycle state
+- Execution records now include resource-plan metadata for CPU/GPU lane assignment
+- Workflow/runtime contract now supports batch vs stream mode plus starter source/window/policy metadata
+- Realtime gateway now keeps canvas/dashboard subscribers in gateway state and broadcasts save/execution updates beyond request-scoped replies
+- New realtime save event contract added:
+  - `repository.save.changed`
+
+### Alpha Core Contract Deepening
+
+- Workflow contracts, schema, Julia parser, fixtures, and frontend models now support:
+  - graph revision
+  - node layouts
+  - viewport
+  - selected node
+  - dashboard definitions
+  - fixed BI chart families
+  - node capability descriptors
+  - runtime/streaming metadata
+- Workflow fixtures and tests now exercise graph persistence, dashboard payloads, streaming runtime config, and execution resource planning
 
 ### Extension / Node Pack
 
@@ -114,10 +146,9 @@ Tracker always records 3 things:
 
 ### Phase 1 Critical Gaps
 
-- Inspector edits save through TOML serialization bridge, but not yet full durable graph editor model
-- BI path is visible, but dashboard designer v0 not yet real
-- Streaming MVP not yet real
-- GPU support not yet real execution path
+- BI path now has a thin workflow-bound shell, but dashboard editing/composition is still minimal
+- Streaming MVP contract exists, but broker-backed long-running runtime is not implemented yet
+- GPU lane planning exists, but no isolated GPU worker/runtime lane exists yet
 - Hub v0 not yet started
 - Node library breadth still far below Phase 1 target
 
@@ -125,23 +156,25 @@ Tracker always records 3 things:
 
 - Remote CI and milestone tags still incomplete for some checkpoints
 - Tracker/checkpoint habit only being formalized now
+- Repo-wide caveman default is documented, but compliance still depends on session runtime honoring repo instructions and skill availability
+- OpenAPI artifact still needs a refresh for the new graph/dashboard/runtime payload surface
 
 ## Next Items To Implement
 
 ### Next Priority
 
-1. Merge starter base extension node pack into active branch if not already present
-2. Build minimal BI dashboard v0 shell from BI outlet path
-3. Deepen graph editor model beyond TOML bridge semantics
-4. Add richer server-side realtime broadcast beyond request-scoped websocket replies
-5. Persist node positions beyond current draft session
+1. Ensure future sessions honor the new caveman-default repo instruction
+2. Build editable BI dashboard v0 composer beyond current read-only shell
+3. Implement broker-backed streaming MVP execution loop on top of the new runtime contract
+4. Add isolated GPU worker lane behind existing resource-plan contract
+5. Start Hub v0 extension catalog/install skeleton
 
 ### After That
 
-1. Canvas drag/drop positioning
-2. Streaming MVP starter slice
-3. GPU execution lane starter slice
-4. Hub v0 skeleton
+1. Refresh OpenAPI for graph/dashboard/runtime payloads
+2. Expand starter/base node pack depth toward Alpha node-library target
+3. Add durable multi-process realtime/event backbone
+4. Begin Beta security/RBAC contract slice
 
 ## Working Rule
 
