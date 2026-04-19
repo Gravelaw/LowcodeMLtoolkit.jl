@@ -101,12 +101,14 @@ Each checkpoint entry must contain:
 - Frontend now renders thin dashboard v0 summary from workflow-bound dashboard definitions
 - Frontend dashboard v0 composer now supports direct draft editing of dashboard bindings and chart definitions
 - Starter Alpha node catalog expanded across source/transform/aggregate/control/stream/BI/sink categories
+- Streaming MVP execution path now activates stream workflows through gateway/runtime and supports pause/resume/stop over JSON-RPC
+- Stream stop now emits a `streaming.checkpoint.completed` notification payload for subscribed canvases
 - Test suite green after gateway regression fixes
 
 ### Gaps Pending
 
 - BI dashboard path now supports basic editing, but not yet multi-panel layout/publish/share behavior
-- Streaming MVP runtime implementation still missing beyond contract shape
+- Streaming MVP still runs in-process through gateway/runtime and is not yet split into a dedicated broker worker lane
 - GPU worker lane still missing beyond planner/resource metadata
 - Hub v0 still missing
 - Durable multi-process event backbone still missing even though in-process subscriber broadcast exists
@@ -115,7 +117,7 @@ Each checkpoint entry must contain:
 ### Next Items To Implement
 
 - ensure future sessions honor caveman-default repo instruction
-- broker-backed streaming MVP execution slice
 - isolated GPU worker lane using existing resource-plan contract
 - Hub v0 extension catalog/install skeleton
 - OpenAPI refresh for expanded payloads
+- dedicated worker/service split for streaming execution

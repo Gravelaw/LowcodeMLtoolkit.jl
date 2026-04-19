@@ -15,6 +15,12 @@ using .JuliaFlowBaseExtension
 
 include(joinpath(@__DIR__, "repository_contract_tests.jl"))
 
+mutable struct FakeRealtimeSocket
+    messages::Vector{String}
+end
+
+HTTP.WebSockets.send(socket::FakeRealtimeSocket, message) = push!(socket.messages, String(message))
+
 @testset "Node SDK" begin
     payload = (format = :arrow_ipc, ref = "minio://wf/output.arrow")
     @test validate_arrow_boundary(payload)
@@ -60,6 +66,10 @@ end
     @test parallel_workflow.runtime.run_mode == :stream
     @test spec["resource_plan"][1]["lane"] == "cpu"
     @test spec["stream_lifecycle_status"] == "starting"
+    appended = append_execution_event(spec; message = "heartbeat", metadata = Dict("stream_lifecycle_status" => "active"))
+    @test appended["stream_lifecycle_status"] == "active"
+    @test appended["status_history"][end]["message"] == "heartbeat"
+    @test is_stream_workflow(parallel_workflow)
     @test spec["stages"][2] == ["node-left", "node-right"]
     @test spec["checkpoint_tag"] == "cp/01-contracts-frozen"
     @test_throws ErrorException validate_workflow(invalid_workflow)
@@ -210,6 +220,11 @@ end
         @test isfile(joinpath(store_root, "executions.json"))
         @test occursin("wf-parallel", import_workflow_response!(state; source_path = parallel_path))
         @test occursin("\"status\":\"created\"", create_workflow_response!(state; workflow_toml = read(parallel_path, String)))
+        stream_execution_json = execution_accept_response(state, "wf-parallel")
+        stream_execution = JSON3.read(stream_execution_json, Dict{String,Any})
+        @test stream_execution["mode"] == "stream_cpu"
+        @test stream_execution["streamLifecycleStatus"] == "active"
+        @test stream_execution["stream_topic"] == "parallel.events"
         json_update = JuliaFlowApiGateway.update_workflow_response_from_body!(state, "wf-foundation", foundation_workflow_payload)
         @test occursin("\"status\":\"updated\"", json_update)
         json_updated_workflow = JSON3.read(get_workflow_response(state, "wf-foundation"), Dict{String,Any})
@@ -349,6 +364,8 @@ end
 
     mktempdir() do store_root
         state = foundation_state(foundation_path; store_root = store_root)
+        JuliaFlowApiGateway.import_workflow_response!(state; source_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "parallel.workflow.toml"))
+        socket = FakeRealtimeSocket(String[])
         canvas_response, canvas_notifications = JuliaFlowApiGateway.handle_realtime_request!(
             state,
             JSON3.write(
@@ -359,6 +376,7 @@ end
                     "params" => Dict("workflowId" => "wf-foundation"),
                 ),
             ),
+            socket,
         )
         canvas_reply = JSON3.read(String(canvas_response), Dict{String,Any})
         workflow_event = JSON3.read(canvas_notifications[1], Dict{String,Any})
@@ -411,6 +429,90 @@ end
         @test execution_record["requested_execution_mode"] == "cpu_only"
         @test execution_record["flow_variables"]["JULIAFLOW_GPU_DEVICE"] == "cpu-fallback"
         @test execution_record["resourcePlan"][1]["lane"] == "cpu"
+
+        stream_execute_response, stream_execute_notifications = JuliaFlowApiGateway.handle_realtime_request!(
+            state,
+            JSON3.write(
+                Dict(
+                    "jsonrpc" => "2.0",
+                    "id" => 4,
+                    "method" => "workflow.execute",
+                    "params" => Dict("workflowId" => "wf-parallel"),
+                ),
+            ),
+        )
+        stream_execute_reply = JSON3.read(String(stream_execute_response), Dict{String,Any})
+        @test stream_execute_reply["result"]["status"] == "accepted"
+        @test isempty(stream_execute_notifications)
+        stream_record = JSON3.read(execution_detail_response(state, stream_execute_reply["result"]["jobId"]), Dict{String,Any})
+        @test stream_record["streamLifecycleStatus"] == "active"
+
+        pause_response, pause_notifications = JuliaFlowApiGateway.handle_realtime_request!(
+            state,
+            JSON3.write(
+                Dict(
+                    "jsonrpc" => "2.0",
+                    "id" => 5,
+                    "method" => "workflow.pause",
+                    "params" => Dict("workflowId" => "wf-parallel"),
+                ),
+            ),
+        )
+        pause_reply = JSON3.read(String(pause_response), Dict{String,Any})
+        @test pause_reply["result"]["status"] == "paused"
+        @test isempty(pause_notifications)
+        paused_record = JSON3.read(execution_detail_response(state, stream_execute_reply["result"]["jobId"]), Dict{String,Any})
+        @test paused_record["streamLifecycleStatus"] == "paused"
+
+        resume_response, resume_notifications = JuliaFlowApiGateway.handle_realtime_request!(
+            state,
+            JSON3.write(
+                Dict(
+                    "jsonrpc" => "2.0",
+                    "id" => 6,
+                    "method" => "workflow.resume",
+                    "params" => Dict("workflowId" => "wf-parallel"),
+                ),
+            ),
+        )
+        resume_reply = JSON3.read(String(resume_response), Dict{String,Any})
+        @test resume_reply["result"]["status"] == "active"
+        @test isempty(resume_notifications)
+        resumed_record = JSON3.read(execution_detail_response(state, stream_execute_reply["result"]["jobId"]), Dict{String,Any})
+        @test resumed_record["streamLifecycleStatus"] == "active"
+
+        stream_canvas_response, _ = JuliaFlowApiGateway.handle_realtime_request!(
+            state,
+            JSON3.write(
+                Dict(
+                    "jsonrpc" => "2.0",
+                    "id" => 7,
+                    "method" => "canvas.subscribe",
+                    "params" => Dict("workflowId" => "wf-parallel"),
+                ),
+            ),
+            socket,
+        )
+        @test JSON3.read(String(stream_canvas_response), Dict{String,Any})["result"]["subscriptionId"] isa AbstractString
+
+        stop_response, stop_notifications = JuliaFlowApiGateway.handle_realtime_request!(
+            state,
+            JSON3.write(
+                Dict(
+                    "jsonrpc" => "2.0",
+                    "id" => 8,
+                    "method" => "workflow.stop",
+                    "params" => Dict("workflowId" => "wf-parallel"),
+                ),
+            ),
+        )
+        stop_reply = JSON3.read(String(stop_response), Dict{String,Any})
+        @test stop_reply["result"]["status"] == "stopped"
+        @test isempty(stop_notifications)
+        stopped_record = JSON3.read(execution_detail_response(state, stream_execute_reply["result"]["jobId"]), Dict{String,Any})
+        @test stopped_record["streamLifecycleStatus"] == "stopped"
+        @test stopped_record["status"] == "completed"
+        @test any(occursin("\"method\":\"streaming.checkpoint.completed\"", message) for message in socket.messages)
     end
 end
 

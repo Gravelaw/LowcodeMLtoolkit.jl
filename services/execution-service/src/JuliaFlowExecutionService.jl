@@ -27,6 +27,8 @@ export WorkflowNode,
     build_parallel_stages,
     build_execution_plan,
     serialize_job_spec,
+    append_execution_event,
+    is_stream_workflow,
     validate_workflow,
     execute_workflow
 
@@ -240,6 +242,25 @@ function transition_execution_record(
         updated["finished_at"] = timestamp
     end
 
+    isempty(metadata) || merge!(updated, Dict{String,Any}(string(key) => value for (key, value) in pairs(metadata)))
+    return updated
+end
+
+function append_execution_event(
+    record::AbstractDict{<:Any,<:Any};
+    message::Union{Nothing,String} = nothing,
+    metadata::AbstractDict{<:Any,<:Any} = Dict{String,Any}(),
+    timestamp::String = iso8601_timestamp(),
+)
+    current_status = get(record, "status", nothing)
+    current_status === nothing && error("execution record missing status")
+
+    updated = Dict{String,Any}(string(key) => value for (key, value) in pairs(record))
+    history = get(updated, "status_history", Any[])
+    events = history isa AbstractVector ? [item for item in history] : Any[]
+    push!(events, execution_status_event(normalize_execution_status(current_status); timestamp = timestamp, message = message))
+    updated["updated_at"] = timestamp
+    updated["status_history"] = events
     isempty(metadata) || merge!(updated, Dict{String,Any}(string(key) => value for (key, value) in pairs(metadata)))
     return updated
 end
@@ -650,6 +671,10 @@ function execution_mode(workflow::WorkflowDefinition)
     any(node_resource_class(node) == :gpu for node in workflow.nodes) || return "$(run_mode)_cpu"
     any(node.execution_hint == :gpu_required for node in workflow.nodes) && return "$(run_mode)_gpu_required"
     return "$(run_mode)_gpu_preferred"
+end
+
+function is_stream_workflow(workflow::WorkflowDefinition)
+    return workflow.runtime.run_mode == :stream
 end
 
 function serialize_job_spec(workflow::WorkflowDefinition; execution_id::UUID = uuid4(), checkpoint_tag::String = "cp/00-foundation")

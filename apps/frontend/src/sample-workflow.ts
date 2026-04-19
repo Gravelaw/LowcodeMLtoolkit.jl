@@ -369,6 +369,13 @@ function executionStatusToWorkflowStatus(status: GatewayExecutionStatus): Workfl
   }
 }
 
+function executionRecordToWorkflowStatus(record: GatewayExecutionRecord): WorkflowStatus {
+  if (record.streamLifecycleStatus === "active") {
+    return "streaming_active";
+  }
+  return executionStatusToWorkflowStatus(record.status);
+}
+
 function toCheckpointTag(checkpoint: string, fallbackIndex: number): string {
   return checkpoint.length > 0 ? checkpoint : `cp/live-${String(fallbackIndex + 1).padStart(2, "0")}`;
 }
@@ -518,11 +525,17 @@ export function buildExecutionRailItems(records: GatewayExecutionRecord[]): Exec
     return {
       id: record.executionId,
       workflowId: record.workflowId,
-      status: executionStatusToWorkflowStatus(record.status),
-      trigger: statusEvent?.message ?? `Gateway execution ${record.status}`,
+      status: executionRecordToWorkflowStatus(record),
+      trigger:
+        statusEvent?.message ??
+        (record.streamLifecycleStatus
+          ? `Stream lifecycle ${record.streamLifecycleStatus}`
+          : `Gateway execution ${record.status}`),
       startedAt: start,
       duration: start === end ? "in-flight" : `${start} -> ${end}`,
-      planner: record.mode
+      planner: record.streamLifecycleStatus
+        ? `${record.mode} · ${record.streamLifecycleStatus}`
+        : record.mode
     };
   });
 }

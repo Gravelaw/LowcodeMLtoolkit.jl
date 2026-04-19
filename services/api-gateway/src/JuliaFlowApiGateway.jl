@@ -429,6 +429,11 @@ function execution_accept_response(
     execution = materialize_execution(job)
     save_execution!(state.repository, execution)
     push!(state.executions, execution)
+    workflow = state.workflows[workflow_id]
+    if JuliaFlowGatewayRepository.JuliaFlowExecutionService.is_stream_workflow(workflow)
+        execution = activate_stream_execution!(state, execution)
+        return JSON3.write(execution_payload(execution))
+    end
     broadcast_execution_update!(state, workflow_id, execution)
     return JSON3.write(execution_payload(execution))
 end
@@ -691,11 +696,125 @@ function broadcast_execution_update!(state::GatewayState, workflow_id::AbstractS
     return nothing
 end
 
+function streaming_checkpoint_completed_payload(state::GatewayState, workflow_id::AbstractString, execution::GatewayExecution)
+    return Dict(
+        "workflowId" => String(workflow_id),
+        "checkpointId" => "stream-" * execution.execution_id,
+        "offsets" => Dict(
+            "topic" => get(execution.metadata, "stream_topic", "unknown"),
+            "consumerGroup" => get(execution.metadata, "stream_consumer_group", "unknown"),
+            "lastProcessedAt" => execution.updated_at,
+        ),
+        "stateVersion" => length(execution.status_history),
+    )
+end
+
+function broadcast_stream_checkpoint!(state::GatewayState, workflow_id::AbstractString, execution::GatewayExecution)
+    notifications = String[
+        jsonrpc_notification(
+            "streaming.checkpoint.completed",
+            streaming_checkpoint_completed_payload(state, workflow_id, execution),
+        ),
+    ]
+    broadcast_canvas_notifications!(state, workflow_id, notifications)
+    return nothing
+end
+
+function build_stream_execution_metadata(workflow)
+    metadata = Dict{String,Any}(
+        "stream_lifecycle_status" => "starting",
+        "stream_run_mode" => String(workflow.runtime.run_mode),
+    )
+    if workflow.runtime.source !== nothing
+        metadata["stream_topic"] = String(get(workflow.runtime.source, "topic", "unknown"))
+        metadata["stream_consumer_group"] = String(get(workflow.runtime.source, "consumer_group", "unknown"))
+        metadata["stream_bootstrap_servers"] = [String(item) for item in get(workflow.runtime.source, "bootstrap_servers", Any[])]
+    end
+    workflow.runtime.window === nothing || (metadata["stream_window"] = workflow.runtime.window)
+    workflow.runtime.policy === nothing || (metadata["stream_policy"] = workflow.runtime.policy)
+    return metadata
+end
+
+function activate_stream_execution!(state::GatewayState, execution::GatewayExecution)
+    workflow = state.workflows[execution.workflow_id]
+    index = find_execution_index(state, execution.execution_id)
+    queued = JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record(
+        execution_record(execution),
+        "queued";
+        message = "Queued for streaming broker lane",
+        metadata = build_stream_execution_metadata(workflow),
+    )
+    running = JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record(
+        queued,
+        "running";
+        message = "Streaming broker connected",
+        metadata = Dict{String,Any}("stream_lifecycle_status" => "active"),
+    )
+    updated_execution = materialize_execution(running)
+    state.executions[index] = updated_execution
+    save_execution!(state.repository, updated_execution)
+    broadcast_execution_update!(state, updated_execution.workflow_id, updated_execution)
+    return updated_execution
+end
+
+function set_stream_lifecycle_response!(
+    state::GatewayState,
+    workflow_id::AbstractString,
+    lifecycle_status::AbstractString;
+    message::AbstractString,
+)
+    index = find_stream_execution_index(state, workflow_id)
+    current_execution = state.executions[index]
+    updated = JuliaFlowGatewayRepository.JuliaFlowExecutionService.append_execution_event(
+        execution_record(current_execution);
+        message = message,
+        metadata = Dict{String,Any}("stream_lifecycle_status" => String(lifecycle_status)),
+    )
+    execution = materialize_execution(updated)
+    state.executions[index] = execution
+    save_execution!(state.repository, execution)
+    broadcast_execution_update!(state, execution.workflow_id, execution)
+    return execution
+end
+
+function stop_stream_execution_response!(state::GatewayState, workflow_id::AbstractString)
+    index = find_stream_execution_index(state, workflow_id)
+    current_execution = state.executions[index]
+    updated = JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record(
+        execution_record(current_execution),
+        "completed";
+        message = "Streaming execution stopped",
+        metadata = Dict{String,Any}("stream_lifecycle_status" => "stopped"),
+    )
+    execution = materialize_execution(updated)
+    state.executions[index] = execution
+    save_execution!(state.repository, execution)
+    broadcast_execution_update!(state, execution.workflow_id, execution)
+    broadcast_stream_checkpoint!(state, execution.workflow_id, execution)
+    return execution
+end
+
 function latest_execution_for_workflow(state::GatewayState, workflow_id::AbstractString)
     for execution in Iterators.reverse(state.executions)
         execution.workflow_id == workflow_id && return execution
     end
     return nothing
+end
+
+function latest_stream_execution_for_workflow(state::GatewayState, workflow_id::AbstractString)
+    for execution in Iterators.reverse(state.executions)
+        execution.workflow_id == workflow_id || continue
+        lifecycle = get(execution.metadata, "stream_lifecycle_status", nothing)
+        lifecycle === nothing && continue
+        return execution
+    end
+    return nothing
+end
+
+function find_stream_execution_index(state::GatewayState, workflow_id::AbstractString)
+    execution = latest_stream_execution_for_workflow(state, workflow_id)
+    execution === nothing && error("stream execution not found for workflow: $(workflow_id)")
+    return find_execution_index(state, execution.execution_id)
 end
 
 function active_node_ids(execution::GatewayExecution)
@@ -721,6 +840,8 @@ function node_runtime_status(node_id::AbstractString, execution::Union{Nothing,G
         return "executed"
     elseif execution.status == "failed"
         return "error"
+    elseif get(execution.metadata, "stream_lifecycle_status", nothing) == "active"
+        return "streaming_active"
     elseif node_id in active_node_ids(execution)
         return "running"
     end
@@ -888,6 +1009,31 @@ function realtime_method_result!(state::GatewayState, method::AbstractString, pa
             Dict{String,Any},
         )
         return Dict("jobId" => String(execution["executionId"]), "status" => "accepted"), String[]
+    elseif method == "workflow.pause"
+        haskey(params, "workflowId") || error("missing workflowId")
+        workflow_id = String(params["workflowId"])
+        execution = set_stream_lifecycle_response!(
+            state,
+            workflow_id,
+            "paused";
+            message = "Streaming execution paused",
+        )
+        return Dict("jobId" => execution.execution_id, "status" => "paused"), String[]
+    elseif method == "workflow.resume"
+        haskey(params, "workflowId") || error("missing workflowId")
+        workflow_id = String(params["workflowId"])
+        execution = set_stream_lifecycle_response!(
+            state,
+            workflow_id,
+            "active";
+            message = "Streaming execution resumed",
+        )
+        return Dict("jobId" => execution.execution_id, "status" => "active"), String[]
+    elseif method == "workflow.stop"
+        haskey(params, "workflowId") || error("missing workflowId")
+        workflow_id = String(params["workflowId"])
+        execution = stop_stream_execution_response!(state, workflow_id)
+        return Dict("jobId" => execution.execution_id, "status" => "stopped"), String[]
     end
 
     error("method not found: $(method)")

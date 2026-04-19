@@ -432,6 +432,14 @@ export interface GatewayDashboardOutletUpdatedEvent {
   updatedAt: string;
 }
 
+export interface GatewayStreamingCheckpointCompletedEvent {
+  subscriptionId?: string;
+  workflowId: string;
+  checkpointId: string;
+  offsets: Record<string, unknown>;
+  stateVersion: number;
+}
+
 export interface GatewayExecutionStateChangedEvent extends GatewayExecutionRecord {
   subscriptionId?: string;
 }
@@ -448,6 +456,7 @@ export interface GatewayRealtimeNotificationMap {
   "workflow.state.changed": GatewayWorkflowStateChangedEvent;
   "node.state.changed": GatewayNodeStateChangedEvent;
   "dashboard.outlet.updated": GatewayDashboardOutletUpdatedEvent;
+  "streaming.checkpoint.completed": GatewayStreamingCheckpointCompletedEvent;
   "execution.state.changed": GatewayExecutionStateChangedEvent;
   "repository.save.changed": GatewayRepositorySaveChangedEvent;
 }

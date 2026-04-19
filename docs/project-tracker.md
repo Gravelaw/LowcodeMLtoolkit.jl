@@ -119,6 +119,13 @@ Tracker always records 3 things:
 - Realtime gateway now keeps canvas/dashboard subscribers in gateway state and broadcasts save/execution updates beyond request-scoped replies
 - New realtime save event contract added:
   - `repository.save.changed`
+- Streaming MVP gateway/runtime slice now supports:
+  - stream activation on workflow execute
+  - source/topic metadata on execution records
+  - stream lifecycle states: `active`, `paused`, `stopped`
+  - realtime pause/resume/stop handling through JSON-RPC
+  - streaming checkpoint notification on stream stop
+- Stream executions now surface `streaming_active` runtime state to canvas/rail consumers
 
 ### Alpha Core Contract Deepening
 
@@ -154,7 +161,7 @@ Tracker always records 3 things:
 ### Phase 1 Critical Gaps
 
 - BI path now has editable dashboard v0 authoring, but not yet a richer layout/composition/publish flow
-- Streaming MVP contract exists, but broker-backed long-running runtime is not implemented yet
+- Streaming MVP lifecycle now exists in gateway/runtime, but not yet as a separate durable broker worker service
 - GPU lane planning exists, but no isolated GPU worker/runtime lane exists yet
 - Hub v0 not yet started
 - Node library breadth still far below Phase 1 target
@@ -171,10 +178,10 @@ Tracker always records 3 things:
 ### Next Priority
 
 1. Ensure future sessions honor the new caveman-default repo instruction
-2. Implement broker-backed streaming MVP execution loop on top of the new runtime contract
-3. Add isolated GPU worker lane behind existing resource-plan contract
-4. Start Hub v0 extension catalog/install skeleton
-5. Refresh OpenAPI for graph/dashboard/runtime payloads
+2. Add isolated GPU worker lane behind existing resource-plan contract
+3. Start Hub v0 extension catalog/install skeleton
+4. Refresh OpenAPI for graph/dashboard/runtime payloads
+5. Split streaming MVP from in-process gateway handling into a dedicated worker path
 
 ### After That
 
