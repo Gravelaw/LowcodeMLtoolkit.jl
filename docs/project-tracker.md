@@ -603,6 +603,7 @@ Tracker always records 3 things:
 - Added `docs/next-steps-plan-2026-04-29.md` so future sessions can resume from the post-50-node baseline.
 - Plan includes sanity/repo cleanup, GitHub integration checks, production Arrow/DataFrames adapter work, node scale 50 -> 75, BI polish, and production hardening lanes; generated `*.tsbuildinfo` files are ignored and the UI/UX archive is kept under `docs/assets/`.
 - GitHub target repository verified with `gh repo view Gravelaw/LowcodeMLtoolkit.jl`; authenticated account has admin permission.
+- Existing remote BRD/license documents were merged into local `main` without force-pushing over GitHub history.
 
 ## Gaps Pending
 

@@ -751,6 +751,7 @@ Each checkpoint entry must contain:
 - Added `docs/next-steps-plan-2026-04-29.md` for future-session handoff.
 - Plan records sanity/repo cleanup, GitHub integration checks, production Arrow/DataFrames adapter work, node scale 50 -> 75, BI polish, and production hardening lanes.
 - Verified GitHub target with `gh repo view Gravelaw/LowcodeMLtoolkit.jl`; authenticated account has admin permission.
+- Merged existing remote BRD/license documents into local `main` instead of force-pushing over GitHub history.
 
 ### Gaps Pending
 

@@ -11,6 +11,7 @@ Carry the post-50-node baseline into the next sessions with explicit sanity, rep
 - Production reader/writer adapter callback seam exists for Arrow/DataFrames-shaped refs.
 - Full verification for current baseline passed: `git diff --check`, extension tests, full Julia tests, BRD traceability validation, JS/contract tests, and frontend build.
 - Code-review and security-review passes were collected for the 50-node slice.
+- Existing GitHub BRD/license documents were merged from `origin/main`: `BRD_Julia_DataScience_Toolkit_v2.md`, `BRD_Julia_EDA_Toolkit-Claudev0.md`, `business-requirements-v0.3.0.md`, and `LICENSE`.
 
 ## Next Execution Order
 
