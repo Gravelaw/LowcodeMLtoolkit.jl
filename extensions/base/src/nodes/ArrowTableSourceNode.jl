@@ -43,17 +43,30 @@ function execute(::Type{ArrowTableSourceNode}, context::NodeContext)
 
     isempty(ref) && error("ref must not be empty")
 
+    materialization = tabular_materialization_result(context, ref)
+    rows = materialization === nothing ? nothing : materialization.rows
     payload = schema_ref === nothing ?
         (format = :arrow_ipc, ref = ref) :
         (format = :arrow_ipc, ref = ref, schema_ref = String(schema_ref))
+    if materialization !== nothing
+        payload = (; payload..., rows = rows, row_count = length(rows), materialized = true)
+        materialization.schema === nothing || (payload = (; payload..., schema = materialization.schema))
+    end
+
+    telemetry = Dict(
+        "node_key" => "base.arrow_table_source",
+        "output_port_id" => output_port_id,
+        "output_ref" => ref,
+        "materialized" => rows !== nothing,
+    )
+    if rows !== nothing
+        telemetry["row_count"] = length(rows)
+        materialization.adapter === nothing || (telemetry["materialization_adapter"] = String(materialization.adapter))
+    end
 
     return NodeResult(
         outputs = Dict(output_port_id => payload),
-        telemetry = Dict(
-            "node_key" => "base.arrow_table_source",
-            "output_port_id" => output_port_id,
-            "output_ref" => ref,
-        ),
+        telemetry = telemetry,
     )
 end
 

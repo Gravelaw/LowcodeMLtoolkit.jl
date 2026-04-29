@@ -40,6 +40,7 @@
     "node.state.changed",
     "execution.state.changed",
     "repository.save.changed",
+    "dashboard.published",
     "dashboard.outlet.updated",
     "streaming.checkpoint.completed"
   ]

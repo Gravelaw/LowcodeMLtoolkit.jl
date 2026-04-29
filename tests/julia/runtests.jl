@@ -5,11 +5,13 @@ using TOML
 
 include(joinpath(@__DIR__, "..", "..", "services", "node-sdk", "src", "JuliaFlowNodeSDK.jl"))
 include(joinpath(@__DIR__, "..", "..", "services", "execution-service", "src", "JuliaFlowExecutionService.jl"))
+include(joinpath(@__DIR__, "..", "..", "services", "worker-service", "src", "JuliaFlowWorkerService.jl"))
 include(joinpath(@__DIR__, "..", "..", "services", "api-gateway", "src", "JuliaFlowApiGateway.jl"))
 include(joinpath(@__DIR__, "..", "..", "extensions", "base", "src", "JuliaFlowBaseExtension.jl"))
 
 using .JuliaFlowNodeSDK
 using .JuliaFlowExecutionService
+using .JuliaFlowWorkerService
 using .JuliaFlowApiGateway
 using .JuliaFlowBaseExtension
 
@@ -62,7 +64,7 @@ end
         { id = "in", direction = "input", type = "data_table" },
         { id = "model", direction = "output", type = "model" },
     ]
-    config = { target = "amount", gpuDevicePreference = "nvidia:0" }
+    config = { target = "amount", gpuDevicePreference = "nvidia0", gpuWorkload = "mock_vector_sum", mockInputValues = [1.0, 2.0, 3.0, 4.0] }
     capabilities = { execution_mode = "batch", resource_class = "gpu", accelerator = "cuda", worker_pool = "alpha-gpu" }
 
     [[connections]]
@@ -133,6 +135,236 @@ end
         with_postgres_repository() do postgres_repo
             run_gateway_repository_contract!(postgres_repo; label = "PostgreSQL")
         end
+    end
+end
+
+@testset "Worker Service" begin
+    parallel_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "parallel.workflow.toml")
+    parallel_workflow = load_workflow_definition(parallel_path)
+    parallel_workflow.runtime.source["kind"] = "fixture"
+    parallel_workflow.runtime.source["events"] = [
+        Dict("offset" => 1, "event_time_seconds" => 0, "region" => "north", "amount" => 10.0),
+        Dict("offset" => 2, "event_time_seconds" => 12, "region" => "south", "amount" => 20.0),
+        Dict("offset" => 3, "event_time_seconds" => 41, "region" => "north", "amount" => 30.0),
+    ]
+    gpu_workflow_text = """
+    version = "0.3.0"
+
+    [workflow]
+    id = "wf-gpu-alpha"
+    name = "GPU Alpha"
+
+    [runtime]
+    run_mode = "batch"
+
+    [[nodes]]
+    id = "node-source"
+    type = "JuliaFlow.Base.CSVReader"
+    name = "CSV Reader"
+    execution_hint = "cpu_only"
+    ports = [{ id = "out", direction = "output", type = "data_table" }]
+    config = { path = "assets/sample.csv" }
+
+    [[nodes]]
+    id = "node-train"
+    type = "JuliaFlow.Base.ModelTrain"
+    name = "GPU Trainer"
+    execution_hint = "gpu_required"
+    ports = [
+        { id = "in", direction = "input", type = "data_table" },
+        { id = "model", direction = "output", type = "model" },
+    ]
+    config = { target = "amount", gpuDevicePreference = "nvidia0", gpuWorkload = "mock_vector_sum", mockInputValues = [1.0, 2.0, 3.0, 4.0] }
+    capabilities = { execution_mode = "batch", resource_class = "gpu", accelerator = "cuda", worker_pool = "alpha-gpu" }
+
+    [[connections]]
+    source_node_id = "node-source"
+    source_port_id = "out"
+    target_node_id = "node-train"
+    target_port_id = "in"
+    data_type = "data_table"
+    """
+    gpu_workflow = load_workflow_definition_text(gpu_workflow_text)
+    workflows = Dict(
+        parallel_workflow.id => parallel_workflow,
+        gpu_workflow.id => gpu_workflow,
+    )
+    service = WorkerServiceState()
+    executions = GatewayExecution[]
+
+    push!(
+        executions,
+        JuliaFlowApiGateway.materialize_execution(
+            execute_workflow(parallel_workflow; checkpoint_tag = "cp/02-alpha-core"),
+        ),
+    )
+    queued_stream = queue_stream_execution!(
+        service,
+        workflows,
+        executions,
+        executions[1].execution_id;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test queued_stream.status == "queued"
+    @test queued_stream.metadata["stream_lifecycle_status"] == "starting"
+
+    processed_streams = process_stream_worker_tick!(
+        service,
+        executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test length(processed_streams) == 1
+    activated_stream = processed_streams[1]
+    @test activated_stream.status == "running"
+    @test activated_stream.metadata["stream_lifecycle_status"] == "active"
+    @test activated_stream.metadata["stream_topic"] == "parallel.events"
+    @test activated_stream.metadata["stream_adapter"] == "fixture"
+    @test activated_stream.metadata["stream_consumer_lag"] == 3
+    @test service.stream_execution_ids[parallel_workflow.id] == activated_stream.execution_id
+
+    first_batch = process_stream_fixture_batch!(
+        service,
+        workflows,
+        executions,
+        parallel_workflow.id;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        batch_size = 2,
+    )
+    @test first_batch.metadata["stream_processed_offset"] == 2
+    @test first_batch.metadata["stream_processed_rows"] == 2
+    @test first_batch.metadata["stream_consumer_lag"] == 1
+    @test first_batch.metadata["stream_backpressure"] == "ok"
+    @test first_batch.metadata["stream_watermark"] == 7
+    @test first_batch.metadata["stream_window_state"]["windows"][1]["count"] == 2
+    @test first_batch.metadata["stream_checkpoint_offsets"]["lastOffset"] == 2
+
+    second_batch = process_stream_fixture_batch!(
+        service,
+        workflows,
+        executions,
+        parallel_workflow.id;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test second_batch.metadata["stream_processed_offset"] == 3
+    @test second_batch.metadata["stream_consumer_lag"] == 0
+    @test second_batch.metadata["stream_window_state"]["windows"][1]["start"] == 30
+    second_batch_payload = JuliaFlowApiGateway.execution_payload(second_batch)
+    @test second_batch_payload["streamProcessedOffset"] == 3
+    @test second_batch_payload["streamConsumerLag"] == 0
+    @test second_batch_payload["streamBackpressure"] == "ok"
+    @test second_batch_payload["streamWindowState"]["windows"][1]["start"] == 30
+
+    paused_stream = set_stream_lifecycle!(
+        service,
+        executions,
+        parallel_workflow.id;
+        lifecycle_status = "paused",
+        message = "Streaming execution paused",
+        execution_record = JuliaFlowApiGateway.execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test paused_stream.metadata["stream_lifecycle_status"] == "paused"
+
+    stopped_stream = stop_stream_execution!(
+        service,
+        executions,
+        parallel_workflow.id;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test stopped_stream.status == "completed"
+    @test stopped_stream.metadata["stream_lifecycle_status"] == "stopped"
+    @test !haskey(service.stream_execution_ids, parallel_workflow.id)
+
+    push!(
+        executions,
+        JuliaFlowApiGateway.materialize_execution(
+            execute_workflow(gpu_workflow; checkpoint_tag = "cp/03-alpha-gpu-bi"),
+        ),
+    )
+    activated_gpu = activate_gpu_execution!(
+        service,
+        executions,
+        executions[end].execution_id;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test activated_gpu.status == "queued"
+    @test activated_gpu.metadata["dispatch_lane"] == "gpu"
+    @test activated_gpu.metadata["dispatch_worker_pool"] == "alpha-gpu"
+    @test activated_gpu.metadata["dispatch_isolation_mode"] == "isolated"
+    @test activated_gpu.metadata["dispatch_accelerator"] == "cuda"
+    @test startswith(activated_gpu.metadata["worker_id"], "gpu-worker-")
+    @test activated_gpu.execution_id in service.gpu_execution_ids
+
+    promoted_gpu = promote_gpu_execution!(
+        service,
+        executions,
+        activated_gpu.execution_id;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test promoted_gpu.status == "running"
+    @test promoted_gpu.execution_id in service.gpu_execution_ids
+
+    completed_gpu = process_gpu_compute_tick!(
+        service,
+        workflows,
+        executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test length(completed_gpu) == 1
+    @test completed_gpu[1].status == "completed"
+    @test completed_gpu[1].metadata["gpu_execution_path"] == "gpu"
+    @test completed_gpu[1].metadata["gpu_device_id"] == "nvidia0"
+    @test completed_gpu[1].metadata["gpu_workload_result"]["sum"] == 10.0
+
+    withenv("JULIAFLOW_GPU_REGISTRY" => "") do
+        fallback_executions = GatewayExecution[]
+        push!(fallback_executions, JuliaFlowApiGateway.materialize_execution(execute_workflow(gpu_workflow; checkpoint_tag = "cp/03-alpha-gpu-bi")))
+        fallback_service = WorkerServiceState()
+        fallback_queued = activate_gpu_execution!(
+            fallback_service,
+            fallback_executions,
+            fallback_executions[1].execution_id;
+            execution_record = JuliaFlowApiGateway.execution_record,
+            transition_execution_record = transition_execution_record,
+            materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        )
+        fallback_running = promote_gpu_execution!(
+            fallback_service,
+            fallback_executions,
+            fallback_queued.execution_id;
+            execution_record = JuliaFlowApiGateway.execution_record,
+            transition_execution_record = transition_execution_record,
+            materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        )
+        fallback_completed = process_gpu_compute_tick!(
+            fallback_service,
+            workflows,
+            fallback_executions;
+            execution_record = JuliaFlowApiGateway.execution_record,
+            transition_execution_record = transition_execution_record,
+            materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        )
+        @test fallback_running.status == "running"
+        @test length(fallback_completed) == 1
+        @test fallback_completed[1].metadata["gpu_execution_path"] == "cpu_fallback"
+        @test fallback_completed[1].metadata["gpu_fallback_used"] == true
     end
 end
 
@@ -319,6 +551,24 @@ end
         @test stream_execution["mode"] == "stream_cpu"
         @test stream_execution["streamLifecycleStatus"] == "active"
         @test stream_execution["stream_topic"] == "parallel.events"
+        withenv("JULIAFLOW_STREAM_WORKER_MODE" => "process") do
+            queued_stream_json = execution_accept_response(state, "wf-parallel")
+            queued_stream = JSON3.read(queued_stream_json, Dict{String,Any})
+            @test queued_stream["status"] == "queued"
+            @test queued_stream["streamLifecycleStatus"] == "starting"
+            processed_streams = JuliaFlowApiGateway.JuliaFlowWorkerService.process_stream_worker_tick!(
+                state.worker_service,
+                state.executions;
+                execution_record = JuliaFlowApiGateway.execution_record,
+                transition_execution_record = transition_execution_record,
+                materialize_execution = JuliaFlowApiGateway.materialize_execution,
+            )
+            @test length(processed_streams) >= 1
+            processed_stream = processed_streams[end]
+            JuliaFlowApiGateway.save_execution!(state.repository, processed_stream)
+            @test processed_stream.status == "running"
+            @test processed_stream.metadata["stream_lifecycle_status"] == "active"
+        end
         json_update = JuliaFlowApiGateway.update_workflow_response_from_body!(state, "wf-foundation", foundation_workflow_payload)
         json_gpu_create = JuliaFlowApiGateway.create_workflow_response_from_body!(state, gpu_workflow_payload)
         gpu_execution_json = execution_accept_response(state, "wf-gpu-alpha")
@@ -385,6 +635,313 @@ end
                 JSON3.write(Dict("action" => "enable")),
             ),
         )
+        hub_register_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "manifest" => Dict(
+                            "extensionId" => "juliaflow-labs-pack",
+                            "name" => "JuliaFlow Labs Pack",
+                            "version" => "0.2.0",
+                            "publisher" => "partner",
+                            "summary" => "Labs pack for compatible install tests.",
+                            "packageRef" => "hub://labs/pack",
+                            "tags" => ["labs", "partner"],
+                            "engineCompatibility" => "alpha-core",
+                            "requiredContractVersion" => "0.1.0",
+                            "supportedCheckpoints" => ["cp/01-contracts-frozen"],
+                            "compatibleCheckpoints" => ["cp/01-contracts-frozen"],
+                            "dependencies" => String[],
+                            "publisherIdentity" => "partner:juliaflow-labs",
+                            "signature" => "sig:partner:juliaflow-labs:v0.2.0",
+                            "releaseNotesRef" => "https://example.test/labs-pack"
+                        ),
+                    ),
+                ),
+            ),
+        )
+        hub_bad_signature_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "manifest" => Dict(
+                            "extensionId" => "juliaflow-bad-signature",
+                            "name" => "Bad Signature Pack",
+                            "version" => "0.2.0",
+                            "publisher" => "partner",
+                            "summary" => "Invalid signature format coverage.",
+                            "packageRef" => "hub://labs/bad-signature",
+                            "tags" => ["labs", "partner"],
+                            "engineCompatibility" => "alpha-core",
+                            "requiredContractVersion" => "0.1.0",
+                            "supportedCheckpoints" => ["cp/01-contracts-frozen"],
+                            "compatibleCheckpoints" => ["cp/01-contracts-frozen"],
+                            "dependencies" => String[],
+                            "publisherIdentity" => "partner:juliaflow-labs",
+                            "signature" => "signed-partner-juliaflow-labs",
+                            "releaseNotesRef" => "https://example.test/bad-signature"
+                        ),
+                    ),
+                ),
+            ),
+        )
+        hub_bad_release_notes_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "manifest" => Dict(
+                            "extensionId" => "juliaflow-bad-release-notes",
+                            "name" => "Bad Release Notes Pack",
+                            "version" => "0.2.0",
+                            "publisher" => "partner",
+                            "summary" => "Invalid release notes URL coverage.",
+                            "packageRef" => "hub://labs/bad-release-notes",
+                            "tags" => ["labs", "partner"],
+                            "engineCompatibility" => "alpha-core",
+                            "requiredContractVersion" => "0.1.0",
+                            "supportedCheckpoints" => ["cp/01-contracts-frozen"],
+                            "compatibleCheckpoints" => ["cp/01-contracts-frozen"],
+                            "dependencies" => String[],
+                            "publisherIdentity" => "partner:juliaflow-labs",
+                            "signature" => "sig:partner:juliaflow-labs:v0.2.0",
+                            "releaseNotesRef" => "http://example.test/bad-release-notes"
+                        ),
+                    ),
+                ),
+            ),
+        )
+        hub_bad_identity_suffix_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "manifest" => Dict(
+                            "extensionId" => "juliaflow-bad-partner-identity",
+                            "name" => "Bad Partner Identity Pack",
+                            "version" => "0.2.0",
+                            "publisher" => "partner",
+                            "summary" => "Invalid partner identity suffix coverage.",
+                            "packageRef" => "hub://labs/bad-partner-identity",
+                            "tags" => ["labs", "partner"],
+                            "engineCompatibility" => "alpha-core",
+                            "requiredContractVersion" => "0.1.0",
+                            "supportedCheckpoints" => ["cp/01-contracts-frozen"],
+                            "compatibleCheckpoints" => ["cp/01-contracts-frozen"],
+                            "dependencies" => String[],
+                            "publisherIdentity" => "partner:",
+                            "signature" => "sig:partner:juliaflow-labs:v0.2.0",
+                            "releaseNotesRef" => "https://example.test/bad-partner-identity"
+                        ),
+                    ),
+                ),
+            ),
+        )
+        hub_bad_signature_identity_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "manifest" => Dict(
+                            "extensionId" => "juliaflow-bad-signature-identity",
+                            "name" => "Bad Signature Identity Pack",
+                            "version" => "0.2.0",
+                            "publisher" => "partner",
+                            "summary" => "Signature does not bind to publisher identity.",
+                            "packageRef" => "hub://labs/bad-signature-identity",
+                            "tags" => ["labs", "partner"],
+                            "engineCompatibility" => "alpha-core",
+                            "requiredContractVersion" => "0.1.0",
+                            "supportedCheckpoints" => ["cp/01-contracts-frozen"],
+                            "compatibleCheckpoints" => ["cp/01-contracts-frozen"],
+                            "dependencies" => String[],
+                            "publisherIdentity" => "partner:juliaflow-labs",
+                            "signature" => "sig:partner:other-labs:v0.2.0",
+                            "releaseNotesRef" => "https://example.test/bad-signature-identity"
+                        ),
+                    ),
+                ),
+            ),
+        )
+        hub_bad_package_ref_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "manifest" => Dict(
+                            "extensionId" => "juliaflow-bad-package-ref",
+                            "name" => "Bad Package Ref Pack",
+                            "version" => "0.2.0",
+                            "publisher" => "partner",
+                            "summary" => "Partner package ref scheme policy coverage.",
+                            "packageRef" => "extensions/bad-package-ref",
+                            "tags" => ["labs", "partner"],
+                            "engineCompatibility" => "alpha-core",
+                            "requiredContractVersion" => "0.1.0",
+                            "supportedCheckpoints" => ["cp/01-contracts-frozen"],
+                            "compatibleCheckpoints" => ["cp/01-contracts-frozen"],
+                            "dependencies" => String[],
+                            "publisherIdentity" => "partner:juliaflow-labs",
+                            "signature" => "sig:partner:juliaflow-labs:v0.2.0",
+                            "releaseNotesRef" => "https://example.test/bad-package-ref"
+                        ),
+                    ),
+                ),
+            ),
+        )
+        dashboard_publish_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/dashboards/dashboard-foundation/publish",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("visibility" => "public")),
+            ),
+        )
+        dashboard_list_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/workflows/wf-foundation/dashboards"),
+        )
+        dashboard_publish_payload = JSON3.read(String(dashboard_publish_response.body), Dict{String,Any})
+        dashboard_share_token = String(dashboard_publish_payload["dashboard"]["shareToken"])
+        dashboard_get_unauthorized_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/dashboards/dashboard-foundation"),
+        )
+        dashboard_get_invalid_token_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/dashboards/dashboard-foundation?shareToken=wrong-token"),
+        )
+        dashboard_get_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/dashboards/dashboard-foundation?shareToken=$(dashboard_share_token)"),
+        )
+        dashboard_chart_data_invalid_token_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/dashboards/dashboard-foundation/charts/chart-line/data?shareToken=wrong-token"),
+        )
+        dashboard_chart_data_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/dashboards/dashboard-foundation/charts/chart-line/data?shareToken=$(dashboard_share_token)"),
+        )
+        dashboard_chart_export_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/dashboards/dashboard-foundation/charts/chart-line/export.csv?shareToken=$(dashboard_share_token)"),
+        )
+        dashboard_publish_workspace_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/dashboards/dashboard-foundation/publish",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("visibility" => "workspace")),
+            ),
+        )
+        dashboard_get_workspace_response = withenv("JULIAFLOW_WORKSPACE_DASHBOARD_TOKEN" => "workspace-secret") do
+            route_request(
+                state,
+                HTTP.Request("GET", "/api/v1/dashboards/dashboard-foundation"),
+            )
+        end
+        dashboard_get_workspace_invalid_token_response = withenv("JULIAFLOW_WORKSPACE_DASHBOARD_TOKEN" => "workspace-secret") do
+            route_request(
+                state,
+                HTTP.Request("GET", "/api/v1/dashboards/dashboard-foundation?workspaceToken=wrong-token"),
+            )
+        end
+        dashboard_get_workspace_authorized_response = withenv("JULIAFLOW_WORKSPACE_DASHBOARD_TOKEN" => "workspace-secret") do
+            route_request(
+                state,
+                HTTP.Request("GET", "/api/v1/dashboards/dashboard-foundation?workspaceToken=workspace-secret"),
+            )
+        end
+        dashboard_get_workspace_bearer_invalid_response = withenv("JULIAFLOW_WORKSPACE_DASHBOARD_TOKEN" => "workspace-secret") do
+            route_request(
+                state,
+                HTTP.Request("GET", "/api/v1/dashboards/dashboard-foundation", ["Authorization" => "Bearer wrong-secret"]),
+            )
+        end
+        dashboard_get_workspace_bearer_authorized_response = withenv("JULIAFLOW_WORKSPACE_DASHBOARD_TOKEN" => "workspace-secret") do
+            route_request(
+                state,
+                HTTP.Request("GET", "/api/v1/dashboards/dashboard-foundation", ["Authorization" => "Bearer workspace-secret"]),
+            )
+        end
+        auth_missing_workflow_list_response = withenv("JULIAFLOW_DEV_AUTH_TOKEN" => "dev-secret") do
+            route_request(state, HTTP.Request("GET", "/api/v1/workflows"))
+        end
+        auth_viewer_workflow_list_response = withenv("JULIAFLOW_DEV_AUTH_TOKEN" => "dev-secret") do
+            route_request(
+                state,
+                HTTP.Request(
+                    "GET",
+                    "/api/v1/workflows",
+                    ["Authorization" => "Bearer dev-secret", "X-JuliaFlow-Workspace-Role" => "viewer"],
+                ),
+            )
+        end
+        auth_viewer_execute_response = withenv("JULIAFLOW_DEV_AUTH_TOKEN" => "dev-secret") do
+            route_request(
+                state,
+                HTTP.Request(
+                    "POST",
+                    "/api/v1/workflows/wf-foundation/execute",
+                    ["Authorization" => "Bearer dev-secret", "X-JuliaFlow-Workspace-Role" => "viewer", "Content-Type" => "application/json"],
+                    JSON3.write(Dict()),
+                ),
+            )
+        end
+        auth_editor_execute_response = withenv("JULIAFLOW_DEV_AUTH_TOKEN" => "dev-secret") do
+            route_request(
+                state,
+                HTTP.Request(
+                    "POST",
+                    "/api/v1/workflows/wf-foundation/execute",
+                    ["Authorization" => "Bearer dev-secret", "X-JuliaFlow-Workspace-Role" => "editor", "Content-Type" => "application/json"],
+                    JSON3.write(Dict("executionMode" => "batch")),
+                ),
+            )
+        end
+        auth_editor_hub_install_response = withenv("JULIAFLOW_DEV_AUTH_TOKEN" => "dev-secret") do
+            route_request(
+                state,
+                HTTP.Request(
+                    "POST",
+                    "/api/v1/hub/extensions/juliaflow-base/install",
+                    ["Authorization" => "Bearer dev-secret", "X-JuliaFlow-Workspace-Role" => "editor", "Content-Type" => "application/json"],
+                    JSON3.write(Dict("action" => "install")),
+                ),
+            )
+        end
+        hub_enable_registered_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/juliaflow-labs-pack/install",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("action" => "enable")),
+            ),
+        )
         execution_list = route_request(state, HTTP.Request("GET", "/api/v1/executions"))
         checkpoint_post = route_request(
             state,
@@ -421,15 +978,99 @@ end
 
         @test health_response.status == 200
         @test occursin("workflowCount", String(health_response.body))
+        @test occursin("\"eventBackboneMode\":", String(health_response.body))
+        @test occursin("\"streamWorkerMode\":", String(health_response.body))
+        @test occursin("\"eventLogSize\":", String(health_response.body))
+        @test occursin("\"latestEventSequence\":", String(health_response.body))
+        @test occursin("\"gatewayConsumerCursor\":", String(health_response.body))
+        @test occursin("\"gatewayConsumerLag\":", String(health_response.body))
+        @test occursin("\"eventConsumerCatchupPercent\":", String(health_response.body))
+        @test occursin("\"activeStreamExecutions\":", String(health_response.body))
+        @test occursin("\"queuedGpuExecutions\":", String(health_response.body))
+        @test occursin("\"queuedStreamExecutions\":", String(health_response.body))
+        @test occursin("\"activeGpuExecutions\":", String(health_response.body))
+        @test occursin("\"gpuWorkerOwnedExecutions\":", String(health_response.body))
+        @test occursin("\"queuedExecutionsTotal\":", String(health_response.body))
+        @test occursin("\"runningExecutionsTotal\":", String(health_response.body))
         @test list_response.status == 200
         @test occursin("wf-foundation", String(list_response.body))
         @test detail_response.status == 200
         @test occursin("\"workflowId\":\"wf-foundation\"", String(detail_response.body))
         @test hub_list_response.status == 200
         @test occursin("\"extensionId\":\"juliaflow-base\"", String(hub_list_response.body))
-        @test hub_install_response.status == 200
-        @test occursin("\"extensionId\":\"juliaflow-ops-preview\"", String(hub_install_response.body))
-        @test occursin("\"installState\":\"enabled\"", String(hub_install_response.body))
+        @test hub_install_response.status == 409
+        @test occursin("Extension not validated for current checkpoint", String(hub_install_response.body))
+        @test hub_register_response.status == 201
+        @test occursin("\"extensionId\":\"juliaflow-labs-pack\"", String(hub_register_response.body))
+        @test occursin("\"compatible\":true", String(hub_register_response.body))
+        @test hub_bad_signature_response.status == 201
+        @test occursin("signature must use sig: prefix", String(hub_bad_signature_response.body))
+        @test hub_bad_release_notes_response.status == 201
+        @test occursin("release notes reference must be https URL", String(hub_bad_release_notes_response.body))
+        @test hub_bad_identity_suffix_response.status == 201
+        @test occursin("publisher identity suffix must not be empty", String(hub_bad_identity_suffix_response.body))
+        @test hub_bad_signature_identity_response.status == 201
+        @test occursin("signature must include publisher identity suffix", String(hub_bad_signature_identity_response.body))
+        @test hub_bad_package_ref_response.status == 201
+        @test occursin("package reference must use hub:// scheme", String(hub_bad_package_ref_response.body))
+        @test dashboard_publish_response.status == 200
+        @test occursin("\"dashboardId\":\"dashboard-foundation\"", String(dashboard_publish_response.body))
+        @test occursin("\"version\":1", String(dashboard_publish_response.body))
+        @test occursin("\"visibility\":\"public\"", String(dashboard_publish_response.body))
+        @test occursin("\"shareToken\":", String(dashboard_publish_response.body))
+        @test haskey(dashboard_publish_payload["dashboard"], "datasets")
+        @test length(dashboard_publish_payload["dashboard"]["datasets"]["sales_overview"]) == 3
+        @test dashboard_list_response.status == 200
+        @test occursin("\"items\":[", String(dashboard_list_response.body))
+        @test dashboard_get_unauthorized_response.status == 401
+        @test occursin("invalid share token", String(dashboard_get_unauthorized_response.body))
+        @test dashboard_get_invalid_token_response.status == 401
+        @test occursin("invalid share token", String(dashboard_get_invalid_token_response.body))
+        @test dashboard_get_response.status == 200
+        @test occursin("\"publishedAt\":", String(dashboard_get_response.body))
+        @test dashboard_chart_data_invalid_token_response.status == 401
+        @test occursin("invalid share token", String(dashboard_chart_data_invalid_token_response.body))
+        @test dashboard_chart_data_response.status == 200
+        dashboard_chart_data_payload = JSON3.read(String(dashboard_chart_data_response.body), Dict{String,Any})
+        @test dashboard_chart_data_payload["dashboardId"] == "dashboard-foundation"
+        @test dashboard_chart_data_payload["chartId"] == "chart-line"
+        @test dashboard_chart_data_payload["datasetKey"] == "sales_overview"
+        @test dashboard_chart_data_payload["rowCount"] == 3
+        @test dashboard_chart_data_payload["rows"][1]["window"] == "2026-Q1"
+        @test dashboard_chart_data_payload["rows"][1]["amount"] == 120.0
+        @test dashboard_chart_data_payload["fields"] == ["amount", "capacity", "region", "window"]
+        @test dashboard_chart_data_payload["semantic"]["dimensions"] == ["window", "region"]
+        @test dashboard_chart_data_payload["semantic"]["measures"] == ["amount", "capacity"]
+        @test dashboard_chart_data_payload["semantic"]["availableMeasures"] == ["amount", "capacity"]
+        @test dashboard_chart_data_payload["cache"]["cacheKey"] == "dashboard-foundation:chart-line:v1"
+        @test dashboard_chart_data_payload["cache"]["live"] == true
+        @test dashboard_chart_data_payload["exportFormats"] == ["json", "csv"]
+        @test dashboard_chart_export_response.status == 200
+        @test occursin("amount,capacity,region,window", String(dashboard_chart_export_response.body))
+        @test occursin("120.0,180.0,west,2026-Q1", String(dashboard_chart_export_response.body))
+        @test dashboard_publish_workspace_response.status == 200
+        @test occursin("\"visibility\":\"workspace\"", String(dashboard_publish_workspace_response.body))
+        @test dashboard_get_workspace_response.status == 401
+        @test occursin("invalid workspace access token", String(dashboard_get_workspace_response.body))
+        @test dashboard_get_workspace_invalid_token_response.status == 401
+        @test occursin("invalid workspace access token", String(dashboard_get_workspace_invalid_token_response.body))
+        @test dashboard_get_workspace_authorized_response.status == 200
+        @test occursin("\"visibility\":\"workspace\"", String(dashboard_get_workspace_authorized_response.body))
+        @test dashboard_get_workspace_bearer_invalid_response.status == 401
+        @test occursin("invalid workspace access token", String(dashboard_get_workspace_bearer_invalid_response.body))
+        @test dashboard_get_workspace_bearer_authorized_response.status == 200
+        @test occursin("\"visibility\":\"workspace\"", String(dashboard_get_workspace_bearer_authorized_response.body))
+        @test auth_missing_workflow_list_response.status == 401
+        @test occursin("invalid auth token", String(auth_missing_workflow_list_response.body))
+        @test auth_viewer_workflow_list_response.status == 200
+        @test occursin("wf-foundation", String(auth_viewer_workflow_list_response.body))
+        @test auth_viewer_execute_response.status == 403
+        @test occursin("permission denied: workflow:execute", String(auth_viewer_execute_response.body))
+        @test auth_editor_execute_response.status == 202
+        @test auth_editor_hub_install_response.status == 403
+        @test occursin("permission denied: hub:install", String(auth_editor_hub_install_response.body))
+        @test hub_enable_registered_response.status == 200
+        @test occursin("\"installState\":\"enabled\"", String(hub_enable_registered_response.body))
         @test create_response.status == 201
         @test occursin("\"status\":\"created\"", String(create_response.body))
         @test json_create_response.status == 201
@@ -447,6 +1088,21 @@ end
         @test gpu_execute_payload["dispatchLane"] == "gpu"
         @test gpu_execute_payload["dispatchWorkerPool"] == "alpha-gpu"
         @test startswith(gpu_execute_payload["workerId"], "gpu-worker-")
+        worker_state = load_state(store_root)
+        processed_gpu = JuliaFlowApiGateway.JuliaFlowWorkerService.process_gpu_worker_tick!(
+            worker_state.worker_service,
+            worker_state.executions;
+            execution_record = JuliaFlowApiGateway.execution_record,
+            transition_execution_record = transition_execution_record,
+            materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        )
+        @test length(processed_gpu) >= 1
+        promoted_gpu = processed_gpu[end]
+        JuliaFlowApiGateway.save_execution!(worker_state.repository, promoted_gpu)
+        changed_gpu = JuliaFlowApiGateway.sync_external_execution_updates!(state)
+        @test any(execution.execution_id == gpu_execute_payload["executionId"] for execution in changed_gpu)
+        synced_gpu_detail = JSON3.read(execution_detail_response(state, gpu_execute_payload["executionId"]), Dict{String,Any})
+        @test synced_gpu_detail["status"] == "running"
         transition_response = route_request(
             state,
             HTTP.Request(
@@ -497,10 +1153,11 @@ end
 @testset "API Gateway Realtime" begin
     foundation_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "foundation.workflow.toml")
 
-    mktempdir() do store_root
-        state = foundation_state(foundation_path; store_root = store_root)
-        JuliaFlowApiGateway.import_workflow_response!(state; source_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "parallel.workflow.toml"))
-        socket = FakeRealtimeSocket(String[])
+    withenv("JULIAFLOW_EVENT_BACKBONE_MODE" => "dual_write") do
+        mktempdir() do store_root
+            state = foundation_state(foundation_path; store_root = store_root)
+            JuliaFlowApiGateway.import_workflow_response!(state; source_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "parallel.workflow.toml"))
+            socket = FakeRealtimeSocket(String[])
         canvas_response, canvas_notifications = JuliaFlowApiGateway.handle_realtime_request!(
             state,
             JSON3.write(
@@ -636,6 +1293,60 @@ end
         @test gpu_execution_record["dispatchIsolationMode"] == "isolated"
         @test startswith(gpu_execution_record["workerId"], "gpu-worker-")
 
+        gpu_canvas_response, _ = JuliaFlowApiGateway.handle_realtime_request!(
+            state,
+            JSON3.write(
+                Dict(
+                    "jsonrpc" => "2.0",
+                    "id" => 41,
+                    "method" => "canvas.subscribe",
+                    "params" => Dict("workflowId" => "wf-gpu-alpha"),
+                ),
+            ),
+            socket,
+        )
+        @test JSON3.read(String(gpu_canvas_response), Dict{String,Any})["result"]["subscriptionId"] isa AbstractString
+        gpu_worker_state = load_state(store_root)
+        processed_gpu = JuliaFlowApiGateway.JuliaFlowWorkerService.process_gpu_worker_tick!(
+            gpu_worker_state.worker_service,
+            gpu_worker_state.executions;
+            execution_record = JuliaFlowApiGateway.execution_record,
+            transition_execution_record = transition_execution_record,
+            materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        )
+        @test length(processed_gpu) >= 1
+        for execution in processed_gpu
+            JuliaFlowApiGateway.save_execution!(gpu_worker_state.repository, execution)
+        end
+        changed_gpu = JuliaFlowApiGateway.sync_external_execution_updates!(state)
+        @test any(execution.execution_id == gpu_execute_reply["result"]["jobId"] for execution in changed_gpu)
+        synced_gpu_record = JSON3.read(execution_detail_response(state, gpu_execute_reply["result"]["jobId"]), Dict{String,Any})
+        @test synced_gpu_record["status"] == "running"
+        @test any(
+            occursin("\"method\":\"execution.state.changed\"", message) &&
+                occursin("\"executionId\":\"" * gpu_execute_reply["result"]["jobId"] * "\"", message) &&
+                occursin("\"status\":\"running\"", message)
+            for message in socket.messages
+        )
+        completed_gpu = JuliaFlowApiGateway.JuliaFlowWorkerService.process_gpu_compute_tick!(
+            gpu_worker_state.worker_service,
+            state.workflows,
+            gpu_worker_state.executions;
+            execution_record = JuliaFlowApiGateway.execution_record,
+            transition_execution_record = transition_execution_record,
+            materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        )
+        @test length(completed_gpu) >= 1
+        for execution in completed_gpu
+            JuliaFlowApiGateway.save_execution!(gpu_worker_state.repository, execution)
+        end
+        changed_gpu_complete = JuliaFlowApiGateway.sync_external_execution_updates!(state)
+        @test any(execution.execution_id == gpu_execute_reply["result"]["jobId"] for execution in changed_gpu_complete)
+        completed_gpu_record = JSON3.read(execution_detail_response(state, gpu_execute_reply["result"]["jobId"]), Dict{String,Any})
+        @test completed_gpu_record["status"] == "completed"
+        @test completed_gpu_record["gpuExecutionPath"] == "gpu"
+        @test completed_gpu_record["gpuWorkloadResult"]["sum"] == 10.0
+
         stream_execute_response, stream_execute_notifications = JuliaFlowApiGateway.handle_realtime_request!(
             state,
             JSON3.write(
@@ -718,7 +1429,175 @@ end
         stopped_record = JSON3.read(execution_detail_response(state, stream_execute_reply["result"]["jobId"]), Dict{String,Any})
         @test stopped_record["streamLifecycleStatus"] == "stopped"
         @test stopped_record["status"] == "completed"
+        checkpoint_payload = JuliaFlowApiGateway.streaming_checkpoint_completed_payload(state, "wf-parallel", state.executions[end])
+        @test haskey(checkpoint_payload, "consumerLag")
+        @test haskey(checkpoint_payload["offsets"], "lastProcessedAt")
+        JuliaFlowApiGateway.consume_gateway_events!(state)
         @test any(occursin("\"method\":\"streaming.checkpoint.completed\"", message) for message in socket.messages)
+
+            withenv("JULIAFLOW_STREAM_WORKER_MODE" => "process") do
+                external_socket = FakeRealtimeSocket(String[])
+                external_canvas_response, _ = JuliaFlowApiGateway.handle_realtime_request!(
+                    state,
+                    JSON3.write(
+                        Dict(
+                            "jsonrpc" => "2.0",
+                            "id" => 9,
+                            "method" => "canvas.subscribe",
+                            "params" => Dict("workflowId" => "wf-parallel"),
+                        ),
+                    ),
+                    external_socket,
+                )
+                @test JSON3.read(String(external_canvas_response), Dict{String,Any})["result"]["subscriptionId"] isa AbstractString
+
+                queued_stream_response, queued_stream_notifications = JuliaFlowApiGateway.handle_realtime_request!(
+                    state,
+                    JSON3.write(
+                        Dict(
+                            "jsonrpc" => "2.0",
+                            "id" => 10,
+                            "method" => "workflow.execute",
+                            "params" => Dict("workflowId" => "wf-parallel"),
+                        ),
+                    ),
+                )
+                queued_stream_reply = JSON3.read(String(queued_stream_response), Dict{String,Any})
+                @test queued_stream_reply["result"]["status"] == "queued"
+                @test isempty(queued_stream_notifications)
+
+                worker_state = load_state(store_root)
+                processed_streams = JuliaFlowApiGateway.JuliaFlowWorkerService.process_stream_worker_tick!(
+                    worker_state.worker_service,
+                    worker_state.executions;
+                    execution_record = JuliaFlowApiGateway.execution_record,
+                    transition_execution_record = transition_execution_record,
+                    materialize_execution = JuliaFlowApiGateway.materialize_execution,
+                )
+                @test length(processed_streams) >= 1
+                for execution in processed_streams
+                    JuliaFlowApiGateway.save_execution!(worker_state.repository, execution)
+                end
+
+                changed_executions = JuliaFlowApiGateway.sync_external_execution_updates!(state)
+                @test any(execution.execution_id == queued_stream_reply["result"]["jobId"] for execution in changed_executions)
+
+                synced_stream_record = JSON3.read(execution_detail_response(state, queued_stream_reply["result"]["jobId"]), Dict{String,Any})
+                @test synced_stream_record["status"] == "running"
+                @test synced_stream_record["streamLifecycleStatus"] == "active"
+                @test any(
+                    occursin("\"method\":\"execution.state.changed\"", message) &&
+                        occursin("\"executionId\":\"" * queued_stream_reply["result"]["jobId"] * "\"", message) &&
+                        occursin("\"status\":\"running\"", message)
+                    for message in external_socket.messages
+                )
+            end
+        end
+    end
+
+    withenv(
+        "JULIAFLOW_EVENT_BACKBONE_MODE" => "dual_write",
+        "JULIAFLOW_STREAM_WORKER_MODE" => "process",
+    ) do
+        mktempdir() do store_root
+            state = foundation_state(foundation_path; store_root = store_root)
+            JuliaFlowApiGateway.import_workflow_response!(state; source_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "parallel.workflow.toml"))
+            socket = FakeRealtimeSocket(String[])
+            canvas_response, _ = JuliaFlowApiGateway.handle_realtime_request!(
+                state,
+                JSON3.write(
+                    Dict(
+                        "jsonrpc" => "2.0",
+                        "id" => 101,
+                        "method" => "canvas.subscribe",
+                        "params" => Dict("workflowId" => "wf-parallel"),
+                    ),
+                ),
+                socket,
+            )
+            @test JSON3.read(String(canvas_response), Dict{String,Any})["result"]["subscriptionId"] isa AbstractString
+
+            queued_stream_response, _ = JuliaFlowApiGateway.handle_realtime_request!(
+                state,
+                JSON3.write(
+                    Dict(
+                        "jsonrpc" => "2.0",
+                        "id" => 102,
+                        "method" => "workflow.execute",
+                        "params" => Dict("workflowId" => "wf-parallel"),
+                    ),
+                ),
+            )
+            queued_stream_reply = JSON3.read(String(queued_stream_response), Dict{String,Any})
+            @test queued_stream_reply["result"]["jobId"] isa AbstractString
+            @test isempty(socket.messages)
+
+            queued_events = JuliaFlowApiGateway.consume_gateway_events!(state)
+            @test any(event.event_type == "execution.changed" for event in queued_events)
+            @test any(
+                occursin("\"method\":\"execution.state.changed\"", message) &&
+                    occursin("\"executionId\":\"" * queued_stream_reply["result"]["jobId"] * "\"", message)
+                for message in socket.messages
+            )
+            message_count_after_consume = length(socket.messages)
+            @test isempty(JuliaFlowApiGateway.sync_external_execution_updates!(state))
+            @test length(socket.messages) == message_count_after_consume
+
+            worker_state = load_state(store_root)
+            processed_streams = JuliaFlowApiGateway.JuliaFlowWorkerService.process_stream_worker_tick!(
+                worker_state.worker_service,
+                worker_state.executions;
+                execution_record = JuliaFlowApiGateway.execution_record,
+                transition_execution_record = transition_execution_record,
+                materialize_execution = JuliaFlowApiGateway.materialize_execution,
+            )
+            @test length(processed_streams) >= 1
+            for execution in processed_streams
+                JuliaFlowApiGateway.save_execution!(worker_state.repository, execution; producer = "stream-worker")
+            end
+
+            consumed = JuliaFlowApiGateway.consume_gateway_events!(state)
+            @test any(event.producer == "stream-worker" for event in consumed)
+            synced_stream_record = JSON3.read(execution_detail_response(state, queued_stream_reply["result"]["jobId"]), Dict{String,Any})
+            @test synced_stream_record["status"] == "running"
+            @test synced_stream_record["streamLifecycleStatus"] == "active"
+            message_count_after_worker_consume = length(socket.messages)
+            @test isempty(JuliaFlowApiGateway.sync_external_execution_updates!(state))
+            @test length(socket.messages) == message_count_after_worker_consume
+
+            duplicate = JuliaFlowApiGateway.JuliaFlowGatewayRepository.append_event!(
+                state.repository,
+                "execution.changed";
+                aggregate_type = "execution",
+                aggregate_id = queued_stream_reply["result"]["jobId"],
+                payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(synced_stream_record)),
+                producer = "test-suite",
+                event_id = "dup-event-001",
+            )
+            JuliaFlowApiGateway.process_gateway_event!(state, duplicate)
+            message_count = length(socket.messages)
+            @test !JuliaFlowApiGateway.process_gateway_event!(state, duplicate)
+            @test length(socket.messages) == message_count
+
+            restarted = load_state(store_root)
+            restarted_socket = FakeRealtimeSocket(String[])
+            JuliaFlowApiGateway.handle_realtime_request!(
+                restarted,
+                JSON3.write(
+                    Dict(
+                        "jsonrpc" => "2.0",
+                        "id" => 103,
+                        "method" => "canvas.subscribe",
+                        "params" => Dict("workflowId" => "wf-parallel"),
+                    ),
+                ),
+                restarted_socket,
+            )
+            replayed = JuliaFlowApiGateway.consume_gateway_events!(restarted)
+            @test length(replayed) == 1
+            @test replayed[1].event_id == "dup-event-001"
+            @test isempty(JuliaFlowApiGateway.consume_gateway_events!(restarted))
+        end
     end
 end
 
@@ -726,4 +1605,70 @@ end
     @test haskey(available_nodes(), DEFAULT_NODE_KEY)
     result = execute_passthrough("memory://foundation.arrow")
     @test result.outputs[DEFAULT_OUTPUT_PORT_ID].ref == "memory://foundation.arrow"
+end
+
+@testset "Gateway Audit Events" begin
+    store_root = mktempdir()
+    foundation_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "foundation.workflow.toml")
+    state = foundation_state(foundation_path; store_root = store_root)
+
+    create_body = JSON3.write(
+        Dict(
+            "workflow" => Dict(
+                "workflowId" => "wf-audit",
+                "name" => "Audit Workflow",
+                "version" => "0.1.0",
+                "nodes" => Any[
+                    Dict(
+                        "id" => "node-source",
+                        "name" => "Source",
+                        "type" => "source.table",
+                        "executionHint" => "cpu_only",
+                        "config" => Dict("ref" => "memory://audit.arrow"),
+                        "ports" => Any[
+                            Dict("id" => "table_out", "direction" => "output", "type" => "data_table", "label" => "Table Out"),
+                        ],
+                    ),
+                ],
+                "connections" => Any[],
+                "flowVariables" => Any[],
+            ),
+        ),
+    )
+
+    create_response = route_request(
+        state,
+        HTTP.Request("POST", "/api/v1/workflows", ["Content-Type" => "application/json"], create_body),
+    )
+    @test create_response.status == 201
+
+    execute_response = route_request(
+        state,
+        HTTP.Request(
+            "POST",
+            "/api/v1/workflows/wf-audit/execute",
+            ["Content-Type" => "application/json"],
+            JSON3.write(Dict("executionMode" => "cpu_only")),
+        ),
+    )
+    @test execute_response.status == 202
+
+    checkpoint_response = route_request(
+        state,
+        HTTP.Request(
+            "POST",
+            "/api/v1/checkpoints",
+            ["Content-Type" => "application/json"],
+            JSON3.write(Dict("tag" => "cp/audit-events", "summary" => "audit checkpoint")),
+        ),
+    )
+    @test checkpoint_response.status == 201
+
+    events = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_events(state.repository)
+    audit_events = filter(event -> event.event_type == "audit.action", events)
+    @test length(audit_events) >= 3
+    @test any(event.payload["action"] == "workflow.create" && event.aggregate_id == "wf-audit" for event in audit_events)
+    @test any(event.payload["action"] == "workflow.execute" && event.aggregate_id == "wf-audit" for event in audit_events)
+    @test any(event.payload["action"] == "checkpoint.create" && event.aggregate_id == "cp/audit-events" for event in audit_events)
+    @test all(haskey(event.payload, "authContext") for event in audit_events)
 end

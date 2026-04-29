@@ -44,23 +44,21 @@ describe("App", () => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
     MockWebSocket.instances = [];
+    window.history.replaceState({}, "", "/");
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it("renders the Alpha authoring shell with draft actions", () => {
+  it("renders the route shell and canvas-first authoring surface", () => {
     render(<App />);
 
-    expect(screen.getByText(/JuliaFlow Alpha/i)).toBeInTheDocument();
-    expect(screen.getByText(/Primary authoring workspace/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Phase 0 CPU Forecast Demo/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Browse and quick-add/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Hub v0$/i)).toBeInTheDocument();
-    expect(screen.getByText(/JuliaFlow Base/i)).toBeInTheDocument();
+    expect(screen.getByText(/Workflow Canvas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Authoring-first workflow builder/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /save workflow/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run workflow/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open bi workspace/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /add flow variable/i })).toBeInTheDocument();
   });
 
@@ -78,7 +76,7 @@ describe("App", () => {
     expect(screen.getByText(/Unsaved draft changes/i)).toBeInTheDocument();
   });
 
-  it("lets authors add repository nodes, edit flow variables, and get demo run feedback", async () => {
+  it("lets authors add nodes, fix connections, save, and run in demo mode", async () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText(/Connection peer node/i), {
@@ -87,14 +85,14 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText(/Connection peer port/i), {
       target: { value: "score_model" }
     });
-    expect(screen.getByText(/Type mismatch/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Type mismatch/i).length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: /\+ join sales \+ weather/i }));
-    expect(screen.getByRole("heading", { name: /Join Sales \+ Weather 2/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Add Join Tables to workflow/i }));
+    expect(screen.getByRole("button", { name: /Select Join Tables 2/i })).toBeInTheDocument();
     expect(screen.getByText(/linked into the current graph slice/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Add BI Outlet to workflow/i }));
-    expect(screen.getByRole("heading", { name: /BI Outlet 2/i })).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: /Add BI Outlet to workflow/i })[0]);
+    expect(screen.getByRole("button", { name: /Select BI Outlet 2/i })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/Connection direction/i), {
       target: { value: "incoming" }
@@ -108,22 +106,12 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText(/Connection peer port/i), {
       target: { value: "joined" }
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: /Remove Join Sales \+ Weather 2\.joined -> BI Outlet 2\.dataset/i })
-    );
-    expect(screen.getByText(/Compatible edge/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /add connection/i }));
-    expect(screen.getByText(/Added edge joined -> dataset/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Remove Join Sales \+ Weather 2\.joined -> BI Outlet 2\.dataset/i })
-    ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Remove Join Sales \+ Weather 2\.joined -> BI Outlet 2\.dataset/i }));
-    expect(screen.queryByRole("button", { name: /Remove Join Sales \+ Weather 2\.joined -> BI Outlet 2\.dataset/i })).not.toBeInTheDocument();
-
-    const defaultInput = screen.getByLabelText(/Variable default batch_window/i);
-    fireEvent.change(defaultInput, { target: { value: "2026-Q3" } });
+    fireEvent.change(screen.getByLabelText(/Variable default batch_window/i), {
+      target: { value: "2026-Q3" }
+    });
     expect(screen.getByDisplayValue("2026-Q3")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /save workflow/i }));
@@ -133,21 +121,26 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /run workflow/i }));
     await waitFor(() => {
-      expect(screen.getByText(/Demo run queued/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Demo canvas run/i).length).toBeGreaterThan(0);
     });
-
-    expect(screen.getAllByText(/Demo canvas run/i).length).toBeGreaterThan(0);
   });
 
-  it("lets authors edit the dashboard composer in the workflow draft", () => {
+  it("moves dashboard authoring into dedicated BI workspace and publishes a viewer snapshot", async () => {
     render(<App />);
 
+    fireEvent.click(screen.getByRole("button", { name: /DashboardDraft and published BI surfaces/i }));
+
+    expect(screen.getByRole("button", { name: /remove dashboard/i })).toBeDisabled();
     expect(screen.getByLabelText(/Dashboard name/i)).toHaveValue("Ops Forecast Overview");
 
-    fireEvent.change(screen.getByLabelText(/Dashboard name/i), {
-      target: { value: "Executive Overview" }
-    });
-    expect(screen.getByLabelText(/Dashboard name/i)).toHaveValue("Executive Overview");
+    fireEvent.click(screen.getByRole("button", { name: /duplicate dashboard/i }));
+    expect(screen.getByText(/Duplicated dashboard draft/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /remove dashboard/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /Ops Forecast Overview copy/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /remove dashboard/i }));
+    expect(screen.getByText(/Removed dashboard draft/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /remove dashboard/i })).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText(/Dashboard dataset key/i), {
       target: { value: "exec_dataset" }
@@ -157,41 +150,22 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /Add chart/i }));
     expect(screen.getByText(/Added dashboard chart/i)).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/Chart title chart-6/i), {
-      target: { value: "Executive KPI" }
+    fireEvent.change(screen.getByLabelText(/Publish visibility/i), {
+      target: { value: "public" }
     });
-    expect(screen.getByLabelText(/Chart title chart-6/i)).toHaveValue("Executive KPI");
-    expect(screen.getByText(/Unsaved draft changes/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Publish$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Published dashboards/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/read_only/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /copy share link/i })).toBeInTheDocument();
   });
 
-  it("updates the workflow through the gateway and surfaces live run feedback", async () => {
+  it("loads discovery metadata and hub trust\/upgrade state from gateway", async () => {
     vi.stubEnv("VITE_JULIAFLOW_GATEWAY_BASE_URL", "http://gateway.test");
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
-
-    let executionItems = [
-      {
-        executionId: "exec-live-001",
-        workflowId: "wf-live-contracts",
-        workflowVersion: "0.2.0",
-        checkpointTag: "cp/01-contracts-frozen",
-        status: "running",
-        mode: "cpu-batch-v1",
-        plan: ["ingest", "score"],
-        stages: [["ingest"], ["score"]],
-        nodeCount: 5,
-        connectionCount: 4,
-        createdAt: "2026-04-18T12:00:00Z",
-        updatedAt: "2026-04-18T12:01:00Z",
-        statusHistory: [
-          {
-            status: "running",
-            at: "2026-04-18T12:01:00Z",
-            message: "Gateway resumed execution"
-          }
-        ],
-        startedAt: "2026-04-18T12:00:30Z"
-      }
-    ];
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -205,10 +179,27 @@ describe("App", () => {
             storeRoot: "/tmp/juliaflow",
             workflowCount: 1,
             checkpointCount: 2,
-            executionCount: 1
-          })
-        );
-      }
+              executionCount: 1,
+              realtimeTransport: "jsonrpc_websocket",
+              eventBackboneMode: "dual_write",
+              eventConsumerPollMs: 250,
+              streamWorkerMode: "process",
+              gpuWorkerMode: "process",
+              eventLogSize: 12,
+              latestEventSequence: 12,
+              gatewayConsumerCursor: 10,
+              gatewayConsumerLag: 2,
+              eventConsumerCatchupPercent: 83,
+              activeStreamExecutions: 1,
+              queuedGpuExecutions: 1,
+              queuedStreamExecutions: 1,
+              activeGpuExecutions: 1,
+              gpuWorkerOwnedExecutions: 1,
+              queuedExecutionsTotal: 1,
+              runningExecutionsTotal: 1
+            })
+          );
+        }
 
       if (url.endsWith("/api/v1/workflows") && init?.method === "GET") {
         return new Response(
@@ -216,10 +207,13 @@ describe("App", () => {
             items: [
               {
                 workflowId: "wf-live-contracts",
-                name: "Live Contract Workflow",
+                name: "Live Contracts",
                 version: "0.2.0",
-                nodeCount: 5,
-                latestCheckpoint: "cp/01-contracts-frozen"
+                nodeCount: 4,
+                latestCheckpoint: "cp/02-alpha-core",
+                graphRevision: 2,
+                dashboardCount: 1,
+                runMode: "batch"
               }
             ]
           })
@@ -230,50 +224,21 @@ describe("App", () => {
         return new Response(
           JSON.stringify({
             workflowId: "wf-live-contracts",
-            name: "Live Contract Workflow",
+            name: "Live Contracts",
             version: "0.2.0",
-            nodeCount: 5,
-            connectionCount: 4,
-            flowVariableCount: 3,
+            nodeCount: 4,
+            connectionCount: 3,
+            flowVariableCount: 2,
             biOutletCount: 1,
-            nodes: [
-              {
-                id: "live-source",
-                type: "io.live_source",
-                name: "Live Source",
-                executionHint: "cpu_only",
-                ports: [{ id: "rows", direction: "output", type: "data_table" }],
-                config: { source: "gateway" }
-              },
-              {
-                id: "live-score",
-                type: "ml.live_score",
-                name: "Live Score",
-                executionHint: "gpu_preferred",
-                ports: [
-                  { id: "frame", direction: "input", type: "data_table" },
-                  { id: "model", direction: "output", type: "model" }
-                ],
-                config: { strategy: "incremental" }
-              }
-            ],
-            connections: [
-              {
-                sourceNodeId: "live-source",
-                sourcePortId: "rows",
-                targetNodeId: "live-score",
-                targetPortId: "frame",
-                dataType: "data_table"
-              }
-            ],
-            flowVariables: [
-              {
-                name: "live_window",
-                type: "String",
-                default: "today"
-              }
-            ],
-            biOutlets: []
+            dashboardCount: 1,
+            graphRevision: 2,
+            runMode: "batch",
+            nodes: sampleNodes(),
+            connections: sampleConnections(),
+            flowVariables: sampleFlowVariables(),
+            biOutlets: [],
+            dashboards: sampleDashboards(),
+            runtime: { runMode: "batch" }
           })
         );
       }
@@ -281,7 +246,37 @@ describe("App", () => {
       if (url.endsWith("/api/v1/executions") && init?.method === "GET") {
         return new Response(
           JSON.stringify({
-            items: executionItems
+            items: [
+              {
+                executionId: "exec-live-001",
+                workflowId: "wf-live-contracts",
+                workflowVersion: "0.2.0",
+                checkpointTag: "cp/02-alpha-core",
+                status: "running",
+                mode: "cpu-batch-v1",
+                plan: ["ingest", "score"],
+                stages: [["ingest"], ["score"]],
+                nodeCount: 4,
+                connectionCount: 3,
+                createdAt: "2026-04-18T12:00:00Z",
+                updatedAt: "2026-04-18T12:01:00Z",
+                statusHistory: []
+              }
+            ]
+          })
+        );
+      }
+
+      if (url.endsWith("/api/v1/checkpoints") && init?.method === "GET") {
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                tag: "cp/02-alpha-core",
+                summary: "alpha core",
+                createdAt: "2026-04-18T12:00:00Z"
+              }
+            ]
           })
         );
       }
@@ -300,249 +295,643 @@ describe("App", () => {
                   summary: "Official starter node pack.",
                   packageRef: "extensions/base",
                   tags: ["official", "starter"],
-                  compatibleCheckpoints: ["cp/02-alpha-core"]
+                  engineCompatibility: "alpha-core",
+                  requiredContractVersion: "0.1.0",
+                  supportedCheckpoints: ["cp/02-alpha-core"],
+                  compatibleCheckpoints: ["cp/02-alpha-core"],
+                  dependencies: [],
+                  publisherIdentity: "official:juliaflow"
                 },
-                installState: "enabled"
+                installState: "enabled",
+                compatibility: {
+                  compatible: true,
+                  warnings: [],
+                  blockers: [],
+                  evaluatedAt: "2026-04-20T00:00:00Z"
+                },
+                trust: {
+                  trusted: true,
+                  level: "official",
+                  warnings: [],
+                  blockers: [],
+                  evaluatedAt: "2026-04-20T00:00:00Z"
+                },
+                upgrade: {
+                  upgradeAvailable: false,
+                  installedVersion: "0.1.0",
+                  latestVersion: "0.1.0",
+                  evaluatedAt: "2026-04-20T00:00:00Z"
+                }
               },
               {
                 extensionId: "juliaflow-ops-preview",
                 manifest: {
                   extensionId: "juliaflow-ops-preview",
                   name: "Ops Preview Pack",
-                  version: "0.1.0-alpha",
+                  version: "0.2.0",
                   publisher: "partner",
                   summary: "Preview Hub extension.",
                   packageRef: "hub://preview/ops-pack",
                   tags: ["preview", "ops"],
-                  compatibleCheckpoints: ["cp/03-alpha-gpu-bi"]
+                  engineCompatibility: "alpha-core",
+                  requiredContractVersion: "0.1.0",
+                  supportedCheckpoints: ["cp/03-alpha-gpu-bi"],
+                  compatibleCheckpoints: ["cp/03-alpha-gpu-bi"],
+                  dependencies: [],
+                  publisherIdentity: "partner:ops-preview",
+                  releaseNotesRef: "https://example.test/ops-preview"
                 },
-                installState: "available"
+                installState: "upgrade_available",
+                compatibility: {
+                  compatible: false,
+                  warnings: [],
+                  blockers: ["Extension not validated for current checkpoint cp/02-alpha-core"],
+                  evaluatedAt: "2026-04-20T00:00:00Z"
+                },
+                trust: {
+                  trusted: false,
+                  level: "untrusted",
+                  warnings: ["Signature missing"],
+                  blockers: ["Partner extension must provide signature"],
+                  evaluatedAt: "2026-04-20T00:00:00Z"
+                },
+                upgrade: {
+                  upgradeAvailable: true,
+                  installedVersion: "0.1.0-alpha",
+                  latestVersion: "0.2.0",
+                  targetVersion: "0.2.0",
+                  evaluatedAt: "2026-04-20T00:00:00Z"
+                }
               }
             ]
           })
         );
       }
 
-      if (url.endsWith("/api/v1/checkpoints") && init?.method === "GET") {
-        return new Response(
-          JSON.stringify({
-            items: [
-              {
-                tag: "cp/01-contracts-frozen",
-                summary: "Contracts locked",
-                createdAt: "2026-04-18T10:00:00Z"
-              }
-            ]
-          })
-        );
+      if (url.endsWith("/api/v1/workflows/wf-live-contracts/dashboards") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
       }
 
-      if (url.endsWith("/api/v1/workflows/wf-live-contracts") && init?.method === "PUT") {
-        const body = JSON.parse(String(init.body)) as {
-          workflow: {
-            flowVariables: Array<{ default?: string; name: string }>;
-          };
-        };
-        expect(body.workflow.flowVariables.find((item) => item.name === "live_window")?.default).toBe("tomorrow");
-
-        return new Response(
-          JSON.stringify({
-            workflowId: "wf-live-contracts",
-            name: "Live Contract Workflow",
-            version: "0.2.0",
-            status: "updated"
-          })
-        );
-      }
-
-      if (url.endsWith("/api/v1/workflows/wf-live-contracts/execute") && init?.method === "POST") {
-        executionItems = [
-          {
-            executionId: "exec-live-002",
-            workflowId: "wf-live-contracts",
-            workflowVersion: "0.2.0",
-            checkpointTag: "cp/01-contracts-frozen",
-            status: "running",
-            mode: "cpu-batch-v1",
-            plan: ["ingest", "score"],
-            stages: [["ingest"], ["score"]],
-            nodeCount: 5,
-            connectionCount: 4,
-            createdAt: "2026-04-18T12:02:00Z",
-            updatedAt: "2026-04-18T12:02:10Z",
-            statusHistory: [
-              {
-                status: "running",
-                at: "2026-04-18T12:02:10Z",
-                message: "Gateway started new execution"
-              }
-            ],
-            startedAt: "2026-04-18T12:02:01Z"
-          },
-          ...executionItems
-        ];
-
-        return new Response(
-          JSON.stringify({
-            executionId: "exec-live-002",
-            workflowId: "wf-live-contracts",
-            workflowVersion: "0.2.0",
-            checkpointTag: "cp/01-contracts-frozen",
-            status: "running",
-            mode: "cpu-batch-v1",
-            plan: ["ingest", "score"],
-            stages: [["ingest"], ["score"]],
-            nodeCount: 5,
-            connectionCount: 4,
-            createdAt: "2026-04-18T12:02:00Z",
-            updatedAt: "2026-04-18T12:02:10Z",
-            statusHistory: [
-              {
-                status: "running",
-                at: "2026-04-18T12:02:10Z",
-                message: "Gateway started new execution"
-              }
-            ],
-            startedAt: "2026-04-18T12:02:01Z"
-          })
-        );
-      }
-
-      throw new Error(`Unhandled request: ${url} (${init?.method ?? "GET"})`);
+      throw new Error(`Unhandled fetch: ${url}`);
     });
 
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("fetch", fetchMock as typeof fetch);
 
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Gateway postgres/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Live Contracts/i).length).toBeGreaterThan(0);
     });
-    expect(screen.getByText(/Realtime connecting|Realtime live/i)).toBeInTheDocument();
 
-    const realtimeSocket = MockWebSocket.instances.at(-1);
-    expect(realtimeSocket?.url).toBe("ws://gateway.test/api/v1/realtime");
-    await act(async () => {
-      for (const socket of MockWebSocket.instances) {
-        socket.emit("open");
+    expect(MockWebSocket.instances.at(-1)?.url).toBe("ws://gateway.test/api/v1/realtime");
+
+    fireEvent.click(screen.getByRole("button", { name: /MonitorExecutions, workers, backbone/i }));
+    expect(await screen.findByText(/Transport \+ worker modes/i)).toBeInTheDocument();
+    expect(screen.getByText(/dual_write/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/process/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Latest event sequence/i)).toBeInTheDocument();
+    expect(screen.getByText(/Queued stream executions/i)).toBeInTheDocument();
+    expect(screen.getByText(/Active GPU executions/i)).toBeInTheDocument();
+    expect(screen.getByText(/GPU worker-owned executions/i)).toBeInTheDocument();
+    expect(screen.getByText(/Consumer catch-up/i)).toBeInTheDocument();
+    expect(screen.getByText(/Total queued executions/i)).toBeInTheDocument();
+    expect(screen.getByText(/Total running executions/i)).toBeInTheDocument();
+    expect(screen.getAllByText("12").length).toBeGreaterThan(0);
+    expect(screen.getByText("10")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /HubTrust-aware extension lifecycle/i }));
+    expect(await screen.findByText(/Extension marketplace/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/0.2.0/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("hub://preview/ops-pack")).toBeInTheDocument();
+    expect(screen.getByText("https://example.test/ops-preview")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Upgrade/i })).toBeInTheDocument();
+  });
+
+  it("uses share token when loading published dashboard by viewer URL", async () => {
+    vi.stubEnv("VITE_JULIAFLOW_GATEWAY_BASE_URL", "http://gateway.test");
+    window.history.replaceState({}, "", "/dashboard?dashboard=dashboard-shared&share=token-123");
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.endsWith("/health")) {
+        return new Response(
+          JSON.stringify({
+            service: "api-gateway",
+            status: "ok",
+            repositoryBackend: "file",
+            storeRoot: "/tmp/juliaflow",
+            workflowCount: 0,
+            checkpointCount: 0,
+            executionCount: 0,
+            realtimeTransport: "jsonrpc_websocket",
+            eventBackboneMode: "dual_write",
+            eventConsumerPollMs: 250,
+            streamWorkerMode: "inline",
+            gpuWorkerMode: "process",
+            eventLogSize: 0,
+            latestEventSequence: 0,
+            gatewayConsumerCursor: 0,
+            gatewayConsumerLag: 0,
+            eventConsumerCatchupPercent: 100,
+            activeStreamExecutions: 0,
+            queuedGpuExecutions: 0,
+            queuedStreamExecutions: 0,
+            activeGpuExecutions: 0,
+            gpuWorkerOwnedExecutions: 0,
+            queuedExecutionsTotal: 0,
+            runningExecutionsTotal: 0
+          })
+        );
       }
-    });
-    expect(
-      MockWebSocket.instances.some((socket) =>
-        socket.sentMessages.some((message) => message.includes("\"method\":\"canvas.subscribe\""))
-      )
-    ).toBe(true);
 
-    fireEvent.change(screen.getByLabelText(/Variable default live_window/i), {
-      target: { value: "tomorrow" }
-    });
-    fireEvent.click(screen.getByRole("button", { name: /update workflow/i }));
+      if (url.endsWith("/api/v1/workflows") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
 
-    await waitFor(() => {
-      expect(screen.getByText(/Updated wf-live-contracts/i)).toBeInTheDocument();
-    });
+      if (url.endsWith("/api/v1/executions") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
 
-    fireEvent.click(screen.getByRole("button", { name: /run workflow/i }));
+      if (url.endsWith("/api/v1/checkpoints") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
 
-    await waitFor(() => {
-      expect(screen.getByText(/Run started for wf-live-contracts/i)).toBeInTheDocument();
-    });
+      if (url.endsWith("/api/v1/hub/extensions") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
 
-    executionItems = [
-      {
-        executionId: "exec-live-003",
-        workflowId: "wf-live-contracts",
-        workflowVersion: "0.2.0",
-        checkpointTag: "cp/02-alpha-core",
-        status: "completed",
-        mode: "cpu-batch-v1",
-        plan: ["ingest", "score"],
-        stages: [["ingest"], ["score"]],
-        nodeCount: 5,
-        connectionCount: 4,
-        createdAt: "2026-04-18T12:05:00Z",
-        updatedAt: "2026-04-18T12:06:00Z",
-        statusHistory: [
-          {
-            status: "completed",
-            at: "2026-04-18T12:06:00Z",
-            message: "Realtime completion event"
-          }
-        ],
-        startedAt: "2026-04-18T12:05:05Z",
-        finishedAt: "2026-04-18T12:06:00Z"
-      },
-      ...executionItems
-    ];
+      if (
+        url.endsWith("/api/v1/workflows/wf-phase0-cpu-forecast/dashboards") &&
+        init?.method === "GET"
+      ) {
+        return new Response(JSON.stringify({ items: [] }));
+      }
 
-    await act(async () => {
-      MockWebSocket.instances.at(-1)?.emit("message", {
-        data: JSON.stringify({
-          jsonrpc: "2.0",
-          method: "execution.state.changed",
-          params: {
-            executionId: "exec-live-003",
-            workflowId: "wf-live-contracts",
-            workflowVersion: "0.2.0",
-            checkpointTag: "cp/02-alpha-core",
-            status: "completed",
-            mode: "cpu-batch-v1",
-            plan: ["ingest", "score"],
-            stages: [["ingest"], ["score"]],
-            nodeCount: 5,
-            connectionCount: 4,
-            createdAt: "2026-04-18T12:05:00Z",
-            updatedAt: "2026-04-18T12:06:00Z",
-            statusHistory: [
-              {
-                status: "completed",
-                at: "2026-04-18T12:06:00Z",
-                message: "Realtime completion event"
-              }
+      if (
+        url.includes("/api/v1/dashboards/dashboard-shared?shareToken=token-123") &&
+        init?.method === "GET"
+      ) {
+        return new Response(
+          JSON.stringify({
+            dashboardId: "dashboard-shared",
+            workflowId: "wf-shared",
+            name: "Shared Dashboard",
+            version: 3,
+            publishedAt: "2026-04-22T12:00:00Z",
+            visibility: "public",
+            shareToken: "token-123",
+            binding: {
+              outletNodeId: "node-bi-outlet",
+              datasetKey: "shared_dataset",
+              refreshMode: "live"
+            },
+            charts: [{ chartId: "chart-1", title: "Trend", family: "line", xField: "window", yField: "amount" }]
+          })
+        );
+      }
+
+      if (
+        url.includes("/api/v1/dashboards/dashboard-shared/charts/chart-1/data?shareToken=token-123") &&
+        init?.method === "GET"
+      ) {
+        return new Response(
+          JSON.stringify({
+            dashboardId: "dashboard-shared",
+            chartId: "chart-1",
+            datasetKey: "shared_dataset",
+            family: "line",
+            fields: ["window", "amount"],
+            rows: [
+              { window: "2026-Q1", amount: 12 },
+              { window: "2026-Q2", amount: 18 }
             ],
-            startedAt: "2026-04-18T12:05:05Z",
-            finishedAt: "2026-04-18T12:06:00Z"
-          }
-        })
-      });
-      MockWebSocket.instances.at(-1)?.emit("message", {
-        data: JSON.stringify({
-          jsonrpc: "2.0",
-          method: "node.state.changed",
-          params: {
-            subscriptionId: "canvas-1",
-            workflowId: "wf-live-contracts",
-            nodeId: "live-score",
-            nodeType: "ml.live_score",
-            status: "running",
-            executionHint: "gpu_preferred"
-          }
-        })
-      });
-      MockWebSocket.instances.at(-1)?.emit("message", {
-        data: JSON.stringify({
-          jsonrpc: "2.0",
-          method: "workflow.state.changed",
-          params: {
-            subscriptionId: "canvas-1",
-            workflowId: "wf-live-contracts",
-            name: "Live Contract Workflow",
-            version: "0.2.0",
-            nodeCount: 5,
-            connectionCount: 4,
-            latestCheckpoint: "cp/02-alpha-core",
-            executionCount: 2
-          }
-        })
-      });
+            rowCount: 2,
+            refreshedAt: "2026-04-24T12:00:00Z",
+            semantic: {
+              dimensions: ["window"],
+              measures: ["amount"],
+              xField: "window",
+              yField: "amount",
+              seriesField: null,
+              availableDimensions: ["window"],
+              availableMeasures: ["amount"]
+            },
+            cache: {
+              cacheKey: "dashboard-shared:chart-1:v3",
+              sourceVersion: 3,
+              snapshotAt: "2026-04-22T12:00:00Z",
+              refreshMode: "live",
+              live: true,
+              stale: false
+            },
+            exportFormats: ["json", "csv"]
+          })
+        );
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
     });
 
+    vi.stubGlobal("fetch", fetchMock as typeof fetch);
+
+    render(<App />);
+
     await waitFor(() => {
-      expect(screen.getByText(/Realtime canvas pulse: accelerated stage active./i)).toBeInTheDocument();
+      expect(
+        fetchMock.mock.calls.some(([input]) =>
+          String(input).includes("/api/v1/dashboards/dashboard-shared?shareToken=token-123")
+        )
+      ).toBe(true);
     });
-    expect(screen.getAllByText(/exec-live-003/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Realtime completion event/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/exec-live-002/i).length).toBeGreaterThan(0);
-    expect(fetchMock).toHaveBeenCalled();
+
+    expect(await screen.findByText(/Shared Dashboard/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Refresh charts/i)).toBeInTheDocument();
+    expect(await screen.findByText(/live · live/i)).toBeInTheDocument();
+    expect((await screen.findAllByText("12")).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Export CSV/i })).toBeInTheDocument();
+  });
+
+  it("uses workspace token when loading workspace dashboard by viewer URL", async () => {
+    vi.stubEnv("VITE_JULIAFLOW_GATEWAY_BASE_URL", "http://gateway.test");
+    window.history.replaceState(
+      {},
+      "",
+      "/dashboard?dashboard=dashboard-workspace&workspaceToken=workspace-123"
+    );
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.endsWith("/health")) {
+        return new Response(
+          JSON.stringify({
+            service: "api-gateway",
+            status: "ok",
+            repositoryBackend: "file",
+            storeRoot: "/tmp/juliaflow",
+            workflowCount: 0,
+            checkpointCount: 0,
+            executionCount: 0,
+            realtimeTransport: "jsonrpc_websocket",
+            eventBackboneMode: "dual_write",
+            eventConsumerPollMs: 250,
+            streamWorkerMode: "inline",
+            gpuWorkerMode: "process",
+            eventLogSize: 0,
+            latestEventSequence: 0,
+            gatewayConsumerCursor: 0,
+            gatewayConsumerLag: 0,
+            eventConsumerCatchupPercent: 100,
+            activeStreamExecutions: 0,
+            queuedGpuExecutions: 0,
+            queuedStreamExecutions: 0,
+            activeGpuExecutions: 0,
+            gpuWorkerOwnedExecutions: 0,
+            queuedExecutionsTotal: 0,
+            runningExecutionsTotal: 0
+          })
+        );
+      }
+
+      if (url.endsWith("/api/v1/workflows") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (url.endsWith("/api/v1/executions") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (url.endsWith("/api/v1/checkpoints") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (url.endsWith("/api/v1/hub/extensions") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (
+        url.endsWith("/api/v1/workflows/wf-phase0-cpu-forecast/dashboards") &&
+        init?.method === "GET"
+      ) {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (
+        url.includes("/api/v1/dashboards/dashboard-workspace?workspaceToken=workspace-123") &&
+        init?.method === "GET"
+      ) {
+        return new Response(
+          JSON.stringify({
+            dashboardId: "dashboard-workspace",
+            workflowId: "wf-internal",
+            name: "Workspace Dashboard",
+            version: 2,
+            publishedAt: "2026-04-23T10:00:00Z",
+            visibility: "workspace",
+            binding: {
+              outletNodeId: "node-bi-outlet",
+              datasetKey: "workspace_dataset",
+              refreshMode: "manual"
+            },
+            charts: [{ chartId: "chart-1", title: "Internal Trend", family: "line", xField: "window", yField: "amount" }]
+          })
+        );
+      }
+
+      if (
+        url.includes("/api/v1/dashboards/dashboard-workspace/charts/chart-1/data?workspaceToken=workspace-123") &&
+        init?.method === "GET"
+      ) {
+        return new Response(
+          JSON.stringify({
+            dashboardId: "dashboard-workspace",
+            chartId: "chart-1",
+            datasetKey: "workspace_dataset",
+            family: "line",
+            fields: ["window", "amount"],
+            rows: [{ window: "2026-Q1", amount: 5 }],
+            rowCount: 1,
+            refreshedAt: "2026-04-24T12:00:00Z",
+            semantic: {
+              dimensions: ["window"],
+              measures: ["amount"],
+              xField: "window",
+              yField: "amount",
+              seriesField: null,
+              availableDimensions: ["window"],
+              availableMeasures: ["amount"]
+            },
+            cache: {
+              cacheKey: "dashboard-workspace:chart-1:v2",
+              sourceVersion: 2,
+              snapshotAt: "2026-04-23T10:00:00Z",
+              refreshMode: "manual",
+              live: false,
+              stale: false
+            },
+            exportFormats: ["json", "csv"]
+          })
+        );
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock as typeof fetch);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input]) =>
+          String(input).includes("/api/v1/dashboards/dashboard-workspace?workspaceToken=workspace-123")
+        )
+      ).toBe(true);
+    });
+
+    expect(await screen.findByText(/Workspace Dashboard/i)).toBeInTheDocument();
+  });
+
+  it("uses bearer auth when loading workspace dashboard without URL token", async () => {
+    vi.stubEnv("VITE_JULIAFLOW_GATEWAY_BASE_URL", "http://gateway.test");
+    vi.stubEnv("VITE_JULIAFLOW_WORKSPACE_BEARER_TOKEN", "workspace-bearer-123");
+    window.history.replaceState({}, "", "/dashboard?dashboard=dashboard-workspace");
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.endsWith("/health")) {
+        return new Response(
+          JSON.stringify({
+            service: "api-gateway",
+            status: "ok",
+            repositoryBackend: "file",
+            storeRoot: "/tmp/juliaflow",
+            workflowCount: 0,
+            checkpointCount: 0,
+            executionCount: 0,
+            realtimeTransport: "jsonrpc_websocket",
+            eventBackboneMode: "dual_write",
+            eventConsumerPollMs: 250,
+            streamWorkerMode: "inline",
+            gpuWorkerMode: "process",
+            eventLogSize: 0,
+            latestEventSequence: 0,
+            gatewayConsumerCursor: 0,
+            gatewayConsumerLag: 0,
+            eventConsumerCatchupPercent: 100,
+            activeStreamExecutions: 0,
+            queuedGpuExecutions: 0,
+            queuedStreamExecutions: 0,
+            activeGpuExecutions: 0,
+            gpuWorkerOwnedExecutions: 0,
+            queuedExecutionsTotal: 0,
+            runningExecutionsTotal: 0
+          })
+        );
+      }
+
+      if (url.endsWith("/api/v1/workflows") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (url.endsWith("/api/v1/executions") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (url.endsWith("/api/v1/checkpoints") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (url.endsWith("/api/v1/hub/extensions") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (
+        url.endsWith("/api/v1/workflows/wf-phase0-cpu-forecast/dashboards") &&
+        init?.method === "GET"
+      ) {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (url.endsWith("/api/v1/dashboards/dashboard-workspace") && init?.method === "GET") {
+        const authHeader = new Headers(init?.headers).get("Authorization");
+        if (authHeader !== "Bearer workspace-bearer-123") {
+          throw new Error(`Missing workspace bearer auth header: ${authHeader}`);
+        }
+        return new Response(
+          JSON.stringify({
+            dashboardId: "dashboard-workspace",
+            workflowId: "wf-internal",
+            name: "Workspace Dashboard",
+            version: 4,
+            publishedAt: "2026-04-23T10:00:00Z",
+            visibility: "workspace",
+            binding: {
+              outletNodeId: "node-bi-outlet",
+              datasetKey: "workspace_dataset",
+              refreshMode: "manual"
+            },
+            charts: [{ chartId: "chart-1", title: "Internal Trend", family: "line", xField: "window", yField: "amount" }]
+          })
+        );
+      }
+
+      if (url.endsWith("/api/v1/dashboards/dashboard-workspace/charts/chart-1/data") && init?.method === "GET") {
+        const authHeader = new Headers(init?.headers).get("Authorization");
+        if (authHeader !== "Bearer workspace-bearer-123") {
+          throw new Error(`Missing workspace bearer auth header: ${authHeader}`);
+        }
+        return new Response(
+          JSON.stringify({
+            dashboardId: "dashboard-workspace",
+            chartId: "chart-1",
+            datasetKey: "workspace_dataset",
+            family: "line",
+            fields: ["window", "amount"],
+            rows: [{ window: "2026-Q1", amount: 9 }],
+            rowCount: 1,
+            refreshedAt: "2026-04-24T12:00:00Z",
+            semantic: {
+              dimensions: ["window"],
+              measures: ["amount"],
+              xField: "window",
+              yField: "amount",
+              seriesField: null,
+              availableDimensions: ["window"],
+              availableMeasures: ["amount"]
+            },
+            cache: {
+              cacheKey: "dashboard-workspace:chart-1:v4",
+              sourceVersion: 4,
+              snapshotAt: "2026-04-23T10:00:00Z",
+              refreshMode: "manual",
+              live: false,
+              stale: false
+            },
+            exportFormats: ["json", "csv"]
+          })
+        );
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock as typeof fetch);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/v1/dashboards/dashboard-workspace")) {
+            return false;
+          }
+          return new Headers(init?.headers).get("Authorization") === "Bearer workspace-bearer-123";
+        })
+      ).toBe(true);
+    });
+
+    expect(await screen.findByText(/Workspace Dashboard/i)).toBeInTheDocument();
   });
 });
+
+function sampleNodes() {
+  return [
+    {
+      id: "node-csv-reader",
+      type: "io.csv_reader",
+      name: "CSV Reader",
+      executionHint: "cpu_only",
+      ports: [{ id: "rows", direction: "output", type: "data_table" }],
+      config: { path: "assets/forecast.csv" }
+    },
+    {
+      id: "node-join",
+      type: "transform.join",
+      name: "Join Sales + Weather",
+      executionHint: "cpu_only",
+      ports: [
+        { id: "left", direction: "input", type: "data_table" },
+        { id: "right", direction: "input", type: "data_table" },
+        { id: "joined", direction: "output", type: "data_table" }
+      ],
+      config: { key: "store_id", mode: "left_join" }
+    },
+    {
+      id: "node-model-train",
+      type: "ml.linear_regression",
+      name: "Train Regressor",
+      executionHint: "gpu_preferred",
+      ports: [
+        { id: "training_frame", direction: "input", type: "data_table" },
+        { id: "model", direction: "output", type: "model" }
+      ],
+      config: { target: "demand", validationSplit: 0.2 }
+    },
+    {
+      id: "node-bi-outlet",
+      type: "bi.outlet",
+      name: "BI Outlet",
+      executionHint: "cpu_only",
+      ports: [
+        { id: "dataset", direction: "input", type: "data_table" },
+        { id: "score_model", direction: "input", type: "model" },
+        { id: "dashboard_stream", direction: "output", type: "stream_channel" }
+      ],
+      config: { dashboardId: "ops-forecast" }
+    }
+  ];
+}
+
+function sampleConnections() {
+  return [
+    {
+      sourceNodeId: "node-csv-reader",
+      sourcePortId: "rows",
+      targetNodeId: "node-join",
+      targetPortId: "left",
+      dataType: "data_table"
+    },
+    {
+      sourceNodeId: "node-join",
+      sourcePortId: "joined",
+      targetNodeId: "node-model-train",
+      targetPortId: "training_frame",
+      dataType: "data_table"
+    },
+    {
+      sourceNodeId: "node-model-train",
+      sourcePortId: "model",
+      targetNodeId: "node-bi-outlet",
+      targetPortId: "score_model",
+      dataType: "model"
+    }
+  ];
+}
+
+function sampleFlowVariables() {
+  return [
+    { name: "batch_window", type: "String", default: "2026-Q2" },
+    { name: "target_gpu", type: "GPUDeviceID", default: "cpu-fallback" }
+  ];
+}
+
+function sampleDashboards() {
+  return [
+    {
+      dashboardId: "ops-forecast",
+      name: "Ops Forecast Overview",
+      binding: {
+        outletNodeId: "node-bi-outlet",
+        datasetKey: "forecast_rows",
+        refreshMode: "live"
+      },
+      charts: [
+        { chartId: "chart-line", title: "Demand Trend", family: "line", xField: "horizon", yField: "demand" }
+      ]
+    }
+  ];
+}

@@ -50,7 +50,25 @@ function execute(::Type{SelectColumnsNode}, context::NodeContext)
     haskey(payload, :ref) || error("Arrow payload missing ref field")
     isempty(columns) && error("columns must contain at least one column")
 
-    projected_payload = (; payload..., selected_columns = columns)
+    rows = payload_rows(payload, context)
+    if rows === nothing
+        projected_payload = (; payload..., selected_columns = columns)
+        return NodeResult(
+            outputs = Dict(output_port_id => projected_payload),
+            telemetry = Dict(
+                "node_key" => "base.select_columns",
+                "input_port_id" => input_port_id,
+                "output_port_id" => output_port_id,
+                "input_ref" => String(payload.ref),
+                "column_count" => length(columns),
+                "materialized" => false,
+            ),
+            warnings = ["select_columns requires materialized rows for execution"],
+        )
+    end
+
+    projected_rows = [Dict(column => row_value(row, column) for column in columns) for row in rows]
+    projected_payload = table_payload(payload, context, "base.select_columns", projected_rows; schema = columns)
 
     return NodeResult(
         outputs = Dict(output_port_id => projected_payload),
@@ -59,9 +77,11 @@ function execute(::Type{SelectColumnsNode}, context::NodeContext)
             "input_port_id" => input_port_id,
             "output_port_id" => output_port_id,
             "input_ref" => String(payload.ref),
+            "output_ref" => projected_payload.ref,
             "column_count" => length(columns),
+            "row_count" => length(projected_rows),
+            "materialized" => true,
         ),
-        warnings = ["placeholder transform forwards the original Arrow ref"],
     )
 end
 

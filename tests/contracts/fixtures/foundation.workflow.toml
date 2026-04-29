@@ -26,6 +26,15 @@ charts = [
   { id = "chart-metric", title = "Latest", family = "metric", y_field = "amount" }
 ]
 
+[[workflow.bi_outlets]]
+node_id = "node-bi"
+name = "Sales Overview Outlet"
+rows = [
+  { window = "2026-Q1", region = "west", amount = 120.0, capacity = 180.0 },
+  { window = "2026-Q2", region = "east", amount = 200.0, capacity = 240.0 },
+  { window = "2026-Q3", region = "north", amount = 175.0, capacity = 220.0 }
+]
+
 [runtime]
 run_mode = "batch"
 

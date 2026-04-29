@@ -11,7 +11,8 @@
     "build": "npm run build --workspaces --if-present",
     "dev:frontend": "npm --workspace @juliaflow/frontend run dev",
     "test": "npm run test --workspaces --if-present && node --test tests/contracts/**/*.test.mjs",
-    "validate:contracts": "node --test tests/contracts/**/*.test.mjs"
+    "validate:contracts": "node --test tests/contracts/**/*.test.mjs",
+    "validate:brd-traceability": "node scripts/validate-brd-traceability.mjs"
   },
   "dependencies": {
     "smol-toml": "^1.3.4"
@@ -20,4 +21,3 @@
     "typescript": "^5.9.3"
   }
 }
-

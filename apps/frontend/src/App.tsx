@@ -10,17 +10,20 @@ import {
   type DashboardChartFamily,
   type DashboardDefinition,
   type ExecutionHint,
+  type GatewayDashboardChartDataResponse,
+  type GatewayDashboardPublishResponse,
+  type GatewayDashboardPublishRequest,
   type GatewayExecutionStateChangedEvent,
+  type GatewayHealthcheck,
   type GatewayHubExtensionRecord,
   type GatewayHubInstallRequest,
-  type FlowVariableDefinition,
-  type GatewayHealthcheck,
   type GatewayNodeStateChangedEvent,
   type GatewayRealtimeNotification,
-  type GatewayWorkflowStateChangedEvent,
   type GatewayWorkflowMetadata,
+  type GatewayWorkflowStateChangedEvent,
   type GatewayWorkflowSummary,
   type NodeDefinition,
+  type PublishedDashboardDefinition,
   type WorkflowDefinition,
   type WorkflowStatus
 } from "@juliaflow/contracts";
@@ -30,7 +33,6 @@ import {
   buildCheckpointRailItems,
   buildExecutionRailItems,
   buildWorkflowFromGateway,
-  canvasNodeLayouts,
   checkpointRailItems,
   executionRailItems,
   sampleWorkflow,
@@ -46,9 +48,16 @@ type ExecutionTab = (typeof executionTabs)[number];
 type DataSourceMode = "demo" | "live" | "fallback";
 type ConnectionDraftDirection = "incoming" | "outgoing";
 type RealtimeConnectionState = "idle" | "connecting" | "live" | "error";
+type AppView = "canvas" | "dashboard" | "hub" | "monitor" | "settings";
+type InspectorTab = "config" | "ports" | "validation" | "runtime";
 type WorkflowPortDefinition = NodeDefinition["ports"][number];
 type ValidationTone = "good" | "warn" | "live";
 type ActionTone = "info" | "success" | "error" | "demo";
+interface ViewerChartFilter {
+  field: string;
+  value: string;
+}
+
 const dashboardChartFamilies: DashboardChartFamily[] = ["line", "bar", "area", "table", "metric"];
 
 interface WorkspaceDataState {
@@ -100,6 +109,97 @@ function getGatewayBaseUrl(): string {
   return String(import.meta.env.VITE_JULIAFLOW_GATEWAY_BASE_URL ?? "").trim();
 }
 
+function getInitialViewerDashboardId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const dashboardId = params.get("dashboard");
+  return dashboardId && dashboardId.length > 0 ? dashboardId : null;
+}
+
+function getInitialViewerShareToken(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const shareToken = params.get("share");
+  return shareToken && shareToken.length > 0 ? shareToken : null;
+}
+
+function getInitialViewerWorkspaceToken(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const workspaceToken = params.get("workspaceToken");
+  return workspaceToken && workspaceToken.length > 0 ? workspaceToken : null;
+}
+
+function getConfiguredWorkspaceDashboardToken(): string | null {
+  const token = String(import.meta.env.VITE_JULIAFLOW_WORKSPACE_DASHBOARD_TOKEN ?? "").trim();
+  return token.length > 0 ? token : null;
+}
+
+function getConfiguredWorkspaceDashboardBearerToken(): string | null {
+  const token = String(import.meta.env.VITE_JULIAFLOW_WORKSPACE_BEARER_TOKEN ?? "").trim();
+  return token.length > 0 ? token : null;
+}
+
+function getInitialPathname(): string {
+  if (typeof window === "undefined") {
+    return "/";
+  }
+  return window.location.pathname || "/";
+}
+
+function getAppViewFromPath(pathname: string): AppView {
+  if (pathname.startsWith("/dashboard")) {
+    return "dashboard";
+  }
+  if (pathname.startsWith("/hub")) {
+    return "hub";
+  }
+  if (pathname.startsWith("/monitor")) {
+    return "monitor";
+  }
+  if (pathname.startsWith("/settings")) {
+    return "settings";
+  }
+  return "canvas";
+}
+
+function buildViewPath(view: AppView): string {
+  switch (view) {
+    case "dashboard":
+      return "/dashboard";
+    case "hub":
+      return "/hub";
+    case "monitor":
+      return "/monitor";
+    case "settings":
+      return "/settings";
+    default:
+      return "/";
+  }
+}
+
+function buildDashboardViewerSearch(
+  dashboardId: string,
+  shareToken?: string | null,
+  workspaceToken?: string | null
+): string {
+  const params = new URLSearchParams();
+  params.set("dashboard", dashboardId);
+  if (shareToken) {
+    params.set("share", shareToken);
+  }
+  if (workspaceToken) {
+    params.set("workspaceToken", workspaceToken);
+  }
+  return `?${params.toString()}`;
+}
+
 const demoHubExtensions: GatewayHubExtensionRecord[] = [
   {
     extensionId: "juliaflow-base",
@@ -111,23 +211,75 @@ const demoHubExtensions: GatewayHubExtensionRecord[] = [
       summary: "Official starter node pack with source, transform, trainer, BI, and sink nodes.",
       packageRef: "extensions/base",
       tags: ["official", "starter", "alpha"],
-      compatibleCheckpoints: ["cp/02-alpha-core", "cp/03-alpha-gpu-bi"]
+      engineCompatibility: "alpha-core",
+      requiredContractVersion: "0.1.0",
+      supportedCheckpoints: ["cp/02-alpha-core", "cp/03-alpha-gpu-bi"],
+      compatibleCheckpoints: ["cp/02-alpha-core", "cp/03-alpha-gpu-bi"],
+      dependencies: [],
+      publisherIdentity: "official:juliaflow"
     },
-    installState: "enabled"
+    installState: "enabled",
+    compatibility: {
+      compatible: true,
+      warnings: [],
+      blockers: [],
+      evaluatedAt: "2026-04-20T00:00:00Z"
+    },
+    trust: {
+      trusted: true,
+      level: "official",
+      warnings: [],
+      blockers: [],
+      evaluatedAt: "2026-04-20T00:00:00Z"
+    },
+    upgrade: {
+      upgradeAvailable: false,
+      installedVersion: "0.1.0",
+      latestVersion: "0.1.0",
+      evaluatedAt: "2026-04-20T00:00:00Z"
+    },
+    installedAt: "2026-04-20T00:00:00Z",
+    enabledAt: "2026-04-20T00:00:00Z"
   },
   {
     extensionId: "juliaflow-ops-preview",
     manifest: {
       extensionId: "juliaflow-ops-preview",
       name: "Ops Preview Pack",
-      version: "0.1.0-alpha",
+      version: "0.2.0",
       publisher: "partner",
       summary: "Preview catalog entry for Hub v0 install and enable flows.",
       packageRef: "hub://preview/ops-pack",
       tags: ["preview", "ops", "hub-v0"],
-      compatibleCheckpoints: ["cp/03-alpha-gpu-bi"]
+      engineCompatibility: "alpha-core",
+      requiredContractVersion: "0.1.0",
+      supportedCheckpoints: ["cp/03-alpha-gpu-bi"],
+      compatibleCheckpoints: ["cp/03-alpha-gpu-bi"],
+      dependencies: [],
+      publisherIdentity: "partner:ops-preview"
     },
-    installState: "available"
+    installState: "upgrade_available",
+    compatibility: {
+      compatible: false,
+      warnings: [],
+      blockers: ["Extension not validated for current checkpoint cp/02-alpha-core"],
+      evaluatedAt: "2026-04-20T00:00:00Z"
+    },
+    trust: {
+      trusted: false,
+      level: "untrusted",
+      warnings: ["Signature missing for partner extension"],
+      blockers: ["Partner extension must provide signature"],
+      evaluatedAt: "2026-04-20T00:00:00Z"
+    },
+    upgrade: {
+      upgradeAvailable: true,
+      installedVersion: "0.1.0-alpha",
+      latestVersion: "0.2.0",
+      targetVersion: "0.2.0",
+      evaluatedAt: "2026-04-20T00:00:00Z"
+    },
+    installedAt: "2026-04-20T00:00:00Z"
   }
 ];
 
@@ -269,16 +421,173 @@ function summarizeConfigValue(value: unknown): string {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
-
   if (Array.isArray(value)) {
     return value.join(", ");
   }
-
   if (value && typeof value === "object") {
     return `${Object.keys(value).length} fields`;
   }
-
   return "Not set";
+}
+
+function chartPreviewSeries(data: GatewayDashboardChartDataResponse) {
+  const measure = data.semantic.measures[0];
+  const dimension = data.semantic.dimensions[0] ?? data.fields[0] ?? "label";
+  return data.rows.slice(0, 6).map((row, index) => ({
+    id: `${dimension}-${index}`,
+    label: String(row[dimension] ?? `row-${index + 1}`),
+    value: Number(row[measure] ?? 0)
+  }));
+}
+
+function chartPreviewMetric(data: GatewayDashboardChartDataResponse) {
+  const measure = data.semantic.measures[0];
+  const firstRow = data.rows[0] ?? {};
+  return {
+    label: data.datasetKey,
+    measure,
+    value: firstRow[measure] ?? "pending"
+  };
+}
+
+function renderPublishedChartPreview(
+  chart: DashboardChartDefinition,
+  data: GatewayDashboardChartDataResponse | undefined,
+  activeFilter: ViewerChartFilter | null,
+  onSelectFilter: (filter: ViewerChartFilter) => void
+) {
+  if (!data) {
+    return <div className="repository-empty"><span>Chart data pending.</span></div>;
+  }
+
+  if (chart.family === "metric") {
+    const metric = chartPreviewMetric(data);
+    return (
+      <div className="inspector-stack">
+        <div className="inspector-row">
+          <strong>{metric.measure}</strong>
+          <span>{String(metric.value)}</span>
+        </div>
+        <div className="inspector-row">
+          <strong>Dataset</strong>
+          <span>{metric.label}</span>
+        </div>
+        {activeFilter ? <div className="inspector-row"><strong>Filter</strong><span>{activeFilter.field}={activeFilter.value}</span></div> : null}
+      </div>
+    );
+  }
+
+  if (chart.family === "table") {
+    const previewFields = data.fields.slice(0, 4);
+    return (
+      <div className="repository-table-scroll">
+        <table className="repository-table">
+          <thead>
+            <tr>
+              {previewFields.map((field) => (
+                <th key={field}>{field}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.rows.slice(0, 4).map((row, rowIndex) => (
+              <tr key={`${chart.chartId}-row-${rowIndex}`}>
+                {previewFields.map((field) => (
+                  <td key={`${field}-${rowIndex}`}>
+                  <button
+                    className="route-list-item"
+                    onClick={() => {
+                      onSelectFilter({ field, value: String(row[field] ?? "") });
+                    }}
+                    type="button"
+                  >
+                    {String(row[field] ?? "-")}
+                  </button>
+                </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  const series = chartPreviewSeries(data);
+  const maxValue = Math.max(...series.map((entry) => entry.value), 1);
+  return (
+    <div className="inspector-stack">
+      {series.map((entry) => {
+        const width = `${Math.max((entry.value / maxValue) * 100, 12)}%`;
+        const background =
+          chart.family === "bar"
+            ? "linear-gradient(90deg, rgba(86,156,214,0.85), rgba(86,156,214,0.2))"
+            : chart.family === "area"
+              ? "linear-gradient(90deg, rgba(106,190,120,0.7), rgba(106,190,120,0.18))"
+              : "linear-gradient(90deg, rgba(200,124,255,0.85), rgba(200,124,255,0.2))";
+        return (
+          <div className="inspector-stack" key={entry.id}>
+            <div className="inspector-row">
+              <button
+                className={`route-list-item ${activeFilter?.value === entry.label ? "is-active" : ""}`}
+                onClick={() => {
+                  const dimension = data.semantic.dimensions[0] ?? data.fields[0] ?? "label";
+                  onSelectFilter({ field: dimension, value: entry.label });
+                }}
+                type="button"
+              >
+                {entry.label}
+              </button>
+              <span>{entry.value}</span>
+            </div>
+            <div
+              aria-hidden="true"
+              style={{
+                width,
+                height: chart.family === "line" ? 4 : 12,
+                borderRadius: 999,
+                background,
+                opacity: chart.family === "area" ? 0.9 : 1
+              }}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function chartRefreshSummary(data?: GatewayDashboardChartDataResponse) {
+  if (!data) {
+    return "pending";
+  }
+  return data.cache.live ? `live · ${data.cache.refreshMode}` : `snapshot · ${data.cache.refreshMode}`;
+}
+
+function applyViewerChartFilter(
+  data: GatewayDashboardChartDataResponse,
+  filter: ViewerChartFilter | null
+): GatewayDashboardChartDataResponse {
+  if (!filter) {
+    return data;
+  }
+  const rows = data.rows.filter((row) => String(row[filter.field] ?? "") === filter.value);
+  return { ...data, rows, rowCount: rows.length };
+}
+
+function chartCsv(data: GatewayDashboardChartDataResponse): string {
+  const fields = data.fields;
+  const escape = (value: unknown) => {
+    const raw = String(value ?? "");
+    return raw.includes(",") || raw.includes('"') || raw.includes("\n")
+      ? `"${raw.replaceAll('"', '""')}"`
+      : raw;
+  };
+  const lines = [fields.map(escape).join(",")];
+  for (const row of data.rows) {
+    lines.push(fields.map((field) => escape(row[field])).join(","));
+  }
+  return `${lines.join("\n")}\n`;
 }
 
 function buildRepositoryGroupLabel(type: string): string {
@@ -311,6 +620,17 @@ function buildDashboardChartId(dashboard: DashboardDefinition): string {
   return `chart-${index}`;
 }
 
+function buildDashboardPanel(index: number) {
+  const column = index % 2;
+  const row = Math.floor(index / 2);
+  return {
+    x: column * 6,
+    y: row * 4,
+    w: 6,
+    h: 4
+  };
+}
+
 function createDefaultDashboard(workflow: WorkflowDefinition): DashboardDefinition {
   const outletNode =
     workflow.nodes.find((node) => node.type === "bi.outlet") ??
@@ -331,7 +651,8 @@ function createDefaultDashboard(workflow: WorkflowDefinition): DashboardDefiniti
         title: "Primary Chart",
         family: "line",
         xField: "x",
-        yField: "y"
+        yField: "y",
+        panel: buildDashboardPanel(0)
       }
     ]
   };
@@ -377,14 +698,14 @@ function buildNodeValidationSummary(
 
   if (node.executionHint === "gpu_preferred" || node.executionHint === "gpu_required") {
     return {
-      detail: "Graph is wired, pending runtime target confirmation",
+      detail: "Graph is wired and waiting on runtime target confirmation",
       label: "GPU-aware",
       tone: "live"
     };
   }
 
   return {
-    detail: "Ports are satisfied for the current graph slice",
+    detail: "Node is wired for next execution",
     label: "Ready",
     tone: "good"
   };
@@ -392,89 +713,42 @@ function buildNodeValidationSummary(
 
 function buildValidationItems(
   node: NodeDefinition,
-  layout: CanvasNodeLayout,
+  layout: CanvasNodeLayout | undefined,
   connections: ConnectionDefinition[]
-): Array<{ detail: string; label: string; tone: ValidationTone }> {
-  const inputPorts = node.ports.filter((port) => port.direction === "input");
-  const connectedInputs = inputPorts.filter((port) => findPortConnections(connections, node.id, port).length > 0);
-  const outputPorts = node.ports.filter((port) => port.direction === "output");
-  const routedOutputs = outputPorts.filter((port) => findPortConnections(connections, node.id, port).length > 0);
-  const needsGpu = node.executionHint !== "cpu_only";
-  const validationSummary = buildNodeValidationSummary(node, connections);
-
+): NodeValidationSummary[] {
   return [
+    buildNodeValidationSummary(node, connections),
     {
-      detail: validationSummary.detail,
-      label: validationSummary.label,
-      tone: validationSummary.tone
+      detail: layout?.checkpointTag ?? "No checkpoint tag attached",
+      label: "Checkpoint",
+      tone: layout?.checkpointTag ? "good" : "warn"
     },
     {
-      detail: `${connectedInputs.length}/${inputPorts.length} inputs linked`,
-      label: connectedInputs.length === inputPorts.length ? "Port compatibility" : "Open inputs",
-      tone: connectedInputs.length === inputPorts.length ? "good" : "warn"
-    },
-    {
-      detail: `${routedOutputs.length}/${outputPorts.length} outputs routed`,
-      label: routedOutputs.length > 0 ? "Downstream path" : "Output path pending",
-      tone: routedOutputs.length > 0 ? "good" : "warn"
-    },
-    {
-      detail: needsGpu ? "GPU-capable target requested" : "CPU-safe target",
-      label: "Execution target",
-      tone: needsGpu ? "live" : "good"
-    },
-    {
-      detail: layout.status === "running" || layout.status === "streaming_active" ? "Node is active" : "Awaiting run",
-      label: "Recent run state",
-      tone: layout.status === "running" || layout.status === "streaming_active" ? "live" : "warn"
+      detail: layout?.runtime ?? "Awaiting runtime metadata",
+      label: "Runtime label",
+      tone: "live"
     }
   ];
 }
 
 function buildSampleOutput(node: NodeDefinition): string {
   const outputPort = node.ports.find((port) => port.direction === "output");
-  if (!outputPort) {
-    return "No emitted sample for this node yet.";
-  }
-
-  switch (outputPort.type) {
-    case "data_table":
-      return "rows: 12k · schema: store_id, demand, weather_index, horizon";
-    case "model":
-      return "artifact: regression-v0.2 · metrics: rmse, mae, drift";
-    case "stream_channel":
-      return "channel: dashboard_stream · cadence: 1s refresh";
-    case "flow_variable":
-      return "variable payload: typed runtime parameter";
-    case "gpu_buffer":
-      return "gpu buffer staged for scoring lane";
-    case "image":
-      return "image payload queued for BI tile preview";
-  }
+  return outputPort ? `${outputPort.id} emits ${formatPortType(outputPort.type)} payloads.` : "No output port on selected node.";
 }
 
 function cloneNodeDefinition(node: NodeDefinition): NodeDefinition {
   return {
     ...node,
     ports: node.ports.map((port) => ({ ...port })),
-    config: { ...node.config },
-    capabilities: node.capabilities ? { ...node.capabilities } : undefined
+    config: { ...node.config }
   };
 }
 
 function buildRepositoryCatalog(workflow: WorkflowDefinition): NodeDefinition[] {
-  const catalog: NodeDefinition[] = [];
-  const seenTypes = new Set<string>();
-
-  for (const node of [...sampleWorkflow.nodes, ...workflow.nodes, ...starterNodeCatalog]) {
-    if (seenTypes.has(node.type)) {
-      continue;
-    }
-    seenTypes.add(node.type);
-    catalog.push(cloneNodeDefinition(node));
-  }
-
-  return catalog;
+  const usedTypes = new Set(workflow.nodes.map((node) => node.type));
+  return starterNodeCatalog
+    .map((node) => ({ ...cloneNodeDefinition(node), name: usedTypes.has(node.type) ? node.name : node.name }))
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function findGraphLayout(workflow: WorkflowDefinition, nodeId: string) {
@@ -486,102 +760,103 @@ function upsertGraphLayout(
   nodeId: string,
   updates: Partial<NonNullable<WorkflowDefinition["graph"]>["nodeLayouts"][number]>
 ): WorkflowDefinition {
-  const currentLayouts = workflow.graph?.nodeLayouts ?? [];
-  const existingLayout = currentLayouts.find((layout) => layout.nodeId === nodeId);
-  const nextLayout =
-    existingLayout === undefined
-      ? {
-          nodeId,
-          x: updates.x ?? 44,
-          y: updates.y ?? 56,
-          width: updates.width,
-          checkpointTag: updates.checkpointTag,
-          notes: updates.notes
-        }
-      : { ...existingLayout, ...updates };
-  const nodeLayouts = existingLayout
-    ? currentLayouts.map((layout) => (layout.nodeId === nodeId ? nextLayout : layout))
-    : [...currentLayouts, nextLayout];
+  const nodeLayouts = workflow.graph?.nodeLayouts ?? [];
+  const existing = nodeLayouts.find((layout) => layout.nodeId === nodeId);
+  const nextLayout = {
+    nodeId,
+    x: existing?.x ?? 40,
+    y: existing?.y ?? 40,
+    ...existing,
+    ...updates
+  };
 
   return {
     ...workflow,
     graph: {
       revision: (workflow.graph?.revision ?? 0) + 1,
-      nodeLayouts,
+      viewport: workflow.graph?.viewport ?? { x: 0, y: 0, zoom: 1 },
       selectedNodeId: workflow.graph?.selectedNodeId ?? nodeId,
-      viewport: workflow.graph?.viewport ?? { x: 0, y: 0, zoom: 1 }
+      nodeLayouts: [...nodeLayouts.filter((layout) => layout.nodeId !== nodeId), nextLayout]
     }
   };
 }
 
 function applyNodePositionOverrides(
   workflow: WorkflowDefinition,
-  overrides: Record<string, { x: number; y: number }>,
+  nodePositionOverrides: Record<string, { x: number; y: number }>,
   selectedNodeId: string
 ): WorkflowDefinition {
-  let nextWorkflow: WorkflowDefinition = {
+  const nodeIds = Object.keys(nodePositionOverrides);
+  if (nodeIds.length === 0) {
+    return workflow;
+  }
+
+  const existingLayouts = workflow.graph?.nodeLayouts ?? [];
+  const layoutMap = new Map(existingLayouts.map((layout) => [layout.nodeId, layout]));
+
+  const nextLayouts = workflow.nodes.map((node, index) => {
+    const override = nodePositionOverrides[node.id];
+    const current = layoutMap.get(node.id);
+    return {
+      nodeId: node.id,
+      x: override?.x ?? current?.x ?? 36 + (index % 3) * 248,
+      y: override?.y ?? current?.y ?? 44 + Math.floor(index / 3) * 156,
+      width: current?.width,
+      checkpointTag: current?.checkpointTag,
+      notes: current?.notes
+    };
+  });
+
+  return {
     ...workflow,
-    graph: workflow.graph ?? {
-      revision: 1,
-      nodeLayouts: [],
-      viewport: { x: 0, y: 0, zoom: 1 },
-      selectedNodeId
+    graph: {
+      revision: (workflow.graph?.revision ?? 0) + 1,
+      viewport: workflow.graph?.viewport ?? { x: 0, y: 0, zoom: 1 },
+      selectedNodeId,
+      nodeLayouts: nextLayouts
     }
   };
-
-  for (const [nodeId, position] of Object.entries(overrides)) {
-    nextWorkflow = upsertGraphLayout(nextWorkflow, nodeId, position);
-  }
-
-  if (nextWorkflow.graph) {
-    nextWorkflow = {
-      ...nextWorkflow,
-      graph: {
-        ...nextWorkflow.graph,
-        selectedNodeId
-      }
-    };
-  }
-
-  return nextWorkflow;
 }
 
-function buildNodeLayoutsForWorkflow(
-  workflow: WorkflowDefinition,
-  mode: DataSourceMode
+function mergeNodeLayouts(
+  baseLayouts: Record<string, CanvasNodeLayout>,
+  realtimeNodeStates: Record<string, RealtimeNodeState>
 ): Record<string, CanvasNodeLayout> {
-  const hasPersistedGraph = (workflow.graph?.nodeLayouts.length ?? 0) > 0;
-  const baseLayouts =
-    mode === "live" || hasPersistedGraph
-      ? buildCanvasNodeLayouts(workflow)
-      : Object.fromEntries(Object.entries(canvasNodeLayouts));
-  const nextLayouts = { ...baseLayouts };
-  let supplementalIndex = 0;
-
-  for (const node of workflow.nodes) {
-    if (nextLayouts[node.id]) {
-      continue;
-    }
-
-    const index = Object.keys(baseLayouts).length + supplementalIndex;
-    const column = index % 4;
-    const row = Math.floor(index / 4);
-
-    nextLayouts[node.id] = {
-      x: 44 + column * 220,
-      y: 56 + row * 164 + (column === 1 ? 38 : 0),
-      width: 180,
-      status: "configured",
-      runtime: "Added from the repository during the current authoring session.",
-      notes: `Draft node ${node.name} has not been persisted yet.`
-    };
-    supplementalIndex += 1;
-  }
-
-  return nextLayouts;
+  return Object.fromEntries(
+    Object.entries(baseLayouts).map(([nodeId, layout]) => {
+      const realtime = realtimeNodeStates[nodeId];
+      if (!realtime) {
+        return [nodeId, layout];
+      }
+      return [
+        nodeId,
+        {
+          ...layout,
+          checkpointTag: realtime.checkpointTag ?? layout.checkpointTag,
+          runtime: realtime.runtime,
+          status: realtime.status
+        }
+      ];
+    })
+  );
 }
 
-function buildFlowVariableDefault(type: FlowVariableDefinition["type"]): FlowVariableDefinition["default"] {
+function mergeLayoutPositions(
+  baseLayouts: Record<string, CanvasNodeLayout>,
+  nodePositionOverrides: Record<string, { x: number; y: number }>
+): Record<string, CanvasNodeLayout> {
+  return Object.fromEntries(
+    Object.entries(baseLayouts).map(([nodeId, layout]) => {
+      const override = nodePositionOverrides[nodeId];
+      if (!override) {
+        return [nodeId, layout];
+      }
+      return [nodeId, { ...layout, x: override.x, y: override.y }];
+    })
+  );
+}
+
+function buildFlowVariableDefault(type: WorkflowDefinition["flowVariables"][number]["type"]) {
   switch (type) {
     case "Integer":
     case "Float64":
@@ -593,87 +868,16 @@ function buildFlowVariableDefault(type: FlowVariableDefinition["type"]): FlowVar
   }
 }
 
-function escapeTomlString(value: string): string {
-  return value.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"").replaceAll("\n", "\\n");
-}
-
-function serializeTomlValue(value: unknown): string {
-  if (typeof value === "string") {
-    return `"${escapeTomlString(value)}"`;
+function parseNumericValue(rawValue: string, type: WorkflowDefinition["flowVariables"][number]["type"]) {
+  if (type === "Integer") {
+    return Number.parseInt(rawValue, 10) || 0;
   }
-
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => serializeTomlValue(item)).join(", ")}]`;
-  }
-
-  if (value === null || value === undefined) {
-    return "\"\"";
-  }
-
-  return `"${escapeTomlString(JSON.stringify(value))}"`;
-}
-
-function serializeWorkflowToToml(workflow: WorkflowDefinition): string {
-  const lines: string[] = [
-    `version = ${serializeTomlValue(workflow.version)}`,
-    `workflowId = ${serializeTomlValue(workflow.workflowId)}`,
-    `name = ${serializeTomlValue(workflow.name)}`
-  ];
-
-  for (const flowVariable of workflow.flowVariables) {
-    lines.push("", "[[flowVariables]]");
-    lines.push(`name = ${serializeTomlValue(flowVariable.name)}`);
-    lines.push(`type = ${serializeTomlValue(flowVariable.type)}`);
-    if (flowVariable.default !== undefined && flowVariable.default !== null) {
-      lines.push(`default = ${serializeTomlValue(flowVariable.default)}`);
-    }
-  }
-
-  for (const node of workflow.nodes) {
-    lines.push("", "[[nodes]]");
-    lines.push(`id = ${serializeTomlValue(node.id)}`);
-    lines.push(`type = ${serializeTomlValue(node.type)}`);
-    lines.push(`name = ${serializeTomlValue(node.name)}`);
-    lines.push(`executionHint = ${serializeTomlValue(node.executionHint)}`);
-    if (node.gpuDevicePreference) {
-      lines.push(`gpuDevicePreference = ${serializeTomlValue(node.gpuDevicePreference)}`);
-    }
-
-    if (Object.keys(node.config).length > 0) {
-      lines.push("[nodes.config]");
-      for (const [key, value] of Object.entries(node.config)) {
-        lines.push(`${key} = ${serializeTomlValue(value)}`);
-      }
-    }
-
-    for (const port of node.ports) {
-      lines.push("[[nodes.ports]]");
-      lines.push(`id = ${serializeTomlValue(port.id)}`);
-      lines.push(`direction = ${serializeTomlValue(port.direction)}`);
-      lines.push(`type = ${serializeTomlValue(port.type)}`);
-    }
-  }
-
-  for (const connection of workflow.connections) {
-    lines.push("", "[[connections]]");
-    lines.push(`sourceNodeId = ${serializeTomlValue(connection.sourceNodeId)}`);
-    lines.push(`sourcePortId = ${serializeTomlValue(connection.sourcePortId)}`);
-    lines.push(`targetNodeId = ${serializeTomlValue(connection.targetNodeId)}`);
-    lines.push(`targetPortId = ${serializeTomlValue(connection.targetPortId)}`);
-    lines.push(`dataType = ${serializeTomlValue(connection.dataType)}`);
-  }
-
-  return `${lines.join("\n")}\n`;
+  return Number.parseFloat(rawValue) || 0;
 }
 
 function buildDraftNodeId(workflow: WorkflowDefinition, template: NodeDefinition): string {
   const baseId = template.id.replaceAll(/[^a-zA-Z0-9-_]/g, "-");
   const takenIds = new Set(workflow.nodes.map((node) => node.id));
-
   if (!takenIds.has(baseId)) {
     return baseId;
   }
@@ -716,339 +920,230 @@ function buildConnectionDraftPreview(
   if (!peerNode) {
     return {
       connection: null,
-      detail: "Referenced peer node no longer exists in current draft.",
-      label: "Node missing",
+      detail: "Peer node not found in current draft.",
+      label: "Missing peer",
       tone: "warn"
     };
   }
 
-  const anchorDirection = direction === "outgoing" ? "output" : "input";
-  const peerDirection = direction === "outgoing" ? "input" : "output";
-  const anchorPort = selectedNode.ports.find(
-    (port) => port.id === anchorPortId && port.direction === anchorDirection
-  );
-  const peerPort = peerNode.ports.find(
-    (port) => port.id === peerPortId && port.direction === peerDirection
-  );
-
+  const anchorPort = selectedNode.ports.find((port) => port.id === anchorPortId);
+  const peerPort = peerNode.ports.find((port) => port.id === peerPortId);
   if (!anchorPort || !peerPort) {
     return {
       connection: null,
-      detail: "Select compatible source and target ports first.",
+      detail: "Choose ports on both sides.",
       label: "Awaiting ports",
       tone: "warn"
     };
   }
 
+  const sourceNodeId = direction === "outgoing" ? selectedNode.id : peerNode.id;
+  const sourcePortId = direction === "outgoing" ? anchorPort.id : peerPort.id;
+  const targetNodeId = direction === "outgoing" ? peerNode.id : selectedNode.id;
+  const targetPortId = direction === "outgoing" ? peerPort.id : anchorPort.id;
+  const dataType = direction === "outgoing" ? anchorPort.type : peerPort.type;
+
   if (anchorPort.type !== peerPort.type) {
     return {
       connection: null,
-      detail: `${selectedNode.name}.${anchorPort.id} emits ${formatPortType(anchorPort.type)}, but ${peerNode.name}.${peerPort.id} expects ${formatPortType(peerPort.type)}.`,
+      detail: "Type mismatch between selected ports.",
       label: "Type mismatch",
       tone: "warn"
     };
   }
 
-  const connection =
-    direction === "outgoing"
-      ? {
-          sourceNodeId: selectedNode.id,
-          sourcePortId: anchorPort.id,
-          targetNodeId: peerNode.id,
-          targetPortId: peerPort.id,
-          dataType: anchorPort.type
-        }
-      : {
-          sourceNodeId: peerNode.id,
-          sourcePortId: peerPort.id,
-          targetNodeId: selectedNode.id,
-          targetPortId: anchorPort.id,
-          dataType: anchorPort.type
-        };
-
-  const duplicateConnection = workflow.connections.find(
-    (item) =>
-      item.sourceNodeId === connection.sourceNodeId &&
-      item.sourcePortId === connection.sourcePortId &&
-      item.targetNodeId === connection.targetNodeId &&
-      item.targetPortId === connection.targetPortId
+  const duplicate = workflow.connections.some(
+    (connection) =>
+      connection.sourceNodeId === sourceNodeId &&
+      connection.sourcePortId === sourcePortId &&
+      connection.targetNodeId === targetNodeId &&
+      connection.targetPortId === targetPortId
   );
-  if (duplicateConnection) {
+  if (duplicate) {
     return {
       connection: null,
-      detail: "This edge already exists in current graph slice.",
+      detail: "Connection already exists in current draft.",
       label: "Duplicate edge",
       tone: "warn"
     };
   }
 
-  const targetPortAlreadyLinked = workflow.connections.find(
-    (item) =>
-      item.targetNodeId === connection.targetNodeId && item.targetPortId === connection.targetPortId
+  const occupiedTarget = workflow.connections.some(
+    (connection) =>
+      connection.targetNodeId === targetNodeId &&
+      connection.targetPortId === targetPortId
   );
-  if (targetPortAlreadyLinked) {
+  if (occupiedTarget) {
     return {
       connection: null,
-      detail: `${connection.targetNodeId}.${connection.targetPortId} already has inbound edge.`,
+      detail: "Target port already occupied.",
       label: "Target occupied",
       tone: "warn"
     };
   }
 
   return {
-    connection,
-    detail: `${connection.sourceNodeId}.${connection.sourcePortId} -> ${connection.targetNodeId}.${connection.targetPortId} (${formatPortType(connection.dataType)})`,
+    connection: {
+      sourceNodeId,
+      sourcePortId,
+      targetNodeId,
+      targetPortId,
+      dataType
+    },
+    detail: `${sourcePortId} can connect to ${targetPortId}.`,
     label: "Compatible edge",
     tone: "good"
   };
 }
 
-function describeConnection(
-  workflow: WorkflowDefinition,
-  connection: ConnectionDefinition
-): string {
+function describeConnection(workflow: WorkflowDefinition, connection: ConnectionDefinition): string {
   const sourceNode = workflow.nodes.find((node) => node.id === connection.sourceNodeId);
   const targetNode = workflow.nodes.find((node) => node.id === connection.targetNodeId);
-  const sourceLabel = sourceNode ? `${sourceNode.name}.${connection.sourcePortId}` : connection.sourceNodeId;
-  const targetLabel = targetNode ? `${targetNode.name}.${connection.targetPortId}` : connection.targetNodeId;
-  return `${sourceLabel} -> ${targetLabel}`;
+  return `${sourceNode?.name ?? connection.sourceNodeId}.${connection.sourcePortId} -> ${targetNode?.name ?? connection.targetNodeId}.${connection.targetPortId}`;
 }
 
-function buildAutoConnection(
-  currentWorkflow: WorkflowDefinition,
-  selectedNodeId: string,
-  nextNode: NodeDefinition
-): ConnectionDefinition | null {
-  const selectedNode = currentWorkflow.nodes.find((node) => node.id === selectedNodeId);
+function buildAutoConnection(workflow: WorkflowDefinition, selectedNodeId: string, nextNode: NodeDefinition): ConnectionDefinition | null {
+  const selectedNode = workflow.nodes.find((node) => node.id === selectedNodeId);
   if (!selectedNode) {
     return null;
   }
 
-  const selectedOutputs = selectedNode.ports.filter((port) => port.direction === "output");
-  const nextInputs = nextNode.ports.filter((port) => port.direction === "input");
-
-  for (const output of selectedOutputs) {
-    const matchingInput = nextInputs.find((input) => input.type === output.type);
-    if (matchingInput) {
-      return {
-        sourceNodeId: selectedNode.id,
-        sourcePortId: output.id,
-        targetNodeId: nextNode.id,
-        targetPortId: matchingInput.id,
-        dataType: output.type
-      };
-    }
+  const outputPort = selectedNode.ports.find((port) => port.direction === "output");
+  const inputPort = nextNode.ports.find((port) => port.direction === "input" && port.type === outputPort?.type);
+  if (!outputPort || !inputPort) {
+    return null;
   }
 
-  const selectedInputs = selectedNode.ports.filter((port) => port.direction === "input");
-  const nextOutputs = nextNode.ports.filter((port) => port.direction === "output");
-
-  for (const output of nextOutputs) {
-    const matchingInput = selectedInputs.find((input) => input.type === output.type);
-    if (matchingInput) {
-      return {
-        sourceNodeId: nextNode.id,
-        sourcePortId: output.id,
-        targetNodeId: selectedNode.id,
-        targetPortId: matchingInput.id,
-        dataType: output.type
-      };
-    }
-  }
-
-  return null;
+  return {
+    sourceNodeId: selectedNode.id,
+    sourcePortId: outputPort.id,
+    targetNodeId: nextNode.id,
+    targetPortId: inputPort.id,
+    dataType: outputPort.type
+  };
 }
 
 function buildDraftExecution(workflow: WorkflowDefinition, trigger: string, status: WorkflowStatus): ExecutionRailItem {
-  const timestamp = new Date().toISOString();
-
   return {
-    id: `exec-demo-${Date.now()}`,
+    id: `exec-${Date.now()}`,
     workflowId: workflow.workflowId,
     status,
     trigger,
-    startedAt: timestamp,
-    duration: status === "running" ? "in-flight" : "00:00:01",
-    planner: "frontend-demo"
+    startedAt: new Date().toISOString(),
+    duration: "00:00:08",
+    planner: workflow.runtime?.runMode === "stream" ? "stream-worker" : "cpu-batch-v1"
   };
 }
 
 function buildActionTimestampLabel(): string {
-  return new Date().toISOString().replace("T", " ").replace("Z", " UTC");
+  return new Date().toISOString();
 }
 
-function buildRealtimeRuntimeLabel(
-  status: WorkflowStatus,
-  executionHint: ExecutionHint
-): string {
-  if (status === "running") {
-    return executionHint === "cpu_only"
-      ? "Realtime canvas pulse: CPU stage active."
-      : "Realtime canvas pulse: accelerated stage active.";
+function buildRealtimeRuntimeLabel(status: WorkflowStatus, executionHint: ExecutionHint): string {
+  if (status === "streaming_active") {
+    return "Realtime stream active";
   }
-
-  if (status === "executed") {
-    return "Realtime canvas pulse: latest stage completed.";
+  if (executionHint === "gpu_preferred" || executionHint === "gpu_required") {
+    return "GPU-capable runtime path";
   }
-
-  if (status === "error") {
-    return "Realtime canvas pulse: latest stage reported failure.";
-  }
-
-  return executionHint === "cpu_only"
-    ? "Realtime canvas pulse: stage configured on CPU path."
-    : "Realtime canvas pulse: stage configured with GPU-aware path.";
+  return "CPU-oriented runtime path";
 }
 
-function mergeExecutionRailItem(
-  currentItems: ExecutionRailItem[],
-  nextItem: ExecutionRailItem
-): ExecutionRailItem[] {
+function mergeExecutionRailItem(currentItems: ExecutionRailItem[], nextItem: ExecutionRailItem): ExecutionRailItem[] {
   return [nextItem, ...currentItems.filter((item) => item.id !== nextItem.id)];
 }
 
-function mergeNodeLayouts(
-  baseLayouts: Record<string, CanvasNodeLayout>,
-  overrides: Record<string, RealtimeNodeState>
-): Record<string, CanvasNodeLayout> {
-  const nextLayouts = { ...baseLayouts };
-
-  for (const [nodeId, override] of Object.entries(overrides)) {
-    const currentLayout = nextLayouts[nodeId];
-    if (!currentLayout) {
-      continue;
-    }
-
-    nextLayouts[nodeId] = {
-      ...currentLayout,
-      checkpointTag: override.checkpointTag ?? currentLayout.checkpointTag,
-      runtime: override.runtime,
-      status: override.status
-    };
-  }
-
-  return nextLayouts;
+function getHubTrust(extension: GatewayHubExtensionRecord) {
+  return extension.trust ?? {
+    trusted: false,
+    level: "untrusted",
+    warnings: [] as string[],
+    blockers: [] as string[],
+    evaluatedAt: ""
+  };
 }
 
-function mergeLayoutPositions(
-  baseLayouts: Record<string, CanvasNodeLayout>,
-  overrides: Record<string, { x: number; y: number }>
-): Record<string, CanvasNodeLayout> {
-  const nextLayouts = { ...baseLayouts };
-
-  for (const [nodeId, override] of Object.entries(overrides)) {
-    const currentLayout = nextLayouts[nodeId];
-    if (!currentLayout) {
-      continue;
-    }
-
-    nextLayouts[nodeId] = {
-      ...currentLayout,
-      x: override.x,
-      y: override.y
-    };
-  }
-
-  return nextLayouts;
-}
-
-function parseNumericValue(rawValue: string, type: FlowVariableDefinition["type"]): number {
-  if (type === "Integer") {
-    return Number.parseInt(rawValue || "0", 10);
-  }
-  return Number.parseFloat(rawValue || "0");
-}
-
-function NodePort({
-  direction,
-  isConnected,
-  port
-}: {
-  direction: "input" | "output";
-  isConnected: boolean;
-  port: WorkflowPortDefinition;
-}) {
-  return (
-    <div
-      className={`node-port is-${direction} ${isConnected ? "is-connected" : "is-open"}`}
-      data-port-type={port.type}
-    >
-      <span className="node-port-dot" aria-hidden="true" />
-      <small>{port.id}</small>
-      <strong>{formatPortType(port.type)}</strong>
-    </div>
-  );
+function getHubUpgrade(extension: GatewayHubExtensionRecord) {
+  return extension.upgrade ?? {
+    upgradeAvailable: false,
+    latestVersion: extension.manifest.version,
+    evaluatedAt: ""
+  };
 }
 
 function NodeCard({
-  connections,
   isDimmed,
   isSelected,
   layout,
   node,
   onDragStart,
   onSelect,
-  validation
+  selectedConnections
 }: {
-  connections: ConnectionDefinition[];
   isDimmed: boolean;
   isSelected: boolean;
-  layout: CanvasNodeLayout;
+  layout: CanvasNodeLayout | undefined;
   node: NodeDefinition;
   onDragStart: (nodeId: string, clientX: number, clientY: number) => void;
   onSelect: (nodeId: string) => void;
-  validation: NodeValidationSummary;
+  selectedConnections: ConnectionDefinition[];
 }) {
-  const inputPorts = node.ports.filter((port) => port.direction === "input");
-  const outputPorts = node.ports.filter((port) => port.direction === "output");
-
+  const validation = buildNodeValidationSummary(node, selectedConnections);
   return (
     <button
       aria-label={`Select ${node.name}`}
       className={`canvas-node is-${validation.tone} ${isSelected ? "is-selected" : ""} ${isDimmed ? "is-dimmed" : ""}`}
-      onMouseDown={(event) => {
-        onDragStart(node.id, event.clientX, event.clientY);
-      }}
       onClick={() => {
         onSelect(node.id);
       }}
+      onMouseDown={(event) => {
+        onDragStart(node.id, event.clientX, event.clientY);
+      }}
       style={{
-        left: `${layout.x}px`,
-        top: `${layout.y}px`,
-        width: layout.width ? `${layout.width}px` : undefined
+        left: `${layout?.x ?? 0}px`,
+        top: `${layout?.y ?? 0}px`,
+        width: `${layout?.width ?? 180}px`
       }}
       type="button"
     >
       <div className="canvas-node-head">
-        <span className="canvas-node-type">{formatNodeType(node.type)}</span>
-        <StatusBadge label={layout.status} />
+        <div>
+          <small className="canvas-node-type">{formatNodeType(node.type)}</small>
+          <strong>{node.name}</strong>
+        </div>
+        <StatusBadge label={layout?.status ?? "configured"} />
       </div>
-      <strong>{node.name}</strong>
-      <small className="canvas-node-runtime">{layout.runtime}</small>
-      <div className={`canvas-node-validation is-${validation.tone}`}>
-        <strong>{validation.label}</strong>
-        <span>{validation.detail}</span>
-      </div>
+      <div className="canvas-node-runtime">{layout?.runtime ?? "Configured runtime"}</div>
       <div className="canvas-node-ports">
         <div className="node-port-column">
-          {inputPorts.map((port) => (
-            <NodePort
-              direction="input"
-              isConnected={findPortConnections(connections, node.id, port).length > 0}
-              key={port.id}
-              port={port}
-            />
-          ))}
+          {node.ports
+            .filter((port) => port.direction === "input")
+            .map((port) => (
+              <div
+                className={`node-port ${findPortConnections(selectedConnections, node.id, port).length > 0 ? "is-connected" : "is-open"}`}
+                data-port-type={port.type}
+                key={port.id}
+              >
+                <span className="node-port-dot" />
+                <small>{formatPortType(port.type)}</small>
+                <strong>{port.id}</strong>
+              </div>
+            ))}
         </div>
         <div className="node-port-column is-output">
-          {outputPorts.map((port) => (
-            <NodePort
-              direction="output"
-              isConnected={findPortConnections(connections, node.id, port).length > 0}
-              key={port.id}
-              port={port}
-            />
-          ))}
+          {node.ports
+            .filter((port) => port.direction === "output")
+            .map((port) => (
+              <div
+                className={`node-port is-output ${findPortConnections(selectedConnections, node.id, port).length > 0 ? "is-connected" : "is-open"}`}
+                data-port-type={port.type}
+                key={port.id}
+              >
+                <span className="node-port-dot" />
+                <small>{formatPortType(port.type)}</small>
+                <strong>{port.id}</strong>
+              </div>
+            ))}
         </div>
       </div>
     </button>
@@ -1059,16 +1154,15 @@ function CanvasConnection({
   connection,
   isActive,
   isDimmed,
-  layouts
+  nodeLayouts
 }: {
   connection: ConnectionDefinition;
   isActive: boolean;
   isDimmed: boolean;
-  layouts: Record<string, CanvasNodeLayout>;
+  nodeLayouts: Record<string, CanvasNodeLayout>;
 }) {
-  const sourceLayout = layouts[connection.sourceNodeId];
-  const targetLayout = layouts[connection.targetNodeId];
-
+  const sourceLayout = nodeLayouts[connection.sourceNodeId];
+  const targetLayout = nodeLayouts[connection.targetNodeId];
   if (!sourceLayout || !targetLayout) {
     return null;
   }
@@ -1153,6 +1247,11 @@ function App() {
   const workspaceData = useWorkspaceData();
   const gatewayBaseUrl = getGatewayBaseUrl();
   const [query, setQuery] = useState("");
+  const [activeView, setActiveView] = useState<AppView>(() => {
+    const dashboardId = getInitialViewerDashboardId();
+    return dashboardId ? "dashboard" : getAppViewFromPath(getInitialPathname());
+  });
+  const [activeInspectorTab, setActiveInspectorTab] = useState<InspectorTab>("config");
   const [selectedNodeId, setSelectedNodeId] = useState(
     workspaceData.workflow.nodes[1]?.id ?? workspaceData.workflow.nodes[0]?.id ?? ""
   );
@@ -1160,9 +1259,21 @@ function App() {
   const [workflow, setWorkflow] = useState<WorkflowDefinition>(workspaceData.workflow);
   const [executionItems, setExecutionItems] = useState<ExecutionRailItem[]>(workspaceData.executionItems);
   const [hubExtensions, setHubExtensions] = useState<GatewayHubExtensionRecord[]>(workspaceData.hubExtensions);
-  const [nodePositionOverrides, setNodePositionOverrides] = useState<Record<string, { x: number; y: number }>>(
-    {}
+  const [publishedDashboards, setPublishedDashboards] = useState<PublishedDashboardDefinition[]>([]);
+  const [publishedDashboard, setPublishedDashboard] = useState<PublishedDashboardDefinition | null>(null);
+  const [activeDashboardId, setActiveDashboardId] = useState<string | null>(
+    workspaceData.workflow.dashboards?.[0]?.dashboardId ?? null
   );
+  const [viewerDashboardId, setViewerDashboardId] = useState<string | null>(getInitialViewerDashboardId);
+  const [viewerShareToken, setViewerShareToken] = useState<string | null>(getInitialViewerShareToken);
+  const [viewerWorkspaceToken, setViewerWorkspaceToken] = useState<string | null>(getInitialViewerWorkspaceToken);
+  const [viewerDashboard, setViewerDashboard] = useState<PublishedDashboardDefinition | null>(null);
+  const [dashboardChartData, setDashboardChartData] = useState<Record<string, GatewayDashboardChartDataResponse>>({});
+  const [viewerChartFilter, setViewerChartFilter] = useState<ViewerChartFilter | null>(null);
+  const [viewerChartRefreshNonce, setViewerChartRefreshNonce] = useState(0);
+  const [isViewerRefreshing, setIsViewerRefreshing] = useState(false);
+  const [publishVisibility, setPublishVisibility] = useState<"workspace" | "public">("workspace");
+  const [nodePositionOverrides, setNodePositionOverrides] = useState<Record<string, { x: number; y: number }>>({});
   const [knownWorkflowIds, setKnownWorkflowIds] = useState<string[]>(
     workspaceData.workflows.map((item) => item.workflowId)
   );
@@ -1170,16 +1281,12 @@ function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
-  const [connectionDraftDirection, setConnectionDraftDirection] =
-    useState<ConnectionDraftDirection>("outgoing");
+  const [connectionDraftDirection, setConnectionDraftDirection] = useState<ConnectionDraftDirection>("outgoing");
   const [connectionDraftPeerNodeId, setConnectionDraftPeerNodeId] = useState("");
   const [connectionDraftAnchorPortId, setConnectionDraftAnchorPortId] = useState("");
   const [connectionDraftPeerPortId, setConnectionDraftPeerPortId] = useState("");
-  const [realtimeConnectionState, setRealtimeConnectionState] =
-    useState<RealtimeConnectionState>("idle");
-  const [realtimeNodeStates, setRealtimeNodeStates] = useState<Record<string, RealtimeNodeState>>(
-    {}
-  );
+  const [realtimeConnectionState, setRealtimeConnectionState] = useState<RealtimeConnectionState>("idle");
+  const [realtimeNodeStates, setRealtimeNodeStates] = useState<Record<string, RealtimeNodeState>>({});
   const dragStateRef = useRef<DragState | null>(null);
   const [isPending, startTransition] = useTransition();
   const deferredQuery = useDeferredValue(query);
@@ -1193,7 +1300,190 @@ function App() {
     setKnownWorkflowIds(workspaceData.workflows.map((item) => item.workflowId));
     setRealtimeNodeStates({});
     setIsDirty(false);
+    setPublishedDashboard(null);
+    setPublishedDashboards([]);
+    setActiveDashboardId(workspaceData.workflow.dashboards?.[0]?.dashboardId ?? null);
   }, [workspaceData.executionItems, workspaceData.hubExtensions, workspaceData.workflow, workspaceData.workflows]);
+
+  useEffect(() => {
+    function handlePopState() {
+      const dashboardId = getInitialViewerDashboardId();
+      setViewerDashboardId(dashboardId);
+      setViewerShareToken(getInitialViewerShareToken());
+      setViewerWorkspaceToken(getInitialViewerWorkspaceToken());
+      setActiveView(dashboardId ? "dashboard" : getAppViewFromPath(getInitialPathname()));
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (viewerDashboardId === null || typeof window === "undefined") {
+      return;
+    }
+    if (window.location.pathname.startsWith("/dashboard")) {
+      return;
+    }
+    window.history.replaceState(
+      {},
+      "",
+      `${buildViewPath("dashboard")}${buildDashboardViewerSearch(
+        viewerDashboardId,
+        viewerShareToken,
+        viewerWorkspaceToken
+      )}`
+    );
+  }, [viewerDashboardId, viewerShareToken, viewerWorkspaceToken]);
+
+  useEffect(() => {
+    if (viewerDashboardId === null) {
+      setViewerDashboard(null);
+      setDashboardChartData({});
+      setViewerChartFilter(null);
+      return;
+    }
+
+    const existingDashboard = publishedDashboards.find((item) => item.dashboardId === viewerDashboardId);
+    if (existingDashboard) {
+      setViewerDashboard(existingDashboard);
+      return;
+    }
+
+    if (gatewayBaseUrl.length === 0) {
+      setViewerDashboard(null);
+      return;
+    }
+
+    let isClosed = false;
+    const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+    const workspaceBearerToken = getConfiguredWorkspaceDashboardBearerToken();
+    const requestOptions =
+      workspaceBearerToken === null ? undefined : { headers: { Authorization: `Bearer ${workspaceBearerToken}` } };
+
+    gatewayClient
+      .getPublishedDashboard(viewerDashboardId, {
+        shareToken: viewerShareToken ?? undefined,
+        workspaceToken: viewerWorkspaceToken ?? getConfiguredWorkspaceDashboardToken() ?? undefined
+      }, requestOptions)
+      .then((dashboard) => {
+        if (!isClosed) {
+          setViewerDashboard(dashboard);
+        }
+      })
+      .catch(() => {
+        if (!isClosed) {
+          setViewerDashboard(null);
+        }
+      });
+
+    return () => {
+      isClosed = true;
+    };
+  }, [gatewayBaseUrl, publishedDashboards, viewerDashboardId, viewerShareToken, viewerWorkspaceToken]);
+
+  useEffect(() => {
+    setDashboardChartData({});
+    if (viewerDashboard === null || gatewayBaseUrl.length === 0) {
+      return;
+    }
+
+    let isClosed = false;
+    const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+    const workspaceBearerToken = getConfiguredWorkspaceDashboardBearerToken();
+    const requestOptions =
+      workspaceBearerToken === null ? undefined : { headers: { Authorization: `Bearer ${workspaceBearerToken}` } };
+    const readRequest = {
+      shareToken: viewerDashboard.shareToken ?? viewerShareToken ?? undefined,
+      workspaceToken: viewerWorkspaceToken ?? getConfiguredWorkspaceDashboardToken() ?? undefined
+    };
+
+    setIsViewerRefreshing(true);
+    Promise.all(
+      viewerDashboard.charts.map((chart) =>
+        gatewayClient
+          .getPublishedDashboardChartData(viewerDashboard.dashboardId, chart.chartId, readRequest, requestOptions)
+          .then((data) => [chart.chartId, data] as const)
+      )
+    )
+      .then((entries) => {
+        if (!isClosed) {
+          setDashboardChartData(Object.fromEntries(entries));
+        }
+      })
+      .catch(() => {
+        if (!isClosed) {
+          setDashboardChartData({});
+        }
+      })
+      .finally(() => {
+        if (!isClosed) {
+          setIsViewerRefreshing(false);
+        }
+      });
+
+    return () => {
+      isClosed = true;
+    };
+  }, [gatewayBaseUrl, viewerDashboard, viewerShareToken, viewerWorkspaceToken, viewerChartRefreshNonce]);
+
+  useEffect(() => {
+    if (viewerDashboard === null) {
+      return;
+    }
+    const shouldPoll = Object.values(dashboardChartData).some((item) => item.cache.live);
+    if (!shouldPoll) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setViewerChartRefreshNonce((value) => value + 1);
+    }, 15000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [dashboardChartData, viewerDashboard]);
+
+  useEffect(() => {
+    if (workflow.workflowId.length === 0) {
+      setPublishedDashboards([]);
+      return;
+    }
+
+    if (gatewayBaseUrl.length === 0) {
+      setPublishedDashboards((currentDashboards) => {
+        if (publishedDashboard === null) {
+          return currentDashboards;
+        }
+        return [
+          ...currentDashboards.filter((item) => item.dashboardId !== publishedDashboard.dashboardId),
+          publishedDashboard
+        ].sort((left, right) => left.dashboardId.localeCompare(right.dashboardId));
+      });
+      return;
+    }
+
+    let isClosed = false;
+    const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+
+    gatewayClient
+      .listPublishedDashboards(workflow.workflowId)
+      .then((response) => {
+        if (!isClosed) {
+          setPublishedDashboards(response.items);
+        }
+      })
+      .catch(() => {
+        if (!isClosed) {
+          setPublishedDashboards([]);
+        }
+      });
+
+    return () => {
+      isClosed = true;
+    };
+  }, [gatewayBaseUrl, publishedDashboard, workflow.workflowId]);
 
   useEffect(() => {
     if (gatewayBaseUrl.length === 0 || workflow.workflowId.length === 0) {
@@ -1266,6 +1556,29 @@ function App() {
       });
     }
 
+    function handleDashboardPublished(dashboard: PublishedDashboardDefinition) {
+      startTransition(() => {
+        setPublishedDashboards((currentDashboards) =>
+          [
+            ...currentDashboards.filter((item) => item.dashboardId !== dashboard.dashboardId),
+            dashboard
+          ].sort((left, right) => left.dashboardId.localeCompare(right.dashboardId))
+        );
+      });
+      if (dashboard.dashboardId === viewerDashboardId) {
+        setViewerDashboard(dashboard);
+        setViewerChartRefreshNonce((value) => value + 1);
+      }
+    }
+
+    function handleDashboardOutletUpdated(dashboardId: string) {
+      if (dashboardId !== viewerDashboardId) {
+        return;
+      }
+      setViewerChartRefreshNonce((value) => value + 1);
+      setActionFeedback({ text: `Live dashboard data invalidated for ${dashboardId}.`, tone: "info" });
+    }
+
     async function handleRealtimeMessage(message: MessageEvent) {
       const payload = JSON.parse(String(message.data)) as GatewayRealtimeNotification | { id?: number };
       if (!("method" in payload)) {
@@ -1279,6 +1592,16 @@ function App() {
 
       if (payload.method === "execution.state.changed") {
         handleExecutionStateChanged(payload.params);
+        return;
+      }
+
+      if (payload.method === "dashboard.published") {
+        handleDashboardPublished(payload.params);
+        return;
+      }
+
+      if (payload.method === "dashboard.outlet.updated") {
+        handleDashboardOutletUpdated(payload.params.dashboardId);
         return;
       }
 
@@ -1321,11 +1644,11 @@ function App() {
       setRealtimeConnectionState("error");
     };
 
-    realtimeClient.socket.addEventListener("open", handleOpen);
     const handleMessage = (event: MessageEvent) => {
       void handleRealtimeMessage(event);
     };
 
+    realtimeClient.socket.addEventListener("open", handleOpen);
     realtimeClient.socket.addEventListener("message", handleMessage);
     realtimeClient.socket.addEventListener("close", handleClose);
     realtimeClient.socket.addEventListener("error", handleError);
@@ -1383,11 +1706,17 @@ function App() {
     if (!normalizedNeedle) {
       return true;
     }
-    return `${extension.manifest.name} ${extension.manifest.publisher} ${extension.manifest.summary} ${extension.manifest.tags.join(" ")}`
+    return `${extension.manifest.name} ${extension.manifest.publisherIdentity} ${extension.manifest.summary} ${extension.manifest.tags.join(" ")}`
       .toLowerCase()
       .includes(normalizedNeedle);
   });
-
+  const groupedRepositoryNodes = Array.from(
+    filteredRepositoryNodes.reduce((groups, node) => {
+      const groupLabel = buildRepositoryGroupLabel(node.type);
+      groups.set(groupLabel, [...(groups.get(groupLabel) ?? []), node]);
+      return groups;
+    }, new Map<string, NodeDefinition[]>())
+  );
   const filteredPhases = phaseSummaries.filter((phase) => {
     if (!normalizedNeedle) {
       return true;
@@ -1396,7 +1725,7 @@ function App() {
   });
 
   const nodeLayouts = mergeLayoutPositions(
-    mergeNodeLayouts(buildNodeLayoutsForWorkflow(workflow, workspaceData.mode), realtimeNodeStates),
+    mergeNodeLayouts(buildCanvasNodeLayouts(workflow), realtimeNodeStates),
     nodePositionOverrides
   );
   const matchedNodeIds = new Set(
@@ -1428,15 +1757,20 @@ function App() {
   const repositoryFamilies = new Set(workflow.nodes.map((node) => buildRepositoryGroupLabel(node.type)));
   const biOutletNode = workflow.nodes.find((node) => node.type === "bi.outlet") ?? null;
   const dashboards = workflow.dashboards ?? [];
-  const primaryDashboard = dashboards[0] ?? null;
+  const primaryDashboard =
+    dashboards.find((dashboard) => dashboard.dashboardId === activeDashboardId) ?? dashboards[0] ?? null;
+  const activePublishedDashboard =
+    publishedDashboards.find((dashboard) => dashboard.dashboardId === primaryDashboard?.dashboardId) ??
+    (publishedDashboard && primaryDashboard && publishedDashboard.dashboardId === primaryDashboard.dashboardId
+      ? publishedDashboard
+      : null);
   const selectedSliceNodeIds = new Set<string>([selectedNode.id]);
   const statusCounts = buildStatusCounts(executionItems);
   const unresolvedNodeCount = workflow.nodes.filter((node) => validationByNodeId[node.id].tone === "warn").length;
   const quickAddNodes = repositoryCatalog.slice(0, 3);
   const workflowExistsOnGateway = knownWorkflowIds.includes(workflow.workflowId) || workspaceData.mode === "live";
   const relatedConnections = workflow.connections.filter(
-    (connection) =>
-      connection.sourceNodeId === selectedNode.id || connection.targetNodeId === selectedNode.id
+    (connection) => connection.sourceNodeId === selectedNode.id || connection.targetNodeId === selectedNode.id
   );
   const connectionPreview = buildConnectionDraftPreview(
     workflow,
@@ -1581,6 +1915,7 @@ function App() {
   async function handleRunWorkflow() {
     setIsRunningWorkflow(true);
     setActiveRail("executions");
+    setActiveView("monitor");
 
     try {
       let workflowId = workflow.workflowId;
@@ -1605,7 +1940,7 @@ function App() {
       const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
       const executionRecord = await gatewayClient.executeWorkflow(workflowId);
       const nextExecutionItem = buildExecutionRailItems([executionRecord])[0];
-      setExecutionItems((currentItems) => [nextExecutionItem, ...currentItems.filter((item) => item.id !== nextExecutionItem.id)]);
+      setExecutionItems((currentItems) => mergeExecutionRailItem(currentItems, nextExecutionItem));
       setActionFeedback({
         text: `Run started for ${workflowId}: ${executionRecord.executionId}.`,
         tone: "success"
@@ -1622,6 +1957,10 @@ function App() {
     const nextNode = cloneNodeDefinition(template);
     nextNode.id = buildDraftNodeId(workflow, template);
     nextNode.name = buildDraftNodeName(workflow, template);
+    nextNode.config = { ...nextNode.config };
+    if (!nextNode.config.label) {
+      nextNode.config.label = nextNode.name;
+    }
     const autoConnection = buildAutoConnection(workflow, selectedNodeId, nextNode);
 
     updateWorkflowDraft((currentWorkflow) => ({
@@ -1654,10 +1993,7 @@ function App() {
     });
   }
 
-  function handleFlowVariableChange(
-    index: number,
-    updates: Partial<FlowVariableDefinition>
-  ) {
+  function handleFlowVariableChange(index: number, updates: Partial<WorkflowDefinition["flowVariables"][number]>) {
     updateWorkflowDraft((currentWorkflow) => ({
       ...currentWorkflow,
       flowVariables: currentWorkflow.flowVariables.map((flowVariable, flowVariableIndex) =>
@@ -1674,7 +2010,7 @@ function App() {
         {
           name: `variable_${currentWorkflow.flowVariables.length + 1}`,
           type: "String",
-          default: ""
+          default: buildFlowVariableDefault("String")
         }
       ]
     }));
@@ -1737,15 +2073,69 @@ function App() {
       ...currentWorkflow,
       dashboards: [...(currentWorkflow.dashboards ?? []), nextDashboard]
     }));
+    setActiveDashboardId(nextDashboard.dashboardId);
     setActionFeedback({
       text: `Added dashboard draft ${nextDashboard.dashboardId}.`,
       tone: "success"
     });
   }
 
+  function handleDuplicateDashboard() {
+    const seedDashboard = ensureDashboardDraft();
+    const nextDashboardId = buildDashboardId(workflow);
+    const nextDashboard: DashboardDefinition = {
+      ...seedDashboard,
+      dashboardId: nextDashboardId,
+      name: `${seedDashboard.name} copy`,
+      charts: seedDashboard.charts.map((chart, index) => ({
+        ...chart,
+        chartId: `chart-${index + 1}`,
+        panel: chart.panel ? { ...chart.panel } : undefined
+      }))
+    };
+    updateWorkflowDraft((currentWorkflow) => ({
+      ...currentWorkflow,
+      dashboards: [...(currentWorkflow.dashboards ?? []), nextDashboard]
+    }));
+    setActiveDashboardId(nextDashboard.dashboardId);
+    setActionFeedback({
+      text: `Duplicated dashboard draft ${seedDashboard.dashboardId} into ${nextDashboard.dashboardId}.`,
+      tone: "success"
+    });
+  }
+
+  function handleRemoveDashboard() {
+    if (primaryDashboard === null) {
+      return;
+    }
+    const currentDashboards = dashboards;
+    if (currentDashboards.length <= 1) {
+      setActionFeedback({
+        text: "At least one dashboard draft must remain.",
+        tone: "error"
+      });
+      return;
+    }
+    const currentIndex = currentDashboards.findIndex(
+      (dashboard) => dashboard.dashboardId === primaryDashboard.dashboardId
+    );
+    const nextDashboard =
+      currentDashboards[currentIndex + 1] ?? currentDashboards[currentIndex - 1] ?? currentDashboards[0];
+    updateWorkflowDraft((currentWorkflow) => ({
+      ...currentWorkflow,
+      dashboards: (currentWorkflow.dashboards ?? []).filter(
+        (dashboard) => dashboard.dashboardId !== primaryDashboard.dashboardId
+      )
+    }));
+    setActiveDashboardId(nextDashboard?.dashboardId ?? null);
+    setActionFeedback({
+      text: `Removed dashboard draft ${primaryDashboard.dashboardId}.`,
+      tone: "info"
+    });
+  }
+
   function handleDashboardChange(updates: Partial<DashboardDefinition>) {
     const seedDashboard = ensureDashboardDraft();
-    const hasExistingDashboard = (workflow.dashboards?.length ?? 0) > 0;
     const nextDashboard = {
       ...seedDashboard,
       ...updates
@@ -1753,17 +2143,17 @@ function App() {
 
     updateWorkflowDraft((currentWorkflow) => ({
       ...currentWorkflow,
-      dashboards: hasExistingDashboard
-        ? (currentWorkflow.dashboards ?? []).map((dashboard, index) =>
-            index === 0 ? nextDashboard : dashboard
-          )
-        : [nextDashboard]
+      dashboards:
+        (currentWorkflow.dashboards?.length ?? 0) > 0
+          ? (currentWorkflow.dashboards ?? []).map((dashboard) =>
+              dashboard.dashboardId === seedDashboard.dashboardId ? nextDashboard : dashboard
+            )
+          : [nextDashboard]
     }));
+    setActiveDashboardId(nextDashboard.dashboardId);
   }
 
-  function handleDashboardBindingChange(
-    updates: Partial<DashboardDefinition["binding"]>
-  ) {
+  function handleDashboardBindingChange(updates: Partial<DashboardDefinition["binding"]>) {
     const seedDashboard = ensureDashboardDraft();
     handleDashboardChange({
       binding: {
@@ -1773,10 +2163,7 @@ function App() {
     });
   }
 
-  function handleDashboardChartChange(
-    chartId: string,
-    updates: Partial<DashboardChartDefinition>
-  ) {
+  function handleDashboardChartChange(chartId: string, updates: Partial<DashboardChartDefinition>) {
     const seedDashboard = ensureDashboardDraft();
     handleDashboardChange({
       charts: seedDashboard.charts.map((chart) =>
@@ -1792,7 +2179,8 @@ function App() {
       title: `Chart ${seedDashboard.charts.length + 1}`,
       family: "bar",
       xField: "dimension",
-      yField: "value"
+      yField: "value",
+      panel: buildDashboardPanel(seedDashboard.charts.length)
     };
     handleDashboardChange({
       charts: [...seedDashboard.charts, nextChart]
@@ -1814,9 +2202,135 @@ function App() {
     });
   }
 
+  async function handlePublishDashboard() {
+    const draftDashboard = ensureDashboardDraft();
+    const request: GatewayDashboardPublishRequest = { visibility: publishVisibility };
+
+    if (gatewayBaseUrl.length === 0) {
+      const shareToken =
+        publishVisibility === "public" ? `share-${Math.random().toString(36).slice(2, 10)}` : undefined;
+      const nextPublished: PublishedDashboardDefinition = {
+        dashboardId: draftDashboard.dashboardId,
+        workflowId: workflow.workflowId,
+        name: draftDashboard.name,
+        version: (publishedDashboard?.dashboardId === draftDashboard.dashboardId ? publishedDashboard.version : 0) + 1,
+        publishedAt: new Date().toISOString(),
+        visibility: publishVisibility,
+        shareToken,
+        binding: draftDashboard.binding,
+        charts: draftDashboard.charts
+      };
+      setPublishedDashboard(nextPublished);
+      setPublishedDashboards((currentDashboards) =>
+        [
+          ...currentDashboards.filter((item) => item.dashboardId !== nextPublished.dashboardId),
+          nextPublished
+        ].sort((left, right) => left.dashboardId.localeCompare(right.dashboardId))
+      );
+      openPublishedDashboard(nextPublished);
+      setActionFeedback({
+        text: `Published dashboard ${draftDashboard.dashboardId} v${nextPublished.version}.`,
+        tone: "success"
+      });
+      return;
+    }
+
+    try {
+      const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+      const response: GatewayDashboardPublishResponse = await gatewayClient.publishDashboard(
+        workflow.workflowId,
+        draftDashboard.dashboardId,
+        request
+      );
+      setPublishedDashboard(response.dashboard);
+      setPublishedDashboards((currentDashboards) =>
+        [
+          ...currentDashboards.filter((item) => item.dashboardId !== response.dashboard.dashboardId),
+          response.dashboard
+        ].sort((left, right) => left.dashboardId.localeCompare(right.dashboardId))
+      );
+      openPublishedDashboard(response.dashboard);
+      setActionFeedback({
+        text: `Published dashboard ${response.dashboard.dashboardId} v${response.dashboard.version}.`,
+        tone: "success"
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to publish dashboard.";
+      setActionFeedback({ text: `Dashboard publish failed: ${message}`, tone: "error" });
+    }
+  }
+
+  async function handleCopyDashboardShareLink() {
+    const activeDashboard = viewerDashboard ?? activePublishedDashboard;
+    if (!activeDashboard || typeof window === "undefined") {
+      return;
+    }
+
+    const url = `${window.location.origin}${buildViewPath("dashboard")}${buildDashboardViewerSearch(
+      activeDashboard.dashboardId,
+      activeDashboard.shareToken ?? viewerShareToken,
+      activeDashboard.visibility === "workspace"
+        ? viewerWorkspaceToken ?? getConfiguredWorkspaceDashboardToken()
+        : null
+    )}`;
+    try {
+      if (!("clipboard" in navigator) || typeof navigator.clipboard.writeText !== "function") {
+        throw new Error("clipboard unavailable");
+      }
+      await navigator.clipboard.writeText(url);
+      setActionFeedback({ text: `Dashboard share link copied for ${activeDashboard.dashboardId}.`, tone: "success" });
+    } catch {
+      setActionFeedback({ text: `Dashboard share link: ${url}`, tone: "info" });
+    }
+  }
+
+  function handleRefreshViewerCharts() {
+    setViewerChartRefreshNonce((value) => value + 1);
+    setActionFeedback({ text: "Published dashboard refresh requested.", tone: "info" });
+  }
+
+  async function handleExportDashboardChart(chartId: string) {
+    const chartData = dashboardChartData[chartId];
+    if (!chartData) {
+      setActionFeedback({ text: `Chart export failed: chart data pending for ${chartId}.`, tone: "error" });
+      return;
+    }
+    try {
+      const csv = chartCsv(applyViewerChartFilter(chartData, viewerChartFilter));
+      if (!("clipboard" in navigator) || typeof navigator.clipboard.writeText !== "function") {
+        throw new Error("clipboard unavailable");
+      }
+      await navigator.clipboard.writeText(csv);
+      setActionFeedback({
+        text: `Chart CSV copied for ${chartId}${viewerChartFilter ? ` with filter ${viewerChartFilter.field}=${viewerChartFilter.value}` : ""}.`,
+        tone: "success"
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to export chart CSV.";
+      setActionFeedback({ text: `Chart export failed: ${message}`, tone: "error" });
+    }
+  }
+
+  function handleCloseDashboardViewer() {
+    setViewerDashboardId(null);
+    setViewerShareToken(null);
+    setViewerWorkspaceToken(null);
+    setViewerDashboard(null);
+    if (typeof window !== "undefined") {
+      window.history.replaceState({}, "", buildViewPath("dashboard"));
+    }
+  }
+
   async function handleHubInstall(extension: GatewayHubExtensionRecord) {
     const nextAction: GatewayHubInstallRequest = {
-      action: extension.installState === "available" ? "install" : "enable"
+      action:
+        getHubUpgrade(extension).upgradeAvailable
+          ? "upgrade"
+          : extension.installState === "enabled"
+            ? "disable"
+            : extension.installState === "available" || extension.installState === "incompatible"
+              ? "install"
+              : "enable"
     };
 
     if (gatewayBaseUrl.length === 0) {
@@ -1825,7 +2339,24 @@ function App() {
           item.extensionId === extension.extensionId
             ? {
                 ...item,
-                installState: nextAction.action === "install" ? "installed" : "enabled"
+                installState:
+                  nextAction.action === "disable"
+                    ? "disabled"
+                    : nextAction.action === "upgrade"
+                      ? "enabled"
+                      : nextAction.action === "install"
+                        ? "installed"
+                        : "enabled",
+                upgrade:
+                  nextAction.action === "upgrade"
+                    ? {
+                        ...getHubUpgrade(item),
+                        upgradeAvailable: false,
+                        installedVersion: item.manifest.version,
+                        latestVersion: item.manifest.version,
+                        targetVersion: undefined
+                      }
+                    : item.upgrade
               }
             : item
         )
@@ -1855,321 +2386,653 @@ function App() {
     }
   }
 
+  function navigateToView(view: AppView) {
+    const nextPath =
+      view === "dashboard" && viewerDashboardId
+        ? `${buildViewPath(view)}${buildDashboardViewerSearch(
+            viewerDashboardId,
+            viewerShareToken,
+            viewerWorkspaceToken
+          )}`
+        : buildViewPath(view);
+    setActiveView(view);
+    if (typeof window !== "undefined") {
+      window.history.pushState({}, "", nextPath);
+    }
+  }
+
+  function openPublishedDashboard(dashboard: PublishedDashboardDefinition) {
+    setViewerDashboardId(dashboard.dashboardId);
+    setViewerShareToken(dashboard.shareToken ?? null);
+    const workspaceToken =
+      dashboard.visibility === "workspace" ? viewerWorkspaceToken ?? getConfiguredWorkspaceDashboardToken() : null;
+    setViewerWorkspaceToken(workspaceToken);
+    setViewerDashboard(dashboard);
+    setActiveView("dashboard");
+    if (typeof window !== "undefined") {
+      window.history.pushState(
+        {},
+        "",
+        `${buildViewPath("dashboard")}${buildDashboardViewerSearch(
+          dashboard.dashboardId,
+          dashboard.shareToken,
+          workspaceToken
+        )}`
+      );
+    }
+  }
+
+  const navigationItems: Array<{ id: AppView; label: string; note: string }> = [
+    { id: "canvas", label: "Canvas", note: "Authoring-first workflow builder" },
+    { id: "dashboard", label: "Dashboard", note: "Draft and published BI surfaces" },
+    { id: "hub", label: "Hub", note: "Trust-aware extension lifecycle" },
+    { id: "monitor", label: "Monitor", note: "Executions, workers, backbone" },
+    { id: "settings", label: "Settings", note: "Delivery, theme, discovery" }
+  ];
+
   return (
-    <div className="app-shell">
-      <header className="workspace-header">
-        <div className="workspace-header-copy">
-          <p className="eyebrow">JuliaFlow Alpha</p>
-          <h1>Primary authoring workspace</h1>
-          <p className="lede">
-            Build pipelines first: browse nodes, reason about typed graph links, and tune the selected
-            node with runtime-aware context while BI remains a visible downstream path.
-          </p>
+    <div className="product-shell">
+      <aside className="product-sidebar">
+        <div className="product-brand">
+          <strong>JuliaFlow</strong>
+          <span>Alpha platform shell</span>
         </div>
-        <div className="workspace-header-status" aria-live="polite">
+        <nav className="product-nav" aria-label="Primary">
+          {navigationItems.map((item) => (
+            <button
+              aria-current={activeView === item.id ? "page" : undefined}
+              className={`product-nav-item ${activeView === item.id ? "is-active" : ""}`}
+              key={item.id}
+              onClick={() => {
+                navigateToView(item.id);
+              }}
+              type="button"
+            >
+              <strong>{item.label}</strong>
+              <span>{item.note}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="product-sidebar-footer">
           <span className={`source-pill is-${workspaceData.mode}`}>{workspaceData.dataSourceLabel}</span>
-          {gatewayBaseUrl.length > 0 ? (
-            <span className="hero-status-copy">Realtime {realtimeConnectionState}</span>
-          ) : null}
-          <span className="hero-status-copy">{workflow.name}</span>
-          <span className="hero-status-copy">{workflow.version}</span>
-          {isDirty ? <span className="hero-status-copy">Unsaved draft changes</span> : null}
-          {workspaceData.isLoading ? <span className="hero-status-copy">Syncing gateway snapshot...</span> : null}
-          {workspaceData.error ? <span className="hero-status-copy">Fallback active: {workspaceData.error}</span> : null}
-          {workspaceData.health ? (
-            <span className="hero-status-copy">
-              {workspaceData.health.workflowCount} workflows · {workspaceData.health.executionCount} executions
-            </span>
-          ) : null}
+          <span className="hero-status-copy">Realtime {realtimeConnectionState}</span>
+          <span className="hero-status-copy">{workflow.runtime?.runMode === "stream" ? "Streaming MVP" : "Batch mode"}</span>
         </div>
-      </header>
+      </aside>
 
-      <main className="workspace-main">
-        <section className="workspace-stage panel">
-          <div className="panel-inner workspace-stage-inner">
-            <div className="workspace-overview">
-              <div>
-                <p className="panel-kicker">Workflow canvas</p>
-                <h2 className="workspace-title">{workflow.name}</h2>
-                <p className="panel-detail">
-                  The canvas is the primary interaction surface. Repository browse, graph reasoning, and
-                  the selected node inspector all stay in one line of sight.
-                </p>
-              </div>
-              <div className="workspace-metrics" aria-label="Workflow workspace metrics">
-                <div className="metric-tile">
-                  <span>Node families</span>
-                  <strong>{repositoryFamilies.size || 1}</strong>
-                </div>
-                <div className="metric-tile">
-                  <span>Flow variables</span>
-                  <strong>{workflow.flowVariables.length}</strong>
-                </div>
-                <div className="metric-tile">
-                  <span>Connections</span>
-                  <strong>{workflow.connections.length}</strong>
-                </div>
-                <div className="metric-tile">
-                  <span>Validation gaps</span>
-                  <strong>{unresolvedNodeCount}</strong>
-                </div>
-              </div>
+      <div className="product-frame">
+        <header className="product-topbar">
+          <div className="product-topbar-copy">
+            <p className="eyebrow">JuliaFlow Alpha</p>
+            <h1>
+              {activeView === "canvas"
+                ? "Workflow Canvas"
+                : activeView === "dashboard"
+                  ? "BI Workspace"
+                  : activeView === "hub"
+                    ? "Hub Marketplace"
+                    : activeView === "monitor"
+                      ? "Execution Monitor"
+                      : "Platform Settings"}
+            </h1>
+            <p className="lede">
+              {activeView === "canvas"
+                ? "Authoring is primary. Repository, canvas, and inspector stay in one operational line of sight."
+                : activeView === "dashboard"
+                  ? "Draft dashboard authoring and published dashboard viewing now live in one dedicated surface."
+                  : activeView === "hub"
+                    ? "Compatibility, trust, and upgrade state are visible before lifecycle actions."
+                    : activeView === "monitor"
+                      ? "Runtime health, durable event backbone, and checkpoint evidence stay close to active executions."
+                      : "Connection, route discovery, milestone context, and default publish behavior stay explicit."}
+            </p>
+          </div>
+          <div className="product-topbar-actions">
+            <label className="search-field">
+              <span>Cross-view search</span>
+              <input
+                aria-label="Cross-view search"
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                }}
+                placeholder="nodes, hub packages, roadmap, runtime..."
+                type="search"
+                value={query}
+              />
+            </label>
+            <div className="workspace-header-status" aria-live="polite">
+              <span className="hero-status-copy">{workflow.name}</span>
+              <span className="hero-status-copy">{workflow.version}</span>
+              {isDirty ? <span className="hero-status-copy">Unsaved draft changes</span> : null}
+              {workspaceData.health ? (
+                <span className="hero-status-copy">
+                  {workspaceData.health.workflowCount} workflows · {workspaceData.health.executionCount} executions
+                </span>
+              ) : null}
+              {workspaceData.error ? <span className="hero-status-copy">Fallback active: {workspaceData.error}</span> : null}
             </div>
+          </div>
+        </header>
 
-            <div className="builder-grid">
-              <aside className="repository-panel">
-                <div className="repository-header">
-                  <div>
-                    <p className="panel-kicker">Node repository</p>
-                    <h3>Browse and quick-add</h3>
+        <main className="product-main">
+          {activeView === "canvas" ? (
+            <section className="workspace-main">
+              <section className="workspace-stage panel">
+                <div className="panel-inner workspace-stage-inner">
+                  <div className="workspace-overview">
+                    <div>
+                      <p className="panel-kicker">Authoring</p>
+                      <h2 className="workspace-title">{workflow.name}</h2>
+                      <p className="panel-detail">
+                        Typed graph editing, runtime-aware validation, and downstream BI handoff stay focused on build flow.
+                      </p>
+                    </div>
+                    <div className="workspace-metrics">
+                      <div className="metric-tile">
+                        <span>Workflow nodes</span>
+                        <strong>{workflow.nodes.length}</strong>
+                      </div>
+                      <div className="metric-tile">
+                        <span>Connections</span>
+                        <strong>{workflow.connections.length}</strong>
+                      </div>
+                      <div className="metric-tile">
+                        <span>Validation gaps</span>
+                        <strong>{unresolvedNodeCount}</strong>
+                      </div>
+                      <div className="metric-tile">
+                        <span>Selected runtime</span>
+                        <strong>{selectedNodeLayout?.runtime ?? "Configured"}</strong>
+                      </div>
+                    </div>
                   </div>
-                  <span>{filteredRepositoryNodes.length} results</span>
+
+                  <div className="builder-grid builder-grid--fluid">
+                    <aside className="repository-panel">
+                      <div className="repository-header">
+                        <div>
+                          <p className="panel-kicker">Node library</p>
+                          <h3>Insert + workflow assets</h3>
+                        </div>
+                        <span>{filteredRepositoryNodes.length} matches</span>
+                      </div>
+
+                      <div className="quick-add-panel">
+                        <div className="quick-add-head">
+                          <div>
+                            <span>Quick insert</span>
+                            <small>{quickAddNodes.length} starter actions</small>
+                          </div>
+                          <span>{repositoryFamilies.size} families</span>
+                        </div>
+                        <div className="quick-add-list">
+                          {quickAddNodes.map((node) => (
+                            <button
+                              aria-label={`Add ${node.name} to workflow`}
+                              className="quick-add-chip"
+                              key={node.type}
+                              onClick={() => {
+                                handleAddNode(node);
+                              }}
+                              type="button"
+                            >
+                              + {node.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flow-variable-panel">
+                        <div className="quick-add-head">
+                          <div>
+                            <span>Flow variables</span>
+                            <small>{workflow.flowVariables.length} scoped inputs</small>
+                          </div>
+                          <button className="secondary-action-button" onClick={handleAddFlowVariable} type="button">
+                            Add flow variable
+                          </button>
+                        </div>
+                        <div className="flow-variable-list">
+                          {workflow.flowVariables.map((flowVariable, index) => (
+                            <label className="flow-variable-chip" key={`${flowVariable.name}-${index}`}>
+                              <strong>{flowVariable.name}</strong>
+                              <input
+                                aria-label={`Variable default ${flowVariable.name}`}
+                                onChange={(event) => {
+                                  const rawValue = event.target.value;
+                                  handleFlowVariableChange(index, {
+                                    default:
+                                      flowVariable.type === "String"
+                                        ? rawValue
+                                        : parseNumericValue(rawValue, flowVariable.type)
+                                  });
+                                }}
+                                type="text"
+                                value={String(flowVariable.default ?? "")}
+                              />
+                              <button
+                                className="danger-action-button"
+                                onClick={() => {
+                                  handleRemoveFlowVariable(index);
+                                }}
+                                type="button"
+                              >
+                                Remove
+                              </button>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="repository-list">
+                        {groupedRepositoryNodes.length > 0 ? (
+                          groupedRepositoryNodes.map(([groupLabel, nodes]) => (
+                            <section className="repository-group" key={groupLabel}>
+                              <div className="quick-add-head">
+                                <div>
+                                  <span>{groupLabel}</span>
+                                  <small>{nodes.length} nodes</small>
+                                </div>
+                              </div>
+                              <div className="repository-group-list">
+                                {nodes.map((node) => (
+                                  <RepositoryEntry
+                                    key={node.type}
+                                    node={node}
+                                    onAdd={handleAddNode}
+                                    selectedType={selectedNode.type}
+                                  />
+                                ))}
+                              </div>
+                            </section>
+                          ))
+                        ) : (
+                          <div className="repository-empty">
+                            <strong>No repository matches</strong>
+                            <span>Try a node type, execution hint, or output target.</span>
+                          </div>
+                        )}
+                      </div>
+                    </aside>
+
+                    <section className="canvas-panel">
+                      <div className="canvas-panel-head">
+                        <div>
+                          <p className="panel-kicker">Canvas</p>
+                          <h3>Typed graph workspace</h3>
+                        </div>
+                        <div className="canvas-summary" aria-live="polite">
+                          <span>{Math.max(1, knownWorkflowIds.length || workspaceData.workflows.length)} snapshot</span>
+                          <span>{selectedSliceNodeIds.size} node slice</span>
+                          <span className={unresolvedNodeCount > 0 ? "canvas-summary-alert" : ""}>
+                            {unresolvedNodeCount} validation gap{unresolvedNodeCount === 1 ? "" : "s"}
+                          </span>
+                          <span>{latestExecution ? latestExecution.status : "idle"} runtime</span>
+                        </div>
+                      </div>
+
+                      <div className="canvas-actions">
+                        <div className="canvas-action-buttons">
+                          <button
+                            className="primary-action-button"
+                            disabled={isSaving || isRunningWorkflow}
+                            onClick={() => {
+                              void persistWorkflow("save");
+                            }}
+                            type="button"
+                          >
+                            {isSaving ? "Saving..." : workflowExistsOnGateway ? "Update workflow" : "Save workflow"}
+                          </button>
+                          <button
+                            className="secondary-action-button"
+                            disabled={isRunningWorkflow || isSaving}
+                            onClick={() => {
+                              void handleRunWorkflow();
+                            }}
+                            type="button"
+                          >
+                            {isRunningWorkflow ? "Running..." : "Run workflow"}
+                          </button>
+                          <button
+                            className="secondary-action-button"
+                            onClick={() => {
+                              navigateToView("dashboard");
+                            }}
+                            type="button"
+                          >
+                            Open BI workspace
+                          </button>
+                        </div>
+                        {actionFeedback ? (
+                          <div className={`canvas-action-feedback is-${actionFeedback.tone}`} role="status">
+                            {actionFeedback.text}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="canvas-handoff">
+                        <span>BI path</span>
+                        <strong>
+                          {biOutletNode ? `${selectedNode.name} -> ${biOutletNode.name} dashboard handoff` : "No BI outlet yet"}
+                        </strong>
+                      </div>
+
+                      <div className="canvas-preview">
+                        {workflow.connections.map((connection) => (
+                          <CanvasConnection
+                            connection={connection}
+                            isActive={selectedSliceNodeIds.has(connection.sourceNodeId) && selectedSliceNodeIds.has(connection.targetNodeId)}
+                            isDimmed={
+                              normalizedNeedle.length > 0 &&
+                              !(matchedNodeIds.has(connection.sourceNodeId) && matchedNodeIds.has(connection.targetNodeId))
+                            }
+                            key={`${connection.sourceNodeId}-${connection.sourcePortId}-${connection.targetNodeId}-${connection.targetPortId}`}
+                            nodeLayouts={nodeLayouts}
+                          />
+                        ))}
+
+                        {workflow.nodes.map((node) => (
+                          <NodeCard
+                            isDimmed={normalizedNeedle.length > 0 && !matchedNodeIds.has(node.id)}
+                            isSelected={selectedNode.id === node.id}
+                            key={node.id}
+                            layout={nodeLayouts[node.id]}
+                            node={node}
+                            onDragStart={handleNodeDragStart}
+                            onSelect={setSelectedNodeId}
+                            selectedConnections={workflow.connections}
+                          />
+                        ))}
+                      </div>
+                    </section>
+
+                    <aside className="inspector-panel">
+                      <div className="repository-header">
+                        <div>
+                          <p className="panel-kicker">Inspector</p>
+                          <h3>{selectedNode.name}</h3>
+                        </div>
+                        <StatusBadge label={selectedNodeLayout?.status ?? "configured"} />
+                      </div>
+
+                      <div className="inspector-tabs" role="tablist" aria-label="Inspector sections">
+                        {(["config", "ports", "validation", "runtime"] as InspectorTab[]).map((tab) => (
+                          <button
+                            aria-selected={activeInspectorTab === tab}
+                            className={`rail-tab ${activeInspectorTab === tab ? "is-active" : ""}`}
+                            key={tab}
+                            onClick={() => {
+                              setActiveInspectorTab(tab);
+                            }}
+                            role="tab"
+                            type="button"
+                          >
+                            {tab}
+                          </button>
+                        ))}
+                      </div>
+
+                      {activeInspectorTab === "config" ? (
+                        <>
+                          <div className="inspector-metrics">
+                            <div className="inspector-block">
+                              <span>Type</span>
+                              <strong>{formatNodeType(selectedNode.type)}</strong>
+                            </div>
+                            <div className="inspector-block">
+                              <span>Execution</span>
+                              <strong>{selectedNode.executionHint}</strong>
+                            </div>
+                          </div>
+                          <section className="inspector-section">
+                            <div className="inspector-section-heading">
+                              <strong>Node config</strong>
+                              <span>{Object.keys(selectedNode.config).length} fields</span>
+                            </div>
+                            <div className="inspector-stack">
+                              {Object.entries(selectedNode.config).map(([key, value]) => (
+                                <div className="inspector-row" key={key}>
+                                  <strong>{key}</strong>
+                                  <span>{summarizeConfigValue(value)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </section>
+                          <section className="inspector-section">
+                            <div className="inspector-section-heading">
+                              <strong>Connection editor</strong>
+                              <span>{connectionPreview.label}</span>
+                            </div>
+                            <div className="connection-editor">
+                              <label className="flow-variable-field">
+                                <span>Connection direction</span>
+                                <select
+                                  aria-label="Connection direction"
+                                  onChange={(event) => {
+                                    setConnectionDraftDirection(event.target.value as ConnectionDraftDirection);
+                                  }}
+                                  value={connectionDraftDirection}
+                                >
+                                  <option value="outgoing">outgoing</option>
+                                  <option value="incoming">incoming</option>
+                                </select>
+                              </label>
+                              <label className="flow-variable-field">
+                                <span>Connection peer node</span>
+                                <select
+                                  aria-label="Connection peer node"
+                                  onChange={(event) => {
+                                    setConnectionDraftPeerNodeId(event.target.value);
+                                  }}
+                                  value={selectedPeerNode?.id ?? ""}
+                                >
+                                  {peerNodes.map((node) => (
+                                    <option key={node.id} value={node.id}>
+                                      {node.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label className="flow-variable-field">
+                                <span>Connection anchor port</span>
+                                <select
+                                  aria-label="Connection anchor port"
+                                  onChange={(event) => {
+                                    setConnectionDraftAnchorPortId(event.target.value);
+                                  }}
+                                  value={connectionDraftAnchorPortId}
+                                >
+                                  {anchorPorts.map((port) => (
+                                    <option key={port.id} value={port.id}>
+                                      {port.id}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label className="flow-variable-field">
+                                <span>Connection peer port</span>
+                                <select
+                                  aria-label="Connection peer port"
+                                  onChange={(event) => {
+                                    setConnectionDraftPeerPortId(event.target.value);
+                                  }}
+                                  value={connectionDraftPeerPortId}
+                                >
+                                  {peerPorts.map((port) => (
+                                    <option key={port.id} value={port.id}>
+                                      {port.id}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <div className="connection-editor-actions">
+                                <button className="secondary-action-button" onClick={handleAddConnection} type="button">
+                                  Add connection
+                                </button>
+                              </div>
+                              <div className={`validation-item is-${connectionPreview.tone}`}>
+                                <strong>{connectionPreview.label}</strong>
+                                <span>{connectionPreview.detail}</span>
+                              </div>
+                            </div>
+                          </section>
+                        </>
+                      ) : null}
+
+                      {activeInspectorTab === "ports" ? (
+                        <>
+                          <section className="inspector-section">
+                            <div className="inspector-section-heading">
+                              <strong>Ports</strong>
+                              <span>{selectedNode.ports.length} typed links</span>
+                            </div>
+                            <div className="inspector-stack">
+                              {selectedNode.ports.map((port) => (
+                                <PortSchema connections={workflow.connections} key={port.id} node={selectedNode} port={port} />
+                              ))}
+                            </div>
+                          </section>
+                          <section className="inspector-section">
+                            <div className="inspector-section-heading">
+                              <strong>Connections</strong>
+                              <span>{relatedConnections.length} linked edges</span>
+                            </div>
+                            <div className="connection-list">
+                              {relatedConnections.map((connection) => (
+                                <div className="connection-list-item" key={describeConnection(workflow, connection)}>
+                                  <div>
+                                    <strong>{describeConnection(workflow, connection)}</strong>
+                                    <span>{formatPortType(connection.dataType)}</span>
+                                  </div>
+                                  <button
+                                    aria-label={`Remove ${describeConnection(workflow, connection)}`}
+                                    className="danger-action-button"
+                                    onClick={() => {
+                                      handleRemoveConnection(connection);
+                                    }}
+                                    type="button"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </section>
+                        </>
+                      ) : null}
+
+                      {activeInspectorTab === "validation" ? (
+                        <section className="inspector-section">
+                          <div className="inspector-section-heading">
+                            <strong>Validation + sample</strong>
+                            <span>{selectedNodeLayout?.runtime ?? "Configured"}</span>
+                          </div>
+                          <div className="validation-list">
+                            {validationItems.map((item) => (
+                              <div className={`validation-item is-${item.tone}`} key={item.label}>
+                                <strong>{item.label}</strong>
+                                <span>{item.detail}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="sample-output">
+                            <strong>Sample output</strong>
+                            <span>{sampleOutput}</span>
+                          </div>
+                        </section>
+                      ) : null}
+
+                      {activeInspectorTab === "runtime" ? (
+                        <>
+                          <section className="inspector-section">
+                            <div className="inspector-section-heading">
+                              <strong>Selected runtime</strong>
+                              <span>{selectedNodeLayout?.status ?? "configured"}</span>
+                            </div>
+                            <div className="inspector-stack">
+                              <div className="inspector-row">
+                                <strong>Runtime label</strong>
+                                <span>{selectedNodeLayout?.runtime ?? "Configured"}</span>
+                              </div>
+                              <div className="inspector-row">
+                                <strong>Latest execution</strong>
+                                <span>{latestExecution ? latestExecution.id : "No runs yet"}</span>
+                              </div>
+                              <div className="inspector-row">
+                                <strong>Realtime</strong>
+                                <span>{realtimeConnectionState}</span>
+                              </div>
+                              {workspaceData.health ? (
+                                <div className="inspector-row">
+                                  <strong>Backbone</strong>
+                                  <span>{workspaceData.health.eventBackboneMode}</span>
+                                </div>
+                              ) : null}
+                            </div>
+                          </section>
+                        </>
+                      ) : null}
+                    </aside>
+                  </div>
                 </div>
+              </section>
+            </section>
+          ) : null}
 
-                <label className="search-field">
-                  <span>Search node packs</span>
-                  <input
-                    onChange={(event) => {
-                      const nextValue = event.target.value;
-                      startTransition(() => {
-                        setQuery(nextValue);
-                      });
-                    }}
-                    placeholder="Search csv, join, model, outlet..."
-                    type="search"
-                    value={query}
-                  />
-                </label>
-
-                <div className="quick-add-panel">
-                  <div className="quick-add-head">
-                    <span>Quick add</span>
-                    <small>Alpha cue</small>
-                  </div>
-                  <div className="quick-add-list">
-                    {quickAddNodes.map((node) => (
+          {activeView === "dashboard" ? (
+            <section className="workspace-main">
+              <section className="workspace-stage panel">
+                <div className="panel-inner workspace-stage-inner">
+                  <div className="workspace-overview">
+                    <div>
+                      <p className="panel-kicker">BI workspace</p>
+                      <h2 className="workspace-title">{primaryDashboard?.name ?? "No dashboard draft yet"}</h2>
+                      <p className="panel-detail">
+                        Draft authoring stays editable while published snapshots remain read-only and shareable.
+                      </p>
+                    </div>
+                    <div className="quick-add-list">
+                      <button className="secondary-action-button" onClick={handleCreateDashboard} type="button">
+                        Create dashboard
+                      </button>
+                      <button className="secondary-action-button" onClick={handleDuplicateDashboard} type="button">
+                        Duplicate dashboard
+                      </button>
                       <button
-                        className="quick-add-chip"
-                        key={node.type}
+                        className="danger-action-button"
+                        disabled={dashboards.length <= 1}
+                        onClick={handleRemoveDashboard}
+                        type="button"
+                      >
+                        Remove dashboard
+                      </button>
+                      <label className="flow-variable-field flow-variable-field--inline">
+                        <span>Publish visibility</span>
+                        <select
+                          aria-label="Publish visibility"
+                          onChange={(event) => {
+                            setPublishVisibility(event.target.value as "workspace" | "public");
+                          }}
+                          value={publishVisibility}
+                        >
+                          <option value="workspace">workspace</option>
+                          <option value="public">public</option>
+                        </select>
+                      </label>
+                      <button className="secondary-action-button" onClick={() => { void handlePublishDashboard(); }} type="button">
+                        Publish
+                      </button>
+                      <button
+                        className="secondary-action-button"
+                        disabled={!viewerDashboard}
                         onClick={() => {
-                          handleAddNode(node);
+                          void handleCopyDashboardShareLink();
                         }}
                         type="button"
                       >
-                        + {node.name}
+                        Copy share link
                       </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flow-variable-panel">
-                  <div className="quick-add-head">
-                    <span>Flow variables</span>
-                    <small>{workflow.flowVariables.length} exposed</small>
-                  </div>
-                  <button className="secondary-action-button is-full-width" onClick={handleAddFlowVariable} type="button">
-                    Add flow variable
-                  </button>
-                  <div className="flow-variable-editor-list">
-                    {workflow.flowVariables.map((flowVariable, index) => (
-                      <article className="flow-variable-editor" key={`${flowVariable.name}-${index}`}>
-                        <div className="flow-variable-editor-head">
-                          <strong>{flowVariable.name}</strong>
-                          <button
-                            aria-label={`Remove ${flowVariable.name}`}
-                            className="danger-action-button"
-                            onClick={() => {
-                              handleRemoveFlowVariable(index);
-                            }}
-                            type="button"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                        <label className="flow-variable-field">
-                          <span>Name</span>
-                          <input
-                            aria-label={`Variable name ${flowVariable.name}`}
-                            onChange={(event) => {
-                              handleFlowVariableChange(index, { name: event.target.value });
-                            }}
-                            type="text"
-                            value={flowVariable.name}
-                          />
-                        </label>
-                        <label className="flow-variable-field">
-                          <span>Type</span>
-                          <select
-                            aria-label={`Variable type ${flowVariable.name}`}
-                            onChange={(event) => {
-                              const nextType = event.target.value as FlowVariableDefinition["type"];
-                              handleFlowVariableChange(index, {
-                                type: nextType,
-                                default: buildFlowVariableDefault(nextType)
-                              });
-                            }}
-                            value={flowVariable.type}
-                          >
-                            <option value="String">String</option>
-                            <option value="Integer">Integer</option>
-                            <option value="Float64">Float64</option>
-                            <option value="Bool">Bool</option>
-                            <option value="DateTime">DateTime</option>
-                            <option value="GPUDeviceID">GPUDeviceID</option>
-                          </select>
-                        </label>
-                        {flowVariable.type === "Bool" ? (
-                          <label className="flow-variable-field">
-                            <span>Default</span>
-                            <input
-                              aria-label={`Variable default ${flowVariable.name}`}
-                              checked={Boolean(flowVariable.default)}
-                              onChange={(event) => {
-                                handleFlowVariableChange(index, { default: event.target.checked });
-                              }}
-                              type="checkbox"
-                            />
-                          </label>
-                        ) : (
-                          <label className="flow-variable-field">
-                            <span>Default</span>
-                            <input
-                              aria-label={`Variable default ${flowVariable.name}`}
-                              onChange={(event) => {
-                                if (flowVariable.type === "Integer" || flowVariable.type === "Float64") {
-                                  handleFlowVariableChange(index, {
-                                    default: parseNumericValue(event.target.value, flowVariable.type)
-                                  });
-                                  return;
-                                }
-                                handleFlowVariableChange(index, { default: event.target.value });
-                              }}
-                              step={flowVariable.type === "Float64" ? "any" : undefined}
-                              type={
-                                flowVariable.type === "Integer" || flowVariable.type === "Float64"
-                                  ? "number"
-                                  : "text"
-                              }
-                              value={String(flowVariable.default ?? "")}
-                            />
-                          </label>
-                        )}
-                      </article>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flow-variable-panel">
-                  <div className="quick-add-head">
-                    <span>Hub v0</span>
-                    <small>{filteredHubExtensions.length} entries</small>
-                  </div>
-                  <div className="flow-variable-editor-list">
-                    {filteredHubExtensions.map((extension) => (
-                      <article className="flow-variable-editor" key={extension.extensionId}>
-                        <div className="flow-variable-editor-head">
-                          <strong>{extension.manifest.name}</strong>
-                          <button
-                            className="secondary-action-button"
-                            disabled={extension.installState === "enabled"}
-                            onClick={() => {
-                              void handleHubInstall(extension);
-                            }}
-                            type="button"
-                          >
-                            {extension.installState === "available"
-                              ? "Install"
-                              : extension.installState === "installed"
-                                ? "Enable"
-                                : "Enabled"}
-                          </button>
-                        </div>
-                        <div className="inspector-stack">
-                          <div className="inspector-row">
-                            <strong>{extension.extensionId}</strong>
-                            <span>{extension.manifest.publisher} · {extension.installState}</span>
-                          </div>
-                          <div className="inspector-row">
-                            <strong>Package</strong>
-                            <span>{extension.manifest.packageRef}</span>
-                          </div>
-                          <div className="inspector-row">
-                            <strong>Checkpoints</strong>
-                            <span>{extension.manifest.compatibleCheckpoints.join(", ")}</span>
-                          </div>
-                          <div className="inspector-row">
-                            <strong>Summary</strong>
-                            <span>{extension.manifest.summary}</span>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
-                    {filteredHubExtensions.length === 0 ? (
-                      <div className="repository-empty">
-                        <strong>No Hub extensions match.</strong>
-                        <span>Search publisher, summary, or compatibility tag.</span>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="repository-list">
-                  {filteredRepositoryNodes.length > 0 ? (
-                    filteredRepositoryNodes.map((node) => (
-                      <RepositoryEntry
-                        key={node.type}
-                        node={node}
-                        onAdd={handleAddNode}
-                        selectedType={selectedNode.type}
-                      />
-                    ))
-                  ) : (
-                    <div className="repository-empty">
-                      <strong>No repository matches</strong>
-                      <span>Try a node type, execution hint, or output target.</span>
                     </div>
-                  )}
-                </div>
-              </aside>
-
-              <section className="canvas-panel">
-                <div className="canvas-panel-head">
-                  <div>
-                    <p className="panel-kicker">Canvas</p>
-                    <h3>Typed graph workspace</h3>
-                  </div>
-                  <div className="canvas-summary" aria-live="polite">
-                    <span>{Math.max(1, knownWorkflowIds.length || workspaceData.workflows.length)} snapshot</span>
-                    <span>{selectedSliceNodeIds.size} node slice</span>
-                    <span className={unresolvedNodeCount > 0 ? "canvas-summary-alert" : ""}>
-                      {unresolvedNodeCount} validation gap{unresolvedNodeCount === 1 ? "" : "s"}
-                    </span>
-                    <span>{latestExecution ? latestExecution.status : "idle"} runtime</span>
-                  </div>
-                </div>
-
-                <div className="canvas-actions">
-                  <div className="canvas-action-buttons">
-                    <button
-                      className="primary-action-button"
-                      disabled={isSaving || isRunningWorkflow}
-                      onClick={() => {
-                        void persistWorkflow("save");
-                      }}
-                      type="button"
-                    >
-                      {isSaving ? "Saving..." : workflowExistsOnGateway ? "Update workflow" : "Save workflow"}
-                    </button>
-                    <button
-                      className="secondary-action-button"
-                      disabled={isRunningWorkflow || isSaving}
-                      onClick={() => {
-                        void handleRunWorkflow();
-                      }}
-                      type="button"
-                    >
-                      {isRunningWorkflow ? "Running..." : "Run workflow"}
-                    </button>
                   </div>
                   {actionFeedback ? (
                     <div className={`canvas-action-feedback is-${actionFeedback.tone}`} role="status">
@@ -2177,543 +3040,711 @@ function App() {
                     </div>
                   ) : null}
                 </div>
+              </section>
 
-                <div className="canvas-handoff">
-                  <span>BI path</span>
-                  <strong>
-                    {biOutletNode ? `${selectedNode.name} -> ${biOutletNode.name} dashboard handoff` : "No BI outlet yet"}
-                  </strong>
-                </div>
+              <section className="secondary-grid dashboard-grid">
+                <Panel className="rail-panel">
+                  <SectionTitle
+                    kicker="Drafts"
+                    title="Draft dashboards"
+                    detail="Switch between workflow-bound dashboard drafts and edit one at a time."
+                  />
+                  {dashboards.length > 0 ? (
+                    <div className="route-card-list">
+                      {dashboards.map((dashboard) => (
+                        <button
+                          className={`route-list-item ${dashboard.dashboardId === primaryDashboard?.dashboardId ? "is-active" : ""}`}
+                          key={dashboard.dashboardId}
+                          onClick={() => {
+                            setActiveDashboardId(dashboard.dashboardId);
+                          }}
+                          type="button"
+                        >
+                          <strong>{dashboard.name}</strong>
+                          <span>{dashboard.dashboardId}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="repository-empty">
+                      <strong>No dashboard definitions attached yet.</strong>
+                      <span>Create first dashboard to start authoring BI layouts.</span>
+                    </div>
+                  )}
 
-                <div className="canvas-scaffold" aria-hidden="true">
-                  <span>Sources</span>
-                  <span>Transforms</span>
-                  <span>Modeling</span>
-                  <span>BI output</span>
-                </div>
+                  {primaryDashboard ? (
+                    <div className="dashboard-editor">
+                      <label className="flow-variable-field">
+                        <span>Dashboard name</span>
+                        <input
+                          aria-label="Dashboard name"
+                          onChange={(event) => {
+                            handleDashboardChange({ name: event.target.value });
+                          }}
+                          type="text"
+                          value={primaryDashboard.name}
+                        />
+                      </label>
+                      <label className="flow-variable-field">
+                        <span>Outlet node</span>
+                        <select
+                          aria-label="Dashboard outlet node"
+                          onChange={(event) => {
+                            handleDashboardBindingChange({ outletNodeId: event.target.value });
+                          }}
+                          value={primaryDashboard.binding.outletNodeId}
+                        >
+                          {workflow.nodes
+                            .filter(
+                              (node) =>
+                                node.type === "bi.outlet" ||
+                                node.ports.some(
+                                  (port) => port.direction === "output" && port.type === "stream_channel"
+                                )
+                            )
+                            .map((node) => (
+                              <option key={node.id} value={node.id}>
+                                {node.name}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <label className="flow-variable-field">
+                        <span>Dataset key</span>
+                        <input
+                          aria-label="Dashboard dataset key"
+                          onChange={(event) => {
+                            handleDashboardBindingChange({ datasetKey: event.target.value });
+                          }}
+                          type="text"
+                          value={primaryDashboard.binding.datasetKey}
+                        />
+                      </label>
+                      <label className="flow-variable-field">
+                        <span>Refresh mode</span>
+                        <select
+                          aria-label="Dashboard refresh mode"
+                          onChange={(event) => {
+                            handleDashboardBindingChange({
+                              refreshMode: event.target.value as DashboardDefinition["binding"]["refreshMode"]
+                            });
+                          }}
+                          value={primaryDashboard.binding.refreshMode}
+                        >
+                          <option value="manual">manual</option>
+                          <option value="live">live</option>
+                        </select>
+                      </label>
+                      <div className="quick-add-list">
+                        <button className="secondary-action-button" onClick={handleAddDashboardChart} type="button">
+                          Add chart
+                        </button>
+                      </div>
+                      <div className="connection-list">
+                        {primaryDashboard.charts.map((chart) => (
+                          <div className="flow-variable-editor" key={chart.chartId}>
+                            <div className="flow-variable-editor-head">
+                              <strong>{chart.chartId}</strong>
+                              <button
+                                aria-label={`Remove ${chart.chartId}`}
+                                className="danger-action-button"
+                                disabled={primaryDashboard.charts.length <= 1}
+                                onClick={() => {
+                                  handleRemoveDashboardChart(chart.chartId);
+                                }}
+                                type="button"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                            <label className="flow-variable-field">
+                              <span>Chart title</span>
+                              <input
+                                aria-label={`Chart title ${chart.chartId}`}
+                                onChange={(event) => {
+                                  handleDashboardChartChange(chart.chartId, { title: event.target.value });
+                                }}
+                                type="text"
+                                value={chart.title}
+                              />
+                            </label>
+                            <label className="flow-variable-field">
+                              <span>Chart family</span>
+                              <select
+                                aria-label={`Chart family ${chart.chartId}`}
+                                onChange={(event) => {
+                                  handleDashboardChartChange(chart.chartId, {
+                                    family: event.target.value as DashboardChartFamily
+                                  });
+                                }}
+                                value={chart.family}
+                              >
+                                {dashboardChartFamilies.map((family) => (
+                                  <option key={family} value={family}>
+                                    {family}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="flow-variable-field">
+                              <span>X field</span>
+                              <input
+                                aria-label={`Chart x field ${chart.chartId}`}
+                                onChange={(event) => {
+                                  handleDashboardChartChange(chart.chartId, { xField: event.target.value });
+                                }}
+                                type="text"
+                                value={chart.xField ?? ""}
+                              />
+                            </label>
+                            <label className="flow-variable-field">
+                              <span>Y field</span>
+                              <input
+                                aria-label={`Chart y field ${chart.chartId}`}
+                                onChange={(event) => {
+                                  handleDashboardChartChange(chart.chartId, { yField: event.target.value });
+                                }}
+                                type="text"
+                                value={chart.yField ?? ""}
+                              />
+                            </label>
+                            <div className="inspector-row">
+                              <strong>Panel</strong>
+                              <span>
+                                {chart.panel
+                                  ? `x:${chart.panel.x} y:${chart.panel.y} w:${chart.panel.w} h:${chart.panel.h}`
+                                  : "unplaced"}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </Panel>
 
-                <div className="canvas-preview" aria-label="Workflow canvas">
-                  {workflow.connections.map((connection) => {
-                    const edgeDimmed =
-                      normalizedNeedle.length > 0 &&
-                      !matchedNodeIds.has(connection.sourceNodeId) &&
-                      !matchedNodeIds.has(connection.targetNodeId);
+                <Panel className="phase-panel">
+                  <SectionTitle
+                    kicker="Published"
+                    title="Published dashboards"
+                    detail="Viewer deep links stay backward-compatible while snapshots remain separate from draft edits."
+                  />
+                  {publishedDashboards.length > 0 ? (
+                    <div className="route-card-list">
+                      {publishedDashboards.map((dashboard) => (
+                        <button
+                          className={`route-list-item ${viewerDashboardId === dashboard.dashboardId ? "is-active" : ""}`}
+                          key={dashboard.dashboardId}
+                          onClick={() => {
+                            openPublishedDashboard(dashboard);
+                          }}
+                          type="button"
+                        >
+                          <strong>{dashboard.name}</strong>
+                          <span>v{dashboard.version} · {dashboard.visibility}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="repository-empty">
+                      <strong>No published dashboards yet.</strong>
+                      <span>Publish a draft to create a read-only snapshot and share link.</span>
+                    </div>
+                  )}
 
-                    return (
-                      <CanvasConnection
-                        connection={connection}
-                        isActive={
-                          connection.sourceNodeId === selectedNode.id ||
-                          connection.targetNodeId === selectedNode.id
-                        }
-                        isDimmed={edgeDimmed}
-                        key={`${connection.sourceNodeId}:${connection.targetNodeId}:${connection.targetPortId}`}
-                        layouts={nodeLayouts}
-                      />
-                    );
-                  })}
+                  {viewerDashboard ? (
+                    <div className="published-dashboard-viewer">
+                      <div className="rail-spotlight">
+                        <div className="rail-spotlight-copy">
+                          <span>Published dashboard</span>
+                          <strong>{viewerDashboard.name}</strong>
+                          <p>
+                            v{viewerDashboard.version} · {viewerDashboard.publishedAt} · {viewerDashboard.visibility}
+                          </p>
+                        </div>
+                        <div className="quick-add-list">
+                          <StatusBadge label="read_only" />
+                          <button className="secondary-action-button" onClick={handleCloseDashboardViewer} type="button">
+                            Clear viewer
+                          </button>
+                        </div>
+                      </div>
+                      <div className="inspector-stack">
+                        <div className="inspector-row">
+                          <strong>Dashboard</strong>
+                          <span>{viewerDashboard.dashboardId}</span>
+                        </div>
+                        <div className="inspector-row">
+                          <strong>Dataset</strong>
+                          <span>{viewerDashboard.binding.datasetKey}</span>
+                        </div>
+                        <div className="inspector-row">
+                          <strong>Refresh mode</strong>
+                          <span>{viewerDashboard.binding.refreshMode}</span>
+                        </div>
+                        <div className="inspector-row">
+                          <strong>Share token</strong>
+                          <span>{viewerDashboard.shareToken ?? "workspace only"}</span>
+                        </div>
+                        <div className="repository-detail-actions">
+                          <button className="secondary-action-button" onClick={handleRefreshViewerCharts} type="button">
+                            {isViewerRefreshing ? "Refreshing…" : "Refresh charts"}
+                          </button>
+                          {viewerChartFilter ? (
+                            <button
+                              className="secondary-action-button"
+                              onClick={() => {
+                                setViewerChartFilter(null);
+                              }}
+                              type="button"
+                            >
+                              Clear filter {viewerChartFilter.field}={viewerChartFilter.value}
+                            </button>
+                          ) : null}
+                        </div>
+                        <div className="inspector-row">
+                          <strong>Selection</strong>
+                          <span>{viewerChartFilter ? `${viewerChartFilter.field}=${viewerChartFilter.value}` : "all rows"}</span>
+                        </div>
+                      </div>
+                      <div className="flow-variable-editor-list">
+                        {viewerDashboard.charts.map((chart) => {
+                          const chartData = dashboardChartData[chart.chartId];
+                          const filteredChartData = chartData ? applyViewerChartFilter(chartData, viewerChartFilter) : undefined;
+                          return (
+                            <article className="flow-variable-editor" key={chart.chartId}>
+                              <div className="flow-variable-editor-head">
+                                <strong>{chart.title}</strong>
+                                <StatusBadge label={chart.family} />
+                              </div>
+                              <div className="repository-detail-actions">
+                                <button
+                                  className="secondary-action-button"
+                                  onClick={() => {
+                                    void handleExportDashboardChart(chart.chartId);
+                                  }}
+                                  type="button"
+                                >
+                                  Export CSV
+                                </button>
+                              </div>
+                              <div className="inspector-stack">
+                                <div className="inspector-row">
+                                  <strong>Chart</strong>
+                                  <span>{chart.chartId}</span>
+                                </div>
+                                <div className="inspector-row">
+                                  <strong>Family</strong>
+                                  <span>{chart.family}</span>
+                                </div>
+                                <div className="inspector-row">
+                                  <strong>Rows</strong>
+                                  <span>{filteredChartData?.rowCount ?? "pending"}</span>
+                                </div>
+                                <div className="inspector-row">
+                                  <strong>Fields</strong>
+                                  <span>{filteredChartData?.fields.join(", ") ?? "pending"}</span>
+                                </div>
+                                <div className="inspector-row">
+                                  <strong>Semantic</strong>
+                                  <span>
+                                    {filteredChartData
+                                      ? `${filteredChartData.semantic.dimensions.join(" / ")} · ${filteredChartData.semantic.measures.join(" / ")}`
+                                      : "pending"}
+                                  </span>
+                                </div>
+                                <div className="inspector-row">
+                                  <strong>Refresh</strong>
+                                  <span>{chartRefreshSummary(filteredChartData)}</span>
+                                </div>
+                              </div>
+                              {renderPublishedChartPreview(chart, filteredChartData, viewerChartFilter, setViewerChartFilter)}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </Panel>
+              </section>
+            </section>
+          ) : null}
 
-                  {workflow.nodes.map((node) => (
-                    <NodeCard
-                      connections={workflow.connections}
-                      isDimmed={normalizedNeedle.length > 0 && !matchedNodeIds.has(node.id)}
-                      isSelected={node.id === selectedNode.id}
-                      key={node.id}
-                      layout={nodeLayouts[node.id]}
-                      node={node}
-                      onDragStart={handleNodeDragStart}
-                      onSelect={(nodeId) => {
-                        startTransition(() => {
-                          setSelectedNodeId(nodeId);
-                        });
-                      }}
-                      validation={validationByNodeId[node.id]}
-                    />
-                  ))}
+          {activeView === "hub" ? (
+            <section className="workspace-main">
+              <section className="workspace-stage panel">
+                <div className="panel-inner workspace-stage-inner">
+                  <div className="workspace-overview">
+                    <div>
+                      <p className="panel-kicker">Hub</p>
+                      <h2 className="workspace-title">Extension marketplace</h2>
+                      <p className="panel-detail">
+                        Trust, compatibility, upgrade state, and lifecycle actions are surfaced before installation.
+                      </p>
+                    </div>
+                    <div className="workspace-metrics">
+                      <div className="metric-tile">
+                        <span>Visible extensions</span>
+                        <strong>{filteredHubExtensions.length}</strong>
+                      </div>
+                      <div className="metric-tile">
+                        <span>Trusted</span>
+                        <strong>{hubExtensions.filter((item) => getHubTrust(item).trusted).length}</strong>
+                      </div>
+                      <div className="metric-tile">
+                        <span>Upgrade ready</span>
+                        <strong>{hubExtensions.filter((item) => getHubUpgrade(item).upgradeAvailable).length}</strong>
+                      </div>
+                      <div className="metric-tile">
+                        <span>Blocked</span>
+                        <strong>{hubExtensions.filter((item) => item.compatibility.blockers.length > 0 || getHubTrust(item).blockers.length > 0).length}</strong>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </section>
 
-              <aside className="inspector-panel">
-                <SectionTitle
-                  kicker="Inspector"
-                  title={selectedNode.name}
-                  detail="Configuration, schema, validation, execution target, and recent run state stay together so the panel reads like an actionable node editor."
-                />
-
-                <div className="inspector-metrics">
-                  <div className="inspector-block">
-                    <span>Type</span>
-                    <strong>{selectedNode.type}</strong>
-                  </div>
-                  <div className="inspector-block">
-                    <span>Target</span>
-                    <strong>{selectedNode.gpuDevicePreference ?? selectedNode.executionHint}</strong>
-                  </div>
-                </div>
-
-                <section className="inspector-section">
-                  <div className="inspector-section-heading">
-                    <span>Configuration</span>
-                    <strong>{Object.keys(selectedNode.config ?? {}).length}</strong>
-                  </div>
-                  <div className="inspector-stack">
-                    {Object.entries(selectedNode.config ?? {}).map(([key, value]) => (
-                      <div className="inspector-row" key={key}>
-                        <strong>{key}</strong>
-                        <span>{summarizeConfigValue(value)}</span>
+              <section className="hub-grid">
+                {filteredHubExtensions.map((extension) => (
+                  <article className="hub-card" key={extension.extensionId}>
+                    <div className="hub-card-head">
+                      <div>
+                        <strong>{extension.manifest.name}</strong>
+                        <span>{extension.manifest.publisherIdentity}</span>
                       </div>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="inspector-section">
-                  <div className="inspector-section-heading">
-                    <span>Schema and sample output</span>
-                    <strong>{selectedNode.ports.length}</strong>
-                  </div>
-                  <div className="inspector-stack">
-                    {selectedNode.ports.map((port) => (
-                      <PortSchema connections={workflow.connections} key={port.id} node={selectedNode} port={port} />
-                    ))}
-                    <div className="sample-output">
-                      <span>Sample output</span>
-                      <strong>{sampleOutput}</strong>
+                      <StatusBadge label={extension.installState} />
                     </div>
-                  </div>
-                </section>
-
-                <section className="inspector-section">
-                  <div className="inspector-section-heading">
-                    <span>Connections</span>
-                    <strong>{relatedConnections.length}</strong>
-                  </div>
-                  <div className="inspector-stack">
-                    <div className="connection-editor">
-                      <div className="flow-variable-field">
-                        <span>Direction</span>
-                        <select
-                          aria-label="Connection direction"
-                          onChange={(event) => {
-                            setConnectionDraftDirection(event.target.value as ConnectionDraftDirection);
-                          }}
-                          value={connectionDraftDirection}
-                        >
-                          <option value="outgoing">From selected node</option>
-                          <option value="incoming">Into selected node</option>
-                        </select>
-                      </div>
-
-                      <div className="flow-variable-field">
-                        <span>{connectionDraftDirection === "outgoing" ? "Target node" : "Source node"}</span>
-                        <select
-                          aria-label="Connection peer node"
-                          onChange={(event) => {
-                            setConnectionDraftPeerNodeId(event.target.value);
-                          }}
-                          value={selectedPeerNode?.id ?? ""}
-                        >
-                          {peerNodes.length === 0 ? <option value="">No peer nodes</option> : null}
-                          {peerNodes.map((node) => (
-                            <option key={node.id} value={node.id}>
-                              {node.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="flow-variable-field">
-                        <span>{connectionDraftDirection === "outgoing" ? "Source port" : "Target port"}</span>
-                        <select
-                          aria-label="Connection anchor port"
-                          onChange={(event) => {
-                            setConnectionDraftAnchorPortId(event.target.value);
-                          }}
-                          value={connectionDraftAnchorPortId}
-                        >
-                          {anchorPorts.length === 0 ? <option value="">No compatible ports</option> : null}
-                          {anchorPorts.map((port) => (
-                            <option key={port.id} value={port.id}>
-                              {port.id} · {formatPortType(port.type)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="flow-variable-field">
-                        <span>{connectionDraftDirection === "outgoing" ? "Target port" : "Source port"}</span>
-                        <select
-                          aria-label="Connection peer port"
-                          onChange={(event) => {
-                            setConnectionDraftPeerPortId(event.target.value);
-                          }}
-                          value={connectionDraftPeerPortId}
-                        >
-                          {peerPorts.length === 0 ? <option value="">No compatible ports</option> : null}
-                          {peerPorts.map((port) => (
-                            <option key={port.id} value={port.id}>
-                              {port.id} · {formatPortType(port.type)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    <p>{extension.manifest.summary}</p>
+                    <div className="connection-tags">
+                      {extension.manifest.tags.map((tag) => (
+                        <span className="flow-variable-chip" key={tag}>
+                          {tag}
+                        </span>
+                      ))}
                     </div>
-
-                    <div className={`validation-item is-${connectionPreview.tone}`}>
-                      <strong>{connectionPreview.label}</strong>
-                      <span>{connectionPreview.detail}</span>
+                    <div className="inspector-stack">
+                      <div className="inspector-row">
+                        <strong>Version</strong>
+                        <span>{extension.manifest.version}</span>
+                      </div>
+                      <div className="inspector-row">
+                        <strong>Package ref</strong>
+                        <span>{extension.manifest.packageRef}</span>
+                      </div>
+                      <div className="inspector-row">
+                        <strong>Release notes</strong>
+                        <span>{extension.manifest.releaseNotesRef ?? "not provided"}</span>
+                      </div>
+                      <div className="inspector-row">
+                        <strong>Trust</strong>
+                        <span>{getHubTrust(extension).level}</span>
+                      </div>
+                      <div className="inspector-row">
+                        <strong>Latest version</strong>
+                        <span>{getHubUpgrade(extension).latestVersion}</span>
+                      </div>
+                      <div className="inspector-row">
+                        <strong>Installed version</strong>
+                        <span>{getHubUpgrade(extension).installedVersion ?? "not installed"}</span>
+                      </div>
+                      {extension.compatibility.blockers.length > 0 ? (
+                        <div className="inspector-row">
+                          <strong>Compatibility blockers</strong>
+                          <span>{extension.compatibility.blockers.join("; ")}</span>
+                        </div>
+                      ) : null}
+                      {getHubTrust(extension).blockers.length > 0 ? (
+                        <div className="inspector-row">
+                          <strong>Trust blockers</strong>
+                          <span>{getHubTrust(extension).blockers.join("; ")}</span>
+                        </div>
+                      ) : null}
                     </div>
-
-                    <div className="connection-editor-actions">
+                    <div className="hub-card-actions">
                       <button
-                        className="secondary-action-button is-full-width"
-                        disabled={connectionPreview.connection === null}
-                        onClick={handleAddConnection}
+                        className="secondary-action-button"
+                        onClick={() => {
+                          void handleHubInstall(extension);
+                        }}
                         type="button"
                       >
-                        Add connection
+                        {getHubUpgrade(extension).upgradeAvailable
+                          ? "Upgrade"
+                          : extension.installState === "enabled"
+                            ? "Disable"
+                            : extension.installState === "available" || extension.installState === "incompatible"
+                              ? "Install"
+                              : "Enable"}
                       </button>
                     </div>
-
-                    <div className="connection-list">
-                      {relatedConnections.length === 0 ? (
-                        <div className="inspector-row">
-                          <strong>No linked edges</strong>
-                          <span>Selected node still needs manual wiring.</span>
-                        </div>
-                      ) : (
-                        relatedConnections.map((connection) => (
-                          <div className="connection-list-item" key={describeConnection(workflow, connection)}>
-                            <div>
-                              <strong>{describeConnection(workflow, connection)}</strong>
-                              <span>{formatPortType(connection.dataType)}</span>
-                            </div>
-                            <button
-                              aria-label={`Remove ${describeConnection(workflow, connection)}`}
-                              className="danger-action-button"
-                              onClick={() => {
-                                handleRemoveConnection(connection);
-                              }}
-                              type="button"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </section>
-
-                <section className="inspector-section">
-                  <div className="inspector-section-heading">
-                    <span>Validation</span>
-                    <strong>{validationItems.length}</strong>
-                  </div>
-                  <div className="validation-list">
-                    {validationItems.map((item) => (
-                      <div className={`validation-item is-${item.tone}`} key={item.label}>
-                        <strong>{item.label}</strong>
-                        <span>{item.detail}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </aside>
-            </div>
-          </div>
-        </section>
-
-        <section className="secondary-grid">
-          <Panel className="rail-panel">
-            <SectionTitle
-              kicker="Operations"
-              title="Execution and rollback rail"
-              detail="Runtime remains nearby, but secondary to authoring. Use it to confirm readiness, monitor runs, and inspect checkpoint evidence."
-            />
-
-            <div className="rail-spotlight">
-              <div className="rail-spotlight-copy">
-                <span>Latest runtime pulse</span>
-                <strong>{latestExecution ? latestExecution.id : "No active execution"}</strong>
-                <p>
-                  {latestExecution
-                    ? `${latestExecution.trigger} · ${latestExecution.duration} · ${latestExecution.planner}`
-                    : "Execution history will appear here when gateway runs are available."}
-                </p>
-              </div>
-              <StatusBadge label={latestExecution ? latestExecution.status : "idle"} />
-            </div>
-
-            <div className="runtime-metrics">
-              {statusCounts.map((item) => (
-                <div className="runtime-metric" key={item.label}>
-                  <span>{item.label}</span>
-                  <strong>{item.count}</strong>
-                </div>
-              ))}
-            </div>
-
-            <div className="rail-tabs" role="tablist" aria-label="Execution rail views">
-              {executionTabs.map((tab) => (
-                <button
-                  aria-selected={activeRail === tab}
-                  className={`rail-tab ${activeRail === tab ? "is-active" : ""}`}
-                  key={tab}
-                  onClick={() => {
-                    startTransition(() => {
-                      setActiveRail(tab);
-                    });
-                  }}
-                  role="tab"
-                  type="button"
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            {activeRail === "executions" ? (
-              <div className="rail-list" role="tabpanel">
-                {executionItems.map((item) => (
-                  <article className="rail-card" key={item.id}>
-                    <div className="rail-card-top">
-                      <strong>{item.id}</strong>
-                      <StatusBadge label={item.status} />
-                    </div>
-                    <p>{item.trigger}</p>
-                    <dl className="rail-metadata">
-                      <div>
-                        <dt>Started</dt>
-                        <dd>{item.startedAt}</dd>
-                      </div>
-                      <div>
-                        <dt>Duration</dt>
-                        <dd>{item.duration}</dd>
-                      </div>
-                      <div>
-                        <dt>Planner</dt>
-                        <dd>{item.planner}</dd>
-                      </div>
-                    </dl>
                   </article>
                 ))}
-              </div>
-            ) : (
-              <div className="rail-list" role="tabpanel">
-                {workspaceData.checkpoints.map((item) => (
-                  <article className="rail-card" key={item.tag}>
-                    <div className="rail-card-top">
-                      <strong>{item.tag}</strong>
-                      <span className={`checkpoint-state is-${item.state}`}>{item.state}</span>
+              </section>
+            </section>
+          ) : null}
+
+          {activeView === "monitor" ? (
+            <section className="workspace-main">
+              <section className="workspace-stage panel">
+                <div className="panel-inner workspace-stage-inner">
+                  <div className="workspace-overview">
+                    <div>
+                      <p className="panel-kicker">Runtime</p>
+                      <h2 className="workspace-title">Executions + backbone</h2>
+                      <p className="panel-detail">
+                        Worker lanes, consumer settings, queue evidence, and checkpoint state stay visible in one monitor view.
+                      </p>
                     </div>
-                    <p>{item.scope}</p>
-                    <small>{item.evidence}</small>
-                  </article>
-                ))}
-              </div>
-            )}
-
-            <div className="checkpoint-policy">
-              <h2>Checkpoint policy</h2>
-              <ul className="checkpoint-list">
-                {milestoneCheckpoints.slice(0, 4).map((checkpoint) => (
-                  <li key={checkpoint.tag}>
-                    <strong>{checkpoint.tag}</strong>
-                    <span>{checkpoint.goal}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Panel>
-
-          <Panel className="phase-panel">
-            <SectionTitle
-              kicker="Roadmap"
-              title="Program phases"
-              detail="Milestones stay visible as support context, not as the dominant screen story."
-            />
-            <div className="rail-spotlight">
-              <div className="rail-spotlight-copy">
-                <span>Alpha runtime contract</span>
-                <strong>{workflow.runtime?.runMode === "stream" ? "Streaming MVP" : "Batch-first authoring"}</strong>
-                <p>
-                  {workflow.runtime?.runMode === "stream"
-                    ? `Kafka topic ${String(workflow.runtime.source?.topic ?? "unset")} with ${String(workflow.runtime.window?.kind ?? "window")} windows`
-                    : "Batch persistence, GPU hints, dashboards, and realtime sync are all contract-backed."}
-                </p>
-              </div>
-              <StatusBadge label={workflow.runtime?.runMode === "stream" ? "streaming_active" : "configured"} />
-            </div>
-
-            <div className="checkpoint-policy">
-              <h2>Dashboard v0</h2>
-              {primaryDashboard ? (
-                <div className="flow-variable-editor-list">
-                  <article className="flow-variable-editor">
-                    <div className="flow-variable-editor-head">
-                      <strong>{primaryDashboard.dashboardId}</strong>
-                      <button className="secondary-action-button" onClick={handleAddDashboardChart} type="button">
-                        Add chart
-                      </button>
-                    </div>
-                    <label className="flow-variable-field">
-                      <span>Dashboard name</span>
-                      <input
-                        aria-label="Dashboard name"
-                        onChange={(event) => {
-                          handleDashboardChange({ name: event.target.value });
-                        }}
-                        type="text"
-                        value={primaryDashboard.name}
-                      />
-                    </label>
-                    <label className="flow-variable-field">
-                      <span>Outlet node</span>
-                      <select
-                        aria-label="Dashboard outlet node"
-                        onChange={(event) => {
-                          handleDashboardBindingChange({ outletNodeId: event.target.value });
-                        }}
-                        value={primaryDashboard.binding.outletNodeId}
-                      >
-                        {workflow.nodes
-                          .filter(
-                            (node) =>
-                              node.type === "bi.outlet" ||
-                              node.ports.some(
-                                (port) => port.direction === "output" && port.type === "stream_channel"
-                              )
-                          )
-                          .map((node) => (
-                            <option key={node.id} value={node.id}>
-                              {node.name}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                    <label className="flow-variable-field">
-                      <span>Dataset key</span>
-                      <input
-                        aria-label="Dashboard dataset key"
-                        onChange={(event) => {
-                          handleDashboardBindingChange({ datasetKey: event.target.value });
-                        }}
-                        type="text"
-                        value={primaryDashboard.binding.datasetKey}
-                      />
-                    </label>
-                    <label className="flow-variable-field">
-                      <span>Refresh mode</span>
-                      <select
-                        aria-label="Dashboard refresh mode"
-                        onChange={(event) => {
-                          handleDashboardBindingChange({
-                            refreshMode: event.target.value as DashboardDefinition["binding"]["refreshMode"]
-                          });
-                        }}
-                        value={primaryDashboard.binding.refreshMode}
-                      >
-                        <option value="manual">manual</option>
-                        <option value="live">live</option>
-                      </select>
-                    </label>
-                    <div className="connection-list">
-                      {primaryDashboard.charts.map((chart) => (
-                        <div className="flow-variable-editor" key={chart.chartId}>
-                          <div className="flow-variable-editor-head">
-                            <strong>{chart.chartId}</strong>
-                            <button
-                              aria-label={`Remove ${chart.chartId}`}
-                              className="danger-action-button"
-                              disabled={primaryDashboard.charts.length <= 1}
-                              onClick={() => {
-                                handleRemoveDashboardChart(chart.chartId);
-                              }}
-                              type="button"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                          <label className="flow-variable-field">
-                            <span>Chart title</span>
-                            <input
-                              aria-label={`Chart title ${chart.chartId}`}
-                              onChange={(event) => {
-                                handleDashboardChartChange(chart.chartId, { title: event.target.value });
-                              }}
-                              type="text"
-                              value={chart.title}
-                            />
-                          </label>
-                          <label className="flow-variable-field">
-                            <span>Chart family</span>
-                            <select
-                              aria-label={`Chart family ${chart.chartId}`}
-                              onChange={(event) => {
-                                handleDashboardChartChange(chart.chartId, {
-                                  family: event.target.value as DashboardChartFamily
-                                });
-                              }}
-                              value={chart.family}
-                            >
-                              {dashboardChartFamilies.map((family) => (
-                                <option key={family} value={family}>
-                                  {family}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="flow-variable-field">
-                            <span>X field</span>
-                            <input
-                              aria-label={`Chart x field ${chart.chartId}`}
-                              onChange={(event) => {
-                                handleDashboardChartChange(chart.chartId, { xField: event.target.value });
-                              }}
-                              type="text"
-                              value={chart.xField ?? ""}
-                            />
-                          </label>
-                          <label className="flow-variable-field">
-                            <span>Y field</span>
-                            <input
-                              aria-label={`Chart y field ${chart.chartId}`}
-                              onChange={(event) => {
-                                handleDashboardChartChange(chart.chartId, { yField: event.target.value });
-                              }}
-                              type="text"
-                              value={chart.yField ?? ""}
-                            />
-                          </label>
+                    <div className="workspace-metrics">
+                      {statusCounts.map((item) => (
+                        <div className="metric-tile" key={item.label}>
+                          <span>{item.label}</span>
+                          <strong>{item.count}</strong>
                         </div>
                       ))}
                     </div>
-                  </article>
-                </div>
-              ) : (
-                <div className="repository-empty">
-                  <strong>No dashboard definitions attached yet.</strong>
-                  <button className="secondary-action-button" onClick={handleCreateDashboard} type="button">
-                    Create dashboard
-                  </button>
-                </div>
-              )}
-            </div>
-            <div aria-busy={isPending} className="phase-list">
-              {filteredPhases.map((phase) => (
-                <article className="phase-card" key={phase.id}>
-                  <div className="phase-heading">
-                    <h2>{phase.title}</h2>
-                    <span>{phase.timeline}</span>
                   </div>
-                  <p>{phase.summary}</p>
-                  <strong>{phase.exitGate}</strong>
-                </article>
-              ))}
-            </div>
-          </Panel>
-        </section>
-      </main>
+                </div>
+              </section>
+
+              <section className="monitor-grid">
+                <Panel className="rail-panel">
+                  <SectionTitle
+                    kicker="Discovery"
+                    title="Transport + worker modes"
+                    detail="Health endpoint now exposes realtime transport, durable backbone mode, consumer poll, and worker lanes."
+                  />
+                  <div className="inspector-stack">
+                    <div className="inspector-row">
+                      <strong>Repository backend</strong>
+                      <span>{workspaceData.health?.repositoryBackend ?? workspaceData.mode}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Realtime transport</strong>
+                      <span>{workspaceData.health?.realtimeTransport ?? "jsonrpc_websocket"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Event backbone</strong>
+                      <span>{workspaceData.health?.eventBackboneMode ?? "dual_write"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Consumer poll</strong>
+                      <span>{workspaceData.health?.eventConsumerPollMs ?? 250} ms</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Stream worker</strong>
+                      <span>{workspaceData.health?.streamWorkerMode ?? "inline"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>GPU worker</strong>
+                      <span>{workspaceData.health?.gpuWorkerMode ?? "process"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Event log entries</strong>
+                      <span>{workspaceData.health?.eventLogSize ?? 0}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Latest event sequence</strong>
+                      <span>{workspaceData.health?.latestEventSequence ?? 0}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Gateway cursor</strong>
+                      <span>{workspaceData.health?.gatewayConsumerCursor ?? 0}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Consumer lag</strong>
+                      <span>{workspaceData.health?.gatewayConsumerLag ?? 0}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Consumer catch-up</strong>
+                      <span>{workspaceData.health?.eventConsumerCatchupPercent ?? 0}%</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Active streams</strong>
+                      <span>{workspaceData.health?.activeStreamExecutions ?? 0}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Queued GPU executions</strong>
+                      <span>{workspaceData.health?.queuedGpuExecutions ?? 0}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Queued stream executions</strong>
+                      <span>{workspaceData.health?.queuedStreamExecutions ?? 0}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Active GPU executions</strong>
+                      <span>{workspaceData.health?.activeGpuExecutions ?? 0}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>GPU worker-owned executions</strong>
+                      <span>{workspaceData.health?.gpuWorkerOwnedExecutions ?? 0}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Total queued executions</strong>
+                      <span>{workspaceData.health?.queuedExecutionsTotal ?? 0}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Total running executions</strong>
+                      <span>{workspaceData.health?.runningExecutionsTotal ?? 0}</span>
+                    </div>
+                  </div>
+                </Panel>
+
+                <Panel className="rail-panel">
+                  <SectionTitle
+                    kicker="Executions"
+                    title="Active and recent runs"
+                    detail="Runtime evidence moved out of canvas and into dedicated monitor context."
+                  />
+                  <div className="rail-tabs" role="tablist" aria-label="Execution rail views">
+                    {executionTabs.map((tab) => (
+                      <button
+                        aria-selected={activeRail === tab}
+                        className={`rail-tab ${activeRail === tab ? "is-active" : ""}`}
+                        key={tab}
+                        onClick={() => {
+                          startTransition(() => {
+                            setActiveRail(tab);
+                          });
+                        }}
+                        role="tab"
+                        type="button"
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+                  {activeRail === "executions" ? (
+                    <div className="rail-list" role="tabpanel">
+                      {executionItems.map((item) => (
+                        <article className="rail-card" key={item.id}>
+                          <div className="rail-card-top">
+                            <strong>{item.id}</strong>
+                            <StatusBadge label={item.status} />
+                          </div>
+                          <p>{item.trigger}</p>
+                          <dl className="rail-metadata">
+                            <div>
+                              <dt>Started</dt>
+                              <dd>{item.startedAt}</dd>
+                            </div>
+                            <div>
+                              <dt>Duration</dt>
+                              <dd>{item.duration}</dd>
+                            </div>
+                            <div>
+                              <dt>Planner</dt>
+                              <dd>{item.planner}</dd>
+                            </div>
+                          </dl>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rail-list" role="tabpanel">
+                      {workspaceData.checkpoints.map((item) => (
+                        <article className="rail-card" key={item.tag}>
+                          <div className="rail-card-top">
+                            <strong>{item.tag}</strong>
+                            <span className={`checkpoint-state is-${item.state}`}>{item.state}</span>
+                          </div>
+                          <p>{item.scope}</p>
+                          <small>{item.evidence}</small>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </Panel>
+
+                <Panel className="phase-panel">
+                  <SectionTitle
+                    kicker="Published artifacts"
+                    title="Dashboards + extensions"
+                    detail="Artifact surfaces visible next to runtime so operators can trace publish and upgrade state."
+                  />
+                  <div className="route-card-list">
+                    {publishedDashboards.map((dashboard) => (
+                      <div className="route-list-item" key={dashboard.dashboardId}>
+                        <strong>{dashboard.name}</strong>
+                        <span>dashboard · v{dashboard.version} · {dashboard.visibility}</span>
+                      </div>
+                    ))}
+                    {hubExtensions.map((extension) => (
+                      <div className="route-list-item" key={extension.extensionId}>
+                        <strong>{extension.manifest.name}</strong>
+                        <span>{extension.installState} · {getHubUpgrade(extension).latestVersion}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              </section>
+            </section>
+          ) : null}
+
+          {activeView === "settings" ? (
+            <section className="workspace-main">
+              <section className="settings-grid">
+                <Panel className="rail-panel">
+                  <SectionTitle
+                    kicker="Platform"
+                    title="Connection + theme defaults"
+                    detail="Calmer token system, route shell, and discovery metadata now have one settings surface."
+                  />
+                  <div className="inspector-stack">
+                    <div className="inspector-row">
+                      <strong>Theme baseline</strong>
+                      <span>Calmer dark, light-ready tokens</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Publish default</strong>
+                      <span>{publishVisibility}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Realtime state</strong>
+                      <span>{realtimeConnectionState}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Current route</strong>
+                      <span>{buildViewPath(activeView)}</span>
+                    </div>
+                  </div>
+                </Panel>
+
+                <Panel className="phase-panel">
+                  <SectionTitle
+                    kicker="Roadmap"
+                    title="Program phases"
+                    detail="Roadmap remains available, but moved out of primary authoring surface."
+                  />
+                  <div aria-busy={isPending} className="phase-list">
+                    {filteredPhases.map((phase) => (
+                      <article className="phase-card" key={phase.id}>
+                        <div className="phase-heading">
+                          <h2>{phase.title}</h2>
+                          <span>{phase.timeline}</span>
+                        </div>
+                        <p>{phase.summary}</p>
+                        <strong>{phase.exitGate}</strong>
+                      </article>
+                    ))}
+                  </div>
+                  <div className="checkpoint-policy">
+                    <h2>Checkpoint policy</h2>
+                    <ul className="checkpoint-list">
+                      {milestoneCheckpoints.slice(0, 4).map((checkpoint) => (
+                        <li key={checkpoint.tag}>
+                          <strong>{checkpoint.tag}</strong>
+                          <span>{checkpoint.goal}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Panel>
+              </section>
+            </section>
+          ) : null}
+        </main>
+      </div>
     </div>
   );
 }

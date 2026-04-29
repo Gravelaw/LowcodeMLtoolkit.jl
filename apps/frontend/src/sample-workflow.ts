@@ -154,11 +154,11 @@ export const sampleWorkflow: WorkflowDefinition = {
         refreshMode: "live"
       },
       charts: [
-        { chartId: "chart-line", title: "Demand Trend", family: "line", xField: "horizon", yField: "demand" },
-        { chartId: "chart-bar", title: "Regional Mix", family: "bar", xField: "region", yField: "demand" },
-        { chartId: "chart-area", title: "Capacity Envelope", family: "area", xField: "horizon", yField: "capacity" },
-        { chartId: "chart-table", title: "Forecast Table", family: "table" },
-        { chartId: "chart-metric", title: "Latest RMSE", family: "metric", yField: "rmse" }
+        { chartId: "chart-line", title: "Demand Trend", family: "line", xField: "horizon", yField: "demand", panel: { x: 0, y: 0, w: 6, h: 4 } },
+        { chartId: "chart-bar", title: "Regional Mix", family: "bar", xField: "region", yField: "demand", panel: { x: 6, y: 0, w: 6, h: 4 } },
+        { chartId: "chart-area", title: "Capacity Envelope", family: "area", xField: "horizon", yField: "capacity", panel: { x: 0, y: 4, w: 6, h: 4 } },
+        { chartId: "chart-table", title: "Forecast Table", family: "table", panel: { x: 6, y: 4, w: 6, h: 4 } },
+        { chartId: "chart-metric", title: "Latest RMSE", family: "metric", yField: "rmse", panel: { x: 0, y: 8, w: 3, h: 2 } }
       ]
     }
   ]

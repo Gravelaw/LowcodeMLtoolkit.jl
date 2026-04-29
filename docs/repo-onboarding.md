@@ -18,8 +18,8 @@ This repo is already beyond bare scaffold. It is in `cp/02-alpha-core` according
 ## Mental Model
 
 User edits flow in frontend.
-Frontend talks to gateway over REST now, JSON-RPC/realtime path prepared.
-Gateway stores workflows and execution/checkpoint records.
+Frontend talks to gateway over REST and live JSON-RPC/WebSocket realtime when gateway is configured.
+Gateway stores workflows, executions, checkpoints, and Hub extension records.
 Execution service parses TOML workflow, validates DAG, builds execution plan/stages, and emits execution record.
 Node SDK defines stable node contract.
 Extension packs provide actual node implementations.
@@ -36,6 +36,8 @@ Extension packs provide actual node implementations.
   Julia HTTP gateway and repository adapters
 - `services/execution-service/`
   Julia workflow parser, validator, planner, execution record logic
+- `services/worker-service/`
+  Julia worker-lane lifecycle service for streaming and GPU dispatch orchestration
 - `services/node-sdk/`
   Julia node contract and runtime types
 - `extensions/base/`
@@ -88,13 +90,23 @@ Current status:
 - inspector config editable
 - save/update loop wired
 - run loop wired
+- manual connection editing exists
+- drag/drop node positioning exists
+- realtime subscription wiring exists
+- dashboard v0 and Hub v0 shells exist
+- BI publish/share flow exists, including published viewer state, share token reads, workspace-token reads, chart-data fetch, live refresh, and CSV export
+- dedicated stream and GPU worker paths exist via `services/worker-service/`, `scripts/run-stream-worker.jl`, and `scripts/run-gpu-worker.jl`
+- durable multi-process event backbone thin slice exists with persisted event log, consumer cursor, and gateway event replay
+- base extension now includes a 25-node Tier-1 pack with real inline-row and external-ref materialization seams
 
 Still missing:
 
-- true drag/drop placement
-- manual connection authoring/removal
-- realtime subscription wiring
-- richer durable graph model
+- deeper BI drilldown/viewer polish
+- production Arrow/DataFrames object-storage execution depth and broader node-library scale-up
+- production OIDC/JWT/RBAC hardening and persisted policy/audit model
+- Kafka/NATS streaming adapters, replay, and exactly-once proof
+- real CUDA/KernelAbstractions GPU execution path and multi-GPU scheduling
+- Hub publish/install hardening beyond current trust and compatibility shell
 
 ## Contracts Layer
 
@@ -141,8 +153,23 @@ Important rule:
 - execution plan generation
 - parallel stage generation
 - execution lifecycle/status history records
+- graph, dashboard, and runtime models
+- resource and dispatch plan generation
 
 Current execution shape is CPU-first, with GPU hints already modeled.
+
+### Worker Service
+
+`services/worker-service/` now owns:
+
+- streaming lane activation and lifecycle state transitions
+- GPU lane queue activation and worker metadata stamping
+- GPU lane worker promotion from queued to running
+- active stream execution lookup/state tracking for worker-owned lanes
+
+Gateway still owns persistence and realtime fan-out around those worker-service actions.
+For out-of-process streaming experiments, set `JULIAFLOW_STREAM_WORKER_MODE=process` on gateway and run `scripts/run-stream-worker.jl` against same store/backend.
+For GPU worker experiments, run `scripts/run-gpu-worker.jl` against same backend/store. Gateway event consumer will rebroadcast worker-driven GPU status changes when event backbone is enabled.
 
 ### API Gateway
 
@@ -153,7 +180,11 @@ Current execution shape is CPU-first, with GPU hints already modeled.
 - workflow execute
 - execution list/detail/status transition
 - checkpoint list/create
+- Hub extension list/install
 - realtime socket entrypoint
+
+Gateway now delegates stream/GPU worker lifecycle transitions through `services/worker-service/` instead of owning those transitions inline.
+Gateway also consumes persisted durable events so out-of-process worker changes can be rebroadcast to subscribed realtime clients.
 
 Persistence:
 
@@ -267,27 +298,34 @@ Per tracker and checkpoint log:
 - foundation done
 - contract freeze done
 - alpha-core in progress
+- BRD gap review current as of 2026-04-24
 
 Already working:
 
 - monorepo structure
-- contracts
-- gateway CRUD/execute/checkpoints
-- execution planning
-- frontend authoring shell
-- starter extension pack
-- test suites
+- shared contracts/OpenAPI/JSON-RPC schema surfaces
+- gateway CRUD/execute/checkpoints/realtime routes
+- file and PostgreSQL-ready repository paths
+- durable event-log thin slice and gateway consumer fan-out
+- execution planning with CPU/GPU resource/dispatch metadata
+- route-based frontend shell with Canvas, Dashboard, Hub, Monitor, Settings
+- dashboard draft/publish/view/share thin path
+- Hub compatibility/trust/upgrade thin path
+- stream/GPU worker lifecycle queue/promote scripts
+- starter extension pack and tests
 
 Big gaps still open:
 
-- realtime frontend sync
-- connection authoring UX
-- drag/drop placement
-- BI dashboard v0
-- streaming MVP
-- GPU runtime lane
-- Hub v0
+- base node pack real behavior and breadth toward BRD Phase 1 node target
+- BI chart-data service, semantic layer, live data binding, and richer access/export
+- Auth/RBAC/JWT/OIDC resource permission model
+- true streaming adapter/window/checkpoint/backpressure runtime
+- actual GPU compute execution path beyond dispatch metadata
+- Hub publish/search/rate UX, hash-verified install, compatibility sandbox, private mirror
+- components/metanodes and control-flow nodes
+- observability/performance/coverage gates and production deploy manifests
 
-## Known Repo Hygiene Gap
+See:
 
-`AGENTS.md` still describes repo as minimal and no-app-source-tree. That no longer matches reality. Update that file before relying on it as current structure guide.
+- `docs/TODO.md`
+- `.omx/plans/brd-gap-review-2026-04-24.md`

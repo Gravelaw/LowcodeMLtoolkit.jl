@@ -3,7 +3,7 @@
   "info": {
     "title": "JuliaFlow API",
     "version": "0.1.0",
-    "description": "Foundation REST surface for workflow persistence, execution control, checkpoint metadata, and file-backed gateway import."
+    "description": "Alpha-core REST surface for workflow persistence, execution control, checkpoints, hub extension management, and realtime bootstrap."
   },
   "paths": {
     "/health": {
@@ -11,7 +11,14 @@
         "summary": "Gateway healthcheck",
         "responses": {
           "200": {
-            "description": "Gateway health and store summary"
+            "description": "Gateway health and store summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayHealthcheck"
+                }
+              }
+            }
           }
         }
       }
@@ -21,36 +28,49 @@
         "summary": "List workflows",
         "responses": {
           "200": {
-            "description": "Workflow summaries"
+            "description": "Workflow summaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowSummaryListResponse"
+                }
+              }
+            }
           }
         }
       },
       "post": {
-        "summary": "Create workflow from TOML payload",
+        "summary": "Create workflow from TOML or contract-first JSON payload",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "workflowToml"
-                ],
-                "properties": {
-                  "workflowToml": {
-                    "type": "string"
-                  }
-                }
+                "$ref": "#/components/schemas/CreateWorkflowRequest"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Workflow created and persisted"
+            "description": "Workflow created and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateWorkflowResponse"
+                }
+              }
+            }
           },
           "400": {
-            "description": "Invalid create payload"
+            "description": "Invalid create payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
           }
         }
       }
@@ -63,25 +83,31 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "sourcePath"
-                ],
-                "properties": {
-                  "sourcePath": {
-                    "type": "string"
-                  }
-                }
+                "$ref": "#/components/schemas/ImportWorkflowRequest"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Workflow imported and persisted"
+            "description": "Workflow imported and persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportWorkflowResponse"
+                }
+              }
+            }
           },
           "400": {
-            "description": "Invalid import payload"
+            "description": "Invalid import payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
           }
         }
       }
@@ -91,33 +117,37 @@
         "summary": "Get workflow details",
         "parameters": [
           {
-            "name": "workflowId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/WorkflowId"
           }
         ],
         "responses": {
           "200": {
-            "description": "Workflow details"
+            "description": "Workflow details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowDetail"
+                }
+              }
+            }
           },
           "500": {
-            "description": "Workflow not found or failed"
+            "description": "Workflow not found or failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
           }
         }
       },
       "put": {
-        "summary": "Update workflow from TOML payload",
+        "summary": "Update workflow from TOML or contract-first JSON payload",
         "parameters": [
           {
-            "name": "workflowId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/WorkflowId"
           }
         ],
         "requestBody": {
@@ -125,51 +155,83 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "workflowToml"
-                ],
-                "properties": {
-                  "workflowToml": {
-                    "type": "string"
-                  }
-                }
+                "$ref": "#/components/schemas/CreateWorkflowRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Workflow updated"
+            "description": "Workflow updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateWorkflowResponse"
+                }
+              }
+            }
           },
           "400": {
-            "description": "Invalid update payload"
+            "description": "Invalid update payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
           },
           "500": {
-            "description": "Workflow id mismatch or update failed"
+            "description": "Workflow id mismatch or update failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/v1/workflows/{workflowId}/execute": {
       "post": {
-        "summary": "Execute workflow",
+        "summary": "Execute workflow with optional runtime overrides",
         "parameters": [
           {
-            "name": "workflowId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/WorkflowId"
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteWorkflowRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "202": {
-            "description": "Execution accepted"
+            "description": "Execution accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayExecutionRecord"
+                }
+              }
+            }
           },
           "500": {
-            "description": "Workflow not found or execution failed"
+            "description": "Workflow not found or execution failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
           }
         }
       }
@@ -179,7 +241,14 @@
         "summary": "List persisted execution jobs",
         "responses": {
           "200": {
-            "description": "Execution job records"
+            "description": "Execution job records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionListResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -189,20 +258,29 @@
         "summary": "Get execution job details",
         "parameters": [
           {
-            "name": "executionId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ExecutionId"
           }
         ],
         "responses": {
           "200": {
-            "description": "Execution job details"
+            "description": "Execution job details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayExecutionRecord"
+                }
+              }
+            }
           },
           "500": {
-            "description": "Execution not found"
+            "description": "Execution not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
           }
         }
       }
@@ -212,12 +290,7 @@
         "summary": "Transition execution job status",
         "parameters": [
           {
-            "name": "executionId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ExecutionId"
           }
         ],
         "requestBody": {
@@ -225,42 +298,41 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "status"
-                ],
-                "properties": {
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "accepted",
-                      "queued",
-                      "running",
-                      "completed",
-                      "failed"
-                    ]
-                  },
-                  "message": {
-                    "type": "string"
-                  },
-                  "metadata": {
-                    "type": "object",
-                    "additionalProperties": true
-                  }
-                }
+                "$ref": "#/components/schemas/TransitionExecutionStatusRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Execution status updated"
+            "description": "Execution status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayExecutionRecord"
+                }
+              }
+            }
           },
           "400": {
-            "description": "Invalid status transition payload"
+            "description": "Invalid status transition payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
           },
           "500": {
-            "description": "Execution not found or transition failed"
+            "description": "Execution not found or transition failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
           }
         }
       }
@@ -270,7 +342,14 @@
         "summary": "List checkpoint records",
         "responses": {
           "200": {
-            "description": "Checkpoint records"
+            "description": "Checkpoint records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckpointListResponse"
+                }
+              }
+            }
           }
         }
       },
@@ -281,29 +360,1754 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "tag",
-                  "summary"
-                ],
-                "properties": {
-                  "tag": {
-                    "type": "string"
-                  },
-                  "summary": {
-                    "type": "string"
-                  }
-                }
+                "$ref": "#/components/schemas/CreateCheckpointRequest"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Checkpoint created"
+            "description": "Checkpoint created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateCheckpointResponse"
+                }
+              }
+            }
           },
           "400": {
-            "description": "Invalid checkpoint payload"
+            "description": "Invalid checkpoint payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboards/{dashboardId}": {
+      "get": {
+        "summary": "Get published dashboard snapshot",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DashboardId"
+          },
+          {
+            "$ref": "#/components/parameters/DashboardShareToken"
+          },
+          {
+            "$ref": "#/components/parameters/DashboardWorkspaceToken"
+          },
+          {
+            "$ref": "#/components/parameters/DashboardAuthorizationHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published dashboard artifact",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedDashboard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}/dashboards/{dashboardId}/publish": {
+      "post": {
+        "summary": "Publish workflow-bound dashboard snapshot",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          },
+          {
+            "$ref": "#/components/parameters/DashboardId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published dashboard snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardPublishResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardPublishRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hub/extensions": {
+      "get": {
+        "summary": "List Hub extension catalog records",
+        "responses": {
+          "200": {
+            "description": "Hub extension catalog items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubExtensionListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hub/extensions/register": {
+      "post": {
+        "summary": "Register Hub extension manifest",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HubRegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Hub extension registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubRegisterResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Hub extension registration failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hub/extensions/{extensionId}/install": {
+      "post": {
+        "summary": "Install or enable Hub extension",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ExtensionId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HubInstallRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Hub extension state updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubInstallResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Hub extension not found or update failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}/dashboards": {
+      "get": {
+        "summary": "List published dashboards for workflow",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published dashboards for workflow",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedDashboardListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboards/{dashboardId}/charts/{chartId}/data": {
+      "get": {
+        "summary": "Get chart-ready data for a published dashboard chart",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DashboardId"
+          },
+          {
+            "name": "chartId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/DashboardShareToken"
+          },
+          {
+            "$ref": "#/components/parameters/DashboardWorkspaceToken"
+          },
+          {
+            "$ref": "#/components/parameters/DashboardAuthorizationHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chart-ready published dashboard data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardChartDataResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboards/{dashboardId}/charts/{chartId}/export.csv": {
+      "get": {
+        "summary": "Export published dashboard chart data as CSV",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DashboardId"
+          },
+          {
+            "name": "chartId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/DashboardShareToken"
+          },
+          {
+            "$ref": "#/components/parameters/DashboardWorkspaceToken"
+          },
+          {
+            "$ref": "#/components/parameters/DashboardAuthorizationHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV chart data export",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "WorkflowId": {
+        "name": "workflowId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ExecutionId": {
+        "name": "executionId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ExtensionId": {
+        "name": "extensionId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DashboardId": {
+        "name": "dashboardId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DashboardShareToken": {
+        "name": "shareToken",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DashboardWorkspaceToken": {
+        "name": "workspaceToken",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DashboardAuthorizationHeader": {
+        "name": "Authorization",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "GatewayErrorPayload": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "GatewayHealthcheck": {
+        "type": "object",
+        "required": [
+          "service",
+          "status",
+          "repositoryBackend",
+          "storeRoot",
+          "workflowCount",
+          "checkpointCount",
+          "executionCount",
+          "realtimeTransport",
+          "eventBackboneMode",
+          "eventConsumerPollMs",
+          "streamWorkerMode",
+          "gpuWorkerMode",
+          "eventLogSize",
+          "latestEventSequence",
+          "gatewayConsumerCursor",
+          "gatewayConsumerLag",
+          "eventConsumerCatchupPercent",
+          "activeStreamExecutions",
+          "queuedGpuExecutions",
+          "queuedStreamExecutions",
+          "activeGpuExecutions",
+          "gpuWorkerOwnedExecutions",
+          "queuedExecutionsTotal",
+          "runningExecutionsTotal",
+          "gpuRegistryDeviceCount",
+          "gpuFallbackAvailable"
+        ],
+        "properties": {
+          "service": {
+            "type": "string",
+            "const": "api-gateway"
+          },
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "repositoryBackend": {
+            "type": "string"
+          },
+          "storeRoot": {
+            "type": "string"
+          },
+          "workflowCount": {
+            "type": "integer"
+          },
+          "checkpointCount": {
+            "type": "integer"
+          },
+          "executionCount": {
+            "type": "integer"
+          },
+          "realtimeTransport": {
+            "type": "string",
+            "const": "jsonrpc_websocket"
+          },
+          "eventBackboneMode": {
+            "type": "string",
+            "enum": [
+              "dual_write",
+              "consume"
+            ]
+          },
+          "eventConsumerPollMs": {
+            "type": "integer"
+          },
+          "streamWorkerMode": {
+            "type": "string",
+            "enum": [
+              "inline",
+              "process"
+            ]
+          },
+          "gpuWorkerMode": {
+            "type": "string",
+            "enum": [
+              "process",
+              "disabled"
+            ]
+          },
+          "eventLogSize": {
+            "type": "integer"
+          },
+          "latestEventSequence": {
+            "type": "integer"
+          },
+          "gatewayConsumerCursor": {
+            "type": "integer"
+          },
+          "gatewayConsumerLag": {
+            "type": "integer"
+          },
+          "eventConsumerCatchupPercent": {
+            "type": "integer"
+          },
+          "activeStreamExecutions": {
+            "type": "integer"
+          },
+          "queuedGpuExecutions": {
+            "type": "integer"
+          },
+          "queuedStreamExecutions": {
+            "type": "integer"
+          },
+          "activeGpuExecutions": {
+            "type": "integer"
+          },
+          "gpuWorkerOwnedExecutions": {
+            "type": "integer"
+          },
+          "queuedExecutionsTotal": {
+            "type": "integer"
+          },
+          "runningExecutionsTotal": {
+            "type": "integer"
+          },
+          "authMode": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "dev_token",
+              "required",
+              "dev_fallback"
+            ]
+          },
+          "authDevFallback": {
+            "type": "boolean"
+          },
+          "gpuRegistryDeviceCount": {
+            "type": "integer"
+          },
+          "gpuFallbackAvailable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GatewayExecutionStatus": {
+        "type": "string",
+        "enum": [
+          "accepted",
+          "queued",
+          "running",
+          "completed",
+          "failed"
+        ]
+      },
+      "WorkflowSummary": {
+        "type": "object",
+        "required": [
+          "workflowId",
+          "name",
+          "version",
+          "nodeCount",
+          "latestCheckpoint"
+        ],
+        "properties": {
+          "workflowId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "nodeCount": {
+            "type": "integer"
+          },
+          "latestCheckpoint": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkflowSummaryListResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowSummary"
+            }
+          }
+        }
+      },
+      "CreateWorkflowRequest": {
+        "type": "object",
+        "properties": {
+          "workflowToml": {
+            "type": "string"
+          },
+          "workflow": {
+            "type": "object",
+            "required": [
+              "workflowId",
+              "name",
+              "version",
+              "nodes",
+              "connections",
+              "flowVariables"
+            ],
+            "properties": {
+              "workflowId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "nodes": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "connections": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "flowVariables": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "graph": {
+                "type": "object"
+              },
+              "dashboards": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "runtime": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "workflowToml"
+            ]
+          },
+          {
+            "required": [
+              "workflow"
+            ]
+          }
+        ]
+      },
+      "CreateWorkflowResponse": {
+        "type": "object",
+        "required": [
+          "workflowId",
+          "name",
+          "version",
+          "status"
+        ],
+        "properties": {
+          "workflowId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "const": "created"
+          }
+        }
+      },
+      "UpdateWorkflowResponse": {
+        "type": "object",
+        "required": [
+          "workflowId",
+          "name",
+          "version",
+          "status"
+        ],
+        "properties": {
+          "workflowId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "const": "updated"
+          }
+        }
+      },
+      "ImportWorkflowRequest": {
+        "type": "object",
+        "required": [
+          "sourcePath"
+        ],
+        "properties": {
+          "sourcePath": {
+            "type": "string"
+          }
+        }
+      },
+      "ImportWorkflowResponse": {
+        "type": "object",
+        "required": [
+          "workflowId",
+          "name",
+          "persistedPath"
+        ],
+        "properties": {
+          "workflowId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "persistedPath": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkflowDetail": {
+        "type": "object",
+        "required": [
+          "workflowId",
+          "name",
+          "version",
+          "nodeCount",
+          "connectionCount",
+          "flowVariableCount",
+          "biOutletCount",
+          "dashboardCount",
+          "runMode",
+          "nodes",
+          "connections",
+          "flowVariables",
+          "biOutlets",
+          "runtime"
+        ],
+        "properties": {
+          "workflowId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "nodeCount": {
+            "type": "integer"
+          },
+          "connectionCount": {
+            "type": "integer"
+          },
+          "flowVariableCount": {
+            "type": "integer"
+          },
+          "biOutletCount": {
+            "type": "integer"
+          },
+          "dashboardCount": {
+            "type": "integer"
+          },
+          "graphRevision": {
+            "type": "integer"
+          },
+          "runMode": {
+            "type": "string",
+            "enum": [
+              "batch",
+              "stream"
+            ]
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "connections": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "flowVariables": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "biOutlets": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "graph": {
+            "type": "object"
+          },
+          "dashboards": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "runtime": {
+            "type": "object"
+          }
+        }
+      },
+      "DashboardPanel": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "w",
+          "h"
+        ],
+        "properties": {
+          "x": {
+            "type": "integer"
+          },
+          "y": {
+            "type": "integer"
+          },
+          "w": {
+            "type": "integer"
+          },
+          "h": {
+            "type": "integer"
+          }
+        }
+      },
+      "DashboardChart": {
+        "type": "object",
+        "required": [
+          "chartId",
+          "title",
+          "family"
+        ],
+        "properties": {
+          "chartId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "family": {
+            "type": "string"
+          },
+          "xField": {
+            "type": "string"
+          },
+          "yField": {
+            "type": "string"
+          },
+          "seriesField": {
+            "type": "string"
+          },
+          "panel": {
+            "$ref": "#/components/schemas/DashboardPanel"
+          }
+        }
+      },
+      "PublishedDashboard": {
+        "type": "object",
+        "required": [
+          "dashboardId",
+          "workflowId",
+          "name",
+          "version",
+          "publishedAt",
+          "visibility",
+          "binding",
+          "charts"
+        ],
+        "properties": {
+          "dashboardId": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "publishedAt": {
+            "type": "string"
+          },
+          "binding": {
+            "type": "object"
+          },
+          "charts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardChart"
+            }
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "workspace",
+              "public"
+            ]
+          },
+          "shareToken": {
+            "type": "string"
+          },
+          "datasets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/DashboardDatasetRow"
+              }
+            }
+          }
+        }
+      },
+      "DashboardPublishResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "dashboard"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "dashboard": {
+            "$ref": "#/components/schemas/PublishedDashboard"
+          }
+        }
+      },
+      "ExecuteWorkflowRequest": {
+        "type": "object",
+        "properties": {
+          "executionMode": {
+            "type": "string",
+            "enum": [
+              "batch",
+              "stream"
+            ]
+          },
+          "flowVariables": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ExecutionStatusEvent": {
+        "type": "object",
+        "required": [
+          "status",
+          "at"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/GatewayExecutionStatus"
+          },
+          "at": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "GatewayExecutionRecord": {
+        "type": "object",
+        "required": [
+          "executionId",
+          "workflowId",
+          "workflowVersion",
+          "checkpointTag",
+          "status",
+          "mode",
+          "plan",
+          "stages",
+          "nodeCount",
+          "connectionCount",
+          "createdAt",
+          "updatedAt",
+          "statusHistory"
+        ],
+        "properties": {
+          "executionId": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "workflowVersion": {
+            "type": "string"
+          },
+          "checkpointTag": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GatewayExecutionStatus"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "nodeCount": {
+            "type": "integer"
+          },
+          "connectionCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "statusHistory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExecutionStatusEvent"
+            }
+          },
+          "queuedAt": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "finishedAt": {
+            "type": "string"
+          },
+          "resourcePlan": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "dispatchPlan": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "dispatchLane": {
+            "type": "string"
+          },
+          "dispatchWorkerPool": {
+            "type": "string"
+          },
+          "dispatchIsolationMode": {
+            "type": "string"
+          },
+          "dispatchAccelerator": {
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "streamLifecycleStatus": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "starting",
+              "active",
+              "paused",
+              "stopped"
+            ]
+          },
+          "streamAdapter": {
+            "type": "string"
+          },
+          "streamProcessedOffset": {
+            "type": "integer"
+          },
+          "streamProcessedRows": {
+            "type": "integer"
+          },
+          "streamBatchCount": {
+            "type": "integer"
+          },
+          "streamConsumerLag": {
+            "type": "integer"
+          },
+          "streamBackpressure": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "lagging"
+            ]
+          },
+          "streamWatermark": {
+            "type": "integer"
+          },
+          "streamWindowState": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "streamLastCheckpointId": {
+            "type": "string"
+          },
+          "streamCheckpointOffsets": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "gpuExecutionPath": {
+            "type": "string",
+            "enum": [
+              "gpu",
+              "cpu_fallback"
+            ]
+          },
+          "gpuDeviceId": {
+            "type": "string"
+          },
+          "gpuAccelerator": {
+            "type": "string"
+          },
+          "gpuVendor": {
+            "type": "string"
+          },
+          "gpuFallbackUsed": {
+            "type": "boolean"
+          },
+          "gpuWorkload": {
+            "type": "string"
+          },
+          "gpuWorkloadResult": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "gpuRegistry": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      },
+      "ExecutionListResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayExecutionRecord"
+            }
+          }
+        }
+      },
+      "TransitionExecutionStatusRequest": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/GatewayExecutionStatus"
+          },
+          "message": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "CheckpointRecord": {
+        "type": "object",
+        "required": [
+          "tag",
+          "summary",
+          "createdAt"
+        ],
+        "properties": {
+          "tag": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "CheckpointListResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckpointRecord"
+            }
+          }
+        }
+      },
+      "CreateCheckpointRequest": {
+        "type": "object",
+        "required": [
+          "tag",
+          "summary"
+        ],
+        "properties": {
+          "tag": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateCheckpointResponse": {
+        "type": "object",
+        "required": [
+          "checkpoint",
+          "checkpointCount"
+        ],
+        "properties": {
+          "checkpoint": {
+            "$ref": "#/components/schemas/CheckpointRecord"
+          },
+          "checkpointCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "HubExtensionRecord": {
+        "type": "object",
+        "required": [
+          "extensionId",
+          "manifest",
+          "installState",
+          "compatibility",
+          "trust",
+          "upgrade"
+        ],
+        "properties": {
+          "extensionId": {
+            "type": "string"
+          },
+          "manifest": {
+            "type": "object",
+            "required": [
+              "extensionId",
+              "name",
+              "version",
+              "publisher",
+              "summary",
+              "packageRef",
+              "tags",
+              "engineCompatibility",
+              "requiredContractVersion",
+              "supportedCheckpoints",
+              "dependencies",
+              "publisherIdentity",
+              "compatibleCheckpoints"
+            ],
+            "properties": {
+              "extensionId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "publisher": {
+                "type": "string",
+                "enum": [
+                  "official",
+                  "partner"
+                ]
+              },
+              "summary": {
+                "type": "string"
+              },
+              "packageRef": {
+                "type": "string"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "engineCompatibility": {
+                "type": "string"
+              },
+              "requiredContractVersion": {
+                "type": "string"
+              },
+              "supportedCheckpoints": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "compatibleCheckpoints": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "dependencies": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "publisherIdentity": {
+                "type": "string"
+              },
+              "signature": {
+                "type": "string"
+              },
+              "releaseNotesRef": {
+                "type": "string"
+              }
+            }
+          },
+          "installState": {
+            "type": "string",
+            "enum": [
+              "available",
+              "installed",
+              "enabled",
+              "disabled",
+              "upgrade_available",
+              "incompatible"
+            ]
+          },
+          "compatibility": {
+            "$ref": "#/components/schemas/HubCompatibilityResult"
+          },
+          "installedAt": {
+            "type": "string"
+          },
+          "enabledAt": {
+            "type": "string"
+          },
+          "trust": {
+            "$ref": "#/components/schemas/HubTrustResult"
+          },
+          "upgrade": {
+            "$ref": "#/components/schemas/HubUpgradeInfo"
+          },
+          "installedVersion": {
+            "type": "string"
+          }
+        }
+      },
+      "HubExtensionListResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubExtensionRecord"
+            }
+          }
+        }
+      },
+      "HubInstallRequest": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "install",
+              "enable",
+              "disable",
+              "upgrade"
+            ]
+          }
+        }
+      },
+      "HubCompatibilityResult": {
+        "type": "object",
+        "required": [
+          "compatible",
+          "warnings",
+          "blockers",
+          "evaluatedAt"
+        ],
+        "properties": {
+          "compatible": {
+            "type": "boolean"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evaluatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "HubRegisterRequest": {
+        "type": "object",
+        "required": [
+          "manifest"
+        ],
+        "properties": {
+          "manifest": {
+            "$ref": "#/components/schemas/HubExtensionRecord/properties/manifest"
+          }
+        }
+      },
+      "HubInstallResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "extension"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "extension": {
+            "$ref": "#/components/schemas/HubExtensionRecord"
+          }
+        }
+      },
+      "HubRegisterResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "extension"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "extension": {
+            "$ref": "#/components/schemas/HubExtensionRecord"
+          }
+        }
+      },
+      "PublishedDashboardListResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublishedDashboard"
+            }
+          }
+        }
+      },
+      "DashboardPublishRequest": {
+        "type": "object",
+        "properties": {
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "workspace",
+              "public"
+            ]
+          }
+        }
+      },
+      "HubTrustResult": {
+        "type": "object",
+        "required": [
+          "trusted",
+          "level",
+          "warnings",
+          "blockers",
+          "evaluatedAt"
+        ],
+        "properties": {
+          "trusted": {
+            "type": "boolean"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "official",
+              "partner_verified",
+              "untrusted"
+            ]
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evaluatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "HubUpgradeInfo": {
+        "type": "object",
+        "required": [
+          "upgradeAvailable",
+          "latestVersion",
+          "evaluatedAt"
+        ],
+        "properties": {
+          "upgradeAvailable": {
+            "type": "boolean"
+          },
+          "installedVersion": {
+            "type": "string"
+          },
+          "latestVersion": {
+            "type": "string"
+          },
+          "targetVersion": {
+            "type": "string"
+          },
+          "evaluatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "DashboardChartDataResponse": {
+        "type": "object",
+        "required": [
+          "dashboardId",
+          "chartId",
+          "datasetKey",
+          "family",
+          "fields",
+          "rows",
+          "rowCount",
+          "refreshedAt",
+          "semantic",
+          "cache",
+          "exportFormats"
+        ],
+        "properties": {
+          "dashboardId": {
+            "type": "string"
+          },
+          "chartId": {
+            "type": "string"
+          },
+          "datasetKey": {
+            "type": "string"
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "line",
+              "bar",
+              "area",
+              "table",
+              "metric"
+            ]
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardDatasetRow"
+            }
+          },
+          "rowCount": {
+            "type": "integer"
+          },
+          "refreshedAt": {
+            "type": "string"
+          },
+          "semantic": {
+            "$ref": "#/components/schemas/DashboardChartSemantic"
+          },
+          "cache": {
+            "$ref": "#/components/schemas/DashboardChartCache"
+          },
+          "exportFormats": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          }
+        }
+      },
+      "GatewayAuthContext": {
+        "type": "object",
+        "required": [
+          "principalId",
+          "workspaceId",
+          "role",
+          "mode",
+          "permissions"
+        ],
+        "properties": {
+          "principalId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "dev_token",
+              "required",
+              "dev_fallback"
+            ]
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DashboardDatasetRow": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "DashboardChartSemantic": {
+        "type": "object",
+        "required": [
+          "dimensions",
+          "measures",
+          "xField",
+          "yField",
+          "availableDimensions",
+          "availableMeasures"
+        ],
+        "properties": {
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "measures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "xField": {
+            "type": "string"
+          },
+          "yField": {
+            "type": "string"
+          },
+          "seriesField": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "availableDimensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "availableMeasures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DashboardChartCache": {
+        "type": "object",
+        "required": [
+          "cacheKey",
+          "sourceVersion",
+          "snapshotAt",
+          "refreshMode",
+          "live",
+          "stale"
+        ],
+        "properties": {
+          "cacheKey": {
+            "type": "string"
+          },
+          "sourceVersion": {
+            "type": "integer"
+          },
+          "snapshotAt": {
+            "type": "string"
+          },
+          "refreshMode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "live"
+            ]
+          },
+          "live": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
           }
         }
       }

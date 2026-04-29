@@ -103,6 +103,13 @@ Requirements:
 - keep technical accuracy intact while reducing filler
 - if the caveman skill is unavailable in a session, fall back to the closest concise style possible and note that briefly only when needed
 
+
+### Session Learnings To Keep
+
+- For scoped repo-local implementation slices, prefer medium reasoning by default; reserve high/frontier reasoning for security-sensitive work, distributed guarantees (for example exactly-once/Kafka/OIDC), or multi-system architecture tradeoffs.
+- For general code generation, test updates, and contract plumbing in this repo, `gpt-5.4-mini` is usually sufficient unless the slice is architecture-heavy or unusually ambiguous.
+- When smoke-testing long-running worker scripts such as `scripts/run-gpu-worker.jl` or `scripts/run-stream-worker.jl`, set `JULIAFLOW_WORKER_ONCE=1` (or equivalent bounded mode) so verification does not hang the session.
+
 Useful docs:
 - `README.md`
 - `docs/architecture.md`
@@ -115,6 +122,31 @@ Important repo constraints:
 - Inter-node payload boundary is Arrow IPC only
 - API gateway currently offers working file-backed persistence and PostgreSQL-ready repository path
 - Realtime/frontend sync and richer graph editing are still in-progress alpha areas
+
+
+## JuliaFlow End-Goal Delivery Rules
+
+JuliaFlow end goal is the BRD-defined visual low-code analytics platform: Julia-native workflow canvas, Arrow IPC node boundary, CPU/GPU execution, batch/stream processing, integrated BI, governed Hub, and production security/deployment hardening. Treat `JuliaFlow_BRD_v1.0.docx`, `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md` as the end-goal control set.
+
+Before any meaningful implementation:
+
+1. Read `docs/project-tracker.md`, latest `docs/checkpoint-log.md`, `docs/TODO.md`, and `docs/brd-traceability.md`.
+2. Identify the active BRD gap and target stage before editing.
+3. Prefer the current P0 order unless the user says otherwise:
+   - production Arrow/DataFrames object-storage materialization and node scale-up
+   - deeper BI drilldown/viewer/export polish
+   - production OIDC/JWT/RBAC and persisted policy/audit query surfaces
+   - production streaming adapters/replay/exactly-once hardening
+   - production CUDA/KernelAbstractions and multi-GPU hardening
+4. For broad BRD/P0 work, use the configured frontier model where available (currently GPT-5.5) for planning, architecture review, and validation.
+5. Preserve the thin-slice strategy: keep existing dev/demo fallbacks while adding production-depth paths behind explicit seams and tests.
+
+Completion rules for any milestone claim:
+
+- Do not mark `docs/TODO.md` P0/P1 items complete unless `docs/brd-traceability.md` links code/doc evidence and test/verification evidence.
+- Run `npm run validate:brd-traceability` after changing TODO or BRD traceability state.
+- Keep `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, `docs/checkpoint-log.md`, README/onboarding docs, contracts, OpenAPI, Julia code, frontend code, and tests synchronized for the touched scope.
+- After a meaningful work block, update tracker and checkpoint with the three mandatory fields: work done till date, gaps pending, next items to implement.
 
 ## Tracker And Checkpoint Rule
 

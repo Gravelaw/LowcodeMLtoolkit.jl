@@ -33,21 +33,40 @@ services:
     ports:
       - "9092:9092"
   gpu-worker:
-    image: julia:1.11
+    image: julia:1.12
     profiles:
       - gpu
     command:
       - bash
       - -lc
       - |
-        echo "JuliaFlow GPU worker profile ready for isolated lane dispatch"
-        sleep infinity
+        julia --project=. scripts/run-gpu-worker.jl
+    working_dir: /workspace
+    volumes:
+      - ../..:/workspace
     environment:
       JULIAFLOW_WORKER_LANE: gpu
       JULIAFLOW_WORKER_POOL: alpha-gpu
       JULIAFLOW_ACCELERATOR: cuda
+      JULIAFLOW_GATEWAY_BACKEND: file
+      JULIAFLOW_STORE_ROOT: /workspace/tmp/gateway-store
+      JULIAFLOW_GPU_WORKER_POLL_MS: 1000
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
+  stream-worker:
+    image: julia:1.12
+    command:
+      - bash
+      - -lc
+      - |
+        julia --project=. scripts/run-stream-worker.jl
+    working_dir: /workspace
+    volumes:
+      - ../..:/workspace
+    environment:
+      JULIAFLOW_GATEWAY_BACKEND: file
+      JULIAFLOW_STORE_ROOT: /workspace/tmp/gateway-store
+      JULIAFLOW_STREAM_WORKER_POLL_MS: 1000
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
     command: start-dev

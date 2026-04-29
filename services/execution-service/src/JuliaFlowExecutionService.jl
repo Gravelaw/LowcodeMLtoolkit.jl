@@ -12,6 +12,7 @@ export WorkflowNode,
     WorkflowNodeLayout,
     WorkflowGraph,
     DashboardBinding,
+    DashboardPanel,
     DashboardChart,
     DashboardDefinition,
     WorkflowRuntime,
@@ -90,6 +91,13 @@ Base.@kwdef struct DashboardBinding
     refresh_mode::String = "manual"
 end
 
+Base.@kwdef struct DashboardPanel
+    x::Int
+    y::Int
+    w::Int
+    h::Int
+end
+
 Base.@kwdef struct DashboardChart
     id::String
     title::String
@@ -97,6 +105,7 @@ Base.@kwdef struct DashboardChart
     x_field::Union{Nothing,String} = nothing
     y_field::Union{Nothing,String} = nothing
     series_field::Union{Nothing,String} = nothing
+    panel::Union{Nothing,DashboardPanel} = nothing
 end
 
 Base.@kwdef struct DashboardDefinition
@@ -335,6 +344,14 @@ function parse_dashboard_binding(raw::Dict{String,Any})
 end
 
 function parse_dashboard_chart(raw::Dict{String,Any})
+    panel = haskey(raw, "panel") ?
+        DashboardPanel(
+            x = Int(raw["panel"]["x"]),
+            y = Int(raw["panel"]["y"]),
+            w = Int(raw["panel"]["w"]),
+            h = Int(raw["panel"]["h"]),
+        ) :
+        nothing
     return DashboardChart(
         id = String(raw["id"]),
         title = String(raw["title"]),
@@ -342,6 +359,7 @@ function parse_dashboard_chart(raw::Dict{String,Any})
         x_field = haskey(raw, "x_field") ? String(raw["x_field"]) : nothing,
         y_field = haskey(raw, "y_field") ? String(raw["y_field"]) : nothing,
         series_field = haskey(raw, "series_field") ? String(raw["series_field"]) : nothing,
+        panel = panel,
     )
 end
 
@@ -484,6 +502,12 @@ function workflow_to_toml(workflow::WorkflowDefinition)
                 chart.x_field === nothing || (document["workflow"]["dashboards"][dashboard_index]["charts"][chart_index]["x_field"] = chart.x_field)
                 chart.y_field === nothing || (document["workflow"]["dashboards"][dashboard_index]["charts"][chart_index]["y_field"] = chart.y_field)
                 chart.series_field === nothing || (document["workflow"]["dashboards"][dashboard_index]["charts"][chart_index]["series_field"] = chart.series_field)
+                chart.panel === nothing || (document["workflow"]["dashboards"][dashboard_index]["charts"][chart_index]["panel"] = Dict(
+                    "x" => chart.panel.x,
+                    "y" => chart.panel.y,
+                    "w" => chart.panel.w,
+                    "h" => chart.panel.h,
+                ))
             end
         end
     end
@@ -584,6 +608,11 @@ function collect_validation_errors(workflow::WorkflowDefinition)
         haskey(node_lookup, dashboard.binding.outlet_node_id) ||
             push!(errors, "dashboard $(dashboard.id) references missing outlet node: $(dashboard.binding.outlet_node_id)")
         isempty(dashboard.charts) && push!(errors, "dashboard $(dashboard.id) must include at least one chart")
+        for chart in dashboard.charts
+            chart.panel === nothing && continue
+            chart.panel.w > 0 || push!(errors, "dashboard $(dashboard.id) chart $(chart.id) panel width must be > 0")
+            chart.panel.h > 0 || push!(errors, "dashboard $(dashboard.id) chart $(chart.id) panel height must be > 0")
+        end
     end
 
     return errors

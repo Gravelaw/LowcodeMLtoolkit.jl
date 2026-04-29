@@ -72,6 +72,46 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
         @test executions[1].status == "queued"
         @test executions[2].workflow_id == "wf-parallel"
 
+        events = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_events(repo)
+        @test any(event.event_type == "repository.save.changed" && event.aggregate_id == "wf-foundation" for event in events)
+        @test any(event.event_type == "execution.changed" && event.aggregate_id == "exec-001" for event in events)
+        @test any(event.event_type == "hub.extension.changed" && event.aggregate_id == "juliaflow-base" for event in events) == false
+
+        custom_event = JuliaFlowApiGateway.JuliaFlowGatewayRepository.append_event!(
+            repo,
+            "stream.checkpoint.completed";
+            aggregate_type = "workflow",
+            aggregate_id = "wf-parallel",
+            payload = Dict(
+                "workflowId" => "wf-parallel",
+                "checkpointId" => "stream-exec-002",
+                "offsets" => Dict("topic" => "parallel.events"),
+                "stateVersion" => 3,
+            ),
+            producer = "test-suite",
+        )
+        @test custom_event.sequence >= 1
+        replay = JuliaFlowApiGateway.JuliaFlowGatewayRepository.list_events_after(repo, custom_event.sequence - 1)
+        @test replay[1].event_id == custom_event.event_id
+        @test JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_consumer_cursor(repo, "gateway-test") == 0
+        @test JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_consumer_cursor!(repo, "gateway-test", custom_event.sequence) == custom_event.sequence
+        @test JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_consumer_cursor(repo, "gateway-test") == custom_event.sequence
+
+        published_dashboard = JuliaFlowApiGateway.JuliaFlowGatewayRepository.PublishedDashboardRecord(
+            dashboard_id = "dashboard-foundation",
+            workflow_id = "wf-foundation",
+            name = "Foundation Published",
+            version = 1,
+            published_at = "2026-04-20T00:00:00Z",
+            binding = Dict("outletNodeId" => "node-bi", "datasetKey" => "sales_overview", "refreshMode" => "live"),
+            charts = [Dict("chartId" => "chart-line", "title" => "Trend", "family" => "line", "panel" => Dict("x" => 0, "y" => 0, "w" => 6, "h" => 4))],
+        )
+        JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_published_dashboard!(repo, published_dashboard)
+        persisted_dashboards = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_published_dashboards(repo)
+        @test length(persisted_dashboards) == 1
+        @test persisted_dashboards[1].dashboard_id == "dashboard-foundation"
+        @test persisted_dashboards[1].version == 1
+
         invalid_toml = replace(foundation_toml, "wf-foundation" => "wf-invalid", count = 1)
         invalid_toml = replace(invalid_toml, "direction = \"input\"" => "direction = \"output\"", count = 1)
         @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_workflow!(repo, invalid_toml)

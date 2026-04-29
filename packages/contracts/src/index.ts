@@ -42,6 +42,39 @@ export type StreamingWindowKind = "tumbling" | "sliding";
 export type StreamingWatermarkMode = "processing_time" | "event_time";
 export type StreamLifecycleStatus = "idle" | "starting" | "active" | "paused" | "stopped";
 
+export type GatewayAuthMode = "disabled" | "dev_token" | "required" | "dev_fallback";
+export type WorkspaceRole = "owner" | "editor" | "viewer";
+export type ResourcePermission =
+  | "workflow:read"
+  | "workflow:write"
+  | "workflow:execute"
+  | "execution:read"
+  | "execution:write"
+  | "checkpoint:read"
+  | "checkpoint:write"
+  | "dashboard:read"
+  | "dashboard:publish"
+  | "hub:read"
+  | "hub:publish"
+  | "hub:install";
+
+export interface GatewayAuthContext {
+  principalId: string;
+  workspaceId: string;
+  role: WorkspaceRole;
+  mode: GatewayAuthMode;
+  permissions: ResourcePermission[];
+}
+
+export interface GatewayAuditActionEvent {
+  action: string;
+  targetType: string;
+  targetId: string;
+  recordedAt: string;
+  authContext: GatewayAuthContext;
+  details: Record<string, unknown>;
+}
+
 export interface WorkflowNodeLayout {
   nodeId: string;
   x: number;
@@ -84,6 +117,14 @@ export interface DashboardChartDefinition {
   xField?: string;
   yField?: string;
   seriesField?: string;
+  panel?: DashboardPanelDefinition;
+}
+
+export interface DashboardPanelDefinition {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 export interface DashboardDefinition {
@@ -91,6 +132,54 @@ export interface DashboardDefinition {
   name: string;
   binding: DashboardBindingDefinition;
   charts: DashboardChartDefinition[];
+}
+
+export type DashboardDatasetRow = Record<string, string | number | boolean | null>;
+
+export interface PublishedDashboardDefinition {
+  dashboardId: string;
+  workflowId: string;
+  name: string;
+  version: number;
+  publishedAt: string;
+  visibility: "workspace" | "public";
+  shareToken?: string;
+  binding: DashboardBindingDefinition;
+  charts: DashboardChartDefinition[];
+  datasets?: Record<string, DashboardDatasetRow[]>;
+}
+
+export interface GatewayDashboardChartSemantic {
+  dimensions: string[];
+  measures: string[];
+  xField: string;
+  yField: string;
+  seriesField?: string | null;
+  availableDimensions: string[];
+  availableMeasures: string[];
+}
+
+export interface GatewayDashboardChartCache {
+  cacheKey: string;
+  sourceVersion: number;
+  snapshotAt: string;
+  refreshMode: DashboardBindingDefinition["refreshMode"];
+  live: boolean;
+  stale: boolean;
+}
+
+export interface GatewayDashboardChartDataResponse {
+  dashboardId: string;
+  chartId: string;
+  datasetKey: string;
+  family: DashboardChartFamily;
+  fields: string[];
+  rows: DashboardDatasetRow[];
+  rowCount: number;
+  refreshedAt: string;
+  semantic: GatewayDashboardChartSemantic;
+  cache: GatewayDashboardChartCache;
+  exportFormats: Array<"json" | "csv">;
 }
 
 export interface StreamingSourceDefinition {
@@ -224,6 +313,27 @@ export interface GatewayHealthcheck {
   workflowCount: number;
   checkpointCount: number;
   executionCount: number;
+  realtimeTransport: "jsonrpc_websocket";
+  eventBackboneMode: "dual_write" | "consume";
+  eventConsumerPollMs: number;
+  streamWorkerMode: "inline" | "process";
+  gpuWorkerMode: "process" | "disabled";
+  gpuRegistryDeviceCount: number;
+  gpuFallbackAvailable: boolean;
+  eventLogSize: number;
+  latestEventSequence: number;
+  gatewayConsumerCursor: number;
+  gatewayConsumerLag: number;
+  eventConsumerCatchupPercent: number;
+  activeStreamExecutions: number;
+  queuedGpuExecutions: number;
+  queuedStreamExecutions: number;
+  activeGpuExecutions: number;
+  gpuWorkerOwnedExecutions: number;
+  queuedExecutionsTotal: number;
+  runningExecutionsTotal: number;
+  authMode?: GatewayAuthMode;
+  authDevFallback?: boolean;
 }
 
 export interface GatewayWorkflowSummary {
@@ -245,6 +355,9 @@ export interface GatewayWorkflowMetadata {
   connectionCount: number;
   flowVariableCount: number;
   biOutletCount: number;
+  dashboardCount: number;
+  graphRevision?: number;
+  runMode: WorkflowRunMode;
   nodes: NodeDefinition[];
   connections: ConnectionDefinition[];
   flowVariables: FlowVariableDefinition[];
@@ -265,9 +378,51 @@ export interface GatewayCheckpointCreateResponse {
   checkpointCount: number;
 }
 
+export interface GatewayDashboardPublishResponse {
+  dashboard: PublishedDashboardDefinition;
+  status: "ok";
+}
+
+export interface GatewayDashboardPublishRequest {
+  visibility?: "workspace" | "public";
+}
+
+export interface GatewayPublishedDashboardListResponse {
+  items: PublishedDashboardDefinition[];
+}
+
 export type HubExtensionPublisher = "official" | "partner";
-export type HubInstallState = "available" | "installed" | "enabled";
-export type HubInstallAction = "install" | "enable";
+export type HubInstallState =
+  | "available"
+  | "installed"
+  | "enabled"
+  | "disabled"
+  | "upgrade_available"
+  | "incompatible";
+export type HubInstallAction = "install" | "enable" | "disable" | "upgrade";
+
+export interface HubExtensionCompatibilityResult {
+  compatible: boolean;
+  warnings: string[];
+  blockers: string[];
+  evaluatedAt: string;
+}
+
+export interface HubExtensionTrustResult {
+  trusted: boolean;
+  level: "official" | "partner_verified" | "untrusted";
+  warnings: string[];
+  blockers: string[];
+  evaluatedAt: string;
+}
+
+export interface HubExtensionUpgradeInfo {
+  upgradeAvailable: boolean;
+  installedVersion?: string;
+  latestVersion: string;
+  targetVersion?: string;
+  evaluatedAt: string;
+}
 
 export interface HubExtensionManifest {
   extensionId: string;
@@ -277,13 +432,23 @@ export interface HubExtensionManifest {
   summary: string;
   packageRef: string;
   tags: string[];
+  engineCompatibility: string;
+  requiredContractVersion: string;
+  supportedCheckpoints: string[];
   compatibleCheckpoints: string[];
+  dependencies: string[];
+  publisherIdentity: string;
+  signature?: string;
+  releaseNotesRef?: string;
 }
 
 export interface GatewayHubExtensionRecord {
   extensionId: string;
   manifest: HubExtensionManifest;
   installState: HubInstallState;
+  compatibility: HubExtensionCompatibilityResult;
+  trust: HubExtensionTrustResult;
+  upgrade: HubExtensionUpgradeInfo;
   installedAt?: string;
   enabledAt?: string;
 }
@@ -292,7 +457,16 @@ export interface GatewayHubInstallRequest {
   action: HubInstallAction;
 }
 
+export interface GatewayHubRegisterRequest {
+  manifest: HubExtensionManifest;
+}
+
 export interface GatewayHubInstallResponse {
+  extension: GatewayHubExtensionRecord;
+  status: "ok";
+}
+
+export interface GatewayHubRegisterResponse {
   extension: GatewayHubExtensionRecord;
   status: "ok";
 }
@@ -338,6 +512,32 @@ export interface GatewayExecutionRecord {
   dispatchAccelerator?: "cuda";
   workerId?: string;
   streamLifecycleStatus?: StreamLifecycleStatus;
+  streamAdapter?: "fixture" | "kafka" | "none" | string;
+  streamProcessedOffset?: number;
+  streamProcessedRows?: number;
+  streamBatchCount?: number;
+  streamConsumerLag?: number;
+  streamBackpressure?: "ok" | "lagging" | string;
+  streamWatermark?: number;
+  streamWindowState?: {
+    kind: string;
+    size_seconds: number;
+    windows: Array<{ start: number; end: number; count: number }>;
+  };
+  streamLastCheckpointId?: string;
+  streamCheckpointOffsets?: Record<string, string | number>;
+  gpuExecutionPath?: "gpu" | "cpu_fallback";
+  gpuDeviceId?: string;
+  gpuAccelerator?: string;
+  gpuVendor?: string;
+  gpuFallbackUsed?: boolean;
+  gpuWorkload?: string;
+  gpuWorkloadResult?: Record<string, unknown>;
+  gpuRegistry?: {
+    device_count: number;
+    devices: Array<Record<string, unknown>>;
+    fallback_available: boolean;
+  };
 }
 
 export interface GatewayListResponse<TItem> {
@@ -388,6 +588,31 @@ export interface GatewayErrorPayload {
   error: string;
 }
 
+export interface GatewayPublishedDashboardReadRequest {
+  shareToken?: string;
+  workspaceToken?: string;
+}
+
+function dashboardChartPath(
+  dashboardId: string,
+  chartId: string,
+  suffix: "data" | "export.csv",
+  request?: GatewayPublishedDashboardReadRequest
+): string {
+  const path = `/api/v1/dashboards/${encodeURIComponent(dashboardId)}/charts/${encodeURIComponent(chartId)}/${suffix}`;
+  const params = new URLSearchParams();
+  if (request?.shareToken) {
+    params.set("shareToken", request.shareToken);
+  }
+  if (request?.workspaceToken) {
+    params.set("workspaceToken", request.workspaceToken);
+  }
+  if (params.size === 0) {
+    return path;
+  }
+  return `${path}?${params.toString()}`;
+}
+
 export const gatewayEndpointPaths = {
   health: "/health",
   workflows: "/api/v1/workflows",
@@ -400,7 +625,36 @@ export const gatewayEndpointPaths = {
   executionStatus: (executionId: string) =>
     `/api/v1/executions/${encodeURIComponent(executionId)}/status`,
   checkpoints: "/api/v1/checkpoints",
+  publishedDashboard: (dashboardId: string, request?: GatewayPublishedDashboardReadRequest) => {
+    const path = `/api/v1/dashboards/${encodeURIComponent(dashboardId)}`;
+    const params = new URLSearchParams();
+    if (request?.shareToken) {
+      params.set("shareToken", request.shareToken);
+    }
+    if (request?.workspaceToken) {
+      params.set("workspaceToken", request.workspaceToken);
+    }
+    if (params.size === 0) {
+      return path;
+    }
+    return `${path}?${params.toString()}`;
+  },
+  publishedDashboardChartData: (
+    dashboardId: string,
+    chartId: string,
+    request?: GatewayPublishedDashboardReadRequest
+  ) => dashboardChartPath(dashboardId, chartId, "data", request),
+  publishedDashboardChartDataCsv: (
+    dashboardId: string,
+    chartId: string,
+    request?: GatewayPublishedDashboardReadRequest
+  ) => dashboardChartPath(dashboardId, chartId, "export.csv", request),
+  workflowPublishedDashboards: (workflowId: string) =>
+    `/api/v1/workflows/${encodeURIComponent(workflowId)}/dashboards`,
+  publishDashboard: (workflowId: string, dashboardId: string) =>
+    `/api/v1/workflows/${encodeURIComponent(workflowId)}/dashboards/${encodeURIComponent(dashboardId)}/publish`,
   hubExtensions: "/api/v1/hub/extensions",
+  hubExtensionRegister: "/api/v1/hub/extensions/register",
   hubExtensionInstall: (extensionId: string) =>
     `/api/v1/hub/extensions/${encodeURIComponent(extensionId)}/install`
 } as const;
@@ -499,10 +753,61 @@ export interface GatewayRepositorySaveChangedEvent {
   savedAt: string;
 }
 
+export interface GatewayHubExtensionChangedEvent {
+  extensionId: string;
+  manifest: HubExtensionManifest;
+  installState: HubInstallState;
+  trust: HubExtensionTrustResult;
+  upgrade: HubExtensionUpgradeInfo;
+  installedAt?: string;
+  enabledAt?: string;
+}
+
+export type GatewayDurableEventType =
+  | "execution.changed"
+  | "stream.checkpoint.completed"
+  | "repository.save.changed"
+  | "hub.extension.changed"
+  | "dashboard.published"
+  | "audit.action";
+
+export interface GatewayDurableEventEnvelope<
+  TType extends GatewayDurableEventType = GatewayDurableEventType,
+  TPayload = unknown
+> {
+  eventId: string;
+  eventType: TType;
+  aggregateType: string;
+  aggregateId: string;
+  occurredAt: string;
+  sequence: number;
+  producer: string;
+  payloadVersion: number;
+  payload: TPayload;
+}
+
+export interface GatewayDurableEventPayloadMap {
+  "execution.changed": GatewayExecutionStateChangedEvent;
+  "stream.checkpoint.completed": GatewayStreamingCheckpointCompletedEvent;
+  "repository.save.changed": GatewayRepositorySaveChangedEvent;
+  "hub.extension.changed": GatewayHubExtensionChangedEvent;
+  "dashboard.published": PublishedDashboardDefinition;
+  "audit.action": GatewayAuditActionEvent;
+}
+
+export type GatewayDurableEvent =
+  {
+    [TType in GatewayDurableEventType]: GatewayDurableEventEnvelope<
+      TType,
+      GatewayDurableEventPayloadMap[TType]
+    >;
+  }[GatewayDurableEventType];
+
 export interface GatewayRealtimeNotificationMap {
   "workflow.state.changed": GatewayWorkflowStateChangedEvent;
   "node.state.changed": GatewayNodeStateChangedEvent;
   "dashboard.outlet.updated": GatewayDashboardOutletUpdatedEvent;
+  "dashboard.published": PublishedDashboardDefinition;
   "streaming.checkpoint.completed": GatewayStreamingCheckpointCompletedEvent;
   "execution.state.changed": GatewayExecutionStateChangedEvent;
   "repository.save.changed": GatewayRepositorySaveChangedEvent;
@@ -567,9 +872,40 @@ export interface GatewayApiClient {
     request: CreateCheckpointRequest,
     options?: GatewayRequestOptions
   ): Promise<GatewayCheckpointCreateResponse>;
+  listPublishedDashboards(
+    workflowId: string,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayPublishedDashboardListResponse>;
+  getPublishedDashboard(
+    dashboardId: string,
+    request?: GatewayPublishedDashboardReadRequest,
+    options?: GatewayRequestOptions
+  ): Promise<PublishedDashboardDefinition>;
+  getPublishedDashboardChartData(
+    dashboardId: string,
+    chartId: string,
+    request?: GatewayPublishedDashboardReadRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayDashboardChartDataResponse>;
+  getPublishedDashboardChartDataCsv(
+    dashboardId: string,
+    chartId: string,
+    request?: GatewayPublishedDashboardReadRequest,
+    options?: GatewayRequestOptions
+  ): Promise<string>;
+  publishDashboard(
+    workflowId: string,
+    dashboardId: string,
+    request?: GatewayDashboardPublishRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayDashboardPublishResponse>;
   listHubExtensions(
     options?: GatewayRequestOptions
   ): Promise<GatewayListResponse<GatewayHubExtensionRecord>>;
+  registerHubExtension(
+    request: GatewayHubRegisterRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayHubRegisterResponse>;
   installHubExtension(
     extensionId: string,
     request: GatewayHubInstallRequest,
@@ -669,6 +1005,25 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
     return parsed as TResponse;
   }
 
+  async function requestText(
+    method: string,
+    path: string,
+    requestOptions?: GatewayRequestOptions
+  ): Promise<string> {
+    const headers = mergeHeaders(options.headers, requestOptions?.headers);
+    headers.set("Accept", "text/csv");
+    const response = await gatewayFetch(buildUrl(options.baseUrl, path), {
+      method,
+      headers,
+      signal: requestOptions?.signal
+    });
+    const body = await response.text();
+    if (!response.ok) {
+      throw new GatewayClientError(`Gateway request failed with status ${response.status}`, response.status, body);
+    }
+    return body;
+  }
+
   return {
     healthcheck: (requestOptions) =>
       request<GatewayHealthcheck>("GET", gatewayEndpointPaths.health, undefined, requestOptions),
@@ -749,11 +1104,52 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         checkpoint,
         requestOptions
       ),
+    listPublishedDashboards: (workflowId, requestOptions) =>
+      request<GatewayPublishedDashboardListResponse>(
+        "GET",
+        gatewayEndpointPaths.workflowPublishedDashboards(workflowId),
+        undefined,
+        requestOptions
+      ),
+    getPublishedDashboard: (dashboardId, readRequest, requestOptions) =>
+      request<PublishedDashboardDefinition>(
+        "GET",
+        gatewayEndpointPaths.publishedDashboard(dashboardId, readRequest),
+        undefined,
+        requestOptions
+      ),
+    getPublishedDashboardChartData: (dashboardId, chartId, readRequest, requestOptions) =>
+      request<GatewayDashboardChartDataResponse>(
+        "GET",
+        gatewayEndpointPaths.publishedDashboardChartData(dashboardId, chartId, readRequest),
+        undefined,
+        requestOptions
+      ),
+    getPublishedDashboardChartDataCsv: (dashboardId, chartId, readRequest, requestOptions) =>
+      requestText(
+        "GET",
+        gatewayEndpointPaths.publishedDashboardChartDataCsv(dashboardId, chartId, readRequest),
+        requestOptions
+      ),
+    publishDashboard: (workflowId, dashboardId, publishRequest, requestOptions) =>
+      request<GatewayDashboardPublishResponse>(
+        "POST",
+        gatewayEndpointPaths.publishDashboard(workflowId, dashboardId),
+        publishRequest,
+        requestOptions
+      ),
     listHubExtensions: (requestOptions) =>
       request<GatewayListResponse<GatewayHubExtensionRecord>>(
         "GET",
         gatewayEndpointPaths.hubExtensions,
         undefined,
+        requestOptions
+      ),
+    registerHubExtension: (registerRequest, requestOptions) =>
+      request<GatewayHubRegisterResponse>(
+        "POST",
+        gatewayEndpointPaths.hubExtensionRegister,
+        registerRequest,
         requestOptions
       ),
     installHubExtension: (extensionId, installRequest, requestOptions) =>
