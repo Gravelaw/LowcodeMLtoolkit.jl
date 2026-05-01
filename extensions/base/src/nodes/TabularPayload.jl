@@ -3,6 +3,178 @@ const DEFAULT_MAX_OUTPUT_ROWS = 250_000
 const DEFAULT_MAX_COLUMNS = 1_000
 const DEFAULT_MAX_REF_BYTES = 50_000_000
 
+const ARROW_DATAFRAME_EXTENSIONS = Set([".arrow", ".feather", ".ipc"])
+
+const REMOTE_OBJECT_STORE_DEFAULT_SCHEMES = ["s3://", "gs://", "az://", "https://", "http://"]
+
+function remote_object_store_adapter_config(context::NodeContext)
+    return metadata_lookup(
+        context.metadata,
+        "remote_object_store_adapter",
+        :remote_object_store_adapter,
+        "cloud_object_store_adapter",
+        :cloud_object_store_adapter,
+        "object_store_service_adapter",
+        :object_store_service_adapter,
+    )
+end
+
+function remote_object_store_enabled(context::NodeContext)
+    enabled = metadata_lookup(context.metadata, "enable_remote_object_store_adapter", :enable_remote_object_store_adapter)
+    enabled === true || return false
+    return remote_object_store_adapter_config(context) !== nothing
+end
+
+function remote_object_store_adapter_name(config)
+    name = entry_lookup(config, "name", :name, "adapter", :adapter)
+    return name === nothing ? "remote_object_store_adapter" : String(name)
+end
+
+function remote_object_store_schemes(config)
+    schemes = entry_lookup(config, "schemes", :schemes, "supported_schemes", :supported_schemes)
+    schemes === nothing && return REMOTE_OBJECT_STORE_DEFAULT_SCHEMES
+    schemes isa AbstractVector || error("remote object-store adapter schemes must be a vector")
+    return [String(scheme) for scheme in schemes]
+end
+
+function remote_object_store_supports_ref(config, ref::String)
+    return any(scheme -> startswith(ref, scheme), remote_object_store_schemes(config))
+end
+
+function arrow_ipc_base64_from_rows(rows::AbstractVector, context::NodeContext)
+    normalized = validate_output_rows([row_to_dict(row) for row in rows], context)
+    path = tempname() * ".arrow"
+    try
+        Arrow.write(path, Tables.columntable(normalized))
+        return base64encode(read(path))
+    finally
+        isfile(path) && rm(path; force = true)
+    end
+end
+
+function rows_from_arrow_ipc_base64(encoded::AbstractString, context::NodeContext)
+    path = tempname() * ".arrow"
+    try
+        write(path, base64decode(String(encoded)))
+        return (rows = rows_from_arrow_dataframe_ref(path, context), schema = arrow_dataframe_schema(path))
+    finally
+        isfile(path) && rm(path; force = true)
+    end
+end
+
+function remote_object_store_transport(context::NodeContext, config)
+    transport = entry_lookup(config, "transport", :transport)
+    transport isa Function && return transport
+    transport = metadata_lookup(context.metadata, "remote_object_store_transport", :remote_object_store_transport)
+    transport isa Function && return transport
+    return nothing
+end
+
+function remote_object_store_endpoint(config)
+    endpoint = entry_lookup(config, "endpoint", :endpoint, "base_url", :base_url)
+    endpoint === nothing && error("remote object-store adapter requires endpoint or transport")
+    return String(endpoint)
+end
+
+function remote_object_store_headers(config)
+    headers = ["content-type" => "application/json", "accept" => "application/json"]
+    token = entry_lookup(config, "token", :token, "bearer_token", :bearer_token)
+    token === nothing || push!(headers, "authorization" => "Bearer $(String(token))")
+    return headers
+end
+
+function remote_object_store_response_payload(response)
+    if response isa AbstractDict || response isa NamedTuple
+        return json_to_julia(response)
+    elseif response isa HTTP.Response
+        200 <= response.status < 300 || error("remote object-store adapter HTTP request failed with status $(response.status)")
+        body = String(response.body)
+        isempty(strip(body)) && return Dict{String,Any}()
+        return json_to_julia(JSON3.read(body))
+    elseif response isa AbstractString
+        return json_to_julia(JSON3.read(String(response)))
+    end
+    error("unsupported remote object-store adapter response $(typeof(response))")
+end
+
+function remote_object_store_request(context::NodeContext, config, operation::String, ref::String; rows = nothing)
+    body = Dict{String,Any}("operation" => operation, "ref" => ref)
+    if rows !== nothing
+        body["format"] = "arrow_ipc_base64"
+        body["data"] = arrow_ipc_base64_from_rows(rows, context)
+        body["row_count"] = length(rows)
+    end
+    transport = remote_object_store_transport(context, config)
+    if transport isa Function
+        return remote_object_store_response_payload(transport(operation, ref, body, context))
+    end
+    endpoint = remote_object_store_endpoint(config)
+    response = HTTP.request("POST", endpoint, remote_object_store_headers(config), JSON3.write(body))
+    return remote_object_store_response_payload(response)
+end
+
+function rows_from_remote_object_store(context::NodeContext, ref::String)
+    remote_object_store_enabled(context) || return nothing
+    config = remote_object_store_adapter_config(context)
+    remote_object_store_supports_ref(config, ref) || return nothing
+    payload = remote_object_store_request(context, config, "read", ref)
+    format = entry_lookup(payload, "format", :format)
+    data = entry_lookup(payload, "data", :data, "arrow_ipc_base64", :arrow_ipc_base64)
+    adapter = entry_lookup(payload, "adapter", :adapter)
+    adapter === nothing && (adapter = remote_object_store_adapter_name(config))
+    if data !== nothing && (format === nothing || String(format) == "arrow_ipc_base64")
+        result = rows_from_arrow_ipc_base64(String(data), context)
+        return (rows = result.rows, schema = result.schema, adapter = adapter)
+    end
+    return tabular_result(payload; adapter = adapter, context = context)
+end
+
+function write_with_remote_object_store(context::NodeContext, destination_uri::String, rows::AbstractVector)
+    remote_object_store_enabled(context) || return nothing
+    config = remote_object_store_adapter_config(context)
+    remote_object_store_supports_ref(config, destination_uri) || return nothing
+    payload = remote_object_store_request(context, config, "write", destination_uri; rows = rows)
+    adapter = entry_lookup(payload, "adapter", :adapter)
+    adapter === nothing && (adapter = remote_object_store_adapter_name(config))
+    persisted_ref = entry_lookup(payload, "ref", :ref, "destination_uri", :destination_uri)
+    persisted_ref === nothing && (persisted_ref = destination_uri)
+    row_count = entry_lookup(payload, "row_count", :row_count)
+    row_count === nothing && (row_count = length(rows))
+    return (adapter = adapter, ref = persisted_ref, path = entry_lookup(payload, "path", :path), row_count = row_count)
+end
+
+function is_arrow_dataframe_path(path::String)
+    return lowercase(splitext(path)[2]) in ARROW_DATAFRAME_EXTENSIONS
+end
+
+function arrow_dataframe_enabled(context::NodeContext)
+    enabled = metadata_lookup(context.metadata, "enable_arrow_dataframe_adapter", :enable_arrow_dataframe_adapter)
+    return enabled === true
+end
+
+function rows_from_arrow_dataframe_ref(path::String, context::NodeContext)
+    filesize(path) <= limit_value(context, "max_ref_bytes", DEFAULT_MAX_REF_BYTES) || error("tabular ref exceeds byte limit")
+    table = Arrow.Table(path)
+    frame = DataFrame(table)
+    rows = [Dict{String,Any}(String(name) => row[name] for name in names(frame)) for row in eachrow(frame)]
+    validate_input_rows(rows, context)
+    return rows
+end
+
+function arrow_dataframe_schema(path::String)
+    table = Arrow.Table(path)
+    frame = DataFrame(table)
+    return names(frame)
+end
+
+function write_arrow_dataframe_ref(path::String, rows::AbstractVector, context::NodeContext)
+    normalized = validate_output_rows([row_to_dict(row) for row in rows], context)
+    mkpath(dirname(path))
+    table = Tables.columntable(normalized)
+    Arrow.write(path, table)
+    return (adapter = "arrow_dataframe_file", ref = nothing, path = path, row_count = length(normalized))
+end
+
 function limit_value(context::NodeContext, key::String, default::Int)
     value = metadata_lookup(context.metadata, key, Symbol(key))
     value === nothing && return default
@@ -271,12 +443,117 @@ function adapter_name(context::NodeContext, default::String)
     return String(configured)
 end
 
+function tabular_adapter_registry(context::NodeContext)
+    return metadata_lookup(
+        context.metadata,
+        "tabular_adapter_registry",
+        :tabular_adapter_registry,
+        "tabular_materialization_adapters",
+        :tabular_materialization_adapters,
+        "tabular_service_adapters",
+        :tabular_service_adapters,
+    )
+end
+
+function registry_entry(registry::AbstractDict, key)
+    haskey(registry, key) && return registry[key]
+    string_key = String(key)
+    haskey(registry, string_key) && return registry[string_key]
+    symbol_key = Symbol(string_key)
+    haskey(registry, symbol_key) && return registry[symbol_key]
+    return nothing
+end
+
+function adapter_supported_schemes(entry)
+    schemes = entry_lookup(entry, "schemes", :schemes, "supported_schemes", :supported_schemes, "refs", :refs)
+    schemes === nothing && return nothing
+    schemes isa AbstractVector || error("tabular adapter schemes must be a vector")
+    return [String(scheme) for scheme in schemes]
+end
+
+function adapter_supports_ref(entry, ref::String)
+    schemes = adapter_supported_schemes(entry)
+    schemes === nothing && return true
+    return any(scheme -> startswith(ref, scheme), schemes)
+end
+
+function registered_adapter_methods(context::NodeContext, ref::String, method_keys...)
+    registry = tabular_adapter_registry(context)
+    registry isa AbstractDict || return nothing
+    configured = metadata_lookup(
+        context.metadata,
+        "tabular_adapter_name",
+        :tabular_adapter_name,
+        "tabular_materialization_adapter",
+        :tabular_materialization_adapter,
+    )
+    candidates = configured === nothing ? collect(keys(registry)) : Any[configured]
+    for key in candidates
+        entry = registry_entry(registry, key)
+        entry === nothing && continue
+        adapter_supports_ref(entry, ref) || continue
+        method = entry_lookup(entry, method_keys...)
+        method isa Function || continue
+        name = entry_lookup(entry, "name", :name, "adapter", :adapter, "materialization_adapter", :materialization_adapter)
+        name === nothing && (name = String(key))
+        return (name = String(name), method = method)
+    end
+    return nothing
+end
+
+function rows_from_registered_reader(context::NodeContext, ref::String)
+    adapter = registered_adapter_methods(
+        context,
+        ref,
+        "reader",
+        :reader,
+        "read",
+        :read,
+        "read_rows",
+        :read_rows,
+        "tabular_ref_reader",
+        :tabular_ref_reader,
+        "arrow_table_reader",
+        :arrow_table_reader,
+        "dataframe_reader",
+        :dataframe_reader,
+    )
+    adapter === nothing && return nothing
+    loaded = adapter.method(ref, context)
+    loaded === nothing && return nothing
+    return tabular_result(loaded; adapter = adapter.name, context = context)
+end
+
+function write_with_registered_adapter(context::NodeContext, destination_uri::String, rows::AbstractVector)
+    adapter = registered_adapter_methods(
+        context,
+        destination_uri,
+        "writer",
+        :writer,
+        "write",
+        :write,
+        "write_rows",
+        :write_rows,
+        "tabular_ref_writer",
+        :tabular_ref_writer,
+        "arrow_table_writer",
+        :arrow_table_writer,
+        "dataframe_writer",
+        :dataframe_writer,
+    )
+    adapter === nothing && return nothing
+    written = adapter.method(destination_uri, rows, context)
+    written === nothing && return nothing
+    return (adapter = adapter.name, written = written)
+end
+
 function rows_from_reader(context::NodeContext, ref::String)
     reader = tabular_reader(context)
-    reader isa Function || return nothing
-    loaded = reader(ref, context)
-    loaded === nothing && return nothing
-    return tabular_result(loaded; adapter = adapter_name(context, "tabular_ref_reader"), context = context)
+    if reader isa Function
+        loaded = reader(ref, context)
+        loaded === nothing || return tabular_result(loaded; adapter = adapter_name(context, "tabular_ref_reader"), context = context)
+    end
+    return rows_from_registered_reader(context, ref)
 end
 
 function local_ref_path(ref::String, context::NodeContext)
@@ -310,8 +587,14 @@ function tabular_materialization_result(context::NodeContext, ref::String)
     reader_result = rows_from_reader(context, ref)
     reader_result === nothing || return reader_result
 
+    remote_result = rows_from_remote_object_store(context, ref)
+    remote_result === nothing || return remote_result
+
     path = local_ref_path(ref, context)
     path === nothing && return nothing
+    if arrow_dataframe_enabled(context) && is_arrow_dataframe_path(path)
+        return (rows = rows_from_arrow_dataframe_ref(path, context), schema = arrow_dataframe_schema(path), adapter = "arrow_dataframe_file")
+    end
     return (rows = rows_from_json_ref(path, context), schema = nothing, adapter = "local_json_ref")
 end
 
@@ -321,19 +604,32 @@ function rows_from_metadata_ref(context::NodeContext, ref::String)
     return result.rows
 end
 
-function persist_tabular_rows(context::NodeContext, destination_uri::String, rows::AbstractVector)
-    writer = tabular_writer(context)
-    writer isa Function || return nothing
-    written = writer(destination_uri, rows, context)
-    written === nothing && return nothing
+function normalize_writer_result(written, default_adapter, rows::AbstractVector)
     adapter = entry_lookup(written, "adapter", :adapter, "persistence_adapter", :persistence_adapter)
-    adapter === nothing && (adapter = adapter_name(context, "tabular_ref_writer"))
+    adapter === nothing && (adapter = default_adapter)
     persisted_ref = entry_lookup(written, "ref", :ref, "destination_uri", :destination_uri)
     persisted_path = entry_lookup(written, "path", :path, "persisted_path", :persisted_path)
     persisted_ref === nothing && persisted_path === nothing && error("tabular writer must return persisted ref or path")
     row_count = entry_lookup(written, "row_count", :row_count)
     row_count === nothing && (row_count = length(rows))
     return (adapter = adapter, ref = persisted_ref, path = persisted_path, row_count = row_count)
+end
+
+function persist_tabular_rows(context::NodeContext, destination_uri::String, rows::AbstractVector)
+    writer = tabular_writer(context)
+    if writer isa Function
+        written = writer(destination_uri, rows, context)
+        written === nothing || return normalize_writer_result(written, adapter_name(context, "tabular_ref_writer"), rows)
+    end
+    registered = write_with_registered_adapter(context, destination_uri, rows)
+    registered === nothing || return normalize_writer_result(registered.written, registered.adapter, rows)
+    remote = write_with_remote_object_store(context, destination_uri, rows)
+    remote === nothing || return remote
+    path = ref_storage_path(destination_uri, context)
+    if path !== nothing && arrow_dataframe_enabled(context) && is_arrow_dataframe_path(path)
+        return write_arrow_dataframe_ref(path, rows, context)
+    end
+    return nothing
 end
 
 function payload_rows(payload::NamedTuple, context::NodeContext)

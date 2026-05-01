@@ -1,6 +1,6 @@
 # JuliaFlow Node Library Scale Roadmap
 
-Last updated: 2026-04-29
+Last updated: 2026-05-01
 
 ## Purpose
 
@@ -12,7 +12,7 @@ Track BRD node-library scale from current Tier-1 base pack toward Phase 1 / Alph
 - `adapter-required`: production behavior depends on configured runtime adapter such as object-store Arrow/DataFrames reader/writer, Kafka/NATS adapter, or GPU backend; tests cover adapter contract with fixture callbacks or mocks.
 - `experimental`: visible for roadmap/demo only; must be labelled as experimental and must not count toward stable BRD completion.
 
-## Current Baseline: 50 Stable Tier-1 Nodes
+## Current Baseline: 150 Stable Tier-1 Nodes
 
 Evidence:
 - Registry: `extensions/base/src/JuliaFlowBaseExtension.jl`
@@ -20,63 +20,37 @@ Evidence:
 - Tests: `extensions/base/test/runtests.jl`
 
 Stable families:
-- source/sink: Arrow table source, Arrow passthrough, Arrow table sink
-- transform: select, filter, rename, cast, fill missing, drop missing, sort, limit, sample, distinct, constant column, row number, derive ratio, bucketize, trim strings, normalize case, replace values, regex extract, validate schema, top-N rows, group filter, rolling mean, rank rows, percentile rows, coalesce columns, clip values, cumulative sum, rolling sum, lag column, string contains filter, column math, null-if, min-max scale, z-score, unpivot rows, pivot rows
-- combine/aggregate/profile: aggregate, concat, inner join, left join, anti join, union distinct, basic stats, table profile, split
-- ML/BI: linear model trainer, BI outlet
+- source/sink: Arrow table source, Arrow passthrough, Arrow table sink, object-store list helper, package-backed Arrow/DataFrames `.arrow`/`.feather`/`.ipc` local object-store read/write, provider-neutral remote object-store Arrow IPC read/write service adapter
+- transform: select, filter, rename, cast, fill missing, drop missing, sort, limit, sample, distinct, dedupe by key, constant column, row number, derive ratio, bucketize, trim strings, normalize whitespace, normalize case, replace values, regex extract/replace, split/copy/concat/drop/keep/substring columns, string length, parse date, date bucket, date parts, validate schema, top-N rows, top-N per group, group filter, rolling mean, rolling sum, moving min/max, cumulative sum/count/mean, lag/lead column, rank rows, percentile rows, quantile buckets, threshold buckets, one-hot encode, coalesce columns, clip values, string contains filter, column math, null-if, min-max scale, z-score, round/absolute/log/percent-change transforms, outlier flags, train/test split, event-time/window/watermark/sessionization/replay/exactly-once helpers, boolean flag, row hash, dataset version hash, unpivot rows, pivot rows
+- combine/aggregate/profile: aggregate, weighted average, group sum/mean/min/max/count/percent-of-total, concat, inner/right/left/full/semi/anti joins, lookup enrich, union distinct, value counts, missingness summary, basic stats, table profile, type profile, split, correlation, covariance, histogram, standardization, null-rate, duplicate-rate, cardinality, stream aggregate, cross join, rows-to-columns, schema drift, column presence
+- ML/BI: linear model trainer, linear score, classification threshold, confusion matrix, regression metrics, k-means assignment, PCA-style projection, feature vector, BI outlet, metric definition, dimension mapping, KPI threshold, chart dataset output, metric cards, dashboard summary, extension manifest validation, compatibility report, package hash verify, dataset lineage, policy/access decisions, GPU capability flags
 
 ## Production Materialization Seam
 
 Current status:
 - Local JSON/JSONL and local object-store-style refs remain supported for dev/test fallback, with file refs disabled unless `allow_file_refs = true` and a configured storage root confines reads/writes and existing symlink targets are rejected.
-- New adapter callbacks let production readers/writers materialize or persist Arrow/DataFrames-shaped refs without adding dependencies in the base pack; materialization limits bound input rows, output rows, columns, and local ref bytes.
+- Arrow.jl/DataFrames.jl/Tables.jl now back package materialization for `.arrow`, `.feather`, and `.ipc` refs under configured `object_store_root` / `tabular_ref_root` when `enable_arrow_dataframe_adapter = true`; provider-neutral remote object-store service adapters transfer Arrow IPC as base64 JSON envelopes when `enable_remote_object_store_adapter = true`; callback and named service-backed adapter registries remain available. Materialization limits bound input rows, output rows, columns, and local ref bytes.
 - Callback metadata keys:
   - read: `tabular_ref_reader`, `arrow_table_reader`, or `dataframe_reader`
   - write: `tabular_ref_writer`, `arrow_table_writer`, or `dataframe_writer`
-  - optional label: `tabular_adapter_name` or `tabular_materialization_adapter`
+  - named registry: `tabular_adapter_registry`, `tabular_materialization_adapters`, or `tabular_service_adapters`
+  - optional label/selector: `tabular_adapter_name` or `tabular_materialization_adapter`
 
 Completion boundary:
-- This seam does not by itself satisfy full BRD production Arrow/DataFrames object-storage execution.
-- Full completion requires package-backed or service-backed Arrow/DataFrames object-store adapter and broader stable node scale evidence.
-
-## 50 -> 75 Node Plan
-
-Goal: continue broadening stable data prep and BI-ready transforms while keeping adapter-required IO explicit.
-
-Candidate additions:
-- I/O adapters: CSV source/sink, Parquet source/sink, database table source/sink, HTTP JSON source, object-store list/read/write nodes.
-- Data cleanup: parse date/time, split columns, deduplicate by key, type-safe date bucketing.
-- Aggregation/window: top-N per group, weighted average, grouped rolling windows, calendar windows.
-- Joins/blends: right/full join, lookup enrich, fuzzy key match experimental.
-- BI prep: metric definition, dimension mapping, date hierarchy, KPI threshold, chart dataset output.
-
-Acceptance for 75:
-- At least 75 registered nodes.
-- At least 75 registered nodes with 50+ stable nodes already output-inspected; new stable additions must include output-inspecting tests.
-- Adapter-required nodes have fixture/mock adapter tests and explicit docs.
-- No experimental node counted as stable.
-
-## 75 -> 150 Node Plan
-
-Goal: satisfy Phase 1 / Alpha breadth across source, transform, ML/stat, stream, GPU, and BI paths.
-
-Candidate additions:
-- Advanced stats: correlation, covariance, histogram, outlier detection, standardization, train/test split variants.
-- ML primitives: logistic regression, k-means, PCA, model score, model metrics, cross validation adapter.
-- Streaming prep: event-time assign, watermark, tumbling/sliding window, stream aggregate, dedupe by event id, sink transaction marker.
-- GPU nodes: GPU matrix multiply, GPU vector transform, GPU aggregate, GPU model training primitive with CPU fallback.
-- Hub/package helpers: extension manifest validate, compatibility report, package hash verify.
-
-Acceptance for 150:
-- 150 registered nodes with tier labels.
-- 100+ stable or adapter-required nodes with tests.
-- Runtime docs map node families to BRD requirements and quality tier.
-- `docs/brd-traceability.md` links node breadth evidence before TODO completion.
+- Package-backed local object-store Arrow/DataFrames execution is implemented for root-confined refs.
+- Provider-neutral remote object-store service adapter execution is implemented and tested without live credentials. Provider-specific deployment manifests/credentials remain production hardening work.
 
 ## 150 -> 300+ Roadmap
 
-Goal: Beta/GA ecosystem growth, including official packs and Hub partner packs.
+Goal: grow beyond Phase 1 / Alpha breadth into Beta/GA ecosystem coverage, including official packs and Hub partner packs.
 
 Candidate directions:
-- enterprise sources/sinks, geospatial, time-series, NLP, graph analytics, deep-learning adapters, visualization exports, governance/audit nodes.
-- partner/Hub certification path for sandbox compatibility, hash verification, and private mirrors.
+- enterprise sources/sinks: CSV/Parquet/database/HTTP variants, production object-store manifests, and governed sink commits.
+- analytics domains: geospatial, time-series, NLP, graph analytics, deep-learning adapters, visualization exports, and governance/audit nodes.
+- GPU/streaming depth: GPU matrix/vector/aggregate/model primitives with CPU fallback, replay adapters, and exactly-once transaction helpers.
+- partner certification: sandbox compatibility, package hash verification, private mirrors, and Hub trust-policy metadata.
+
+Acceptance for post-150 growth:
+- New official packs keep tier labels and output-inspecting tests.
+- Runtime docs map node families to BRD requirements and quality tier.
+- `docs/brd-traceability.md` links evidence before TODO completion.

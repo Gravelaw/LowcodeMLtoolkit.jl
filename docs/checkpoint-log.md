@@ -765,3 +765,130 @@ Each checkpoint entry must contain:
 - Start next session with `docs/next-steps-plan-2026-04-29.md`.
 - Run sanity checks after GitHub push and inspect remote CI/status if configured.
 - Execute cleanup first, then production Arrow/DataFrames adapter or node scale 50 -> 75 depending dependency decision.
+
+---
+
+## Checkpoint: Base Node Scale 75 Stable Nodes — 2026-04-30
+
+### Work Done Till Date
+
+- Advanced base node scale from 50 to 75 stable Tier-1 nodes without adding dependencies.
+- Added 25 stable date/time, grouped/window, join/enrich, BI-prep, profile/hash, and whitespace nodes.
+- Registered/exported all new node keys and node types.
+- Added output-inspecting extension tests for all 25 new nodes.
+- Updated TODO, BRD traceability, node-library roadmap, base extension README, project tracker, and checkpoint log for the 75-node baseline.
+- Fresh targeted verification:
+  - `julia --project=. extensions/base/test/runtests.jl`
+
+### Gaps Pending
+
+- Package-backed Arrow/DataFrames object-storage adapter implementation remains pending.
+- Node library still needs scale from 75 -> 150 with stable/adapter-required test evidence.
+- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming, production GPU, Hub hardening, observability/perf, and deployment hardening remain pending.
+
+### Next Items To Implement
+
+- Implement package-backed/service-backed Arrow/DataFrames object-store adapter when dependency decision is available, or continue node scale 75 -> 150 with tested stable/adapter-required nodes.
+- Run full verification after integrated changes: `git diff --check`, extension tests, full Julia tests, `npm run validate:brd-traceability`, `npm run test`, and `npm run build`.
+- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized.
+
+
+---
+
+## Checkpoint: Materialization Risk Mitigation — 2026-04-30
+
+### Work Done Till Date
+
+- Added risk register and mitigation plan for the production materialization dependency-choice risk.
+- Implemented no-new-deps named service-backed adapter registry on top of `TabularPayload.jl`.
+- Added registry read/write tests for `object://` source and `warehouse://` sink paths.
+- Updated TODO, BRD traceability, node-library roadmap, base extension README, project tracker, and checkpoint log to distinguish risk mitigation from full package-backed completion.
+
+### Gaps Pending
+
+- Package-backed Arrow/DataFrames object-storage adapter implementation remains pending.
+- Node library still needs scale from 75 -> 150 with stable/adapter-required test evidence.
+- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming, production GPU, Hub hardening, observability/perf, and deployment hardening remain pending.
+
+### Next Items To Implement
+
+- Add package-backed Arrow/DataFrames object-store adapter when dependency approval is explicit, or collect deployment evidence for a production service adapter.
+- Continue node scale 75 -> 150 with tested stable/adapter-required nodes.
+- Keep BRD traceability evidence honest: service-backed registry mitigates risk; package-backed completion remains open.
+
+---
+
+## Checkpoint: Base Node Scale 100 And Arrow/DataFrames Materialization — 2026-04-30
+
+### Work Done Till Date
+
+- Advanced base node scale from 75 to 100 stable Tier-1 nodes.
+- Added 25 deterministic column, string, numeric, grouped aggregate, bucket/encoding, BI metric, dashboard summary, and rows-to-columns nodes.
+- Registered/exported all new node keys and node types.
+- Added output-inspecting extension tests for all 25 new nodes.
+- Added package-backed local Arrow/DataFrames materialization for root-confined `.arrow`, `.feather`, and `.ipc` refs behind `enable_arrow_dataframe_adapter = true`.
+- Added root and base extension dependencies for `Arrow.jl`, `DataFrames.jl`, and `Tables.jl`.
+- Preserved JSON/JSONL fallback, direct callback adapters, and named service-backed adapter registry precedence.
+- Updated TODO, BRD traceability, node-library roadmap, base extension README, project tracker, and checkpoint log for the 100-node/package-backed baseline.
+
+### Gaps Pending
+
+- Base node library still needs scale from 100 -> 150 stable/adapter-required nodes.
+- Remote/cloud object-storage adapter integration remains pending beyond the current root-confined local object-store-style path.
+- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming, production GPU, Hub hardening, observability/perf, and deployment hardening remain pending.
+
+### Next Items To Implement
+
+- Continue node scale 100 -> 150 with tested stable/adapter-required nodes.
+- Add remote/cloud object-store service adapter evidence or cloud package integration for production stores.
+- Keep BRD traceability evidence honest: package-backed local Arrow/DataFrames materialization is complete; remote/cloud stores and node scale remain open.
+
+---
+
+## Checkpoint: Base Node Scale 125 Stable Nodes — 2026-05-01
+
+### Work Done Till Date
+
+- Advanced base node scale from 100 to 125 stable Tier-1 nodes.
+- Added 25 deterministic advanced stats, ML scoring/evaluation, streaming prep, and Hub/package helper nodes.
+- Registered/exported all new node keys and node types.
+- Added output-inspecting extension tests for all 25 new nodes.
+- Updated TODO, BRD traceability, node-library roadmap, base extension README, project tracker, and checkpoint log for the 125-node baseline.
+
+### Gaps Pending
+
+- Base node library still needs scale from 125 -> 150 stable/adapter-required nodes.
+- Remote/cloud object-storage adapter integration remains pending beyond the current root-confined local object-store-style path.
+- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming, production GPU, Hub hardening, observability/perf, and deployment hardening remain pending.
+
+### Next Items To Implement
+
+- Continue node scale 125 -> 150 with tested stable/adapter-required nodes.
+- Add remote/cloud object-store service adapter evidence or cloud package integration once provider/credential decision exists.
+- Keep BRD traceability evidence honest: package-backed local Arrow/DataFrames materialization and 125 stable nodes exist; remote/cloud stores and 150-node target remain open.
+
+---
+
+## Checkpoint: Remote Adapter And 150 Stable Nodes — 2026-05-01
+
+### Work Done Till Date
+
+- Added provider-neutral remote object-store adapter support for Arrow IPC base64 JSON envelopes on the `TabularPayload.jl` seam.
+- Preserved direct callbacks, named registry adapters, package-backed local Arrow/DataFrames refs, and JSON/JSONL fallbacks.
+- Advanced base node scale from 125 to 150 stable Tier-1 nodes.
+- Added 25 deterministic quality, governance, feature engineering, streaming, and GPU-helper nodes.
+- Registered/exported all new node keys and node types.
+- Added output-inspecting extension tests for the 25 new nodes plus remote adapter read/write tests.
+- Updated TODO, BRD traceability, node-library roadmap, base extension README, project tracker, and checkpoint log for the 150-node and remote-adapter baseline.
+
+### Gaps Pending
+
+- Provider-specific cloud object-store deployments/credentials and production manifests remain pending hardening work.
+- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming adapters, production GPU kernels, Hub hardening, observability/perf, and deployment hardening remain pending.
+- 300+ ecosystem breadth remains Beta/GA roadmap work after the 150-node Phase 1 baseline.
+
+### Next Items To Implement
+
+- Move to the next P0 BRD lane: BI drilldown/viewer/export polish or production OIDC/RBAC hardening.
+- Add provider-specific cloud deployment evidence for remote object-store adapters when target provider/credentials are available.
+- Keep BRD traceability evidence honest: 150 stable nodes and provider-neutral remote adapter are implemented; provider-specific deployments are hardening work.

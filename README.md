@@ -17,7 +17,7 @@ JuliaFlow is a monorepo for a visual low-code analytics platform built in Julia.
 - `services/execution-service/` Julia execution planner and CPU-only runner
 - `services/worker-service/` worker-lane lifecycle service for streaming and GPU dispatch orchestration
 - `services/api-gateway/` Julia API gateway, repository abstraction, file store adapter, PostgreSQL adapter, and HTTP surface
-- `extensions/base/` placeholder for official base node pack
+- `extensions/base/` official starter base node pack with 150 stable Tier-1 nodes plus local and remote-service Arrow/DataFrames materialization
 - `infra/` local compose and Kubernetes scaffolding
 - `docs/` ADRs, checkpoints, architecture notes
 - `tests/` contract and Julia test entry points

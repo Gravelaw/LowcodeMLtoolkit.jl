@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-04-29
+Last updated: 2026-05-01
 Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
 Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/plans/repo-brd-endgame-2026-04-25.md`; current next-step plan: `.omx/plans/repo-brd-next-steps-2026-04-28.md`
 
@@ -8,7 +8,7 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 
 1. [x] Base node pack first reality pass: 25 Tier-1 base nodes registered; transform/aggregate/model/table nodes materialize inline tabular rows with tests.
 2. [x] External-ref materialization seam: base nodes resolve external Arrow-shaped refs via metadata store/loader and file JSON/JSONL fixtures without losing Arrow IPC payload boundaries.
-3. [ ] Production Arrow/DataFrames materialization: current local object-store source/sink roundtrip and callback adapter seam exist, and base pack has grown to 50 stable nodes, but package-backed Arrow/DataFrames object-storage execution and scale 50 -> 75 -> 150 remain pending.
+3. [x] Production Arrow/DataFrames materialization: local object-store source/sink roundtrip, callback adapter seam, named service-backed adapter registry, package-backed Arrow/DataFrames local object-store `.arrow`/`.feather`/`.ipc` execution, provider-neutral remote object-store service adapter, and 150 stable base nodes are implemented with tests; provider-specific cloud deployment hardening remains outside this P0 slice.
 4. [x] BI chart-data seam: published dashboard chart-data API, typed client path, OpenAPI schema, gateway auth reuse, and viewer row/field rendering.
 5. [x] BI published artifact datasets: publish snapshots now persist BI outlet rows and chart-data reads return dataset-backed rows when present.
 6. [x] BI semantic/cache/export slice: chart-data now infers dimensions/measures from rows, returns cache/live metadata, and exposes CSV export.
@@ -32,7 +32,7 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 
 1. [ ] Deployment hardening: replace ArgoCD placeholders with real deployments/services/ingress/secrets and Helm/Kustomize production overlays.
 2. [x] BRD traceability automation: maintain `docs/brd-traceability.md`; fail milestone claim if TODO item lacks test/evidence links.
-3. [ ] Node-library scale roadmap: staged taxonomy from 50 -> 75 -> 150 -> 300+ nodes with quality tiers and compatibility tests.
+3. [x] Node-library scale roadmap: staged taxonomy reached 150 stable nodes with quality tiers and compatibility tests; 300+ ecosystem breadth remains Beta/GA roadmap work.
 
 ## Review Notes
 
@@ -47,11 +47,18 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 - 2026-04-24: streaming fixture/window/checkpoint MVP now processes fixture batches with window summaries, lag/backpressure/watermark diagnostics, and checkpoint offsets; Kafka/NATS and exactly-once proof remain pending.
 - 2026-04-24: GPU execution MVP now includes registry-aware worker execution, mock workload completion metadata, and CPU fallback; real CUDA kernels and multi-GPU scheduling remain pending.
 - Current route shell, durable event log, Hub trust gates, BI publish/viewer, monitor diagnostics, and worker-lane lifecycle are valuable Alpha foundations.
-- Biggest gap is not UI shell; remaining biggest gaps are production Arrow/DataFrames node execution, deeper BI drilldown/viewer polish, production OIDC/RBAC, production streaming adapters/exactly-once, real CUDA GPU compute.
+- Biggest gap is not UI shell; remaining biggest gaps are provider-specific cloud deployment hardening, deeper BI drilldown/viewer polish, production OIDC/RBAC, production streaming adapters/exactly-once, and real CUDA GPU compute.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
 - 2026-04-25: BRD traceability automation now validates every checked P0/P1 TODO item against `docs/brd-traceability.md` code/test evidence links.
-- 2026-04-28: production materialization adapter seam now supports configured reader/writer callbacks for Arrow/DataFrames-shaped refs with tests; package-backed object-store adapters and node scale 25 -> 75 -> 150 remain pending.
+- 2026-04-28: production materialization adapter seam now supports configured reader/writer callbacks for Arrow/DataFrames-shaped refs with tests; package-backed local object-store adapters exist; provider-specific cloud deployment hardening remains pending.
 - 2026-04-28: base pack scale advanced from 25 to 35 stable Tier-1 nodes with cleanup/stat prep nodes and output-inspecting tests; scale 35 -> 75 -> 150 remains pending.
 
-- 2026-04-29: base pack scale advanced from 35 to 50 stable Tier-1 nodes with math/window/join/reshape nodes and output-inspecting tests; scale 50 -> 75 -> 150 remains pending.
+- 2026-04-29: base pack scale advanced from 35 to 50 stable Tier-1 nodes with math/window/join/reshape nodes and output-inspecting tests.
+- 2026-04-30: base pack scale advanced from 50 to 75 stable Tier-1 nodes with date/time, group/window, join/enrich, BI-prep, profile, hash, and whitespace nodes plus output-inspecting tests; named service-backed adapter registry mitigates dependency-choice risk, while remote/cloud object-store adapters and scale 100 -> 150 remain pending.
+
+- 2026-04-30: base pack scale advanced from 75 to 100 stable Tier-1 nodes and package-backed Arrow/DataFrames local object-store materialization now reads/writes `.arrow`, `.feather`, and `.ipc` refs behind `enable_arrow_dataframe_adapter`; remote/cloud object-store adapters and scale 100 -> 150 remain pending.
+
+- 2026-05-01: base pack scale advanced from 100 to 125 stable Tier-1 nodes with advanced stats, ML scoring, stream prep, and Hub/package helper nodes plus output-inspecting tests; remote/cloud object-store adapters and scale 125 -> 150 remain pending.
+
+- 2026-05-01: provider-neutral remote object-store service adapter now transfers Arrow IPC base64 envelopes for remote refs, and base pack reached 150 stable nodes with quality/governance/streaming/GPU-helper additions plus output-inspecting tests.

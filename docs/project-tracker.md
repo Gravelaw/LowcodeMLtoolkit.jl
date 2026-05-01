@@ -656,3 +656,210 @@ After any meaningful job:
 - update `Work Done Till Date`
 - update `Gaps Pending`
 - update `Next Items To Implement`
+
+### Base Node Scale 75 Stable Nodes (2026-04-30)
+
+- Advanced base node scale from 50 to 75 stable Tier-1 nodes without adding dependencies.
+- Added 25 tested nodes across date/time prep, grouping/window transforms, joins/enrichment, BI prep, profile/hash, and text cleanup:
+  - `base.dedupe_by_key`
+  - `base.value_counts`
+  - `base.missingness_summary`
+  - `base.parse_date`
+  - `base.date_bucket`
+  - `base.date_parts`
+  - `base.split_column`
+  - `base.top_n_per_group`
+  - `base.weighted_average`
+  - `base.group_row_number`
+  - `base.moving_min`
+  - `base.moving_max`
+  - `base.cumulative_count`
+  - `base.right_join_rows`
+  - `base.full_join_rows`
+  - `base.semi_join_rows`
+  - `base.lookup_enrich`
+  - `base.metric_definition`
+  - `base.dimension_mapping`
+  - `base.kpi_threshold`
+  - `base.chart_dataset`
+  - `base.boolean_flag`
+  - `base.type_profile`
+  - `base.row_hash`
+  - `base.normalize_whitespace`
+- Registered and exported the new node types and node keys from the base extension.
+- Added output-inspecting extension tests for all 25 new nodes.
+- Preserved no-new-dependency path because package-backed Arrow/DataFrames adapter dependency approval was not explicit.
+- Fresh targeted verification:
+  - `julia --project=. extensions/base/test/runtests.jl`
+
+### Updated Gaps Pending (2026-04-30)
+
+- Package-backed Arrow/DataFrames object-storage adapter implementation remains pending.
+- Node library still needs scale from 75 -> 150 with stable/adapter-required test evidence.
+- Deeper BI drilldown/viewer/export polish remains pending.
+- Production OIDC/JWT validation, persisted policy/audit query/admin UI, streaming production hardening, GPU production hardening, Hub hardening, observability/perf, and deployment hardening remain pending.
+
+### Updated Next Items To Implement (2026-04-30)
+
+- Implement package-backed or service-backed Arrow/DataFrames object-store adapter when dependency decision is available.
+- Continue node scale from 75 -> 150 with stable/adapter-required tested nodes.
+- Run full verification after integrated changes: `git diff --check`, extension tests, full Julia tests, `npm run validate:brd-traceability`, `npm run test`, and `npm run build`.
+
+
+### Materialization Risk Mitigation (2026-04-30)
+
+- Added explicit risk register and mitigation plan for the dependency-choice risk around production Arrow/DataFrames materialization:
+  - `.omx/plans/prd-materialization-risk-mitigation-2026-04-30.md`
+  - `.omx/plans/test-spec-materialization-risk-mitigation-2026-04-30.md`
+  - risk addendum in `.omx/plans/repo-brd-analysis-next-steps-2026-04-30.md`
+- Implemented no-new-deps named service-backed adapter registry in `TabularPayload.jl`:
+  - registry keys: `tabular_adapter_registry`, `tabular_materialization_adapters`, `tabular_service_adapters`
+  - adapter selection: `tabular_adapter_name` / `tabular_materialization_adapter`
+  - reader method keys: `reader`, `read`, `read_rows`, `tabular_ref_reader`, `arrow_table_reader`, `dataframe_reader`
+  - writer method keys: `writer`, `write`, `write_rows`, `tabular_ref_writer`, `arrow_table_writer`, `dataframe_writer`
+  - optional scheme guards: `schemes` / `supported_schemes`
+- Added extension tests proving `object://` source materialization and `warehouse://` sink persistence through named service-backed adapters.
+- Kept package-backed Arrow/DataFrames TODO unchecked; this mitigates dependency-choice risk but does not overclaim full package-backed production completion.
+
+### Base Node Scale 100 And Arrow/DataFrames Materialization (2026-04-30)
+
+- Advanced base node scale from 75 to 100 stable Tier-1 nodes.
+- Added 25 tested nodes across column shaping, string transforms, numeric transforms, grouped aggregates, bucket/encoding helpers, BI metric cards, dashboard summary, and row-to-column summary:
+  - `base.drop_columns`
+  - `base.keep_columns_matching`
+  - `base.copy_column`
+  - `base.concat_columns`
+  - `base.substring_column`
+  - `base.string_length`
+  - `base.regex_replace`
+  - `base.round_number`
+  - `base.absolute_value`
+  - `base.log_transform`
+  - `base.percent_change`
+  - `base.lead_column`
+  - `base.cumulative_mean`
+  - `base.group_sum`
+  - `base.group_mean`
+  - `base.group_min`
+  - `base.group_max`
+  - `base.group_count`
+  - `base.group_percent_of_total`
+  - `base.bucket_by_thresholds`
+  - `base.quantile_bucket`
+  - `base.one_hot_encode`
+  - `base.metric_cards`
+  - `base.dashboard_summary`
+  - `base.rows_to_columns`
+- Completed the package-backed local Arrow/DataFrames materialization slice:
+  - Added `Arrow.jl`, `DataFrames.jl`, and `Tables.jl` to root and base extension projects.
+  - Added root-confined `.arrow`, `.feather`, and `.ipc` source reads via `Arrow.Table` + `DataFrame` when `enable_arrow_dataframe_adapter = true`.
+  - Added root-confined sink writes via `Arrow.write` + `Tables.columntable` when `enable_arrow_dataframe_adapter = true`.
+  - Preserved JSON/JSONL fallback, direct callbacks, and service-backed registry precedence.
+- Added extension tests for every new node and package-backed Arrow/DataFrames source/sink roundtrip.
+
+### Updated Gaps Pending (2026-04-30)
+
+- Base node library still needs scale from 100 -> 150 stable/adapter-required nodes for the Phase 1 breadth target.
+- Remote/cloud object-storage adapters remain pending; current package-backed path is local-root/object-store-style and root-confined.
+- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming, production GPU, Hub hardening, observability/perf, and deployment hardening remain pending.
+
+### Updated Next Items To Implement (2026-04-30)
+
+- Continue node scale from 100 -> 150 with tested stable/adapter-required nodes.
+- Add remote/cloud object-store service adapter deployment evidence or cloud package integration for production stores.
+- Run full verification after integrated changes: `git diff --check`, extension tests, full Julia tests, `npm run validate:brd-traceability`, `npm run test`, and `npm run build`.
+
+### Base Node Scale 125 Stable Nodes (2026-05-01)
+
+- Advanced base node scale from 100 to 125 stable Tier-1 nodes.
+- Added 25 tested nodes across advanced stats, ML scoring/evaluation, streaming prep, and Hub/package helper categories:
+  - `base.correlation`
+  - `base.covariance`
+  - `base.histogram`
+  - `base.outlier_flag`
+  - `base.standardize_columns`
+  - `base.train_test_split`
+  - `base.linear_score`
+  - `base.classification_threshold`
+  - `base.confusion_matrix`
+  - `base.regression_metrics`
+  - `base.kmeans_assign`
+  - `base.pca_project`
+  - `base.event_time_assign`
+  - `base.watermark_flag`
+  - `base.tumbling_window`
+  - `base.sliding_window`
+  - `base.stream_aggregate`
+  - `base.dedupe_event_id`
+  - `base.sink_transaction_marker`
+  - `base.extension_manifest_validate`
+  - `base.compatibility_report`
+  - `base.package_hash_verify`
+  - `base.object_store_list`
+  - `base.dataset_version`
+  - `base.schema_drift`
+- Registered/exported all new node keys and node types.
+- Added output-inspecting extension tests for all 25 new nodes.
+- Preserved the remote/cloud object-store gap as open because no provider/credential/dependency decision was supplied.
+
+### Updated Gaps Pending (2026-05-01)
+
+- Base node library still needs scale from 125 -> 150 stable/adapter-required nodes.
+- Remote/cloud object-storage adapter integration remains pending beyond the current root-confined local object-store-style path.
+- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming, production GPU, Hub hardening, observability/perf, and deployment hardening remain pending.
+
+### Updated Next Items To Implement (2026-05-01)
+
+- Continue node scale from 125 -> 150 with tested stable/adapter-required nodes.
+- Add remote/cloud object-store service adapter evidence or cloud package integration once provider/credential decision exists.
+- Run full verification after integrated changes: `git diff --check`, extension tests, full Julia tests, `npm run validate:brd-traceability`, `npm run test`, and `npm run build`.
+
+### Remote Adapter And 150 Stable Nodes (2026-05-01)
+
+- Added provider-neutral remote object-store materialization adapter on the central `TabularPayload.jl` seam:
+  - enable flag: `enable_remote_object_store_adapter = true`
+  - adapter metadata: `remote_object_store_adapter`, `cloud_object_store_adapter`, or `object_store_service_adapter`
+  - supported schemes default to `s3://`, `gs://`, `az://`, `https://`, and `http://`
+  - remote transfer format: Arrow IPC bytes encoded as base64 in a JSON envelope
+  - transport path is mockable for tests and can fall back to HTTP endpoint POST when configured
+- Preserved direct callback, named registry, local Arrow/DataFrames, and JSON/JSONL fallback paths.
+- Advanced base node scale from 125 to 150 stable Tier-1 nodes.
+- Added 25 tested quality, governance, feature engineering, streaming, and GPU-helper nodes:
+  - `base.column_presence`
+  - `base.null_rate`
+  - `base.duplicate_rate`
+  - `base.cardinality`
+  - `base.column_select_by_type`
+  - `base.time_since_previous`
+  - `base.sessionize_events`
+  - `base.window_lag_delta`
+  - `base.rolling_std`
+  - `base.expanding_max`
+  - `base.cross_join_rows`
+  - `base.append_metadata`
+  - `base.mask_column`
+  - `base.tokenize_column`
+  - `base.explode_list`
+  - `base.json_extract_field`
+  - `base.dataset_lineage`
+  - `base.policy_tag`
+  - `base.access_decision`
+  - `base.gpu_capability_flag`
+  - `base.batch_id_assign`
+  - `base.replay_offset`
+  - `base.exactly_once_key`
+  - `base.sink_commit_plan`
+  - `base.feature_vector`
+- Added output-inspecting tests for all new nodes and remote adapter source/sink paths.
+
+### Updated Gaps Pending (2026-05-01)
+
+- Provider-specific cloud object-store deployments/credentials and production deployment manifests remain pending hardening work.
+- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming adapters, production GPU kernels, Hub hardening, observability/perf, and deployment hardening remain pending.
+- 300+ ecosystem breadth remains Beta/GA roadmap work after the 150-node Phase 1 baseline.
+
+### Updated Next Items To Implement (2026-05-01)
+
+- Move to the next P0 BRD lane: BI drilldown/viewer/export polish or production OIDC/RBAC hardening.
+- Add provider-specific cloud deployment evidence for remote object-store adapters when target provider/credentials are available.
+- Keep full verification loop for every milestone: `git diff --check`, extension tests, full Julia tests, `npm run validate:brd-traceability`, `npm run test`, and `npm run build`.
