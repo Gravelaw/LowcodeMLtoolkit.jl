@@ -69,6 +69,16 @@ export interface GatewayAuthContext {
   permissions: ResourcePermission[];
 }
 
+export interface GatewayOidcProviderConfig {
+  issuer: string;
+  audience: string;
+  discoveryPath?: string;
+  discoveryUrl?: string;
+  jwksPath?: string;
+  jwksUrl?: string;
+  allowedAlgorithms: string[];
+}
+
 export interface GatewayAuditActionEvent {
   action: string;
   targetType: string;
@@ -362,6 +372,9 @@ export interface GatewayHealthcheck {
   runningExecutionsTotal: number;
   authMode?: GatewayAuthMode;
   authDevFallback?: boolean;
+  oidcDiscoveryConfigured?: boolean;
+  oidcJwksConfigured?: boolean;
+  oidcAllowedAlgorithms?: string[];
 }
 
 export interface GatewayWorkflowSummary {

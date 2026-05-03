@@ -142,3 +142,21 @@ Still pending before P0 auth can be marked complete:
 - Persisted users/workspaces admin model.
 - Resource-policy admin UI and audit browsing UX.
 - Broader security review and PostgreSQL-backed runtime evidence.
+
+
+## Progress Update: OIDC Discovery/JWKS Rotation (2026-05-03)
+
+Completed in second implementation pass:
+
+- OIDC discovery/JWKS source resolution via path or URL environment variables.
+- `kid`-based JWKS lookup for HS256 `oct` keys.
+- Allowed-algorithm gate and constant-time signature comparison.
+- Healthcheck fields for OIDC discovery/JWKS configuration.
+- Rotation tests proving stale keys fail and rotated keys pass.
+
+Still pending before P0 auth can be marked complete:
+
+- RSA/live IdP validation for the selected production provider.
+- Persisted users/workspaces admin model.
+- Resource-policy admin UI and audit browsing UX.
+- PostgreSQL-backed auth policy runtime evidence and security review.

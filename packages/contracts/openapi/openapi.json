@@ -987,7 +987,8 @@
               "disabled",
               "dev_token",
               "required",
-              "dev_fallback"
+              "dev_fallback",
+              "oidc"
             ]
           },
           "authDevFallback": {
@@ -998,6 +999,18 @@
           },
           "gpuFallbackAvailable": {
             "type": "boolean"
+          },
+          "oidcDiscoveryConfigured": {
+            "type": "boolean"
+          },
+          "oidcJwksConfigured": {
+            "type": "boolean"
+          },
+          "oidcAllowedAlgorithms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -2347,6 +2360,40 @@
           },
           "limit": {
             "type": "integer"
+          }
+        }
+      },
+      "GatewayOidcProviderConfig": {
+        "type": "object",
+        "required": [
+          "issuer",
+          "audience",
+          "allowedAlgorithms"
+        ],
+        "properties": {
+          "issuer": {
+            "type": "string"
+          },
+          "audience": {
+            "type": "string"
+          },
+          "discoveryPath": {
+            "type": "string"
+          },
+          "discoveryUrl": {
+            "type": "string"
+          },
+          "jwksPath": {
+            "type": "string"
+          },
+          "jwksUrl": {
+            "type": "string"
+          },
+          "allowedAlgorithms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       }

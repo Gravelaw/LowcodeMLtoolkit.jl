@@ -369,6 +369,9 @@ function healthcheck(state::GatewayState)
             "gpuFallbackAvailable" => gpu_registry["fallback_available"],
             "authMode" => gateway_auth_mode(),
             "authDevFallback" => dev_auth_token() === nothing && gateway_auth_mode() == "dev_token",
+            "oidcDiscoveryConfigured" => optional_env_setting("JULIAFLOW_OIDC_DISCOVERY_PATH") !== nothing || optional_env_setting("JULIAFLOW_OIDC_DISCOVERY_URL") !== nothing,
+            "oidcJwksConfigured" => optional_env_setting("JULIAFLOW_OIDC_JWKS_PATH") !== nothing || optional_env_setting("JULIAFLOW_OIDC_JWKS_URL") !== nothing || optional_env_setting("JULIAFLOW_OIDC_DISCOVERY_PATH") !== nothing || optional_env_setting("JULIAFLOW_OIDC_DISCOVERY_URL") !== nothing,
+            "oidcAllowedAlgorithms" => sort(collect(oidc_allowed_algorithms())),
             "eventLogSize" => event_stats.event_log_size,
             "latestEventSequence" => event_stats.latest_event_sequence,
             "gatewayConsumerCursor" => event_stats.gateway_consumer_cursor,
@@ -492,6 +495,13 @@ function base64url_decode_string(segment::AbstractString)
     return String(base64decode(encoded))
 end
 
+function base64url_decode_bytes(segment::AbstractString)
+    encoded = replace(replace(String(segment), '-' => '+'), '_' => '/')
+    remainder = mod(ncodeunits(encoded), 4)
+    remainder == 0 || (encoded *= repeat("=", 4 - remainder))
+    return base64decode(encoded)
+end
+
 function base64url_encode(bytes::Vector{UInt8})
     encoded = base64encode(bytes)
     encoded = replace(replace(encoded, '+' => '-'), '/' => '_')
@@ -502,6 +512,11 @@ function oidc_required_setting(name::AbstractString)
     value = strip(get(ENV, String(name), ""))
     isempty(value) && error("OIDC setting $(name) is required")
     return value
+end
+
+function optional_env_setting(name::AbstractString)
+    value = strip(get(ENV, String(name), ""))
+    return isempty(value) ? nothing : value
 end
 
 function oidc_claim_matches(value, expected::AbstractString)
@@ -521,19 +536,104 @@ function jwt_unix_claim(claims::AbstractDict, key::AbstractString)
     return parse(Int, String(value))
 end
 
-function validate_hs256_jwt(token::AbstractString)
+function constant_time_equal(left::AbstractString, right::AbstractString)
+    left_bytes = Vector{UInt8}(codeunits(String(left)))
+    right_bytes = Vector{UInt8}(codeunits(String(right)))
+    length(left_bytes) == length(right_bytes) || return false
+    diff = zero(UInt8)
+    for index in eachindex(left_bytes)
+        diff |= xor(left_bytes[index], right_bytes[index])
+    end
+    return diff == 0x00
+end
+
+function oidc_allowed_algorithms()
+    raw = split(get(ENV, "JULIAFLOW_OIDC_ALLOWED_ALGORITHMS", "HS256"), ',')
+    algorithms = [strip(String(item)) for item in raw if !isempty(strip(String(item)))]
+    isempty(algorithms) && error("OIDC allowed algorithms are required")
+    return Set(algorithms)
+end
+
+function oidc_source_json(source::AbstractString)
+    source_string = String(source)
+    if startswith(source_string, "http://") || startswith(source_string, "https://")
+        response = HTTP.get(source_string)
+        response.status == 200 || error("OIDC source fetch failed: $(source_string)")
+        return JSON3.read(String(response.body), Dict{String,Any})
+    end
+    path = startswith(source_string, "file://") ? source_string[8:end] : source_string
+    isfile(path) || error("OIDC source file not found: $(path)")
+    return JSON3.read(read(path, String), Dict{String,Any})
+end
+
+function oidc_discovery_document()
+    source = optional_env_setting("JULIAFLOW_OIDC_DISCOVERY_PATH")
+    source === nothing && (source = optional_env_setting("JULIAFLOW_OIDC_DISCOVERY_URL"))
+    source === nothing && return nothing
+    return oidc_source_json(source)
+end
+
+function oidc_expected_issuer()
+    discovery = oidc_discovery_document()
+    if discovery !== nothing && haskey(discovery, "issuer")
+        return String(discovery["issuer"])
+    end
+    return oidc_required_setting("JULIAFLOW_OIDC_ISSUER")
+end
+
+function oidc_jwks_source()
+    source = optional_env_setting("JULIAFLOW_OIDC_JWKS_PATH")
+    source === nothing && (source = optional_env_setting("JULIAFLOW_OIDC_JWKS_URL"))
+    source !== nothing && return source
+    discovery = oidc_discovery_document()
+    discovery === nothing && return nothing
+    haskey(discovery, "jwks_uri") || return nothing
+    return String(discovery["jwks_uri"])
+end
+
+function oidc_jwks_document()
+    source = oidc_jwks_source()
+    source === nothing && return nothing
+    return oidc_source_json(source)
+end
+
+function oidc_secret_from_jwks(header::AbstractDict)
+    jwks = oidc_jwks_document()
+    jwks === nothing && return nothing
+    kid = haskey(header, "kid") ? String(header["kid"]) : ""
+    isempty(kid) && error("OIDC token kid is required for JWKS validation")
+    for key in get(jwks, "keys", Any[])
+        String(get(key, "kid", "")) == kid || continue
+        String(get(key, "kty", "")) == "oct" || error("unsupported OIDC JWKS key type")
+        alg = String(get(key, "alg", String(get(header, "alg", ""))))
+        alg == "HS256" || error("unsupported OIDC JWKS key alg")
+        haskey(key, "k") || error("OIDC JWKS key material is missing")
+        return base64url_decode_bytes(String(key["k"]))
+    end
+    error("OIDC JWKS key not found: $(kid)")
+end
+
+function oidc_hs256_secret(header::AbstractDict)
+    jwks_secret = oidc_secret_from_jwks(header)
+    jwks_secret === nothing || return jwks_secret
+    secret = oidc_required_setting("JULIAFLOW_OIDC_HS256_SECRET")
+    return Vector{UInt8}(codeunits(secret))
+end
+
+function validate_oidc_jwt(token::AbstractString)
     segments = split(String(token), '.')
     length(segments) == 3 || error("invalid OIDC token")
     header = JSON3.read(base64url_decode_string(segments[1]), Dict{String,Any})
     claims = JSON3.read(base64url_decode_string(segments[2]), Dict{String,Any})
-    String(get(header, "alg", "")) == "HS256" || error("unsupported OIDC token alg")
+    alg = String(get(header, "alg", ""))
+    alg in oidc_allowed_algorithms() || error("unsupported OIDC token alg")
+    alg == "HS256" || error("unsupported OIDC token alg")
 
-    secret = oidc_required_setting("JULIAFLOW_OIDC_HS256_SECRET")
     signing_input = string(segments[1], ".", segments[2])
-    expected_signature = base64url_encode(hmac_sha256(Vector{UInt8}(codeunits(secret)), signing_input))
-    expected_signature == String(segments[3]) || error("invalid OIDC token signature")
+    expected_signature = base64url_encode(hmac_sha256(oidc_hs256_secret(header), signing_input))
+    constant_time_equal(expected_signature, String(segments[3])) || error("invalid OIDC token signature")
 
-    issuer = oidc_required_setting("JULIAFLOW_OIDC_ISSUER")
+    issuer = oidc_expected_issuer()
     audience = oidc_required_setting("JULIAFLOW_OIDC_AUDIENCE")
     haskey(claims, "iss") && String(claims["iss"]) == issuer || error("invalid OIDC token issuer")
     haskey(claims, "aud") && oidc_claim_matches(claims["aud"], audience) || error("invalid OIDC token audience")
@@ -596,7 +696,7 @@ function auth_context_payload(request::HTTP.Request; state::Union{Nothing,Gatewa
     elseif mode == "oidc"
         token = bearer_token_from_request(request)
         token === nothing && error("OIDC bearer token is required")
-        claims = validate_hs256_jwt(token)
+        claims = validate_oidc_jwt(token)
         context = auth_context_from_role(
             String(claims["sub"]),
             workspace_from_claims(claims, request),
@@ -1669,6 +1769,8 @@ function classify_gateway_error(err)
     elseif occursin("OIDC setting", message)
         return 401, message
     elseif occursin("OIDC token", message)
+        return 401, message
+    elseif occursin("OIDC", message)
         return 401, message
     elseif occursin("permission denied", message)
         return 403, message

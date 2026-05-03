@@ -78,6 +78,22 @@ Foundation gateway starts from local workflow fixture and persists workflows, ch
 julia --project=. scripts/run-api-gateway.jl
 ```
 
+Gateway auth modes remain explicit for local and production-hardening paths:
+
+```bash
+# local/dev default: dev_token, or disabled for trusted local-only smoke tests
+JULIAFLOW_AUTH_MODE=dev_token JULIAFLOW_DEV_AUTH_TOKEN=dev-secret julia --project=. scripts/run-api-gateway.jl
+
+# production-hardening OIDC/JWKS path using discovery metadata + HS256 JWKS fixtures
+JULIAFLOW_AUTH_MODE=oidc \
+JULIAFLOW_OIDC_DISCOVERY_PATH=/path/to/openid-configuration.json \
+JULIAFLOW_OIDC_AUDIENCE=juliaflow-gateway \
+JULIAFLOW_OIDC_ALLOWED_ALGORITHMS=HS256 \
+julia --project=. scripts/run-api-gateway.jl
+```
+
+OIDC discovery/JWKS support is mockable and tested for key rotation. Live IdP RSA/JWKS hardening and admin UI surfaces remain tracked in `docs/TODO.md` and `docs/risk-register.md`.
+
 Backend selection:
 
 ```bash

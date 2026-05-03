@@ -928,3 +928,24 @@ After any meaningful job:
 - Add selected-provider JWKS/RSA validation or a documented IdP adapter seam with key-rotation tests.
 - Add minimal persisted users/workspaces/admin UI surface for role and resource-policy management.
 - Keep P0 item 11 unchecked until live-provider validation and admin UI/resource-policy management evidence exist.
+
+### OIDC Discovery/JWKS Rotation Hardening (2026-05-03)
+
+### Work Done Till Date
+
+- Extended OIDC auth from env-secret HS256 validation to discovery/JWKS source resolution via `JULIAFLOW_OIDC_DISCOVERY_PATH`/`URL` and `JULIAFLOW_OIDC_JWKS_PATH`/`URL`.
+- Added `kid`-based JWKS key lookup for `oct`/HS256 keys, constant-time signature comparison, allowed-algorithm gating, and healthcheck metadata for OIDC discovery/JWKS configuration.
+- Added Julia rotation tests proving old JWKS keys fail after rotation and new keys pass.
+- Updated README/onboarding docs and contract/OpenAPI health/config surfaces.
+
+### Gaps Pending
+
+- RSA/live IdP validation remains pending because no provider/dependency choice is configured yet.
+- Persisted users/workspaces admin model and resource-policy/audit admin UI remain pending.
+- PostgreSQL-backed auth policy runtime evidence and broader security review remain pending.
+
+### Next Items To Implement
+
+- Add selected-provider RSA/JWKS validation or a documented IdP adapter with provider metadata/key-rotation fixtures.
+- Add admin UI for users/workspaces/role bindings/resource policies and audit query browsing.
+- Keep P0 auth TODO unchecked until live-provider and admin UI evidence exists.

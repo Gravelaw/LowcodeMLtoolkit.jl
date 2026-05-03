@@ -35,11 +35,16 @@ function test_base64url_json(payload)
     return test_base64url(Vector{UInt8}(codeunits(JSON3.write(payload))))
 end
 
-function test_hs256_jwt(claims::Dict{String,Any}; secret::AbstractString = "oidc-secret")
-    header = Dict("alg" => "HS256", "typ" => "JWT")
+function test_hs256_jwt(claims::Dict{String,Any}; secret::AbstractString = "oidc-secret", kid::Union{Nothing,AbstractString} = nothing)
+    header = Dict{String,Any}("alg" => "HS256", "typ" => "JWT")
+    kid === nothing || (header["kid"] = String(kid))
     signing_input = string(test_base64url_json(header), ".", test_base64url_json(claims))
     signature = test_base64url(hmac_sha256(Vector{UInt8}(codeunits(secret)), signing_input))
     return string(signing_input, ".", signature)
+end
+
+function test_oct_jwk(kid::AbstractString, secret::AbstractString)
+    return Dict("kty" => "oct", "kid" => String(kid), "alg" => "HS256", "k" => test_base64url(Vector{UInt8}(codeunits(secret))))
 end
 
 @testset "Node SDK" begin
@@ -1803,4 +1808,59 @@ end
     @test any(event["action"] == "auth.policy.update" for event in audit_payload["events"])
     @test !occursin("oidc-secret", String(audit_query_response.body))
     @test isfile(joinpath(store_root, "auth-policy.json"))
+end
+
+@testset "Gateway OIDC JWKS Rotation" begin
+    store_root = mktempdir()
+    foundation_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "foundation.workflow.toml")
+    state = foundation_state(foundation_path; store_root = store_root)
+    jwks_path = joinpath(store_root, "jwks.json")
+    discovery_path = joinpath(store_root, "openid-configuration.json")
+
+    write(
+        discovery_path,
+        JSON3.write(Dict("issuer" => "https://issuer.test", "jwks_uri" => jwks_path)),
+    )
+    write(jwks_path, JSON3.write(Dict("keys" => [test_oct_jwk("kid-old", "old-secret")])) )
+
+    claims = Dict{String,Any}(
+        "iss" => "https://issuer.test",
+        "aud" => "juliaflow-gateway",
+        "sub" => "user-owner",
+        "juliaflow_workspace" => "workspace-a",
+        "juliaflow_role" => "owner",
+        "exp" => 4102444800,
+    )
+    old_token = test_hs256_jwt(claims; secret = "old-secret", kid = "kid-old")
+    new_token = test_hs256_jwt(claims; secret = "new-secret", kid = "kid-new")
+
+    env_pairs = (
+        "JULIAFLOW_AUTH_MODE" => "oidc",
+        "JULIAFLOW_OIDC_DISCOVERY_PATH" => discovery_path,
+        "JULIAFLOW_OIDC_AUDIENCE" => "juliaflow-gateway",
+        "JULIAFLOW_OIDC_ALLOWED_ALGORITHMS" => "HS256",
+    )
+
+    old_key_response = withenv(env_pairs...) do
+        route_request(state, HTTP.Request("GET", "/api/v1/workflows", ["Authorization" => "Bearer $(old_token)"]))
+    end
+    missing_key_response = withenv(env_pairs...) do
+        route_request(state, HTTP.Request("GET", "/api/v1/workflows", ["Authorization" => "Bearer $(new_token)"]))
+    end
+
+    write(jwks_path, JSON3.write(Dict("keys" => [test_oct_jwk("kid-new", "new-secret")])) )
+
+    rotated_old_response = withenv(env_pairs...) do
+        route_request(state, HTTP.Request("GET", "/api/v1/workflows", ["Authorization" => "Bearer $(old_token)"]))
+    end
+    rotated_new_response = withenv(env_pairs...) do
+        route_request(state, HTTP.Request("GET", "/api/v1/workflows", ["Authorization" => "Bearer $(new_token)"]))
+    end
+
+    @test old_key_response.status == 200
+    @test missing_key_response.status == 401
+    @test occursin("OIDC JWKS key not found: kid-new", String(missing_key_response.body))
+    @test rotated_old_response.status == 401
+    @test occursin("OIDC JWKS key not found: kid-old", String(rotated_old_response.body))
+    @test rotated_new_response.status == 200
 end

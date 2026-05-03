@@ -958,3 +958,24 @@ Each checkpoint entry must contain:
 - Add live-provider OIDC/JWKS validation seam and key-rotation tests.
 - Add minimal admin UI for users/workspaces/role bindings/resource policies and audit browsing.
 - Re-run full verification and only check TODO P0 item 11 after code/test evidence covers the remaining gaps.
+
+
+---
+
+## Checkpoint: OIDC Discovery/JWKS Rotation Hardening — 2026-05-03
+
+### Work Done Till Date
+
+- Added mockable OIDC discovery/JWKS key resolution with `kid` lookup, HS256 JWKS fixture support, allowed-algorithm gating, and key-rotation tests.
+- Exposed non-secret OIDC configuration status in gateway healthcheck and contract/OpenAPI types.
+- Updated README, onboarding, TODO, traceability, tracker, and risk register.
+
+### Gaps Pending
+
+- RSA/live IdP validation, persisted users/workspaces admin model, resource-policy/audit admin UI, PostgreSQL runtime evidence, and broader security review remain pending.
+
+### Next Items To Implement
+
+- Implement selected-provider RSA/JWKS adapter or live IdP fixture path.
+- Build minimal admin UI for role/resource-policy management and audit browsing.
+- Keep full verification loop before any milestone claim.

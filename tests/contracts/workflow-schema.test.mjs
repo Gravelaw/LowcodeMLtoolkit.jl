@@ -121,9 +121,14 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayHealthcheck.properties.queuedExecutionsTotal);
   assert.ok(schemas.GatewayHealthcheck.properties.runningExecutionsTotal);
   assert.ok(schemas.GatewayHealthcheck.properties.authMode);
+  assert.ok(schemas.GatewayHealthcheck.properties.authMode.enum.includes("oidc"));
+  assert.ok(schemas.GatewayHealthcheck.properties.oidcDiscoveryConfigured);
+  assert.ok(schemas.GatewayHealthcheck.properties.oidcJwksConfigured);
+  assert.ok(schemas.GatewayHealthcheck.properties.oidcAllowedAlgorithms);
   assert.ok(schemas.GatewayAuthContext);
   assert.deepEqual(schemas.GatewayAuthContext.properties.role.enum, ["owner", "editor", "viewer"]);
   assert.ok(schemas.GatewayAuthContext.properties.mode.enum.includes("oidc"));
+  assert.ok(schemas.GatewayOidcProviderConfig);
   assert.ok(schemas.GatewayAuthPolicy);
   assert.ok(schemas.GatewayRoleBinding);
   assert.ok(schemas.GatewayResourcePolicy);

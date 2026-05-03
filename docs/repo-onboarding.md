@@ -318,7 +318,7 @@ Big gaps still open:
 
 - base node pack real behavior and breadth toward BRD Phase 1 node target
 - BI chart-data service, semantic layer, live data binding, and richer access/export
-- Auth/RBAC/JWT/OIDC resource permission model
+- Auth/RBAC/JWT/OIDC live-provider RSA/JWKS hardening plus admin UI for users/workspaces/resource policies
 - true streaming adapter/window/checkpoint/backpressure runtime
 - actual GPU compute execution path beyond dispatch metadata
 - Hub publish/search/rate UX, hash-verified install, compatibility sandbox, private mirror
