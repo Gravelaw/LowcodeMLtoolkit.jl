@@ -124,3 +124,21 @@ Solo `$ralph` is enough for the first thin slice. If using `$team`, split:
 - Optional frontend admin/read surface lane
 
 Stop condition: all acceptance criteria pass with fresh verification evidence and tracker/checkpoint/traceability synced.
+
+## Progress Update: First Auth Hardening Slice (2026-05-03)
+
+Completed in first implementation pass:
+
+- OIDC-style JWT auth mode behind `JULIAFLOW_AUTH_MODE=oidc`.
+- HS256 fixture validation for issuer, audience, expiry, not-before, subject, role, workspace, and signature.
+- Persisted role bindings and resource policies in file repository with PostgreSQL-ready auth policy schema.
+- Policy read/update route and bounded redacted audit action query route.
+- `auth.policy.changed` durable event type and TypeScript/OpenAPI contract surface.
+- Julia and contract tests for the new auth/policy/audit slice.
+
+Still pending before P0 auth can be marked complete:
+
+- JWKS/RSA or selected live IdP validation and key-rotation tests.
+- Persisted users/workspaces admin model.
+- Resource-policy admin UI and audit browsing UX.
+- Broader security review and PostgreSQL-backed runtime evidence.

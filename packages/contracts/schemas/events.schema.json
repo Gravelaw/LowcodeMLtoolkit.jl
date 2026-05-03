@@ -31,7 +31,8 @@
             "repository.save.changed",
             "hub.extension.changed",
             "dashboard.published",
-            "audit.action"
+            "audit.action",
+            "auth.policy.changed"
           ]
         },
         "aggregateType": {
@@ -65,10 +66,18 @@
                 "status"
               ],
               "properties": {
-                "executionId": { "type": "string" },
-                "workflowId": { "type": "string" },
-                "workflowVersion": { "type": "string" },
-                "status": { "type": "string" }
+                "executionId": {
+                  "type": "string"
+                },
+                "workflowId": {
+                  "type": "string"
+                },
+                "workflowVersion": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                }
               }
             },
             {
@@ -80,10 +89,18 @@
                 "stateVersion"
               ],
               "properties": {
-                "workflowId": { "type": "string" },
-                "checkpointId": { "type": "string" },
-                "offsets": { "type": "object" },
-                "stateVersion": { "type": "integer" }
+                "workflowId": {
+                  "type": "string"
+                },
+                "checkpointId": {
+                  "type": "string"
+                },
+                "offsets": {
+                  "type": "object"
+                },
+                "stateVersion": {
+                  "type": "integer"
+                }
               }
             },
             {
@@ -94,10 +111,18 @@
                 "savedAt"
               ],
               "properties": {
-                "workflowId": { "type": "string" },
-                "workflowVersion": { "type": "string" },
-                "graphRevision": { "type": "integer" },
-                "savedAt": { "type": "string" }
+                "workflowId": {
+                  "type": "string"
+                },
+                "workflowVersion": {
+                  "type": "string"
+                },
+                "graphRevision": {
+                  "type": "integer"
+                },
+                "savedAt": {
+                  "type": "string"
+                }
               }
             },
             {
@@ -108,9 +133,15 @@
                 "installState"
               ],
               "properties": {
-                "extensionId": { "type": "string" },
-                "manifest": { "type": "object" },
-                "installState": { "type": "string" }
+                "extensionId": {
+                  "type": "string"
+                },
+                "manifest": {
+                  "type": "object"
+                },
+                "installState": {
+                  "type": "string"
+                }
               }
             },
             {
@@ -126,17 +157,36 @@
                 "charts"
               ],
               "properties": {
-                "dashboardId": { "type": "string" },
-                "workflowId": { "type": "string" },
-                "name": { "type": "string" },
-                "version": { "type": "integer" },
-                "publishedAt": { "type": "string" },
-                "visibility": {
-                  "enum": ["workspace", "public"]
+                "dashboardId": {
+                  "type": "string"
                 },
-                "shareToken": { "type": "string" },
-                "binding": { "type": "object" },
-                "charts": { "type": "array" }
+                "workflowId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                },
+                "publishedAt": {
+                  "type": "string"
+                },
+                "visibility": {
+                  "enum": [
+                    "workspace",
+                    "public"
+                  ]
+                },
+                "shareToken": {
+                  "type": "string"
+                },
+                "binding": {
+                  "type": "object"
+                },
+                "charts": {
+                  "type": "array"
+                }
               }
             },
             {
@@ -150,10 +200,18 @@
                 "details"
               ],
               "properties": {
-                "action": { "type": "string" },
-                "targetType": { "type": "string" },
-                "targetId": { "type": "string" },
-                "recordedAt": { "type": "string" },
+                "action": {
+                  "type": "string"
+                },
+                "targetType": {
+                  "type": "string"
+                },
+                "targetId": {
+                  "type": "string"
+                },
+                "recordedAt": {
+                  "type": "string"
+                },
                 "authContext": {
                   "type": "object",
                   "required": [
@@ -164,17 +222,48 @@
                     "permissions"
                   ],
                   "properties": {
-                    "principalId": { "type": "string" },
-                    "workspaceId": { "type": "string" },
-                    "role": { "type": "string" },
-                    "mode": { "type": "string" },
+                    "principalId": {
+                      "type": "string"
+                    },
+                    "workspaceId": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string"
+                    },
                     "permissions": {
                       "type": "array",
-                      "items": { "type": "string" }
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   }
                 },
-                "details": { "type": "object" }
+                "details": {
+                  "type": "object"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "roleBindings",
+                "resourcePolicies",
+                "updatedAt"
+              ],
+              "properties": {
+                "roleBindings": {
+                  "type": "array"
+                },
+                "resourcePolicies": {
+                  "type": "array"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
               }
             }
           ]

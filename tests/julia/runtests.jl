@@ -1,6 +1,8 @@
 using Test
+using Base64
 using HTTP
 using JSON3
+using SHA
 using TOML
 
 include(joinpath(@__DIR__, "..", "..", "services", "node-sdk", "src", "JuliaFlowNodeSDK.jl"))
@@ -22,6 +24,23 @@ mutable struct FakeRealtimeSocket
 end
 
 HTTP.WebSockets.send(socket::FakeRealtimeSocket, message) = push!(socket.messages, String(message))
+
+function test_base64url(bytes::Vector{UInt8})
+    encoded = base64encode(bytes)
+    encoded = replace(replace(encoded, '+' => '-'), '/' => '_')
+    return replace(encoded, "=" => "")
+end
+
+function test_base64url_json(payload)
+    return test_base64url(Vector{UInt8}(codeunits(JSON3.write(payload))))
+end
+
+function test_hs256_jwt(claims::Dict{String,Any}; secret::AbstractString = "oidc-secret")
+    header = Dict("alg" => "HS256", "typ" => "JWT")
+    signing_input = string(test_base64url_json(header), ".", test_base64url_json(claims))
+    signature = test_base64url(hmac_sha256(Vector{UInt8}(codeunits(secret)), signing_input))
+    return string(signing_input, ".", signature)
+end
 
 @testset "Node SDK" begin
     payload = (format = :arrow_ipc, ref = "minio://wf/output.arrow")
@@ -1671,4 +1690,117 @@ end
     @test any(event.payload["action"] == "workflow.execute" && event.aggregate_id == "wf-audit" for event in audit_events)
     @test any(event.payload["action"] == "checkpoint.create" && event.aggregate_id == "cp/audit-events" for event in audit_events)
     @test all(haskey(event.payload, "authContext") for event in audit_events)
+end
+
+@testset "Gateway OIDC RBAC Policy" begin
+    store_root = mktempdir()
+    foundation_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "foundation.workflow.toml")
+    state = foundation_state(foundation_path; store_root = store_root)
+
+    owner_token = test_hs256_jwt(
+        Dict{String,Any}(
+            "iss" => "https://issuer.test",
+            "aud" => "juliaflow-gateway",
+            "sub" => "user-owner",
+            "juliaflow_workspace" => "workspace-a",
+            "juliaflow_role" => "owner",
+            "exp" => 4102444800,
+        ),
+    )
+    viewer_claims_owner_token = test_hs256_jwt(
+        Dict{String,Any}(
+            "iss" => "https://issuer.test",
+            "aud" => "juliaflow-gateway",
+            "sub" => "user-viewer",
+            "juliaflow_workspace" => "workspace-a",
+            "juliaflow_role" => "owner",
+            "exp" => 4102444800,
+        ),
+    )
+    wrong_signature_token = string(viewer_claims_owner_token[1:end-2], "xx")
+
+    env_pairs = (
+        "JULIAFLOW_AUTH_MODE" => "oidc",
+        "JULIAFLOW_OIDC_ISSUER" => "https://issuer.test",
+        "JULIAFLOW_OIDC_AUDIENCE" => "juliaflow-gateway",
+        "JULIAFLOW_OIDC_HS256_SECRET" => "oidc-secret",
+    )
+
+    missing_token_response = withenv(env_pairs...) do
+        route_request(state, HTTP.Request("GET", "/api/v1/workflows"))
+    end
+    invalid_token_response = withenv(env_pairs...) do
+        route_request(state, HTTP.Request("GET", "/api/v1/workflows", ["Authorization" => "Bearer $(wrong_signature_token)"]))
+    end
+    policy_body = Dict(
+        "roleBindings" => Any[
+            Dict("principalId" => "user-viewer", "workspaceId" => "workspace-a", "role" => "viewer"),
+        ],
+        "resourcePolicies" => Any[
+            Dict(
+                "resourceType" => "workflow",
+                "resourceId" => "wf-foundation",
+                "workspaceId" => "workspace-a",
+                "permissionsByRole" => Dict("viewer" => ["workflow:read"]),
+            ),
+        ],
+    )
+    save_policy_response = withenv(env_pairs...) do
+        route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/admin/auth/policies",
+                ["Authorization" => "Bearer $(owner_token)", "Content-Type" => "application/json"],
+                JSON3.write(policy_body),
+            ),
+        )
+    end
+    get_policy_response = withenv(env_pairs...) do
+        route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/admin/auth/policies", ["Authorization" => "Bearer $(owner_token)"]),
+        )
+    end
+    viewer_read_response = withenv(env_pairs...) do
+        route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/workflows/wf-foundation", ["Authorization" => "Bearer $(viewer_claims_owner_token)"]),
+        )
+    end
+    viewer_execute_response = withenv(env_pairs...) do
+        route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/execute",
+                ["Authorization" => "Bearer $(viewer_claims_owner_token)", "Content-Type" => "application/json"],
+                JSON3.write(Dict()),
+            ),
+        )
+    end
+    audit_query_response = withenv(env_pairs...) do
+        route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/audit/actions?targetType=auth_policy&limit=10", ["Authorization" => "Bearer $(owner_token)"]),
+        )
+    end
+
+    @test missing_token_response.status == 401
+    @test occursin("OIDC bearer token is required", String(missing_token_response.body))
+    @test invalid_token_response.status == 401
+    @test occursin("invalid OIDC token signature", String(invalid_token_response.body))
+    @test save_policy_response.status == 200
+    @test occursin("user-viewer", String(save_policy_response.body))
+    @test get_policy_response.status == 200
+    @test occursin("resourcePolicies", String(get_policy_response.body))
+    @test viewer_read_response.status == 200
+    @test viewer_execute_response.status == 403
+    @test occursin("permission denied: workflow:execute", String(viewer_execute_response.body))
+    @test audit_query_response.status == 200
+    audit_payload = JSON3.read(String(audit_query_response.body), Dict{String,Any})
+    @test audit_payload["count"] >= 1
+    @test any(event["action"] == "auth.policy.update" for event in audit_payload["events"])
+    @test !occursin("oidc-secret", String(audit_query_response.body))
+    @test isfile(joinpath(store_root, "auth-policy.json"))
 end

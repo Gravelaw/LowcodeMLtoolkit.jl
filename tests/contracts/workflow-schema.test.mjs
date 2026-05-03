@@ -48,6 +48,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(spec.paths["/api/v1/hub/extensions"]);
   assert.ok(spec.paths["/api/v1/hub/extensions/register"]);
   assert.ok(spec.paths["/api/v1/hub/extensions/{extensionId}/install"]);
+  assert.ok(spec.paths["/api/v1/admin/auth/policies"]);
+  assert.ok(spec.paths["/api/v1/audit/actions"]);
   assert.ok(spec.components.parameters.DashboardShareToken);
   assert.ok(spec.components.parameters.DashboardWorkspaceToken);
   assert.ok(spec.components.parameters.DashboardAuthorizationHeader);
@@ -121,6 +123,11 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayHealthcheck.properties.authMode);
   assert.ok(schemas.GatewayAuthContext);
   assert.deepEqual(schemas.GatewayAuthContext.properties.role.enum, ["owner", "editor", "viewer"]);
+  assert.ok(schemas.GatewayAuthContext.properties.mode.enum.includes("oidc"));
+  assert.ok(schemas.GatewayAuthPolicy);
+  assert.ok(schemas.GatewayRoleBinding);
+  assert.ok(schemas.GatewayResourcePolicy);
+  assert.ok(schemas.GatewayAuditQueryResponse);
   assert.ok(schemas.WorkflowDetail.properties.graphRevision);
   assert.ok(schemas.WorkflowDetail.properties.dashboardCount);
   assert.ok(schemas.WorkflowDetail.properties.runMode);
@@ -196,7 +203,8 @@ test("event schema exposes durable envelope and backbone event types", async () 
     "repository.save.changed",
     "hub.extension.changed",
     "dashboard.published",
-    "audit.action"
+    "audit.action",
+    "auth.policy.changed"
   ]);
 });
 

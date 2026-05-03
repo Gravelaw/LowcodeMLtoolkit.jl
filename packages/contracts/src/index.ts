@@ -42,7 +42,7 @@ export type StreamingWindowKind = "tumbling" | "sliding";
 export type StreamingWatermarkMode = "processing_time" | "event_time";
 export type StreamLifecycleStatus = "idle" | "starting" | "active" | "paused" | "stopped";
 
-export type GatewayAuthMode = "disabled" | "dev_token" | "required" | "dev_fallback";
+export type GatewayAuthMode = "disabled" | "dev_token" | "required" | "dev_fallback" | "oidc";
 export type WorkspaceRole = "owner" | "editor" | "viewer";
 export type ResourcePermission =
   | "workflow:read"
@@ -56,7 +56,10 @@ export type ResourcePermission =
   | "dashboard:publish"
   | "hub:read"
   | "hub:publish"
-  | "hub:install";
+  | "hub:install"
+  | "policy:read"
+  | "policy:write"
+  | "audit:read";
 
 export interface GatewayAuthContext {
   principalId: string;
@@ -73,6 +76,31 @@ export interface GatewayAuditActionEvent {
   recordedAt: string;
   authContext: GatewayAuthContext;
   details: Record<string, unknown>;
+}
+
+export interface GatewayRoleBinding {
+  principalId: string;
+  workspaceId: string;
+  role: WorkspaceRole;
+}
+
+export interface GatewayResourcePolicy {
+  resourceType: string;
+  resourceId: string;
+  workspaceId: string;
+  permissionsByRole: Partial<Record<WorkspaceRole, ResourcePermission[]>>;
+}
+
+export interface GatewayAuthPolicy {
+  roleBindings: GatewayRoleBinding[];
+  resourcePolicies: GatewayResourcePolicy[];
+  updatedAt: string;
+}
+
+export interface GatewayAuditQueryResponse {
+  events: Array<GatewayAuditActionEvent & { eventId: string; sequence: number; occurredAt: string }>;
+  count: number;
+  limit: number;
 }
 
 export interface WorkflowNodeLayout {
@@ -656,7 +684,9 @@ export const gatewayEndpointPaths = {
   hubExtensions: "/api/v1/hub/extensions",
   hubExtensionRegister: "/api/v1/hub/extensions/register",
   hubExtensionInstall: (extensionId: string) =>
-    `/api/v1/hub/extensions/${encodeURIComponent(extensionId)}/install`
+    `/api/v1/hub/extensions/${encodeURIComponent(extensionId)}/install`,
+  authPolicies: "/api/v1/admin/auth/policies",
+  auditActions: "/api/v1/audit/actions"
 } as const;
 
 export type GatewayStaticEndpointPath = Extract<
@@ -769,7 +799,8 @@ export type GatewayDurableEventType =
   | "repository.save.changed"
   | "hub.extension.changed"
   | "dashboard.published"
-  | "audit.action";
+  | "audit.action"
+  | "auth.policy.changed";
 
 export interface GatewayDurableEventEnvelope<
   TType extends GatewayDurableEventType = GatewayDurableEventType,
@@ -793,6 +824,7 @@ export interface GatewayDurableEventPayloadMap {
   "hub.extension.changed": GatewayHubExtensionChangedEvent;
   "dashboard.published": PublishedDashboardDefinition;
   "audit.action": GatewayAuditActionEvent;
+  "auth.policy.changed": GatewayAuthPolicy;
 }
 
 export type GatewayDurableEvent =
@@ -911,6 +943,12 @@ export interface GatewayApiClient {
     request: GatewayHubInstallRequest,
     options?: GatewayRequestOptions
   ): Promise<GatewayHubInstallResponse>;
+  getAuthPolicy(options?: GatewayRequestOptions): Promise<GatewayAuthPolicy>;
+  updateAuthPolicy(
+    request: GatewayAuthPolicy,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayAuthPolicy>;
+  queryAuditActions(options?: GatewayRequestOptions): Promise<GatewayAuditQueryResponse>;
 }
 
 export class GatewayClientError extends Error {
@@ -1157,6 +1195,27 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "POST",
         gatewayEndpointPaths.hubExtensionInstall(extensionId),
         installRequest,
+        requestOptions
+      ),
+    getAuthPolicy: (requestOptions) =>
+      request<GatewayAuthPolicy>(
+        "GET",
+        gatewayEndpointPaths.authPolicies,
+        undefined,
+        requestOptions
+      ),
+    updateAuthPolicy: (policy, requestOptions) =>
+      request<GatewayAuthPolicy>(
+        "PUT",
+        gatewayEndpointPaths.authPolicies,
+        policy,
+        requestOptions
+      ),
+    queryAuditActions: (requestOptions) =>
+      request<GatewayAuditQueryResponse>(
+        "GET",
+        gatewayEndpointPaths.auditActions,
+        undefined,
         requestOptions
       )
   };

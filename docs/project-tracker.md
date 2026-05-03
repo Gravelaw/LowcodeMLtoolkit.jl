@@ -906,3 +906,25 @@ After any meaningful job:
 - Add a mockable JWT/OIDC validation seam with issuer/audience/expiry checks while preserving disabled/dev-token fallback.
 - Add persisted file-backed users/workspaces/roles/resource policies and bounded/redacted audit query APIs with tests.
 - Keep TODO/BRD traceability unchecked until code and test evidence exist, then run `npm run validate:brd-traceability` before claiming any milestone.
+
+### OIDC/RBAC First Production-Hardening Slice (2026-05-03)
+
+### Work Done Till Date
+
+- Added OIDC-style JWT auth mode behind `JULIAFLOW_AUTH_MODE=oidc` with HS256 fixture validation for issuer, audience, expiry, not-before, subject, role, workspace, and signature.
+- Added persisted auth policy records for role bindings and resource policies in the file repository plus PostgreSQL-ready schema support.
+- Added policy read/update and bounded redacted audit action query routes with OpenAPI and TypeScript contract coverage.
+- Added Julia gateway tests for missing/invalid OIDC tokens, persisted role binding override, resource-policy enforcement, audit query, redaction, and file persistence.
+
+### Gaps Pending
+
+- Live-provider JWKS/RSA validation or selected IdP adapter remains pending before full production OIDC can be claimed.
+- Persisted users/workspaces admin model and resource-policy admin UI remain pending.
+- Broader security review, frontend admin UX tests, and PostgreSQL-backed auth policy evidence remain pending.
+- Streaming and GPU production hardening remain queued after the security lane.
+
+### Next Items To Implement
+
+- Add selected-provider JWKS/RSA validation or a documented IdP adapter seam with key-rotation tests.
+- Add minimal persisted users/workspaces/admin UI surface for role and resource-policy management.
+- Keep P0 item 11 unchecked until live-provider validation and admin UI/resource-policy management evidence exist.

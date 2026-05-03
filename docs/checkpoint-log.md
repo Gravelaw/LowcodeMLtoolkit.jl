@@ -936,3 +936,25 @@ Each checkpoint entry must contain:
 - Start production OIDC/RBAC hardening from contracts and OpenAPI, then gateway auth/repository seams, tests, and minimal UI/admin surfaces as needed.
 - Preserve dev-token/disabled-auth, share-token, and workspace-token flows with regression tests.
 - Burn down `R-SEC-001` through `R-SEC-004` in `docs/risk-register.md` before moving to streaming or GPU hardening.
+
+---
+
+## Checkpoint: OIDC/RBAC First Production-Hardening Slice — 2026-05-03
+
+### Work Done Till Date
+
+- Implemented the first production-auth hardening slice: OIDC-style JWT auth mode, persisted role/resource policies, audit policy-change events, and bounded redacted audit query API.
+- Updated contracts/OpenAPI/event schema/client types and added Julia plus contract tests.
+- Updated TODO, BRD traceability, tracker, and risk register without marking P0 auth complete.
+
+### Gaps Pending
+
+- JWKS/RSA or selected live IdP validation remains pending beyond HS256 fixture validation.
+- Persisted users/workspaces admin model, resource-policy admin UI, broader security review, and PostgreSQL auth policy runtime evidence remain pending.
+- Streaming/GPU production hardening remain next roadmap lanes after auth/security depth.
+
+### Next Items To Implement
+
+- Add live-provider OIDC/JWKS validation seam and key-rotation tests.
+- Add minimal admin UI for users/workspaces/role bindings/resource policies and audit browsing.
+- Re-run full verification and only check TODO P0 item 11 after code/test evidence covers the remaining gaps.

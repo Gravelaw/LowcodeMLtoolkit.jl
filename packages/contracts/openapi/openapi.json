@@ -652,6 +652,144 @@
           }
         }
       }
+    },
+    "/api/v1/admin/auth/policies": {
+      "get": {
+        "summary": "Read persisted auth policy",
+        "responses": {
+          "200": {
+            "description": "Auth policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayAuthPolicy"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Replace persisted auth policy",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GatewayAuthPolicy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Auth policy updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayAuthPolicy"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audit/actions": {
+      "get": {
+        "summary": "Query redacted audit action events",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "principalId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit action events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayAuditQueryResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2012,7 +2150,8 @@
               "disabled",
               "dev_token",
               "required",
-              "dev_fallback"
+              "dev_fallback",
+              "oidc"
             ]
           },
           "permissions": {
@@ -2108,6 +2247,106 @@
           },
           "stale": {
             "type": "boolean"
+          }
+        }
+      },
+      "GatewayRoleBinding": {
+        "type": "object",
+        "required": [
+          "principalId",
+          "workspaceId",
+          "role"
+        ],
+        "properties": {
+          "principalId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "editor",
+              "viewer"
+            ]
+          }
+        }
+      },
+      "GatewayResourcePolicy": {
+        "type": "object",
+        "required": [
+          "resourceType",
+          "resourceId",
+          "workspaceId",
+          "permissionsByRole"
+        ],
+        "properties": {
+          "resourceType": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "permissionsByRole": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "GatewayAuthPolicy": {
+        "type": "object",
+        "required": [
+          "roleBindings",
+          "resourcePolicies",
+          "updatedAt"
+        ],
+        "properties": {
+          "roleBindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayRoleBinding"
+            }
+          },
+          "resourcePolicies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayResourcePolicy"
+            }
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "GatewayAuditQueryResponse": {
+        "type": "object",
+        "required": [
+          "events",
+          "count",
+          "limit"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "count": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
           }
         }
       }

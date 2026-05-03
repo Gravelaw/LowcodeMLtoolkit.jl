@@ -11,6 +11,9 @@ using UUIDs
 export GatewayCheckpoint,
     GatewayExecution,
     GatewayEvent,
+    GatewayRoleBinding,
+    GatewayResourcePolicy,
+    GatewayAuthPolicy,
     HubExtensionRecord,
     PublishedDashboardRecord,
     AbstractGatewayRepository,
@@ -21,11 +24,13 @@ export GatewayCheckpoint,
     load_checkpoints,
     load_executions,
     load_events,
+    load_auth_policy,
     load_hub_extensions,
     load_published_dashboards,
     save_workflow!,
     save_checkpoint!,
     save_execution!,
+    save_auth_policy!,
     save_hub_extension!,
     save_published_dashboard!,
     append_event!,
@@ -71,6 +76,25 @@ Base.@kwdef mutable struct GatewayEvent
     producer::String
     payload_version::Int = 1
     payload::Dict{String,Any} = Dict{String,Any}()
+end
+
+Base.@kwdef mutable struct GatewayRoleBinding
+    principal_id::String
+    workspace_id::String
+    role::String
+end
+
+Base.@kwdef mutable struct GatewayResourcePolicy
+    resource_type::String
+    resource_id::String
+    workspace_id::String
+    permissions_by_role::Dict{String,Vector{String}} = Dict{String,Vector{String}}()
+end
+
+Base.@kwdef mutable struct GatewayAuthPolicy
+    role_bindings::Vector{GatewayRoleBinding} = GatewayRoleBinding[]
+    resource_policies::Vector{GatewayResourcePolicy} = GatewayResourcePolicy[]
+    updated_at::String = JuliaFlowExecutionService.iso8601_timestamp()
 end
 
 Base.@kwdef mutable struct HubExtensionRecord
@@ -416,6 +440,31 @@ function event_payload(event::GatewayEvent)
     )
 end
 
+function role_binding_payload(binding::GatewayRoleBinding)
+    return Dict(
+        "principalId" => binding.principal_id,
+        "workspaceId" => binding.workspace_id,
+        "role" => binding.role,
+    )
+end
+
+function resource_policy_payload(policy::GatewayResourcePolicy)
+    return Dict(
+        "resourceType" => policy.resource_type,
+        "resourceId" => policy.resource_id,
+        "workspaceId" => policy.workspace_id,
+        "permissionsByRole" => policy.permissions_by_role,
+    )
+end
+
+function auth_policy_payload(policy::GatewayAuthPolicy)
+    return Dict(
+        "roleBindings" => [role_binding_payload(binding) for binding in policy.role_bindings],
+        "resourcePolicies" => [resource_policy_payload(item) for item in policy.resource_policies],
+        "updatedAt" => policy.updated_at,
+    )
+end
+
 function published_dashboard_payload(dashboard::PublishedDashboardRecord)
     payload = Dict(
         "dashboardId" => dashboard.dashboard_id,
@@ -574,6 +623,35 @@ function gateway_event(item)
     )
 end
 
+function gateway_role_binding(item)
+    return GatewayRoleBinding(
+        principal_id = String(item["principalId"]),
+        workspace_id = String(get(item, "workspaceId", "local-dev")),
+        role = String(item["role"]),
+    )
+end
+
+function gateway_resource_policy(item)
+    permissions = Dict{String,Vector{String}}()
+    for (role, values) in pairs(get(item, "permissionsByRole", Dict{String,Any}()))
+        permissions[String(role)] = [String(value) for value in values]
+    end
+    return GatewayResourcePolicy(
+        resource_type = String(item["resourceType"]),
+        resource_id = String(item["resourceId"]),
+        workspace_id = String(get(item, "workspaceId", "local-dev")),
+        permissions_by_role = permissions,
+    )
+end
+
+function gateway_auth_policy(item)
+    return GatewayAuthPolicy(
+        role_bindings = [gateway_role_binding(binding) for binding in get(item, "roleBindings", Any[])],
+        resource_policies = [gateway_resource_policy(policy) for policy in get(item, "resourcePolicies", Any[])],
+        updated_at = String(get(item, "updatedAt", JuliaFlowExecutionService.iso8601_timestamp())),
+    )
+end
+
 function gateway_published_dashboard(item)
     return PublishedDashboardRecord(
         dashboard_id = String(item["dashboardId"]),
@@ -667,6 +745,10 @@ end
 
 function event_cursors_file(repo::FileGatewayRepository)
     return joinpath(repo.root, "event-cursors.json")
+end
+
+function auth_policy_file(repo::FileGatewayRepository)
+    return joinpath(repo.root, "auth-policy.json")
 end
 
 function hub_extensions_file(repo::FileGatewayRepository)
@@ -846,6 +928,16 @@ function create_postgres_schema!(repo::PostgreSQLGatewayRepository)
         execute(
             conn,
             """
+            CREATE TABLE IF NOT EXISTS $(repo.schema).auth_policy (
+                policy_id TEXT PRIMARY KEY,
+                policy_payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            """,
+        )
+        execute(
+            conn,
+            """
             CREATE TABLE IF NOT EXISTS $(repo.schema).published_dashboards (
                 dashboard_id TEXT PRIMARY KEY,
                 dashboard_payload JSONB NOT NULL,
@@ -899,6 +991,12 @@ function load_events(repo::FileGatewayRepository)
     end
     sort!(events; by = event -> event.sequence)
     return events
+end
+
+function load_auth_policy(repo::FileGatewayRepository)
+    isfile(auth_policy_file(repo)) || return GatewayAuthPolicy()
+    raw = JSON3.read(read(auth_policy_file(repo), String), Dict{String,Any})
+    return gateway_auth_policy(raw)
 end
 
 function load_hub_extensions(repo::FileGatewayRepository)
@@ -981,6 +1079,24 @@ function save_execution!(repo::FileGatewayRepository, execution::GatewayExecutio
         producer = producer,
     )
     return execution
+end
+
+function save_auth_policy!(repo::FileGatewayRepository, policy::GatewayAuthPolicy; producer::AbstractString = "api-gateway")
+    normalized = GatewayAuthPolicy(
+        role_bindings = policy.role_bindings,
+        resource_policies = policy.resource_policies,
+        updated_at = JuliaFlowExecutionService.iso8601_timestamp(),
+    )
+    persist_json_file!(auth_policy_file(repo), auth_policy_payload(normalized))
+    append_event!(
+        repo,
+        "auth.policy.changed";
+        aggregate_type = "auth_policy",
+        aggregate_id = "default",
+        payload = auth_policy_payload(normalized),
+        producer = producer,
+    )
+    return normalized
 end
 
 function save_hub_extension!(repo::FileGatewayRepository, extension::HubExtensionRecord; producer::AbstractString = "api-gateway")
@@ -1141,6 +1257,19 @@ function load_events(repo::PostgreSQLGatewayRepository)
     return events
 end
 
+function load_auth_policy(repo::PostgreSQLGatewayRepository)
+    ensure_repository!(repo)
+    conn = connect(repo)
+    try
+        result = execute(conn, "SELECT policy_payload FROM $(repo.schema).auth_policy WHERE policy_id = 'default';")
+        row = iterate(result)
+        row === nothing && return GatewayAuthPolicy()
+        return gateway_auth_policy(JSON3.read(String(row[1][1]), Dict{String,Any}))
+    finally
+        close(conn)
+    end
+end
+
 function load_hub_extensions(repo::PostgreSQLGatewayRepository)
     ensure_repository!(repo)
     conn = connect(repo)
@@ -1298,6 +1427,40 @@ function save_execution!(repo::PostgreSQLGatewayRepository, execution::GatewayEx
         producer = producer,
     )
     return execution
+end
+
+function save_auth_policy!(repo::PostgreSQLGatewayRepository, policy::GatewayAuthPolicy; producer::AbstractString = "api-gateway")
+    ensure_repository!(repo)
+    normalized = GatewayAuthPolicy(
+        role_bindings = policy.role_bindings,
+        resource_policies = policy.resource_policies,
+        updated_at = JuliaFlowExecutionService.iso8601_timestamp(),
+    )
+    conn = connect(repo)
+    try
+        execute(
+            conn,
+            """
+            INSERT INTO $(repo.schema).auth_policy (policy_id, policy_payload, updated_at)
+            VALUES ('default', \$1::jsonb, NOW())
+            ON CONFLICT (policy_id) DO UPDATE
+            SET policy_payload = EXCLUDED.policy_payload,
+                updated_at = NOW();
+            """,
+            [JSON3.write(auth_policy_payload(normalized))],
+        )
+    finally
+        close(conn)
+    end
+    append_event!(
+        repo,
+        "auth.policy.changed";
+        aggregate_type = "auth_policy",
+        aggregate_id = "default",
+        payload = auth_policy_payload(normalized),
+        producer = producer,
+    )
+    return normalized
 end
 
 function save_hub_extension!(repo::PostgreSQLGatewayRepository, extension::HubExtensionRecord; producer::AbstractString = "api-gateway")

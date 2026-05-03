@@ -5,9 +5,11 @@ include(joinpath(@__DIR__, "..", "..", "worker-service", "src", "JuliaFlowWorker
 
 using .JuliaFlowGatewayRepository
 using .JuliaFlowWorkerService
+using Base64
 using Dates
 using HTTP
 using JSON3
+using SHA
 using UUIDs
 
 export GatewayCheckpoint,
@@ -432,6 +434,9 @@ const GATEWAY_ROLE_PERMISSIONS = Dict(
         "hub:read",
         "hub:publish",
         "hub:install",
+        "policy:read",
+        "policy:write",
+        "audit:read",
     ]),
     "editor" => Set([
         "workflow:read",
@@ -455,7 +460,7 @@ const GATEWAY_ROLE_PERMISSIONS = Dict(
 
 function gateway_auth_mode()
     mode = lowercase(strip(get(ENV, "JULIAFLOW_AUTH_MODE", "dev_token")))
-    mode in ("disabled", "dev_token", "required") || error("unsupported JULIAFLOW_AUTH_MODE: $(mode)")
+    mode in ("disabled", "dev_token", "required", "oidc") || error("unsupported JULIAFLOW_AUTH_MODE: $(mode)")
     return mode
 end
 
@@ -480,29 +485,132 @@ function auth_role_from_request(request::HTTP.Request)
     return role
 end
 
-function auth_context_payload(request::HTTP.Request)
+function base64url_decode_string(segment::AbstractString)
+    encoded = replace(replace(String(segment), '-' => '+'), '_' => '/')
+    remainder = mod(ncodeunits(encoded), 4)
+    remainder == 0 || (encoded *= repeat("=", 4 - remainder))
+    return String(base64decode(encoded))
+end
+
+function base64url_encode(bytes::Vector{UInt8})
+    encoded = base64encode(bytes)
+    encoded = replace(replace(encoded, '+' => '-'), '/' => '_')
+    return replace(encoded, "=" => "")
+end
+
+function oidc_required_setting(name::AbstractString)
+    value = strip(get(ENV, String(name), ""))
+    isempty(value) && error("OIDC setting $(name) is required")
+    return value
+end
+
+function oidc_claim_matches(value, expected::AbstractString)
+    expected_value = String(expected)
+    if value isa AbstractString
+        return String(value) == expected_value
+    elseif value isa AbstractVector
+        return any(String(item) == expected_value for item in value)
+    end
+    return false
+end
+
+function jwt_unix_claim(claims::AbstractDict, key::AbstractString)
+    haskey(claims, key) || return nothing
+    value = claims[key]
+    value isa Number && return Int(floor(value))
+    return parse(Int, String(value))
+end
+
+function validate_hs256_jwt(token::AbstractString)
+    segments = split(String(token), '.')
+    length(segments) == 3 || error("invalid OIDC token")
+    header = JSON3.read(base64url_decode_string(segments[1]), Dict{String,Any})
+    claims = JSON3.read(base64url_decode_string(segments[2]), Dict{String,Any})
+    String(get(header, "alg", "")) == "HS256" || error("unsupported OIDC token alg")
+
+    secret = oidc_required_setting("JULIAFLOW_OIDC_HS256_SECRET")
+    signing_input = string(segments[1], ".", segments[2])
+    expected_signature = base64url_encode(hmac_sha256(Vector{UInt8}(codeunits(secret)), signing_input))
+    expected_signature == String(segments[3]) || error("invalid OIDC token signature")
+
+    issuer = oidc_required_setting("JULIAFLOW_OIDC_ISSUER")
+    audience = oidc_required_setting("JULIAFLOW_OIDC_AUDIENCE")
+    haskey(claims, "iss") && String(claims["iss"]) == issuer || error("invalid OIDC token issuer")
+    haskey(claims, "aud") && oidc_claim_matches(claims["aud"], audience) || error("invalid OIDC token audience")
+    haskey(claims, "sub") || error("invalid OIDC token subject")
+
+    now_seconds = Int(floor(datetime2unix(now(UTC))))
+    exp = jwt_unix_claim(claims, "exp")
+    exp === nothing && error("invalid OIDC token expiry")
+    now_seconds < exp || error("expired OIDC token")
+    nbf = jwt_unix_claim(claims, "nbf")
+    nbf === nothing || now_seconds >= nbf || error("OIDC token not yet valid")
+    return claims
+end
+
+function role_from_claims(claims::AbstractDict)
+    raw_role = get(claims, "juliaflow_role", get(claims, "role", "viewer"))
+    role = lowercase(strip(String(raw_role)))
+    haskey(GATEWAY_ROLE_PERMISSIONS, role) || error("unsupported workspace role: $(role)")
+    return role
+end
+
+function workspace_from_claims(claims::AbstractDict, request::HTTP.Request)
+    raw_workspace = get(claims, "juliaflow_workspace", get(claims, "workspace_id", ""))
+    workspace = strip(String(raw_workspace))
+    !isempty(workspace) && return workspace
+    header_workspace = request_header(request, "X-JuliaFlow-Workspace")
+    return header_workspace === nothing || isempty(strip(header_workspace)) ? "local-dev" : strip(header_workspace)
+end
+
+function auth_context_from_role(principal_id::AbstractString, workspace_id::AbstractString, role::AbstractString, mode::AbstractString)
+    return Dict(
+        "principalId" => String(principal_id),
+        "workspaceId" => String(workspace_id),
+        "role" => String(role),
+        "mode" => String(mode),
+        "permissions" => sort(collect(GATEWAY_ROLE_PERMISSIONS[String(role)])),
+    )
+end
+
+function apply_persisted_role_binding(state::GatewayState, context::Dict{String,Any})
+    policy = JuliaFlowGatewayRepository.load_auth_policy(state.repository)
+    principal_id = String(context["principalId"])
+    workspace_id = String(context["workspaceId"])
+    for binding in policy.role_bindings
+        binding.principal_id == principal_id || continue
+        binding.workspace_id == workspace_id || continue
+        haskey(GATEWAY_ROLE_PERMISSIONS, binding.role) || error("unsupported workspace role: $(binding.role)")
+        context["role"] = binding.role
+        context["permissions"] = sort(collect(GATEWAY_ROLE_PERMISSIONS[binding.role]))
+        return context
+    end
+    return context
+end
+
+function auth_context_payload(request::HTTP.Request; state::Union{Nothing,GatewayState} = nothing)
     mode = gateway_auth_mode()
     role = auth_role_from_request(request)
     if mode == "disabled"
-        return Dict(
-            "principalId" => "system:auth-disabled",
-            "workspaceId" => "local-dev",
-            "role" => "owner",
-            "mode" => mode,
-            "permissions" => sort(collect(GATEWAY_ROLE_PERMISSIONS["owner"])),
+        return auth_context_from_role("system:auth-disabled", "local-dev", "owner", mode)
+    elseif mode == "oidc"
+        token = bearer_token_from_request(request)
+        token === nothing && error("OIDC bearer token is required")
+        claims = validate_hs256_jwt(token)
+        context = auth_context_from_role(
+            String(claims["sub"]),
+            workspace_from_claims(claims, request),
+            role_from_claims(claims),
+            mode,
         )
+        state === nothing || apply_persisted_role_binding(state, context)
+        return context
     end
 
     expected_token = dev_auth_token()
     if expected_token === nothing
         mode == "required" && error("auth token is required but JULIAFLOW_DEV_AUTH_TOKEN is not configured")
-        return Dict(
-            "principalId" => "dev:local-user",
-            "workspaceId" => "local-dev",
-            "role" => "owner",
-            "mode" => "dev_fallback",
-            "permissions" => sort(collect(GATEWAY_ROLE_PERMISSIONS["owner"])),
-        )
+        return auth_context_from_role("dev:local-user", "local-dev", "owner", "dev_fallback")
     end
 
     provided_token = bearer_token_from_request(request)
@@ -511,13 +619,31 @@ function auth_context_payload(request::HTTP.Request)
     principal_id = principal === nothing || isempty(strip(principal)) ? "dev:token-user" : strip(principal)
     workspace = request_header(request, "X-JuliaFlow-Workspace")
     workspace_id = workspace === nothing || isempty(strip(workspace)) ? "local-dev" : strip(workspace)
-    return Dict(
-        "principalId" => principal_id,
-        "workspaceId" => workspace_id,
-        "role" => role,
-        "mode" => mode,
-        "permissions" => sort(collect(GATEWAY_ROLE_PERMISSIONS[role])),
-    )
+    context = auth_context_from_role(principal_id, workspace_id, role, mode)
+    state === nothing || apply_persisted_role_binding(state, context)
+    return context
+end
+
+function enforce_resource_policy!(
+    state::GatewayState,
+    context::Dict{String,Any},
+    permission::AbstractString,
+    resource_type::Union{Nothing,AbstractString},
+    resource_id::Union{Nothing,AbstractString},
+)
+    (resource_type === nothing || resource_id === nothing) && return context
+    policy = JuliaFlowGatewayRepository.load_auth_policy(state.repository)
+    workspace_id = String(context["workspaceId"])
+    role = String(context["role"])
+    for item in policy.resource_policies
+        item.resource_type == String(resource_type) || continue
+        item.resource_id == String(resource_id) || item.resource_id == "*" || continue
+        item.workspace_id == workspace_id || item.workspace_id == "*" || error("permission denied: $(permission)")
+        allowed = get(item.permissions_by_role, role, String[])
+        String(permission) in allowed || error("permission denied: $(permission)")
+        return context
+    end
+    return context
 end
 
 function require_permission!(request::HTTP.Request, permission::AbstractString)
@@ -525,6 +651,19 @@ function require_permission!(request::HTTP.Request, permission::AbstractString)
     role = String(context["role"])
     permission in GATEWAY_ROLE_PERMISSIONS[role] || error("permission denied: $(permission)")
     return context
+end
+
+function require_permission!(
+    state::GatewayState,
+    request::HTTP.Request,
+    permission::AbstractString;
+    resource_type::Union{Nothing,AbstractString} = nothing,
+    resource_id::Union{Nothing,AbstractString} = nothing,
+)
+    context = auth_context_payload(request; state = state)
+    role = String(context["role"])
+    permission in GATEWAY_ROLE_PERMISSIONS[role] || error("permission denied: $(permission)")
+    return enforce_resource_policy!(state, context, permission, resource_type, resource_id)
 end
 
 function bearer_token_from_request(request::HTTP.Request)
@@ -1525,6 +1664,12 @@ function classify_gateway_error(err)
         return 401, message
     elseif occursin("auth token is required", message)
         return 401, message
+    elseif occursin("OIDC bearer token is required", message)
+        return 401, message
+    elseif occursin("OIDC setting", message)
+        return 401, message
+    elseif occursin("OIDC token", message)
+        return 401, message
     elseif occursin("permission denied", message)
         return 403, message
     elseif occursin("unsupported workspace role", message)
@@ -1549,7 +1694,7 @@ function append_audit_event!(
         "targetType" => String(target_type),
         "targetId" => String(target_id),
         "recordedAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
-        "authContext" => auth_context_payload(request),
+        "authContext" => auth_context_payload(request; state = state),
         "details" => Dict{String,Any}(String(key) => value for (key, value) in pairs(details)),
     )
     return JuliaFlowGatewayRepository.append_event!(
@@ -1560,6 +1705,104 @@ function append_audit_event!(
         payload = payload,
         producer = "api-gateway",
     )
+end
+
+function parse_auth_policy_payload(body::AbstractDict)
+    role_bindings = JuliaFlowGatewayRepository.GatewayRoleBinding[]
+    for item in get(body, "roleBindings", Any[])
+        role = lowercase(strip(String(item["role"])))
+        haskey(GATEWAY_ROLE_PERMISSIONS, role) || error("unsupported workspace role: $(role)")
+        push!(
+            role_bindings,
+            JuliaFlowGatewayRepository.GatewayRoleBinding(
+                principal_id = String(item["principalId"]),
+                workspace_id = String(get(item, "workspaceId", "local-dev")),
+                role = role,
+            ),
+        )
+    end
+
+    resource_policies = JuliaFlowGatewayRepository.GatewayResourcePolicy[]
+    for item in get(body, "resourcePolicies", Any[])
+        permissions_by_role = Dict{String,Vector{String}}()
+        for (role, permissions) in pairs(get(item, "permissionsByRole", Dict{String,Any}()))
+            role_key = lowercase(strip(String(role)))
+            haskey(GATEWAY_ROLE_PERMISSIONS, role_key) || error("unsupported workspace role: $(role_key)")
+            normalized_permissions = [String(permission) for permission in permissions]
+            all(permission -> permission in GATEWAY_ROLE_PERMISSIONS[role_key], normalized_permissions) ||
+                error("resource policy includes permission outside role scope")
+            permissions_by_role[role_key] = normalized_permissions
+        end
+        push!(
+            resource_policies,
+            JuliaFlowGatewayRepository.GatewayResourcePolicy(
+                resource_type = String(item["resourceType"]),
+                resource_id = String(item["resourceId"]),
+                workspace_id = String(get(item, "workspaceId", "local-dev")),
+                permissions_by_role = permissions_by_role,
+            ),
+        )
+    end
+
+    return JuliaFlowGatewayRepository.GatewayAuthPolicy(
+        role_bindings = role_bindings,
+        resource_policies = resource_policies,
+    )
+end
+
+function auth_policy_response(state::GatewayState)
+    return JSON3.write(JuliaFlowGatewayRepository.auth_policy_payload(JuliaFlowGatewayRepository.load_auth_policy(state.repository)))
+end
+
+function save_auth_policy_response!(state::GatewayState, body::AbstractDict)
+    policy = parse_auth_policy_payload(body)
+    saved = JuliaFlowGatewayRepository.save_auth_policy!(state.repository, policy)
+    return JSON3.write(JuliaFlowGatewayRepository.auth_policy_payload(saved))
+end
+
+function redacted_value(value)
+    if value isa AbstractDict
+        redacted = Dict{String,Any}()
+        for (key, item) in pairs(value)
+            key_string = String(key)
+            lowered = lowercase(key_string)
+            if occursin("token", lowered) || occursin("authorization", lowered) || occursin("secret", lowered)
+                redacted[key_string] = "[redacted]"
+            else
+                redacted[key_string] = redacted_value(item)
+            end
+        end
+        return redacted
+    elseif value isa AbstractVector
+        return [redacted_value(item) for item in value]
+    end
+    return value
+end
+
+function audit_action_query_response(state::GatewayState, query_params)
+    limit = haskey(query_params, "limit") ? min(max(parse(Int, String(query_params["limit"])), 1), 200) : 50
+    action_filter = haskey(query_params, "action") ? String(query_params["action"]) : nothing
+    target_type_filter = haskey(query_params, "targetType") ? String(query_params["targetType"]) : nothing
+    target_id_filter = haskey(query_params, "targetId") ? String(query_params["targetId"]) : nothing
+    principal_filter = haskey(query_params, "principalId") ? String(query_params["principalId"]) : nothing
+
+    matches = Dict{String,Any}[]
+    for event in reverse(JuliaFlowGatewayRepository.load_events(state.repository))
+        event.event_type == "audit.action" || continue
+        payload = redacted_value(event.payload)
+        action_filter === nothing || String(get(payload, "action", "")) == action_filter || continue
+        target_type_filter === nothing || String(get(payload, "targetType", "")) == target_type_filter || continue
+        target_id_filter === nothing || String(get(payload, "targetId", "")) == target_id_filter || continue
+        auth_context = get(payload, "authContext", Dict{String,Any}())
+        principal_filter === nothing || String(get(auth_context, "principalId", "")) == principal_filter || continue
+        payload["eventId"] = event.event_id
+        payload["sequence"] = event.sequence
+        payload["occurredAt"] = event.occurred_at
+        push!(matches, payload)
+        length(matches) >= limit && break
+    end
+
+    return JSON3.write(Dict("events" => matches, "count" => length(matches), "limit" => limit))
 end
 
 function parse_request_body(request::HTTP.Request)
@@ -2138,12 +2381,27 @@ function route_request(state::GatewayState, request::HTTP.Request)
         method == "OPTIONS" && return empty_response(204)
         method == "GET" && segments == ["health"] && return json_response(200, healthcheck(state))
         method == "GET" && segments == ["api", "v1", "workflows"] && begin
-            require_permission!(request, "workflow:read")
+            require_permission!(state, request, "workflow:read")
             return json_response(200, list_workflows_response(state))
         end
         method == "GET" && segments == ["api", "v1", "executions"] && begin
-            require_permission!(request, "execution:read")
+            require_permission!(state, request, "execution:read")
             return json_response(200, execution_list_response(state))
+        end
+        method == "GET" && segments == ["api", "v1", "audit", "actions"] && begin
+            require_permission!(state, request, "audit:read")
+            return json_response(200, audit_action_query_response(state, query_params))
+        end
+        method == "GET" && segments == ["api", "v1", "admin", "auth", "policies"] && begin
+            require_permission!(state, request, "policy:read")
+            return json_response(200, auth_policy_response(state))
+        end
+        method == "PUT" && segments == ["api", "v1", "admin", "auth", "policies"] && begin
+            require_permission!(state, request, "policy:write")
+            body = parse_request_body(request)
+            response = save_auth_policy_response!(state, body)
+            append_audit_event!(state, request, "auth.policy.update"; target_type = "auth_policy", target_id = "default")
+            return json_response(200, response)
         end
         method == "GET" && length(segments) == 7 && segments[1:3] == ["api", "v1", "dashboards"] && segments[5] == "charts" && segments[7] == "data" && begin
             share_token = haskey(query_params, "shareToken") ? String(query_params["shareToken"]) : nothing
@@ -2166,15 +2424,15 @@ function route_request(state::GatewayState, request::HTTP.Request)
             return json_response(200, get_published_dashboard_response(state, segments[4]; share_token = share_token, workspace_token = workspace_token, workspace_bearer_token = workspace_bearer_token))
         end
         method == "GET" && length(segments) == 5 && segments[1:3] == ["api", "v1", "workflows"] && segments[5] == "dashboards" && begin
-            require_permission!(request, "dashboard:read")
+            require_permission!(state, request, "dashboard:read")
             return json_response(200, list_published_dashboards_response(state, segments[4]))
         end
         method == "GET" && segments == ["api", "v1", "hub", "extensions"] && begin
-            require_permission!(request, "hub:read")
+            require_permission!(state, request, "hub:read")
             return json_response(200, list_hub_extensions_response(state))
         end
         method == "POST" && segments == ["api", "v1", "hub", "extensions", "register"] && begin
-            require_permission!(request, "hub:publish")
+            require_permission!(state, request, "hub:publish")
             body = parse_request_body(request)
             response = register_hub_extension_response!(state, body)
             extension_id = haskey(body, "manifest") && body["manifest"] isa AbstractDict && haskey(body["manifest"], "extensionId") ?
@@ -2184,7 +2442,7 @@ function route_request(state::GatewayState, request::HTTP.Request)
             return json_response(201, response)
         end
         method == "POST" && length(segments) == 7 && segments[1:3] == ["api", "v1", "workflows"] && segments[5] == "dashboards" && segments[7] == "publish" && begin
-            require_permission!(request, "dashboard:publish")
+            require_permission!(state, request, "dashboard:publish")
             body = parse_request_body(request)
             visibility = haskey(body, "visibility") ? String(body["visibility"]) : "workspace"
             response = publish_dashboard_response!(state, segments[4], segments[6]; visibility = visibility)
@@ -2192,7 +2450,7 @@ function route_request(state::GatewayState, request::HTTP.Request)
             return json_response(200, response)
         end
         method == "POST" && segments == ["api", "v1", "workflows"] && begin
-            require_permission!(request, "workflow:write")
+            require_permission!(state, request, "workflow:write")
             body = parse_request_body(request)
             response = create_workflow_response_from_body!(state, body)
             workflow_id = haskey(body, "workflow") && body["workflow"] isa AbstractDict && haskey(body["workflow"], "workflowId") ?
@@ -2202,7 +2460,7 @@ function route_request(state::GatewayState, request::HTTP.Request)
             return json_response(201, response)
         end
         method == "POST" && length(segments) == 6 && segments[1:4] == ["api", "v1", "hub", "extensions"] && segments[6] == "install" && begin
-            require_permission!(request, "hub:install")
+            require_permission!(state, request, "hub:install")
             body = parse_request_body(request)
             action = haskey(body, "action") ? String(body["action"]) : "install"
             response = install_hub_extension_response!(state, segments[5]; action = action)
@@ -2210,7 +2468,7 @@ function route_request(state::GatewayState, request::HTTP.Request)
             return json_response(200, response)
         end
         method == "POST" && segments == ["api", "v1", "workflows", "import"] && begin
-            require_permission!(request, "workflow:write")
+            require_permission!(state, request, "workflow:write")
             body = parse_request_body(request)
             haskey(body, "sourcePath") || return error_response(400, "missing sourcePath")
             response = import_workflow_response!(state; source_path = String(body["sourcePath"]))
@@ -2218,18 +2476,18 @@ function route_request(state::GatewayState, request::HTTP.Request)
             return json_response(201, response)
         end
         method == "GET" && length(segments) == 4 && segments[1:3] == ["api", "v1", "workflows"] && begin
-            require_permission!(request, "workflow:read")
+            require_permission!(state, request, "workflow:read"; resource_type = "workflow", resource_id = segments[4])
             return json_response(200, get_workflow_response(state, segments[4]))
         end
         method == "PUT" && length(segments) == 4 && segments[1:3] == ["api", "v1", "workflows"] && begin
-            require_permission!(request, "workflow:write")
+            require_permission!(state, request, "workflow:write"; resource_type = "workflow", resource_id = segments[4])
             body = parse_request_body(request)
             response = update_workflow_response_from_body!(state, segments[4], body)
             append_audit_event!(state, request, "workflow.update"; target_type = "workflow", target_id = segments[4])
             return json_response(200, response)
         end
         method == "POST" && length(segments) == 5 && segments[1:3] == ["api", "v1", "workflows"] && segments[5] == "execute" && begin
-            require_permission!(request, "workflow:execute")
+            require_permission!(state, request, "workflow:execute"; resource_type = "workflow", resource_id = segments[4])
             body = parse_request_body(request)
             flow_variable_values = haskey(body, "flowVariables") ? normalized_string_dict(body["flowVariables"]) : Dict{String,Any}()
             execution_mode_override = haskey(body, "executionMode") ? String(body["executionMode"]) : nothing
@@ -2246,11 +2504,11 @@ function route_request(state::GatewayState, request::HTTP.Request)
             )
         end
         method == "GET" && length(segments) == 4 && segments[1:3] == ["api", "v1", "executions"] && begin
-            require_permission!(request, "execution:read")
+            require_permission!(state, request, "execution:read")
             return json_response(200, execution_detail_response(state, segments[4]))
         end
         method == "POST" && length(segments) == 5 && segments[1:3] == ["api", "v1", "executions"] && segments[5] == "status" && begin
-            require_permission!(request, "execution:write")
+            require_permission!(state, request, "execution:write")
             body = parse_request_body(request)
             haskey(body, "status") || return error_response(400, "missing status")
             message = haskey(body, "message") ? String(body["message"]) : nothing
@@ -2273,11 +2531,11 @@ function route_request(state::GatewayState, request::HTTP.Request)
             )
         end
         method == "GET" && segments == ["api", "v1", "checkpoints"] && begin
-            require_permission!(request, "checkpoint:read")
+            require_permission!(state, request, "checkpoint:read")
             return json_response(200, checkpoint_list_response(state))
         end
         method == "POST" && segments == ["api", "v1", "checkpoints"] && begin
-            require_permission!(request, "checkpoint:write")
+            require_permission!(state, request, "checkpoint:write")
             body = parse_request_body(request)
             haskey(body, "tag") || return error_response(400, "missing tag")
             haskey(body, "summary") || return error_response(400, "missing summary")
