@@ -9,6 +9,7 @@ import {
   type DashboardChartDefinition,
   type DashboardChartFamily,
   type DashboardDefinition,
+  type DashboardDatasetRow,
   type ExecutionHint,
   type GatewayDashboardChartDataResponse,
   type GatewayDashboardPublishResponse,
@@ -56,6 +57,15 @@ type ActionTone = "info" | "success" | "error" | "demo";
 interface ViewerChartFilter {
   field: string;
   value: string;
+}
+
+interface ViewerChartDrilldown {
+  chartId: string;
+  chartTitle: string;
+  filter: ViewerChartFilter | null;
+  matchingRowCount: number;
+  row: DashboardDatasetRow;
+  rowIndex: number;
 }
 
 const dashboardChartFamilies: DashboardChartFamily[] = ["line", "bar", "area", "table", "metric"];
@@ -454,7 +464,8 @@ function renderPublishedChartPreview(
   chart: DashboardChartDefinition,
   data: GatewayDashboardChartDataResponse | undefined,
   activeFilter: ViewerChartFilter | null,
-  onSelectFilter: (filter: ViewerChartFilter) => void
+  onSelectFilter: (filter: ViewerChartFilter) => void,
+  onOpenDrilldown: (row: DashboardDatasetRow, rowIndex: number, filter: ViewerChartFilter | null, matchingRowCount: number) => void
 ) {
   if (!data) {
     return <div className="repository-empty"><span>Chart data pending.</span></div>;
@@ -473,6 +484,17 @@ function renderPublishedChartPreview(
           <span>{metric.label}</span>
         </div>
         {activeFilter ? <div className="inspector-row"><strong>Filter</strong><span>{activeFilter.field}={activeFilter.value}</span></div> : null}
+        {data.rows[0] ? (
+          <button
+            className="secondary-action-button"
+            onClick={() => {
+              onOpenDrilldown(data.rows[0], 0, activeFilter, data.rowCount);
+            }}
+            type="button"
+          >
+            Drill into metric row
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -497,7 +519,12 @@ function renderPublishedChartPreview(
                   <button
                     className="route-list-item"
                     onClick={() => {
-                      onSelectFilter({ field, value: String(row[field] ?? "") });
+                      const nextFilter = { field, value: String(row[field] ?? "") };
+                      const matchingRowCount = data.rows.filter(
+                        (candidate) => String(candidate[nextFilter.field] ?? "") === nextFilter.value
+                      ).length;
+                      onSelectFilter(nextFilter);
+                      onOpenDrilldown(row, rowIndex, nextFilter, matchingRowCount);
                     }}
                     type="button"
                   >
@@ -517,7 +544,7 @@ function renderPublishedChartPreview(
   const maxValue = Math.max(...series.map((entry) => entry.value), 1);
   return (
     <div className="inspector-stack">
-      {series.map((entry) => {
+      {series.map((entry, index) => {
         const width = `${Math.max((entry.value / maxValue) * 100, 12)}%`;
         const background =
           chart.family === "bar"
@@ -532,7 +559,15 @@ function renderPublishedChartPreview(
                 className={`route-list-item ${activeFilter?.value === entry.label ? "is-active" : ""}`}
                 onClick={() => {
                   const dimension = data.semantic.dimensions[0] ?? data.fields[0] ?? "label";
-                  onSelectFilter({ field: dimension, value: entry.label });
+                  const nextFilter = { field: dimension, value: entry.label };
+                  const matchingRowCount = data.rows.filter(
+                    (candidate) => String(candidate[nextFilter.field] ?? "") === nextFilter.value
+                  ).length;
+                  onSelectFilter(nextFilter);
+                  const row = data.rows[index];
+                  if (row) {
+                    onOpenDrilldown(row, index, nextFilter, matchingRowCount);
+                  }
                 }}
                 type="button"
               >
@@ -573,6 +608,11 @@ function applyViewerChartFilter(
   }
   const rows = data.rows.filter((row) => String(row[filter.field] ?? "") === filter.value);
   return { ...data, rows, rowCount: rows.length };
+}
+
+function chartRowsJson(rows: DashboardDatasetRow[]): string {
+  return `${JSON.stringify(rows, null, 2)}
+`;
 }
 
 function chartCsv(data: GatewayDashboardChartDataResponse): string {
@@ -1270,6 +1310,7 @@ function App() {
   const [viewerDashboard, setViewerDashboard] = useState<PublishedDashboardDefinition | null>(null);
   const [dashboardChartData, setDashboardChartData] = useState<Record<string, GatewayDashboardChartDataResponse>>({});
   const [viewerChartFilter, setViewerChartFilter] = useState<ViewerChartFilter | null>(null);
+  const [viewerChartDrilldown, setViewerChartDrilldown] = useState<ViewerChartDrilldown | null>(null);
   const [viewerChartRefreshNonce, setViewerChartRefreshNonce] = useState(0);
   const [isViewerRefreshing, setIsViewerRefreshing] = useState(false);
   const [publishVisibility, setPublishVisibility] = useState<"workspace" | "public">("workspace");
@@ -1343,6 +1384,7 @@ function App() {
       setViewerDashboard(null);
       setDashboardChartData({});
       setViewerChartFilter(null);
+      setViewerChartDrilldown(null);
       return;
     }
 
@@ -2289,26 +2331,44 @@ function App() {
     setActionFeedback({ text: "Published dashboard refresh requested.", tone: "info" });
   }
 
-  async function handleExportDashboardChart(chartId: string) {
+  async function writeViewerClipboard(payload: string, successText: string, failurePrefix: string) {
+    try {
+      if (!("clipboard" in navigator) || typeof navigator.clipboard.writeText !== "function") {
+        throw new Error("clipboard unavailable");
+      }
+      await navigator.clipboard.writeText(payload);
+      setActionFeedback({ text: successText, tone: "success" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to write viewer export.";
+      setActionFeedback({ text: `${failurePrefix}: ${message}`, tone: "error" });
+    }
+  }
+
+  async function handleExportDashboardChart(chartId: string, scope: "full" | "filtered" = "filtered") {
     const chartData = dashboardChartData[chartId];
     if (!chartData) {
       setActionFeedback({ text: `Chart export failed: chart data pending for ${chartId}.`, tone: "error" });
       return;
     }
-    try {
-      const csv = chartCsv(applyViewerChartFilter(chartData, viewerChartFilter));
-      if (!("clipboard" in navigator) || typeof navigator.clipboard.writeText !== "function") {
-        throw new Error("clipboard unavailable");
-      }
-      await navigator.clipboard.writeText(csv);
-      setActionFeedback({
-        text: `Chart CSV copied for ${chartId}${viewerChartFilter ? ` with filter ${viewerChartFilter.field}=${viewerChartFilter.value}` : ""}.`,
-        tone: "success"
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to export chart CSV.";
-      setActionFeedback({ text: `Chart export failed: ${message}`, tone: "error" });
+    const exportData = scope === "filtered" ? applyViewerChartFilter(chartData, viewerChartFilter) : chartData;
+    const filterLabel = scope === "filtered" && viewerChartFilter
+      ? ` with filter ${viewerChartFilter.field}=${viewerChartFilter.value}`
+      : scope === "full"
+        ? " with all rows"
+        : "";
+    await writeViewerClipboard(chartCsv(exportData), `Chart CSV copied for ${chartId}${filterLabel}.`, "Chart export failed");
+  }
+
+  async function handleExportDrilldownJson() {
+    if (!viewerChartDrilldown) {
+      setActionFeedback({ text: "Drilldown export failed: no selected row.", tone: "error" });
+      return;
     }
+    await writeViewerClipboard(
+      chartRowsJson([viewerChartDrilldown.row]),
+      `Selected row JSON copied for ${viewerChartDrilldown.chartId}.`,
+      "Drilldown export failed"
+    );
   }
 
   function handleCloseDashboardViewer() {
@@ -2316,6 +2376,7 @@ function App() {
     setViewerShareToken(null);
     setViewerWorkspaceToken(null);
     setViewerDashboard(null);
+    setViewerChartDrilldown(null);
     if (typeof window !== "undefined") {
       window.history.replaceState({}, "", buildViewPath("dashboard"));
     }
@@ -3306,7 +3367,46 @@ function App() {
                           <strong>Selection</strong>
                           <span>{viewerChartFilter ? `${viewerChartFilter.field}=${viewerChartFilter.value}` : "all rows"}</span>
                         </div>
+                        <div className="inspector-row">
+                          <strong>Drilldown</strong>
+                          <span>{viewerChartDrilldown ? `${viewerChartDrilldown.chartTitle} row ${viewerChartDrilldown.rowIndex + 1}` : "no row selected"}</span>
+                        </div>
                       </div>
+                      {viewerChartDrilldown ? (
+                        <div className="flow-variable-editor" aria-label="Published chart drilldown">
+                          <div className="flow-variable-editor-head">
+                            <strong>Drilldown: {viewerChartDrilldown.chartTitle}</strong>
+                            <StatusBadge label={`row_${viewerChartDrilldown.rowIndex + 1}`} />
+                          </div>
+                          <div className="repository-detail-actions">
+                            <button
+                              className="secondary-action-button"
+                              onClick={() => {
+                                void handleExportDrilldownJson();
+                              }}
+                              type="button"
+                            >
+                              Copy selected row JSON
+                            </button>
+                          </div>
+                          <div className="inspector-stack">
+                            <div className="inspector-row">
+                              <strong>Active filter</strong>
+                              <span>{viewerChartDrilldown.filter ? `${viewerChartDrilldown.filter.field}=${viewerChartDrilldown.filter.value}` : "none"}</span>
+                            </div>
+                            <div className="inspector-row">
+                              <strong>Matching rows</strong>
+                              <span>{viewerChartDrilldown.matchingRowCount}</span>
+                            </div>
+                            {Object.entries(viewerChartDrilldown.row).map(([field, value]) => (
+                              <div className="inspector-row" key={`${viewerChartDrilldown.chartId}-${field}`}>
+                                <strong>{field}</strong>
+                                <span>{String(value ?? "-")}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                       <div className="flow-variable-editor-list">
                         {viewerDashboard.charts.map((chart) => {
                           const chartData = dashboardChartData[chart.chartId];
@@ -3321,11 +3421,20 @@ function App() {
                                 <button
                                   className="secondary-action-button"
                                   onClick={() => {
-                                    void handleExportDashboardChart(chart.chartId);
+                                    void handleExportDashboardChart(chart.chartId, "filtered");
                                   }}
                                   type="button"
                                 >
-                                  Export CSV
+                                  Export filtered CSV
+                                </button>
+                                <button
+                                  className="secondary-action-button"
+                                  onClick={() => {
+                                    void handleExportDashboardChart(chart.chartId, "full");
+                                  }}
+                                  type="button"
+                                >
+                                  Export all CSV
                                 </button>
                               </div>
                               <div className="inspector-stack">
@@ -3358,7 +3467,22 @@ function App() {
                                   <span>{chartRefreshSummary(filteredChartData)}</span>
                                 </div>
                               </div>
-                              {renderPublishedChartPreview(chart, filteredChartData, viewerChartFilter, setViewerChartFilter)}
+                              {renderPublishedChartPreview(
+                                chart,
+                                filteredChartData,
+                                viewerChartFilter,
+                                setViewerChartFilter,
+                                (row, rowIndex, filter, matchingRowCount) => {
+                                  setViewerChartDrilldown({
+                                    chartId: chart.chartId,
+                                    chartTitle: chart.title,
+                                    filter,
+                                    matchingRowCount,
+                                    row,
+                                    rowIndex
+                                  });
+                                }
+                              )}
                             </article>
                           );
                         })}

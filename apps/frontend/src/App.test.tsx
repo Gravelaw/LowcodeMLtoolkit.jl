@@ -548,9 +548,30 @@ describe("App", () => {
 
     expect(await screen.findByText(/Shared Dashboard/i)).toBeInTheDocument();
     expect(await screen.findByText(/Refresh charts/i)).toBeInTheDocument();
+    const clipboardWrite = vi.fn(async (_value: string) => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: clipboardWrite }
+    });
+
     expect(await screen.findByText(/live · live/i)).toBeInTheDocument();
     expect((await screen.findAllByText("12")).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: /Export CSV/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "2026-Q1" }));
+    expect(await screen.findByText(/Drilldown: Trend/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/window=2026-Q1/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Matching rows/i)).toBeInTheDocument();
+    expect((await screen.findAllByText("2026-Q1")).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /Export filtered CSV/i }));
+    await waitFor(() => {
+      expect(clipboardWrite).toHaveBeenCalledWith("window,amount\n2026-Q1,12\n");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Copy selected row JSON/i }));
+    await waitFor(() => {
+      expect(clipboardWrite).toHaveBeenLastCalledWith(expect.stringContaining('"window": "2026-Q1"'));
+    });
   });
 
   it("uses workspace token when loading workspace dashboard by viewer URL", async () => {

@@ -1,8 +1,8 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-01
+Last updated: 2026-05-03
 Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
-Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/plans/repo-brd-endgame-2026-04-25.md`; current next-step plan: `.omx/plans/repo-brd-next-steps-2026-04-28.md`
+Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/plans/repo-brd-endgame-2026-04-25.md`; current next-step plan: `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active risks: `docs/risk-register.md`
 
 ## P0 — Required Before Phase 1 / Alpha Complete
 
@@ -14,7 +14,7 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 6. [x] BI semantic/cache/export slice: chart-data now infers dimensions/measures from rows, returns cache/live metadata, and exposes CSV export.
 7. [x] BI live/render UX slice: published viewer now supports 5 family previews, manual refresh, live polling for live snapshots, cross-filter selection, and export CSV action.
 8. [x] BI interaction hardening slice: realtime invalidation beyond polling, viewer cross-filter selection, filtered export, and selection summaries.
-9. [ ] BI viewer polish follow-up: deeper drilldown flows and richer export/viewer UX polish.
+9. [x] BI viewer polish follow-up: published dashboard viewer now supports filter-aware chart/row drilldown, selected-row detail inspection, filtered/full CSV export, and selected-row JSON export with frontend test coverage.
 10. [x] Auth/RBAC thin contract slice: auth context types, workspace roles, resource permissions, dev-token gateway gates, dashboard share/workspace separation.
 11. [ ] Production OIDC/RBAC hardening: JWT/OIDC validation, persisted users/workspaces/roles, audit logs, resource-policy admin UI.
 12. [x] Streaming fixture/window/checkpoint MVP: fixture adapter batches, bounded policy batches, window summaries, lag/backpressure/watermark diagnostics, checkpoint offsets.
@@ -62,3 +62,5 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 - 2026-05-01: base pack scale advanced from 100 to 125 stable Tier-1 nodes with advanced stats, ML scoring, stream prep, and Hub/package helper nodes plus output-inspecting tests; remote/cloud object-store adapters and scale 125 -> 150 remain pending.
 
 - 2026-05-01: provider-neutral remote object-store service adapter now transfers Arrow IPC base64 envelopes for remote refs, and base pack reached 150 stable nodes with quality/governance/streaming/GPU-helper additions plus output-inspecting tests.
+- 2026-05-03: BI published viewer now adds filter-aware chart/row drilldown, selected-row detail inspection, filtered/full CSV export controls, and selected-row JSON export.
+- 2026-05-03: planning update selects production OIDC/JWT/RBAC hardening as the next P0 lane, with streaming and GPU production hardening queued after; see `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md` and `docs/risk-register.md`.

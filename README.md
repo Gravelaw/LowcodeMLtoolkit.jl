@@ -2,7 +2,7 @@
 
 JuliaFlow is a monorepo for a visual low-code analytics platform built in Julia. This repository now reflects the Phase 1 / Alpha core slice from the BRD execution plan:
 
-- React frontend authoring workspace with draft editing, realtime status sync, dashboard v0, and Hub v0 controls
+- React frontend authoring workspace with draft editing, realtime status sync, dashboard v0 drilldown/export viewer, and Hub v0 controls
 - Shared workflow contracts, OpenAPI spec, and JSON-RPC protocol docs
 - Typed TypeScript gateway client for frontend and integration lanes
 - Julia node SDK, execution service with graph/dashboard/runtime models, and repository-backed HTTP gateway with realtime and Hub routes

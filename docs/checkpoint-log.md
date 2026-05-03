@@ -892,3 +892,47 @@ Each checkpoint entry must contain:
 - Move to the next P0 BRD lane: BI drilldown/viewer/export polish or production OIDC/RBAC hardening.
 - Add provider-specific cloud deployment evidence for remote object-store adapters when target provider/credentials are available.
 - Keep BRD traceability evidence honest: 150 stable nodes and provider-neutral remote adapter are implemented; provider-specific deployments are hardening work.
+
+---
+
+## Checkpoint: BI Drilldown And Export Polish — 2026-05-03
+
+### Work Done Till Date
+
+- Added published-dashboard drilldown panel for selected chart rows.
+- Preserved published snapshot read-only behavior and share/workspace token viewer compatibility.
+- Added filtered CSV, full CSV, and selected-row JSON export controls in the viewer.
+- Extended frontend tests for share-token viewer drilldown/export behavior.
+- Updated `docs/TODO.md`, `docs/brd-traceability.md`, and `docs/project-tracker.md` for the completed P0 BI viewer polish slice.
+
+### Gaps Pending
+
+- Richer chart visualizations, downloadable export files, and server-side drill paths remain future BI enhancements.
+- Production OIDC/RBAC, streaming, GPU, Hub, observability/perf, and deployment hardening remain open roadmap work.
+
+### Next Items To Implement
+
+- Start the next P0 hardening lane: production OIDC/JWT/RBAC or production streaming adapters/replay/exactly-once.
+- Continue full verification before any milestone claim.
+
+---
+
+## Checkpoint: Next P0 Plan — Production OIDC/RBAC Hardening — 2026-05-03
+
+### Work Done Till Date
+
+- Confirmed BI drilldown/export polish is the latest completed P0 slice and production OIDC/RBAC is the next planned P0 lane.
+- Added `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md` with risk-aware execution plan and acceptance criteria.
+- Added `docs/risk-register.md` with active security, streaming, GPU, object-store, and Hub risks.
+- Updated TODO and BRD traceability wording to point at the current plan and risk register without marking new implementation complete.
+
+### Gaps Pending
+
+- OIDC/JWT validation, persisted users/workspaces/roles/resource policies, audit query/admin UI, and policy management remain unimplemented.
+- Streaming production hardening, GPU production hardening, provider-specific object-store deployment evidence, Hub hardening, observability/perf gates, and deployment hardening remain open roadmap gaps.
+
+### Next Items To Implement
+
+- Start production OIDC/RBAC hardening from contracts and OpenAPI, then gateway auth/repository seams, tests, and minimal UI/admin surfaces as needed.
+- Preserve dev-token/disabled-auth, share-token, and workspace-token flows with regression tests.
+- Burn down `R-SEC-001` through `R-SEC-004` in `docs/risk-register.md` before moving to streaming or GPU hardening.

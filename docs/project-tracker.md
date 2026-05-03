@@ -863,3 +863,46 @@ After any meaningful job:
 - Move to the next P0 BRD lane: BI drilldown/viewer/export polish or production OIDC/RBAC hardening.
 - Add provider-specific cloud deployment evidence for remote object-store adapters when target provider/credentials are available.
 - Keep full verification loop for every milestone: `git diff --check`, extension tests, full Julia tests, `npm run validate:brd-traceability`, `npm run test`, and `npm run build`.
+
+### BI Drilldown And Export Polish (2026-05-03)
+
+### Work Done Till Date
+
+- Added published dashboard drilldown UX on top of existing chart-data rows.
+- Chart datapoint/table/metric interactions now open a read-only selected-row detail panel without mutating dashboard drafts.
+- Viewer now exposes filtered CSV export, full CSV export, and selected-row JSON export from the published dashboard surface.
+- Share-token published viewer test now covers drilldown, filtered export, and selected-row JSON export.
+- Updated TODO and BRD traceability to mark the P0 BI viewer polish follow-up complete with code/test evidence.
+
+### Gaps Pending
+
+- Future BI work can add richer visual renderers, server-side drill paths, scheduled exports, and downloadable files.
+- Production OIDC/RBAC, production streaming adapters, production GPU kernels, Hub hardening, observability/perf, and deployment hardening remain pending.
+
+### Next Items To Implement
+
+- Move to next P0 lane: production OIDC/JWT/RBAC hardening or production streaming adapter/replay/exactly-once hardening.
+- Keep verified thin-slice delivery with docs, traceability, tests, and checkpoint sync.
+
+### Next P0 Planning: Production OIDC/RBAC Hardening (2026-05-03)
+
+### Work Done Till Date
+
+- Reviewed the post-BI-polish control docs and confirmed the remaining unchecked P0 lanes are production OIDC/RBAC, production streaming, and production GPU hardening.
+- Selected production OIDC/JWT/RBAC hardening as the next P0 lane because it reduces the highest cross-cutting security risk before expanding production streaming/GPU surfaces.
+- Created `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md` with decision drivers, alternatives, acceptance criteria, implementation steps, and verification plan.
+- Added `docs/risk-register.md` to make active BRD delivery risks and mitigations explicit.
+
+### Gaps Pending
+
+- Production auth still needs OIDC/JWT validation, persisted users/workspaces/roles, persisted resource policies, bounded/redacted audit query surfaces, and minimal admin/read surfaces.
+- Streaming production hardening remains pending for Kafka/NATS adapters, replay runner, exactly-once proof, production watermarking, and sink transactions.
+- GPU production hardening remains pending for CUDA/KernelAbstractions kernels, worker isolation, device memory operations, and multi-GPU scheduling.
+- Provider-specific object-store deployment evidence, Hub hardening, observability/perf gates, and deployment hardening remain future lanes.
+
+### Next Items To Implement
+
+- Execute the OIDC/RBAC thin-slice plan contract-first: update shared contracts/OpenAPI before gateway and frontend behavior.
+- Add a mockable JWT/OIDC validation seam with issuer/audience/expiry checks while preserving disabled/dev-token fallback.
+- Add persisted file-backed users/workspaces/roles/resource policies and bounded/redacted audit query APIs with tests.
+- Keep TODO/BRD traceability unchecked until code and test evidence exist, then run `npm run validate:brd-traceability` before claiming any milestone.
