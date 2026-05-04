@@ -175,3 +175,18 @@ Still pending before P0 auth can be marked complete:
 - Editable admin UX for users/workspaces/role bindings/resource policies.
 - RSA/live IdP validation.
 - PostgreSQL-backed auth policy runtime evidence and security review.
+
+
+## Progress Update: Editable Auth Policy Admin (2026-05-04)
+
+Completed in fourth implementation pass:
+
+- Settings security admin panel now supports editable role-binding and resource-policy draft mutations.
+- Policy save uses the existing persisted `PUT /api/v1/admin/auth/policies` API and keeps demo/local fallback local.
+- Frontend tests cover queued binding/policy edits and the saved auth-policy payload.
+
+Still pending before P0 auth can be marked complete:
+
+- RSA/live IdP validation for the selected production provider.
+- Persisted users/workspaces directory UI beyond free-form principal/workspace IDs in policy bindings.
+- PostgreSQL-backed auth policy runtime evidence and broader security review.

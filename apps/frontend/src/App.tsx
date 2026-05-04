@@ -27,6 +27,8 @@ import {
   type GatewayWorkflowSummary,
   type NodeDefinition,
   type PublishedDashboardDefinition,
+  type ResourcePermission,
+  type WorkspaceRole,
   type WorkflowDefinition,
   type WorkflowStatus
 } from "@juliaflow/contracts";
@@ -56,6 +58,41 @@ type InspectorTab = "config" | "ports" | "validation" | "runtime";
 type WorkflowPortDefinition = NodeDefinition["ports"][number];
 type ValidationTone = "good" | "warn" | "live";
 type ActionTone = "info" | "success" | "error" | "demo";
+
+const workspaceRoleOptions: WorkspaceRole[] = ["owner", "editor", "viewer"];
+const resourcePermissionOptions: ResourcePermission[] = [
+  "workflow:read",
+  "workflow:write",
+  "workflow:execute",
+  "execution:read",
+  "execution:write",
+  "checkpoint:read",
+  "checkpoint:write",
+  "dashboard:read",
+  "dashboard:publish",
+  "hub:read",
+  "hub:publish",
+  "hub:install",
+  "policy:read",
+  "policy:write",
+  "audit:read"
+];
+
+interface RoleBindingDraft {
+  principalId: string;
+  workspaceId: string;
+  role: WorkspaceRole;
+}
+
+interface ResourcePolicyDraft {
+  resourceType: string;
+  resourceId: string;
+  workspaceId: string;
+  ownerPermissions: string;
+  editorPermissions: string;
+  viewerPermissions: string;
+}
+
 interface ViewerChartFilter {
   field: string;
   value: string;
@@ -334,6 +371,40 @@ const demoHubExtensions: GatewayHubExtensionRecord[] = [
     installedAt: "2026-04-20T00:00:00Z"
   }
 ];
+
+function createEmptyRoleBindingDraft(): RoleBindingDraft {
+  return {
+    principalId: "",
+    workspaceId: "",
+    role: "viewer"
+  };
+}
+
+function createEmptyResourcePolicyDraft(): ResourcePolicyDraft {
+  return {
+    resourceType: "workflow",
+    resourceId: "",
+    workspaceId: "",
+    ownerPermissions: "workflow:read, workflow:write, workflow:execute, policy:read, policy:write, audit:read",
+    editorPermissions: "workflow:read, workflow:write, workflow:execute",
+    viewerPermissions: "workflow:read"
+  };
+}
+
+function parsePermissionDraft(rawValue: string): ResourcePermission[] | null {
+  const requestedPermissions = rawValue
+    .split(",")
+    .map((permission) => permission.trim())
+    .filter((permission) => permission.length > 0);
+
+  for (const permission of requestedPermissions) {
+    if (!resourcePermissionOptions.includes(permission as ResourcePermission)) {
+      return null;
+    }
+  }
+
+  return requestedPermissions as ResourcePermission[];
+}
 
 function createDemoState(): WorkspaceDataState {
   return {
@@ -1355,6 +1426,9 @@ function App() {
   const [workflow, setWorkflow] = useState<WorkflowDefinition>(workspaceData.workflow);
   const [executionItems, setExecutionItems] = useState<ExecutionRailItem[]>(workspaceData.executionItems);
   const [hubExtensions, setHubExtensions] = useState<GatewayHubExtensionRecord[]>(workspaceData.hubExtensions);
+  const [authPolicyDraft, setAuthPolicyDraft] = useState<GatewayAuthPolicy>(workspaceData.authPolicy ?? demoAuthPolicy);
+  const [roleBindingDraft, setRoleBindingDraft] = useState<RoleBindingDraft>(() => createEmptyRoleBindingDraft());
+  const [resourcePolicyDraft, setResourcePolicyDraft] = useState<ResourcePolicyDraft>(() => createEmptyResourcePolicyDraft());
   const [publishedDashboards, setPublishedDashboards] = useState<PublishedDashboardDefinition[]>([]);
   const [publishedDashboard, setPublishedDashboard] = useState<PublishedDashboardDefinition | null>(null);
   const [activeDashboardId, setActiveDashboardId] = useState<string | null>(
@@ -1376,6 +1450,7 @@ function App() {
   );
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingAuthPolicy, setIsSavingAuthPolicy] = useState(false);
   const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
   const [connectionDraftDirection, setConnectionDraftDirection] = useState<ConnectionDraftDirection>("outgoing");
@@ -1393,6 +1468,7 @@ function App() {
     setWorkflow(workspaceData.workflow);
     setExecutionItems(workspaceData.executionItems);
     setHubExtensions(workspaceData.hubExtensions);
+    setAuthPolicyDraft(workspaceData.authPolicy ?? demoAuthPolicy);
     setNodePositionOverrides({});
     setKnownWorkflowIds(workspaceData.workflows.map((item) => item.workflowId));
     setRealtimeNodeStates({});
@@ -1867,6 +1943,8 @@ function App() {
   const unresolvedNodeCount = workflow.nodes.filter((node) => validationByNodeId[node.id].tone === "warn").length;
   const quickAddNodes = repositoryCatalog.slice(0, 3);
   const workflowExistsOnGateway = knownWorkflowIds.includes(workflow.workflowId) || workspaceData.mode === "live";
+  const isAuthPolicySaveDisabled =
+    isSavingAuthPolicy || (gatewayBaseUrl.length > 0 && workspaceData.authPolicy === null);
   const relatedConnections = workflow.connections.filter(
     (connection) => connection.sourceNodeId === selectedNode.id || connection.targetNodeId === selectedNode.id
   );
@@ -2500,6 +2578,122 @@ function App() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to update Hub extension.";
       setActionFeedback({ text: `Hub update failed: ${message}`, tone: "error" });
+    }
+  }
+
+  function handleAddRoleBinding() {
+    const principalId = roleBindingDraft.principalId.trim();
+    const workspaceId = roleBindingDraft.workspaceId.trim();
+    if (principalId.length === 0 || workspaceId.length === 0) {
+      setActionFeedback({ text: "Role binding needs principal and workspace.", tone: "error" });
+      return;
+    }
+
+    const nextBinding = {
+      principalId,
+      workspaceId,
+      role: roleBindingDraft.role
+    };
+    setAuthPolicyDraft((currentPolicy) => ({
+      ...currentPolicy,
+      roleBindings: [
+        ...currentPolicy.roleBindings.filter(
+          (binding) => binding.principalId !== principalId || binding.workspaceId !== workspaceId
+        ),
+        nextBinding
+      ]
+    }));
+    setRoleBindingDraft(createEmptyRoleBindingDraft());
+    setActionFeedback({ text: `Queued role binding for ${principalId}.`, tone: "info" });
+  }
+
+  function handleRemoveRoleBinding(index: number) {
+    setAuthPolicyDraft((currentPolicy) => ({
+      ...currentPolicy,
+      roleBindings: currentPolicy.roleBindings.filter((_, bindingIndex) => bindingIndex !== index)
+    }));
+    setActionFeedback({ text: "Queued role binding removal.", tone: "info" });
+  }
+
+  function handleAddResourcePolicy() {
+    const resourceType = resourcePolicyDraft.resourceType.trim();
+    const resourceId = resourcePolicyDraft.resourceId.trim();
+    const workspaceId = resourcePolicyDraft.workspaceId.trim();
+    const ownerPermissions = parsePermissionDraft(resourcePolicyDraft.ownerPermissions);
+    const editorPermissions = parsePermissionDraft(resourcePolicyDraft.editorPermissions);
+    const viewerPermissions = parsePermissionDraft(resourcePolicyDraft.viewerPermissions);
+
+    if (resourceType.length === 0 || resourceId.length === 0 || workspaceId.length === 0) {
+      setActionFeedback({ text: "Resource policy needs type, id, and workspace.", tone: "error" });
+      return;
+    }
+    if (!ownerPermissions || !editorPermissions || !viewerPermissions) {
+      setActionFeedback({ text: "Resource policy has an unknown permission.", tone: "error" });
+      return;
+    }
+
+    const nextPolicy = {
+      resourceType,
+      resourceId,
+      workspaceId,
+      permissionsByRole: {
+        owner: ownerPermissions,
+        editor: editorPermissions,
+        viewer: viewerPermissions
+      }
+    };
+    setAuthPolicyDraft((currentPolicy) => ({
+      ...currentPolicy,
+      resourcePolicies: [
+        ...currentPolicy.resourcePolicies.filter(
+          (policy) =>
+            policy.resourceType !== resourceType ||
+            policy.resourceId !== resourceId ||
+            policy.workspaceId !== workspaceId
+        ),
+        nextPolicy
+      ]
+    }));
+    setResourcePolicyDraft(createEmptyResourcePolicyDraft());
+    setActionFeedback({ text: `Queued resource policy for ${resourceType}:${resourceId}.`, tone: "info" });
+  }
+
+  function handleRemoveResourcePolicy(index: number) {
+    setAuthPolicyDraft((currentPolicy) => ({
+      ...currentPolicy,
+      resourcePolicies: currentPolicy.resourcePolicies.filter((_, policyIndex) => policyIndex !== index)
+    }));
+    setActionFeedback({ text: "Queued resource policy removal.", tone: "info" });
+  }
+
+  async function handleSaveAuthPolicy() {
+    if (gatewayBaseUrl.length > 0 && workspaceData.authPolicy === null) {
+      setActionFeedback({ text: "Auth policy save blocked until gateway policy loads.", tone: "error" });
+      return;
+    }
+
+    const nextPolicy: GatewayAuthPolicy = {
+      ...authPolicyDraft,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (gatewayBaseUrl.length === 0) {
+      setAuthPolicyDraft(nextPolicy);
+      setActionFeedback({ text: "Demo auth policy changes stored locally.", tone: "demo" });
+      return;
+    }
+
+    setIsSavingAuthPolicy(true);
+    try {
+      const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+      const response = await gatewayClient.updateAuthPolicy(nextPolicy);
+      setAuthPolicyDraft(response);
+      setActionFeedback({ text: "Auth policy saved to gateway.", tone: "success" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to save auth policy.";
+      setActionFeedback({ text: `Auth policy save failed: ${message}`, tone: "error" });
+    } finally {
+      setIsSavingAuthPolicy(false);
     }
   }
 
@@ -3893,12 +4087,17 @@ function App() {
                 <Panel className="rail-panel">
                   <SectionTitle
                     kicker="Security admin"
-                    title="Policy + audit visibility"
-                    detail="Read-only admin view proves persisted role/resource policies and redacted audit queries stay inspectable."
+                    title="Policy + audit management"
+                    detail="Editable admin draft proves persisted role/resource policies can be changed while audit queries stay redacted."
                   />
                   {workspaceData.authAdminError ? (
                     <div className="repository-empty">
                       <span>Auth admin API unavailable: {workspaceData.authAdminError}</span>
+                    </div>
+                  ) : null}
+                  {actionFeedback ? (
+                    <div className={`canvas-action-feedback is-${actionFeedback.tone}`} role="status">
+                      {actionFeedback.text}
                     </div>
                   ) : null}
                   <div className="inspector-stack">
@@ -3920,27 +4119,201 @@ function App() {
                     </div>
                     <div className="inspector-row">
                       <strong>Role bindings</strong>
-                      <span>{workspaceData.authPolicy?.roleBindings.length ?? 0}</span>
+                      <span>{authPolicyDraft.roleBindings.length}</span>
                     </div>
                     <div className="inspector-row">
                       <strong>Resource policies</strong>
-                      <span>{workspaceData.authPolicy?.resourcePolicies.length ?? 0}</span>
+                      <span>{authPolicyDraft.resourcePolicies.length}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Policy updated</strong>
+                      <span>{authPolicyDraft.updatedAt}</span>
                     </div>
                   </div>
 
                   <div className="route-card-list">
-                    {(workspaceData.authPolicy?.roleBindings ?? []).slice(0, 4).map((binding) => (
+                    {authPolicyDraft.roleBindings.slice(0, 6).map((binding, index) => (
                       <div className="route-list-item" key={`${binding.principalId}:${binding.workspaceId}`}>
                         <strong>{binding.principalId}</strong>
                         <span>{binding.workspaceId} · {binding.role}</span>
+                        <button
+                          className="danger-action-button"
+                          onClick={() => {
+                            handleRemoveRoleBinding(index);
+                          }}
+                          type="button"
+                        >
+                          Remove role binding
+                        </button>
                       </div>
                     ))}
-                    {(workspaceData.authPolicy?.resourcePolicies ?? []).slice(0, 4).map((policy) => (
+                    {authPolicyDraft.resourcePolicies.slice(0, 6).map((policy, index) => (
                       <div className="route-list-item" key={`${policy.resourceType}:${policy.resourceId}:${policy.workspaceId}`}>
                         <strong>{policy.resourceType}:{policy.resourceId}</strong>
                         <span>{policy.workspaceId} · {Object.keys(policy.permissionsByRole).join(", ")}</span>
+                        <button
+                          className="danger-action-button"
+                          onClick={() => {
+                            handleRemoveResourcePolicy(index);
+                          }}
+                          type="button"
+                        >
+                          Remove resource policy
+                        </button>
                       </div>
                     ))}
+                  </div>
+
+                  <div className="flow-variable-editor-list" aria-label="Editable auth policy controls">
+                    <section className="flow-variable-editor">
+                      <div className="flow-variable-editor-head">
+                        <strong>Add role binding</strong>
+                        <button className="secondary-action-button" onClick={handleAddRoleBinding} type="button">
+                          Queue role binding
+                        </button>
+                      </div>
+                      <label className="flow-variable-field">
+                        <span>Principal ID</span>
+                        <input
+                          aria-label="Auth policy principal id"
+                          onChange={(event) => {
+                            setRoleBindingDraft((currentDraft) => ({
+                              ...currentDraft,
+                              principalId: event.target.value
+                            }));
+                          }}
+                          value={roleBindingDraft.principalId}
+                        />
+                      </label>
+                      <label className="flow-variable-field">
+                        <span>Workspace ID</span>
+                        <input
+                          aria-label="Auth policy role workspace id"
+                          onChange={(event) => {
+                            setRoleBindingDraft((currentDraft) => ({
+                              ...currentDraft,
+                              workspaceId: event.target.value
+                            }));
+                          }}
+                          value={roleBindingDraft.workspaceId}
+                        />
+                      </label>
+                      <label className="flow-variable-field">
+                        <span>Role</span>
+                        <select
+                          aria-label="Auth policy workspace role"
+                          onChange={(event) => {
+                            setRoleBindingDraft((currentDraft) => ({
+                              ...currentDraft,
+                              role: event.target.value as WorkspaceRole
+                            }));
+                          }}
+                          value={roleBindingDraft.role}
+                        >
+                          {workspaceRoleOptions.map((role) => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </section>
+
+                    <section className="flow-variable-editor">
+                      <div className="flow-variable-editor-head">
+                        <strong>Add resource policy</strong>
+                        <button className="secondary-action-button" onClick={handleAddResourcePolicy} type="button">
+                          Queue resource policy
+                        </button>
+                      </div>
+                      <label className="flow-variable-field">
+                        <span>Resource type</span>
+                        <input
+                          aria-label="Auth policy resource type"
+                          onChange={(event) => {
+                            setResourcePolicyDraft((currentDraft) => ({
+                              ...currentDraft,
+                              resourceType: event.target.value
+                            }));
+                          }}
+                          value={resourcePolicyDraft.resourceType}
+                        />
+                      </label>
+                      <label className="flow-variable-field">
+                        <span>Resource ID</span>
+                        <input
+                          aria-label="Auth policy resource id"
+                          onChange={(event) => {
+                            setResourcePolicyDraft((currentDraft) => ({
+                              ...currentDraft,
+                              resourceId: event.target.value
+                            }));
+                          }}
+                          value={resourcePolicyDraft.resourceId}
+                        />
+                      </label>
+                      <label className="flow-variable-field">
+                        <span>Workspace ID</span>
+                        <input
+                          aria-label="Auth policy resource workspace id"
+                          onChange={(event) => {
+                            setResourcePolicyDraft((currentDraft) => ({
+                              ...currentDraft,
+                              workspaceId: event.target.value
+                            }));
+                          }}
+                          value={resourcePolicyDraft.workspaceId}
+                        />
+                      </label>
+                      <label className="flow-variable-field">
+                        <span>Owner permissions</span>
+                        <input
+                          aria-label="Auth policy owner permissions"
+                          onChange={(event) => {
+                            setResourcePolicyDraft((currentDraft) => ({
+                              ...currentDraft,
+                              ownerPermissions: event.target.value
+                            }));
+                          }}
+                          value={resourcePolicyDraft.ownerPermissions}
+                        />
+                      </label>
+                      <label className="flow-variable-field">
+                        <span>Editor permissions</span>
+                        <input
+                          aria-label="Auth policy editor permissions"
+                          onChange={(event) => {
+                            setResourcePolicyDraft((currentDraft) => ({
+                              ...currentDraft,
+                              editorPermissions: event.target.value
+                            }));
+                          }}
+                          value={resourcePolicyDraft.editorPermissions}
+                        />
+                      </label>
+                      <label className="flow-variable-field">
+                        <span>Viewer permissions</span>
+                        <input
+                          aria-label="Auth policy viewer permissions"
+                          onChange={(event) => {
+                            setResourcePolicyDraft((currentDraft) => ({
+                              ...currentDraft,
+                              viewerPermissions: event.target.value
+                            }));
+                          }}
+                          value={resourcePolicyDraft.viewerPermissions}
+                        />
+                      </label>
+                    </section>
+
+                    <button
+                      className="primary-action-button"
+                      disabled={isAuthPolicySaveDisabled}
+                      onClick={() => {
+                        void handleSaveAuthPolicy();
+                      }}
+                      type="button"
+                    >
+                      {isSavingAuthPolicy ? "Saving auth policy..." : "Save auth policy"}
+                    </button>
                   </div>
 
                   <div className="checkpoint-policy">

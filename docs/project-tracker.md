@@ -969,3 +969,25 @@ After any meaningful job:
 - Add editable admin UX for users/workspaces/role bindings/resource policies with validation and tests.
 - Add RSA/live IdP adapter or provider fixture once dependency/provider choice is clear.
 - Keep P0 auth TODO unchecked until live-provider and editable admin evidence exists.
+
+
+### Editable Auth Policy Admin UX (2026-05-04)
+
+### Work Done Till Date
+
+- Upgraded Settings security admin from read-only policy visibility to editable role-binding and resource-policy draft management.
+- Added validation for required principal/workspace/resource fields and known permission names.
+- Wired Save auth policy to the existing persisted auth-policy API in live mode and local state in demo mode.
+- Extended frontend gateway tests to prove policy mutations send role/resource-policy update payloads.
+
+### Gaps Pending
+
+- RSA/live IdP validation remains pending.
+- Persisted users/workspaces directory UI remains pending beyond free-form policy principal/workspace IDs.
+- PostgreSQL-backed auth policy runtime evidence and broader security review remain pending.
+
+### Next Items To Implement
+
+- Add selected-provider RSA/JWKS validation path or documented adapter fixture.
+- Add persisted users/workspaces directory admin surface and PostgreSQL auth-policy runtime evidence.
+- Keep P0 auth TODO unchecked until live-provider, directory/admin, and review evidence exist.

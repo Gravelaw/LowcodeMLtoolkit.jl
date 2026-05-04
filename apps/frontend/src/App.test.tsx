@@ -167,6 +167,7 @@ describe("App", () => {
     vi.stubEnv("VITE_JULIAFLOW_GATEWAY_BASE_URL", "http://gateway.test");
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
 
+    let savedAuthPolicy: unknown = null;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
 
@@ -392,6 +393,11 @@ describe("App", () => {
         );
       }
 
+      if (url.endsWith("/api/v1/admin/auth/policies") && init?.method === "PUT") {
+        savedAuthPolicy = JSON.parse(String(init.body));
+        return new Response(JSON.stringify(savedAuthPolicy));
+      }
+
       if (url.endsWith("/api/v1/audit/actions") && init?.method === "GET") {
         return new Response(
           JSON.stringify({
@@ -460,12 +466,46 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /Upgrade/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /SettingsDelivery, theme, discovery/i }));
-    expect(await screen.findByText(/Policy \+ audit visibility/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Policy \+ audit management/i)).toBeInTheDocument();
     expect(screen.getByText(/OIDC discovery/i)).toBeInTheDocument();
     expect(screen.getAllByText(/configured/i).length).toBeGreaterThan(1);
     expect(screen.getAllByText(/user-owner/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/workflow:wf-live-contracts/i)).toBeInTheDocument();
     expect(screen.getByText(/auth.policy.update/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Auth policy principal id/i), {
+      target: { value: "user-editor" }
+    });
+    fireEvent.change(screen.getByLabelText(/Auth policy role workspace id/i), {
+      target: { value: "workspace-a" }
+    });
+    fireEvent.change(screen.getByLabelText(/Auth policy workspace role/i), {
+      target: { value: "editor" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Queue role binding/i }));
+    expect(screen.getByText(/Queued role binding for user-editor/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Auth policy resource id/i), {
+      target: { value: "wf-new-secure" }
+    });
+    fireEvent.change(screen.getByLabelText(/Auth policy resource workspace id/i), {
+      target: { value: "workspace-a" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Queue resource policy/i }));
+    expect(screen.getByText(/Queued resource policy for workflow:wf-new-secure/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Save auth policy/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Auth policy saved to gateway/i)).toBeInTheDocument();
+    });
+    expect(savedAuthPolicy).toMatchObject({
+      roleBindings: expect.arrayContaining([
+        { principalId: "user-editor", workspaceId: "workspace-a", role: "editor" }
+      ]),
+      resourcePolicies: expect.arrayContaining([
+        expect.objectContaining({ resourceType: "workflow", resourceId: "wf-new-secure", workspaceId: "workspace-a" })
+      ])
+    });
   });
 
   it("uses share token when loading published dashboard by viewer URL", async () => {

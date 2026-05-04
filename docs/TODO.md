@@ -16,7 +16,7 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 8. [x] BI interaction hardening slice: realtime invalidation beyond polling, viewer cross-filter selection, filtered export, and selection summaries.
 9. [x] BI viewer polish follow-up: published dashboard viewer now supports filter-aware chart/row drilldown, selected-row detail inspection, filtered/full CSV export, and selected-row JSON export with frontend test coverage.
 10. [x] Auth/RBAC thin contract slice: auth context types, workspace roles, resource permissions, dev-token gateway gates, dashboard share/workspace separation.
-11. [ ] Production OIDC/RBAC hardening: OIDC/JWT validation seam, JWKS/discovery key resolution with rotation tests, persisted role/resource policy repository, bounded audit query API, and read-only policy/audit admin visibility are implemented; RSA/live IdP integration, editable users/workspaces admin surface, and policy mutation UX remain.
+11. [ ] Production OIDC/RBAC hardening: OIDC/JWT validation seam, JWKS/discovery key resolution with rotation tests, persisted role/resource policy repository, bounded audit query API, read-only policy/audit visibility, and editable role/resource-policy mutation UX are implemented; RSA/live IdP integration, persisted user/workspace directory UI, PostgreSQL runtime evidence, and broader security review remain.
 12. [x] Streaming fixture/window/checkpoint MVP: fixture adapter batches, bounded policy batches, window summaries, lag/backpressure/watermark diagnostics, checkpoint offsets.
 13. [ ] Streaming production hardening: Kafka/NATS adapters, durable replay runner, exactly-once proof, production watermarking and sink transactions.
 14. [x] GPU execution MVP: hardware registry summary, mock GPU workload execution, CPU fallback, worker execution beyond status promotion.
@@ -68,3 +68,5 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 - 2026-05-03: OIDC/JWT hardening now supports discovery/JWKS key resolution with `kid` lookup and rotation tests for HS256 JWKS fixtures; RSA/live IdP validation and admin UI remain before P0 item 11 can be checked.
 
 - 2026-05-04: Settings now includes read-only security admin visibility for auth mode, OIDC discovery/JWKS status, role bindings, resource policies, and redacted audit actions; editable admin UX and RSA/live IdP validation remain before P0 item 11 can be checked.
+
+- 2026-05-04: Settings security admin now supports editable role-binding and resource-policy draft mutations, saves through the persisted auth-policy API, and has frontend coverage for update payloads; RSA/live IdP validation and persisted user/workspace directory UI remain before P0 item 11 can be checked.
