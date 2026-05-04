@@ -196,7 +196,11 @@ describe("App", () => {
               activeGpuExecutions: 1,
               gpuWorkerOwnedExecutions: 1,
               queuedExecutionsTotal: 1,
-              runningExecutionsTotal: 1
+              runningExecutionsTotal: 1,
+              authMode: "oidc",
+              oidcDiscoveryConfigured: true,
+              oidcJwksConfigured: true,
+              oidcAllowedAlgorithms: ["HS256"]
             })
           );
         }
@@ -368,6 +372,54 @@ describe("App", () => {
         );
       }
 
+      if (url.endsWith("/api/v1/admin/auth/policies") && init?.method === "GET") {
+        return new Response(
+          JSON.stringify({
+            roleBindings: [
+              { principalId: "user-owner", workspaceId: "workspace-a", role: "owner" },
+              { principalId: "user-viewer", workspaceId: "workspace-a", role: "viewer" }
+            ],
+            resourcePolicies: [
+              {
+                resourceType: "workflow",
+                resourceId: "wf-live-contracts",
+                workspaceId: "workspace-a",
+                permissionsByRole: { viewer: ["workflow:read"], owner: ["workflow:read", "policy:read"] }
+              }
+            ],
+            updatedAt: "2026-05-04T00:00:00Z"
+          })
+        );
+      }
+
+      if (url.endsWith("/api/v1/audit/actions") && init?.method === "GET") {
+        return new Response(
+          JSON.stringify({
+            events: [
+              {
+                eventId: "audit-1",
+                sequence: 11,
+                occurredAt: "2026-05-04T00:00:00Z",
+                action: "auth.policy.update",
+                targetType: "auth_policy",
+                targetId: "default",
+                recordedAt: "2026-05-04T00:00:00Z",
+                authContext: {
+                  principalId: "user-owner",
+                  workspaceId: "workspace-a",
+                  role: "owner",
+                  mode: "oidc",
+                  permissions: ["audit:read", "policy:read"]
+                },
+                details: { Authorization: "[redacted]" }
+              }
+            ],
+            count: 1,
+            limit: 50
+          })
+        );
+      }
+
       if (url.endsWith("/api/v1/workflows/wf-live-contracts/dashboards") && init?.method === "GET") {
         return new Response(JSON.stringify({ items: [] }));
       }
@@ -406,6 +458,14 @@ describe("App", () => {
     expect(screen.getByText("hub://preview/ops-pack")).toBeInTheDocument();
     expect(screen.getByText("https://example.test/ops-preview")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Upgrade/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /SettingsDelivery, theme, discovery/i }));
+    expect(await screen.findByText(/Policy \+ audit visibility/i)).toBeInTheDocument();
+    expect(screen.getByText(/OIDC discovery/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/configured/i).length).toBeGreaterThan(1);
+    expect(screen.getAllByText(/user-owner/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/workflow:wf-live-contracts/i)).toBeInTheDocument();
+    expect(screen.getByText(/auth.policy.update/i)).toBeInTheDocument();
   });
 
   it("uses share token when loading published dashboard by viewer URL", async () => {

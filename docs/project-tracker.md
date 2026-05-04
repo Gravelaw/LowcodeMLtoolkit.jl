@@ -949,3 +949,23 @@ After any meaningful job:
 - Add selected-provider RSA/JWKS validation or a documented IdP adapter with provider metadata/key-rotation fixtures.
 - Add admin UI for users/workspaces/role bindings/resource policies and audit query browsing.
 - Keep P0 auth TODO unchecked until live-provider and admin UI evidence exists.
+
+### Security Admin Policy/Audit Visibility (2026-05-04)
+
+### Work Done Till Date
+
+- Added read-only Settings security admin panel for auth mode, OIDC discovery/JWKS configuration, allowed algorithms, persisted role bindings, resource policies, and redacted audit actions.
+- Loaded policy and audit query APIs as optional gateway calls so unauthenticated/local shells do not fall back when admin routes are unavailable.
+- Extended frontend gateway mock coverage for policy/audit data and Settings assertions.
+
+### Gaps Pending
+
+- RSA/live IdP validation remains pending.
+- Editable persisted users/workspaces/resource-policy admin UX remains pending.
+- PostgreSQL-backed auth policy runtime evidence and broader security review remain pending.
+
+### Next Items To Implement
+
+- Add editable admin UX for users/workspaces/role bindings/resource policies with validation and tests.
+- Add RSA/live IdP adapter or provider fixture once dependency/provider choice is clear.
+- Keep P0 auth TODO unchecked until live-provider and editable admin evidence exists.

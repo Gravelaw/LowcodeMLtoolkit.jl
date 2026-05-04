@@ -979,3 +979,24 @@ Each checkpoint entry must contain:
 - Implement selected-provider RSA/JWKS adapter or live IdP fixture path.
 - Build minimal admin UI for role/resource-policy management and audit browsing.
 - Keep full verification loop before any milestone claim.
+
+
+---
+
+## Checkpoint: Security Admin Policy/Audit Visibility — 2026-05-04
+
+### Work Done Till Date
+
+- Added read-only Settings visibility for persisted auth policy and redacted audit query data.
+- Kept admin API calls optional so missing auth does not break live gateway loading.
+- Updated frontend test coverage, TODO, traceability, tracker, and risk register.
+
+### Gaps Pending
+
+- RSA/live IdP validation, editable users/workspaces/resource-policy admin UI, PostgreSQL runtime evidence, and broader security review remain pending.
+
+### Next Items To Implement
+
+- Build editable admin UX for users/workspaces/role bindings/resource policies.
+- Add selected-provider RSA/JWKS validation path.
+- Keep full verification loop before any P0 auth milestone claim.

@@ -14,6 +14,8 @@ import {
   type GatewayDashboardChartDataResponse,
   type GatewayDashboardPublishResponse,
   type GatewayDashboardPublishRequest,
+  type GatewayAuditActionEvent,
+  type GatewayAuthPolicy,
   type GatewayExecutionStateChangedEvent,
   type GatewayHealthcheck,
   type GatewayHubExtensionRecord,
@@ -77,6 +79,9 @@ interface WorkspaceDataState {
   executionItems: ExecutionRailItem[];
   health: GatewayHealthcheck | null;
   hubExtensions: GatewayHubExtensionRecord[];
+  authPolicy: GatewayAuthPolicy | null;
+  auditActions: GatewayAuditActionEvent[];
+  authAdminError: string | null;
   isLoading: boolean;
   mode: DataSourceMode;
   workflow: WorkflowDefinition;
@@ -210,6 +215,43 @@ function buildDashboardViewerSearch(
   return `?${params.toString()}`;
 }
 
+
+const demoAuthPolicy: GatewayAuthPolicy = {
+  roleBindings: [
+    { principalId: "dev:local-user", workspaceId: "local-dev", role: "owner" }
+  ],
+  resourcePolicies: [
+    {
+      resourceType: "workflow",
+      resourceId: "*",
+      workspaceId: "local-dev",
+      permissionsByRole: {
+        owner: ["workflow:read", "workflow:write", "workflow:execute", "audit:read", "policy:read", "policy:write"],
+        editor: ["workflow:read", "workflow:write", "workflow:execute"],
+        viewer: ["workflow:read"]
+      }
+    }
+  ],
+  updatedAt: "2026-05-04T00:00:00Z"
+};
+
+const demoAuditActions: GatewayAuditActionEvent[] = [
+  {
+    action: "auth.policy.update",
+    targetType: "auth_policy",
+    targetId: "default",
+    recordedAt: "2026-05-04T00:00:00Z",
+    authContext: {
+      principalId: "dev:local-user",
+      workspaceId: "local-dev",
+      role: "owner",
+      mode: "dev_fallback",
+      permissions: ["audit:read", "policy:read", "policy:write"]
+    },
+    details: {}
+  }
+];
+
 const demoHubExtensions: GatewayHubExtensionRecord[] = [
   {
     extensionId: "juliaflow-base",
@@ -301,6 +343,9 @@ function createDemoState(): WorkspaceDataState {
     executionItems: executionRailItems,
     health: null,
     hubExtensions: demoHubExtensions,
+    authPolicy: demoAuthPolicy,
+    auditActions: demoAuditActions,
+    authAdminError: null,
     isLoading: false,
     mode: "demo",
     workflow: sampleWorkflow,
@@ -357,12 +402,20 @@ function useWorkspaceData(): WorkspaceDataState {
 
     async function load() {
       try {
-        const [health, workflowResponse, executionResponse, checkpointResponse, hubExtensionResponse] = await Promise.all([
+        const [health, workflowResponse, executionResponse, checkpointResponse, hubExtensionResponse, authPolicyResult, auditActionsResult] = await Promise.all([
           gatewayClient.healthcheck({ signal: abortController.signal }),
           gatewayClient.listWorkflows({ signal: abortController.signal }),
           gatewayClient.listExecutions({ signal: abortController.signal }),
           gatewayClient.listCheckpoints({ signal: abortController.signal }),
-          gatewayClient.listHubExtensions({ signal: abortController.signal })
+          gatewayClient.listHubExtensions({ signal: abortController.signal }),
+          gatewayClient.getAuthPolicy({ signal: abortController.signal }).then(
+            (policy) => ({ policy, error: null }),
+            (error: unknown) => ({ policy: null, error: error instanceof Error ? error.message : "Auth policy unavailable" })
+          ),
+          gatewayClient.queryAuditActions({ signal: abortController.signal }).then(
+            (response) => ({ events: response.events, error: null }),
+            (error: unknown) => ({ events: [], error: error instanceof Error ? error.message : "Audit query unavailable" })
+          )
         ]);
 
         const activeWorkflow = workflowResponse.items[0] ?? null;
@@ -391,6 +444,9 @@ function useWorkspaceData(): WorkspaceDataState {
           health,
           hubExtensions:
             hubExtensionResponse.items.length > 0 ? hubExtensionResponse.items : demoHubExtensions,
+          authPolicy: authPolicyResult.policy,
+          auditActions: auditActionsResult.events,
+          authAdminError: authPolicyResult.error ?? auditActionsResult.error,
           isLoading: false,
           mode: "live",
           workflow:
@@ -3831,6 +3887,75 @@ function App() {
                       <strong>Current route</strong>
                       <span>{buildViewPath(activeView)}</span>
                     </div>
+                  </div>
+                </Panel>
+
+                <Panel className="rail-panel">
+                  <SectionTitle
+                    kicker="Security admin"
+                    title="Policy + audit visibility"
+                    detail="Read-only admin view proves persisted role/resource policies and redacted audit queries stay inspectable."
+                  />
+                  {workspaceData.authAdminError ? (
+                    <div className="repository-empty">
+                      <span>Auth admin API unavailable: {workspaceData.authAdminError}</span>
+                    </div>
+                  ) : null}
+                  <div className="inspector-stack">
+                    <div className="inspector-row">
+                      <strong>Auth mode</strong>
+                      <span>{workspaceData.health?.authMode ?? "demo"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>OIDC discovery</strong>
+                      <span>{workspaceData.health?.oidcDiscoveryConfigured ? "configured" : "not configured"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>OIDC JWKS</strong>
+                      <span>{workspaceData.health?.oidcJwksConfigured ? "configured" : "not configured"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Allowed algorithms</strong>
+                      <span>{workspaceData.health?.oidcAllowedAlgorithms?.join(", ") ?? "HS256"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Role bindings</strong>
+                      <span>{workspaceData.authPolicy?.roleBindings.length ?? 0}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Resource policies</strong>
+                      <span>{workspaceData.authPolicy?.resourcePolicies.length ?? 0}</span>
+                    </div>
+                  </div>
+
+                  <div className="route-card-list">
+                    {(workspaceData.authPolicy?.roleBindings ?? []).slice(0, 4).map((binding) => (
+                      <div className="route-list-item" key={`${binding.principalId}:${binding.workspaceId}`}>
+                        <strong>{binding.principalId}</strong>
+                        <span>{binding.workspaceId} · {binding.role}</span>
+                      </div>
+                    ))}
+                    {(workspaceData.authPolicy?.resourcePolicies ?? []).slice(0, 4).map((policy) => (
+                      <div className="route-list-item" key={`${policy.resourceType}:${policy.resourceId}:${policy.workspaceId}`}>
+                        <strong>{policy.resourceType}:{policy.resourceId}</strong>
+                        <span>{policy.workspaceId} · {Object.keys(policy.permissionsByRole).join(", ")}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="checkpoint-policy">
+                    <h2>Audit actions</h2>
+                    <ul className="checkpoint-list">
+                      {workspaceData.auditActions.slice(0, 4).map((event) => (
+                        <li key={`${event.recordedAt}:${event.action}:${event.targetId}`}>
+                          <strong>{event.action}</strong>
+                          <span>{event.targetType}:{event.targetId} · {event.authContext.principalId}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {workspaceData.auditActions.length === 0 ? (
+                      <div className="repository-empty"><span>No audit actions loaded.</span></div>
+                    ) : null}
                   </div>
                 </Panel>
 

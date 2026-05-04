@@ -160,3 +160,18 @@ Still pending before P0 auth can be marked complete:
 - Persisted users/workspaces admin model.
 - Resource-policy admin UI and audit browsing UX.
 - PostgreSQL-backed auth policy runtime evidence and security review.
+
+
+## Progress Update: Security Admin Visibility (2026-05-04)
+
+Completed in third implementation pass:
+
+- Read-only Settings panel for auth mode, OIDC discovery/JWKS status, role bindings, resource policies, and audit actions.
+- Optional gateway loading for policy/audit admin APIs to avoid breaking local/demo shells when admin credentials are absent.
+- Frontend test coverage for rendered policy/audit visibility.
+
+Still pending before P0 auth can be marked complete:
+
+- Editable admin UX for users/workspaces/role bindings/resource policies.
+- RSA/live IdP validation.
+- PostgreSQL-backed auth policy runtime evidence and security review.
