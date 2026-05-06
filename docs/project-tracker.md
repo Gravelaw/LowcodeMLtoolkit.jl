@@ -1106,3 +1106,24 @@ After any meaningful job:
 - Add external IdP smoke evidence when provider/credentials are available.
 - Run broader auth security review before marking P0 auth complete.
 - If auth evidence remains credential-blocked, proceed to next P0 lane: streaming production hardening.
+
+### Auth Security Review (2026-05-06)
+
+### Work Done Till Date
+
+- Completed broader local auth/RBAC security review after the directory admin and RS256 JWKS slices.
+- Documented review artifact at `docs/security/auth-security-review-2026-05-06.md`.
+- Found no critical, high, or medium findings.
+- Recorded remaining watch items as external live-IdP smoke and PostgreSQL runtime evidence.
+
+### Gaps Pending
+
+- External live-IdP smoke remains pending because no provider credentials/metadata target were supplied.
+- PostgreSQL runtime evidence remains pending until `JULIAFLOW_TEST_POSTGRES_URL` is available and run.
+- Streaming and GPU production hardening remain queued after auth/security depth.
+
+### Next Items To Implement
+
+- Run PostgreSQL auth directory/policy evidence when DB credentials/service are available.
+- Add external IdP smoke evidence when provider/credentials are available.
+- If auth evidence remains credential-blocked, proceed to next P0 lane: streaming production hardening.

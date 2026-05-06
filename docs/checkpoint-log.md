@@ -1135,3 +1135,26 @@ Each checkpoint entry must contain:
 - Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
 - Add external IdP smoke evidence when provider/credentials are available.
 - Run broader auth security review before marking P0 auth complete.
+
+---
+
+## Checkpoint: Auth Security Review — 2026-05-06
+
+### Work Done Till Date
+
+- Completed broader local auth/RBAC security review after directory admin and RS256 JWKS hardening.
+- Added `docs/security/auth-security-review-2026-05-06.md`.
+- Confirmed no critical, high, or medium local-review findings.
+- Preserved P0 auth as open for external live-IdP smoke and PostgreSQL runtime evidence.
+
+### Gaps Pending
+
+- External live-IdP smoke remains pending because no provider credentials/metadata target were supplied.
+- PostgreSQL runtime evidence remains pending until `JULIAFLOW_TEST_POSTGRES_URL` is available and run.
+- Streaming production hardening and GPU production hardening remain next P0 lanes after auth/security depth.
+
+### Next Items To Implement
+
+- Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
+- Add external IdP smoke evidence when provider/credentials are available.
+- If auth evidence remains credential-blocked, proceed to next P0 lane: streaming production hardening.
