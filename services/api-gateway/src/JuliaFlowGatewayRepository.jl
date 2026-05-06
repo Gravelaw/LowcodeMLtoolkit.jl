@@ -404,6 +404,8 @@ function execution_payload(execution::GatewayExecution)
                 payload["streamAdapter"] = String(value)
             elseif string_key == "stream_processed_offset"
                 payload["streamProcessedOffset"] = Int(value)
+            elseif string_key == "stream_committed_offset"
+                payload["streamCommittedOffset"] = Int(value)
             elseif string_key == "stream_processed_rows"
                 payload["streamProcessedRows"] = Int(value)
             elseif string_key == "stream_batch_count"
@@ -420,6 +422,16 @@ function execution_payload(execution::GatewayExecution)
                 payload["streamLastCheckpointId"] = String(value)
             elseif string_key == "stream_checkpoint_offsets"
                 payload["streamCheckpointOffsets"] = value
+            elseif string_key == "stream_sink_transaction_id"
+                payload["streamSinkTransactionId"] = String(value)
+            elseif string_key == "stream_idempotency_key"
+                payload["streamIdempotencyKey"] = String(value)
+            elseif string_key == "stream_exactly_once_status"
+                payload["streamExactlyOnceStatus"] = String(value)
+            elseif string_key == "stream_replay_status"
+                payload["streamReplayStatus"] = String(value)
+            elseif string_key == "stream_replay_offset"
+                payload["streamReplayOffset"] = Int(value)
             elseif string_key == "dispatch_lane"
                 payload["dispatchLane"] = String(value)
             elseif string_key == "dispatch_worker_pool"
@@ -596,6 +608,8 @@ function gateway_execution(item)
             metadata["stream_adapter"] = value
         elseif string_key == "streamProcessedOffset"
             metadata["stream_processed_offset"] = value
+        elseif string_key == "streamCommittedOffset"
+            metadata["stream_committed_offset"] = value
         elseif string_key == "streamProcessedRows"
             metadata["stream_processed_rows"] = value
         elseif string_key == "streamBatchCount"
@@ -612,6 +626,16 @@ function gateway_execution(item)
             metadata["stream_last_checkpoint_id"] = value
         elseif string_key == "streamCheckpointOffsets"
             metadata["stream_checkpoint_offsets"] = value
+        elseif string_key == "streamSinkTransactionId"
+            metadata["stream_sink_transaction_id"] = value
+        elseif string_key == "streamIdempotencyKey"
+            metadata["stream_idempotency_key"] = value
+        elseif string_key == "streamExactlyOnceStatus"
+            metadata["stream_exactly_once_status"] = value
+        elseif string_key == "streamReplayStatus"
+            metadata["stream_replay_status"] = value
+        elseif string_key == "streamReplayOffset"
+            metadata["stream_replay_offset"] = value
         elseif string_key == "dispatchLane"
             metadata["dispatch_lane"] = value
         elseif string_key == "dispatchWorkerPool"

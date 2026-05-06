@@ -11,6 +11,7 @@ export WorkerServiceState,
     promote_stream_execution!,
     process_stream_worker_tick!,
     process_stream_fixture_batch!,
+    replay_stream_fixture_batch!,
     activate_stream_execution!,
     set_stream_lifecycle!,
     stop_stream_execution!,
@@ -91,9 +92,11 @@ function stream_runtime_metadata(workflow, execution, events, offset_start::Inte
     batch_count = isempty(events) ? previous_batches : previous_batches + 1
     topic = workflow.runtime.source === nothing ? "unknown" : String(get(workflow.runtime.source, "topic", "fixture"))
     consumer_group = workflow.runtime.source === nothing ? "unknown" : String(get(workflow.runtime.source, "consumer_group", "fixture"))
+    transaction_id = "stream-$(execution.execution_id)-offset-$(offset_start)-$(processed_offset)"
     return Dict{String,Any}(
         "stream_adapter" => stream_source_kind(workflow),
         "stream_processed_offset" => processed_offset,
+        "stream_committed_offset" => processed_offset,
         "stream_processed_rows" => previous_rows + length(events),
         "stream_batch_count" => batch_count,
         "stream_consumer_lag" => lag,
@@ -101,7 +104,17 @@ function stream_runtime_metadata(workflow, execution, events, offset_start::Inte
         "stream_watermark" => watermark,
         "stream_window_state" => fixture_window_summary(events, offset_start, workflow),
         "stream_last_checkpoint_id" => "stream-$(execution.execution_id)-batch-$(batch_count)",
-        "stream_checkpoint_offsets" => Dict("topic" => topic, "consumerGroup" => consumer_group, "lastOffset" => processed_offset, "lag" => lag),
+        "stream_checkpoint_offsets" => Dict(
+            "topic" => topic,
+            "consumerGroup" => consumer_group,
+            "lastOffset" => processed_offset,
+            "committedOffset" => processed_offset,
+            "lag" => lag,
+            "transactionId" => transaction_id,
+        ),
+        "stream_sink_transaction_id" => transaction_id,
+        "stream_idempotency_key" => "$(topic):$(consumer_group):$(processed_offset)",
+        "stream_exactly_once_status" => isempty(events) ? "idle" : "committed",
     )
 end
 
@@ -266,6 +279,7 @@ function build_stream_execution_metadata(workflow)
         "stream_run_mode" => String(workflow.runtime.run_mode),
         "stream_adapter" => stream_source_kind(workflow),
         "stream_processed_offset" => 0,
+        "stream_committed_offset" => 0,
         "stream_processed_rows" => 0,
         "stream_batch_count" => 0,
         "stream_consumer_lag" => length(stream_fixture_events(workflow)),
@@ -279,6 +293,21 @@ function build_stream_execution_metadata(workflow)
     workflow.runtime.window === nothing || (metadata["stream_window"] = workflow.runtime.window)
     workflow.runtime.policy === nothing || (metadata["stream_policy"] = workflow.runtime.policy)
     return metadata
+end
+
+function duplicate_replay_metadata(execution, replay_offset::Integer)
+    committed_offset = Int(get(execution.metadata, "stream_committed_offset", get(execution.metadata, "stream_processed_offset", 0)))
+    checkpoint_offsets = get(execution.metadata, "stream_checkpoint_offsets", Dict{String,Any}())
+    transaction_id = String(get(execution.metadata, "stream_sink_transaction_id", "stream-$(execution.execution_id)-offset-$(committed_offset)-$(committed_offset)"))
+    return Dict{String,Any}(
+        "stream_replay_status" => "duplicate_skipped",
+        "stream_exactly_once_status" => "duplicate_suppressed",
+        "stream_replay_offset" => Int(replay_offset),
+        "stream_committed_offset" => committed_offset,
+        "stream_checkpoint_offsets" => checkpoint_offsets,
+        "stream_sink_transaction_id" => transaction_id,
+        "stream_idempotency_key" => String(get(execution.metadata, "stream_idempotency_key", transaction_id)),
+    )
 end
 
 function gpu_dispatch_metadata(execution)
@@ -463,6 +492,48 @@ function process_stream_fixture_batch!(
     executions[index] = execution
     service.stream_execution_ids[workflow_id] = execution.execution_id
     return execution
+end
+
+function replay_stream_fixture_batch!(
+    service::WorkerServiceState,
+    workflows,
+    executions,
+    workflow_id::AbstractString,
+    replay_offset::Integer;
+    execution_record,
+    append_execution_event,
+    materialize_execution,
+    batch_size::Union{Nothing,Integer} = nothing,
+)
+    index = find_stream_execution_index(service, executions, workflow_id)
+    current_execution = executions[index]
+    lifecycle = stream_lifecycle_status(current_execution)
+    lifecycle == "active" || error("stream execution must be active to replay fixture batch")
+    committed_offset = Int(get(current_execution.metadata, "stream_committed_offset", get(current_execution.metadata, "stream_processed_offset", 0)))
+    replay_offset = max(Int(replay_offset), 0)
+    if replay_offset < committed_offset
+        updated = append_execution_event(
+            execution_record(current_execution);
+            message = "Streaming replay duplicate skipped",
+            metadata = duplicate_replay_metadata(current_execution, replay_offset),
+        )
+        execution = materialize_execution(updated)
+        executions[index] = execution
+        service.stream_execution_ids[workflow_id] = execution.execution_id
+        return execution
+    elseif replay_offset > committed_offset
+        error("stream replay offset ahead of committed offset")
+    end
+    return process_stream_fixture_batch!(
+        service,
+        workflows,
+        executions,
+        workflow_id;
+        execution_record = execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = materialize_execution,
+        batch_size = batch_size,
+    )
 end
 
 function set_stream_lifecycle!(

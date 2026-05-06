@@ -1127,3 +1127,26 @@ After any meaningful job:
 - Run PostgreSQL auth directory/policy evidence when DB credentials/service are available.
 - Add external IdP smoke evidence when provider/credentials are available.
 - If auth evidence remains credential-blocked, proceed to next P0 lane: streaming production hardening.
+
+### Streaming Exactly-Once Fixture Slice (2026-05-06)
+
+### Work Done Till Date
+
+- Started the next P0 lane after auth evidence became credential-blocked.
+- Added committed-offset metadata, sink transaction IDs, and idempotency keys to streaming fixture batch processing.
+- Added duplicate replay suppression via `replay_stream_fixture_batch!` so replays below the committed offset do not double-count processed rows.
+- Exposed exactly-once/replay metadata in gateway execution payloads, TypeScript contracts, and OpenAPI.
+- Added Julia worker coverage and contract assertions for the new streaming metadata.
+
+### Gaps Pending
+
+- Kafka/NATS adapters remain pending.
+- Durable replay runner across process restarts remains pending beyond fixture duplicate suppression.
+- Production watermarking and external sink transactions remain pending.
+- GPU production hardening remains queued after streaming depth.
+
+### Next Items To Implement
+
+- Add Kafka/NATS adapter contract fixtures without introducing runtime dependencies.
+- Add durable replay runner evidence across restart using persisted checkpoint offsets.
+- Add production watermark and external sink transaction tests before checking P0 streaming complete.

@@ -1158,3 +1158,26 @@ Each checkpoint entry must contain:
 - Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
 - Add external IdP smoke evidence when provider/credentials are available.
 - If auth evidence remains credential-blocked, proceed to next P0 lane: streaming production hardening.
+
+---
+
+## Checkpoint: Streaming Exactly-Once Fixture Slice — 2026-05-06
+
+### Work Done Till Date
+
+- Added committed-offset metadata, sink transaction IDs, idempotency keys, and duplicate replay suppression for fixture streaming.
+- Exposed stream exactly-once/replay metadata through repository payloads, contracts, and OpenAPI.
+- Added Julia worker and contract coverage for duplicate replay suppression and transaction metadata.
+
+### Gaps Pending
+
+- Kafka/NATS adapters remain pending.
+- Durable replay runner across process restarts remains pending beyond fixture duplicate suppression.
+- Production watermarking and external sink transactions remain pending.
+- GPU production hardening remains queued after streaming depth.
+
+### Next Items To Implement
+
+- Add Kafka/NATS adapter contract fixtures without new runtime dependencies.
+- Add durable replay runner evidence across restart using persisted checkpoint offsets.
+- Add production watermark and external sink transaction tests before checking P0 streaming complete.

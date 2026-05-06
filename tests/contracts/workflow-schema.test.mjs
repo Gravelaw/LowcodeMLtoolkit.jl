@@ -155,6 +155,10 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayExecutionRecord.properties.streamAdapter);
   assert.ok(schemas.GatewayExecutionRecord.properties.streamConsumerLag);
   assert.ok(schemas.GatewayExecutionRecord.properties.streamWindowState);
+  assert.ok(schemas.GatewayExecutionRecord.properties.streamCommittedOffset);
+  assert.ok(schemas.GatewayExecutionRecord.properties.streamSinkTransactionId);
+  assert.ok(schemas.GatewayExecutionRecord.properties.streamIdempotencyKey);
+  assert.ok(schemas.GatewayExecutionRecord.properties.streamExactlyOnceStatus);
   assert.ok(schemas.GatewayExecutionRecord.properties.gpuExecutionPath);
   assert.ok(schemas.GatewayExecutionRecord.properties.gpuWorkloadResult);
   assert.ok(schemas.CreateCheckpointResponse.properties.checkpoint);

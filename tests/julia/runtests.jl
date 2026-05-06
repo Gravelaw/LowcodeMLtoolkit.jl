@@ -267,6 +267,26 @@ end
     @test first_batch.metadata["stream_watermark"] == 7
     @test first_batch.metadata["stream_window_state"]["windows"][1]["count"] == 2
     @test first_batch.metadata["stream_checkpoint_offsets"]["lastOffset"] == 2
+    @test first_batch.metadata["stream_checkpoint_offsets"]["committedOffset"] == 2
+    @test first_batch.metadata["stream_exactly_once_status"] == "committed"
+    @test first_batch.metadata["stream_sink_transaction_id"] == "stream-$(first_batch.execution_id)-offset-0-2"
+
+    replayed_first_batch = replay_stream_fixture_batch!(
+        service,
+        workflows,
+        executions,
+        parallel_workflow.id,
+        0;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        batch_size = 2,
+    )
+    @test replayed_first_batch.metadata["stream_processed_offset"] == 2
+    @test replayed_first_batch.metadata["stream_processed_rows"] == 2
+    @test replayed_first_batch.metadata["stream_exactly_once_status"] == "duplicate_suppressed"
+    @test replayed_first_batch.metadata["stream_replay_status"] == "duplicate_skipped"
+    @test replayed_first_batch.metadata["stream_replay_offset"] == 0
 
     second_batch = process_stream_fixture_batch!(
         service,

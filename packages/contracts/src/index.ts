@@ -578,6 +578,7 @@ export interface GatewayExecutionRecord {
   streamLifecycleStatus?: StreamLifecycleStatus;
   streamAdapter?: "fixture" | "kafka" | "none" | string;
   streamProcessedOffset?: number;
+  streamCommittedOffset?: number;
   streamProcessedRows?: number;
   streamBatchCount?: number;
   streamConsumerLag?: number;
@@ -590,6 +591,11 @@ export interface GatewayExecutionRecord {
   };
   streamLastCheckpointId?: string;
   streamCheckpointOffsets?: Record<string, string | number>;
+  streamSinkTransactionId?: string;
+  streamIdempotencyKey?: string;
+  streamExactlyOnceStatus?: "idle" | "committed" | "duplicate_suppressed" | string;
+  streamReplayStatus?: "duplicate_skipped" | string;
+  streamReplayOffset?: number;
   gpuExecutionPath?: "gpu" | "cpu_fallback";
   gpuDeviceId?: string;
   gpuAccelerator?: string;

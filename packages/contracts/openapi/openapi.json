@@ -1720,6 +1720,24 @@
           "gpuRegistry": {
             "type": "object",
             "additionalProperties": true
+          },
+          "streamCommittedOffset": {
+            "type": "integer"
+          },
+          "streamSinkTransactionId": {
+            "type": "string"
+          },
+          "streamIdempotencyKey": {
+            "type": "string"
+          },
+          "streamExactlyOnceStatus": {
+            "type": "string"
+          },
+          "streamReplayStatus": {
+            "type": "string"
+          },
+          "streamReplayOffset": {
+            "type": "integer"
           }
         },
         "additionalProperties": true
