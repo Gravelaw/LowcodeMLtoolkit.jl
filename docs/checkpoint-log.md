@@ -1181,3 +1181,26 @@ Each checkpoint entry must contain:
 - Add Kafka/NATS adapter contract fixtures without new runtime dependencies.
 - Add durable replay runner evidence across restart using persisted checkpoint offsets.
 - Add production watermark and external sink transaction tests before checking P0 streaming complete.
+
+---
+
+## Checkpoint: Streaming Adapter Contract Slice — 2026-05-06
+
+### Work Done Till Date
+
+- Added Kafka/NATS adapter contract metadata without adding runtime broker dependencies.
+- Exposed adapter contract metadata through repository payloads, contracts, and OpenAPI.
+- Added Julia worker tests for Kafka/NATS contract metadata and contract schema assertions.
+
+### Gaps Pending
+
+- Runtime Kafka/NATS clients remain pending until dependency/provider approval.
+- Durable replay runner across process restarts remains pending beyond fixture duplicate suppression.
+- Production watermarking and external sink transactions remain pending.
+- GPU production hardening remains queued after streaming depth.
+
+### Next Items To Implement
+
+- Add durable replay runner evidence across restart using persisted checkpoint offsets.
+- Add runtime Kafka/NATS clients after dependency/provider decision.
+- Add production watermark and external sink transaction tests before checking P0 streaming complete.

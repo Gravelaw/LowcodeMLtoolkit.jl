@@ -1738,6 +1738,10 @@
           },
           "streamReplayOffset": {
             "type": "integer"
+          },
+          "streamAdapterContract": {
+            "type": "object",
+            "additionalProperties": true
           }
         },
         "additionalProperties": true

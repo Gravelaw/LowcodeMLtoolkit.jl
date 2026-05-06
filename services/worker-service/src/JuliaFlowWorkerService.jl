@@ -53,6 +53,33 @@ function stream_policy_allowed_lateness(workflow)
     return max(Int(get(workflow.runtime.policy, "allowed_lateness_seconds", 0)), 0)
 end
 
+function stream_adapter_contract(workflow)
+    kind = lowercase(stream_source_kind(workflow))
+    source = workflow.runtime.source === nothing ? Dict{String,Any}() : workflow.runtime.source
+    contract = Dict{String,Any}(
+        "kind" => kind,
+        "deliverySemantics" => "source_at_least_once_sink_exactly_once_fenced",
+        "replayMode" => "committed_offset",
+        "watermarkMode" => workflow.runtime.policy === nothing ? "processing_time" : String(get(workflow.runtime.policy, "watermark_mode", "processing_time")),
+    )
+    if kind == "kafka"
+        contract["topic"] = String(get(source, "topic", "unknown"))
+        contract["consumerGroup"] = String(get(source, "consumer_group", "unknown"))
+        contract["bootstrapServers"] = [String(item) for item in get(source, "bootstrap_servers", Any[])]
+        contract["offsetField"] = "offset"
+        contract["partitionField"] = "partition"
+    elseif kind == "nats"
+        contract["subject"] = String(get(source, "subject", get(source, "topic", "unknown")))
+        contract["durableConsumer"] = String(get(source, "durable_consumer", get(source, "consumer_group", "unknown")))
+        contract["servers"] = [String(item) for item in get(source, "servers", Any[])]
+        contract["sequenceField"] = "stream_sequence"
+    elseif kind == "fixture"
+        contract["eventCount"] = length(stream_fixture_events(workflow))
+        contract["offsetField"] = "offset"
+    end
+    return contract
+end
+
 function event_time_seconds(event, fallback::Integer)
     event isa AbstractDict || return Int(fallback)
     if haskey(event, "event_time_seconds")
@@ -278,6 +305,7 @@ function build_stream_execution_metadata(workflow)
         "stream_lifecycle_status" => "starting",
         "stream_run_mode" => String(workflow.runtime.run_mode),
         "stream_adapter" => stream_source_kind(workflow),
+        "stream_adapter_contract" => stream_adapter_contract(workflow),
         "stream_processed_offset" => 0,
         "stream_committed_offset" => 0,
         "stream_processed_rows" => 0,

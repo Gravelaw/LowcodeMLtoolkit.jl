@@ -577,6 +577,7 @@ export interface GatewayExecutionRecord {
   workerId?: string;
   streamLifecycleStatus?: StreamLifecycleStatus;
   streamAdapter?: "fixture" | "kafka" | "none" | string;
+  streamAdapterContract?: Record<string, string | number | string[]>;
   streamProcessedOffset?: number;
   streamCommittedOffset?: number;
   streamProcessedRows?: number;

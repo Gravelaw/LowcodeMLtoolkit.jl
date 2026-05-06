@@ -1150,3 +1150,25 @@ After any meaningful job:
 - Add Kafka/NATS adapter contract fixtures without introducing runtime dependencies.
 - Add durable replay runner evidence across restart using persisted checkpoint offsets.
 - Add production watermark and external sink transaction tests before checking P0 streaming complete.
+
+### Streaming Adapter Contract Slice (2026-05-06)
+
+### Work Done Till Date
+
+- Added Kafka/NATS adapter contract metadata without adding runtime broker dependencies.
+- Captured replay mode, delivery semantics, watermark mode, Kafka topic/group/bootstrap fields, and NATS subject/durable/server fields in stream execution metadata.
+- Exposed adapter contract metadata through gateway payloads, TypeScript contracts, and OpenAPI.
+- Added Julia worker tests for Kafka and NATS adapter contract metadata plus contract schema assertions.
+
+### Gaps Pending
+
+- Runtime Kafka/NATS clients remain pending until dependency/provider approval.
+- Durable replay runner across process restarts remains pending beyond fixture duplicate suppression.
+- Production watermarking and external sink transactions remain pending.
+- GPU production hardening remains queued after streaming depth.
+
+### Next Items To Implement
+
+- Add durable replay runner evidence across restart using persisted checkpoint offsets.
+- Add runtime Kafka/NATS clients after dependency/provider decision.
+- Add production watermark and external sink transaction tests before checking P0 streaming complete.

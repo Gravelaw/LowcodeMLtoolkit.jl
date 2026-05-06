@@ -164,6 +164,22 @@ end
 
 @testset "Worker Service" begin
     parallel_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "parallel.workflow.toml")
+    kafka_workflow = load_workflow_definition(parallel_path)
+    kafka_metadata = JuliaFlowWorkerService.build_stream_execution_metadata(kafka_workflow)
+    @test kafka_metadata["stream_adapter_contract"]["kind"] == "kafka"
+    @test kafka_metadata["stream_adapter_contract"]["topic"] == "parallel.events"
+    @test kafka_metadata["stream_adapter_contract"]["consumerGroup"] == "juliaflow-dev"
+    @test kafka_metadata["stream_adapter_contract"]["replayMode"] == "committed_offset"
+    nats_workflow = load_workflow_definition(parallel_path)
+    empty!(nats_workflow.runtime.source)
+    nats_workflow.runtime.source["kind"] = "nats"
+    nats_workflow.runtime.source["subject"] = "parallel.events"
+    nats_workflow.runtime.source["durable_consumer"] = "juliaflow-dev"
+    nats_workflow.runtime.source["servers"] = ["nats://localhost:4222"]
+    nats_metadata = JuliaFlowWorkerService.build_stream_execution_metadata(nats_workflow)
+    @test nats_metadata["stream_adapter_contract"]["kind"] == "nats"
+    @test nats_metadata["stream_adapter_contract"]["subject"] == "parallel.events"
+    @test nats_metadata["stream_adapter_contract"]["durableConsumer"] == "juliaflow-dev"
     parallel_workflow = load_workflow_definition(parallel_path)
     parallel_workflow.runtime.source["kind"] = "fixture"
     parallel_workflow.runtime.source["events"] = [

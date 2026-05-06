@@ -402,6 +402,8 @@ function execution_payload(execution::GatewayExecution)
                 payload["streamLifecycleStatus"] = String(value)
             elseif string_key == "stream_adapter"
                 payload["streamAdapter"] = String(value)
+            elseif string_key == "stream_adapter_contract"
+                payload["streamAdapterContract"] = value
             elseif string_key == "stream_processed_offset"
                 payload["streamProcessedOffset"] = Int(value)
             elseif string_key == "stream_committed_offset"
@@ -606,6 +608,8 @@ function gateway_execution(item)
             metadata["stream_lifecycle_status"] = value
         elseif string_key == "streamAdapter"
             metadata["stream_adapter"] = value
+        elseif string_key == "streamAdapterContract"
+            metadata["stream_adapter_contract"] = value
         elseif string_key == "streamProcessedOffset"
             metadata["stream_processed_offset"] = value
         elseif string_key == "streamCommittedOffset"
