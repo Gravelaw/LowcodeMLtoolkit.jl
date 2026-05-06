@@ -168,6 +168,7 @@ describe("App", () => {
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
 
     let savedAuthPolicy: unknown = null;
+    let savedAuthDirectory: unknown = null;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
 
@@ -398,6 +399,45 @@ describe("App", () => {
         return new Response(JSON.stringify(savedAuthPolicy));
       }
 
+      if (url.endsWith("/api/v1/admin/auth/directory") && init?.method === "GET") {
+        return new Response(
+          JSON.stringify({
+            users: [
+              {
+                principalId: "user-owner",
+                displayName: "Security Owner",
+                email: "owner@example.test",
+                active: true,
+                createdAt: "2026-05-05T00:00:00Z",
+                updatedAt: "2026-05-05T00:00:00Z"
+              },
+              {
+                principalId: "user-viewer",
+                displayName: "Read Only",
+                active: true,
+                createdAt: "2026-05-05T00:00:00Z",
+                updatedAt: "2026-05-05T00:00:00Z"
+              }
+            ],
+            workspaces: [
+              {
+                workspaceId: "workspace-a",
+                name: "Workspace A",
+                active: true,
+                createdAt: "2026-05-05T00:00:00Z",
+                updatedAt: "2026-05-05T00:00:00Z"
+              }
+            ],
+            updatedAt: "2026-05-05T00:00:00Z"
+          })
+        );
+      }
+
+      if (url.endsWith("/api/v1/admin/auth/directory") && init?.method === "PUT") {
+        savedAuthDirectory = JSON.parse(String(init.body));
+        return new Response(JSON.stringify(savedAuthDirectory));
+      }
+
       if (url.endsWith("/api/v1/audit/actions") && init?.method === "GET") {
         return new Response(
           JSON.stringify({
@@ -470,6 +510,9 @@ describe("App", () => {
     expect(screen.getByText(/OIDC discovery/i)).toBeInTheDocument();
     expect(screen.getAllByText(/configured/i).length).toBeGreaterThan(1);
     expect(screen.getAllByText(/user-owner/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("User/workspace directory")).toBeInTheDocument();
+    expect(screen.getByText(/Security Owner/i)).toBeInTheDocument();
+    expect(screen.getByText(/Workspace A/i)).toBeInTheDocument();
     expect(screen.getByText(/workflow:wf-live-contracts/i)).toBeInTheDocument();
     expect(screen.getByText(/auth.policy.update/i)).toBeInTheDocument();
 
@@ -504,6 +547,37 @@ describe("App", () => {
       ]),
       resourcePolicies: expect.arrayContaining([
         expect.objectContaining({ resourceType: "workflow", resourceId: "wf-new-secure", workspaceId: "workspace-a" })
+      ])
+    });
+
+    fireEvent.change(screen.getByLabelText(/Auth directory principal id/i), {
+      target: { value: "user-analyst" }
+    });
+    fireEvent.change(screen.getByLabelText(/Auth directory display name/i), {
+      target: { value: "Analytics User" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Queue directory user/i }));
+    expect(screen.getByText(/Queued directory user user-analyst/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Auth directory workspace id/i), {
+      target: { value: "workspace-b" }
+    });
+    fireEvent.change(screen.getByLabelText(/Auth directory workspace name/i), {
+      target: { value: "Workspace B" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Queue directory workspace/i }));
+    expect(screen.getByText(/Queued directory workspace workspace-b/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Save auth directory/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Auth directory saved to gateway/i)).toBeInTheDocument();
+    });
+    expect(savedAuthDirectory).toMatchObject({
+      users: expect.arrayContaining([
+        expect.objectContaining({ principalId: "user-analyst", displayName: "Analytics User", active: true })
+      ]),
+      workspaces: expect.arrayContaining([
+        expect.objectContaining({ workspaceId: "workspace-b", name: "Workspace B", active: true })
       ])
     });
   });

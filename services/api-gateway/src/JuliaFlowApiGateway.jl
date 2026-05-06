@@ -547,6 +547,35 @@ function constant_time_equal(left::AbstractString, right::AbstractString)
     return diff == 0x00
 end
 
+function big_endian_uint(bytes::Vector{UInt8})
+    value = big"0"
+    for byte in bytes
+        value = (value << 8) + BigInt(byte)
+    end
+    return value
+end
+
+function fixed_width_big_endian(value::BigInt, width::Integer)
+    value >= 0 || error("negative integer cannot be encoded")
+    result = fill(UInt8(0), width)
+    remaining = value
+    for index in width:-1:1
+        result[index] = UInt8(remaining & 0xff)
+        remaining >>= 8
+    end
+    remaining == 0 || error("integer does not fit fixed width")
+    return result
+end
+
+function constant_time_equal_bytes(left::Vector{UInt8}, right::Vector{UInt8})
+    length(left) == length(right) || return false
+    diff = zero(UInt8)
+    for index in eachindex(left)
+        diff |= xor(left[index], right[index])
+    end
+    return diff == 0x00
+end
+
 function oidc_allowed_algorithms()
     raw = split(get(ENV, "JULIAFLOW_OIDC_ALLOWED_ALGORITHMS", "HS256"), ',')
     algorithms = [strip(String(item)) for item in raw if !isempty(strip(String(item)))]
@@ -613,11 +642,61 @@ function oidc_secret_from_jwks(header::AbstractDict)
     error("OIDC JWKS key not found: $(kid)")
 end
 
+function oidc_rsa_jwk(header::AbstractDict)
+    jwks = oidc_jwks_document()
+    jwks === nothing && error("OIDC JWKS is required for RS256 validation")
+    kid = haskey(header, "kid") ? String(header["kid"]) : ""
+    isempty(kid) && error("OIDC token kid is required for JWKS validation")
+    for key in get(jwks, "keys", Any[])
+        String(get(key, "kid", "")) == kid || continue
+        String(get(key, "kty", "")) == "RSA" || error("unsupported OIDC JWKS key type")
+        alg = String(get(key, "alg", String(get(header, "alg", ""))))
+        alg == "RS256" || error("unsupported OIDC JWKS key alg")
+        haskey(key, "n") || error("OIDC RSA key modulus is missing")
+        haskey(key, "e") || error("OIDC RSA key exponent is missing")
+        return key
+    end
+    error("OIDC JWKS key not found: $(kid)")
+end
+
 function oidc_hs256_secret(header::AbstractDict)
     jwks_secret = oidc_secret_from_jwks(header)
     jwks_secret === nothing || return jwks_secret
     secret = oidc_required_setting("JULIAFLOW_OIDC_HS256_SECRET")
     return Vector{UInt8}(codeunits(secret))
+end
+
+function verify_rs256_signature(header::AbstractDict, signing_input::AbstractString, signature::AbstractString)
+    key = oidc_rsa_jwk(header)
+    modulus_bytes = base64url_decode_bytes(String(key["n"]))
+    exponent_bytes = base64url_decode_bytes(String(key["e"]))
+    isempty(modulus_bytes) && error("OIDC RSA key modulus is empty")
+    isempty(exponent_bytes) && error("OIDC RSA key exponent is empty")
+    length(modulus_bytes) >= 256 || error("OIDC RSA key modulus is too small")
+    modulus = big_endian_uint(modulus_bytes)
+    exponent = big_endian_uint(exponent_bytes)
+    signature_bytes = base64url_decode_bytes(signature)
+    length(signature_bytes) == length(modulus_bytes) || return false
+
+    decrypted = powermod(big_endian_uint(signature_bytes), exponent, modulus)
+    encoded = fixed_width_big_endian(decrypted, length(modulus_bytes))
+    digest_info_prefix = UInt8[
+        0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+        0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
+        0x00, 0x04, 0x20,
+    ]
+    digest = sha256(Vector{UInt8}(codeunits(String(signing_input))))
+    expected_tail = [digest_info_prefix; digest]
+    length(encoded) >= length(expected_tail) + 11 || return false
+    encoded[1] == 0x00 || return false
+    encoded[2] == 0x01 || return false
+    separator = length(encoded) - length(expected_tail)
+    separator >= 11 || return false
+    for index in 3:(separator - 1)
+        encoded[index] == 0xff || return false
+    end
+    encoded[separator] == 0x00 || return false
+    return constant_time_equal_bytes(encoded[(separator + 1):end], expected_tail)
 end
 
 function validate_oidc_jwt(token::AbstractString)
@@ -627,11 +706,16 @@ function validate_oidc_jwt(token::AbstractString)
     claims = JSON3.read(base64url_decode_string(segments[2]), Dict{String,Any})
     alg = String(get(header, "alg", ""))
     alg in oidc_allowed_algorithms() || error("unsupported OIDC token alg")
-    alg == "HS256" || error("unsupported OIDC token alg")
 
     signing_input = string(segments[1], ".", segments[2])
-    expected_signature = base64url_encode(hmac_sha256(oidc_hs256_secret(header), signing_input))
-    constant_time_equal(expected_signature, String(segments[3])) || error("invalid OIDC token signature")
+    if alg == "HS256"
+        expected_signature = base64url_encode(hmac_sha256(oidc_hs256_secret(header), signing_input))
+        constant_time_equal(expected_signature, String(segments[3])) || error("invalid OIDC token signature")
+    elseif alg == "RS256"
+        verify_rs256_signature(header, signing_input, String(segments[3])) || error("invalid OIDC token signature")
+    else
+        error("unsupported OIDC token alg")
+    end
 
     issuer = oidc_expected_issuer()
     audience = oidc_required_setting("JULIAFLOW_OIDC_AUDIENCE")
@@ -688,6 +772,21 @@ function apply_persisted_role_binding(state::GatewayState, context::Dict{String,
     return context
 end
 
+function enforce_auth_directory_context!(state::GatewayState, context::Dict{String,Any})
+    directory = JuliaFlowGatewayRepository.load_auth_directory(state.repository)
+    principal_id = String(context["principalId"])
+    workspace_id = String(context["workspaceId"])
+    if !isempty(directory.users)
+        any(user.principal_id == principal_id && user.active for user in directory.users) ||
+            error("permission denied: principal not active in directory: $(principal_id)")
+    end
+    if !isempty(directory.workspaces)
+        any(workspace.workspace_id == workspace_id && workspace.active for workspace in directory.workspaces) ||
+            error("permission denied: workspace not active in directory: $(workspace_id)")
+    end
+    return context
+end
+
 function auth_context_payload(request::HTTP.Request; state::Union{Nothing,GatewayState} = nothing)
     mode = gateway_auth_mode()
     role = auth_role_from_request(request)
@@ -703,6 +802,7 @@ function auth_context_payload(request::HTTP.Request; state::Union{Nothing,Gatewa
             role_from_claims(claims),
             mode,
         )
+        state === nothing || enforce_auth_directory_context!(state, context)
         state === nothing || apply_persisted_role_binding(state, context)
         return context
     end
@@ -720,6 +820,7 @@ function auth_context_payload(request::HTTP.Request; state::Union{Nothing,Gatewa
     workspace = request_header(request, "X-JuliaFlow-Workspace")
     workspace_id = workspace === nothing || isempty(strip(workspace)) ? "local-dev" : strip(workspace)
     context = auth_context_from_role(principal_id, workspace_id, role, mode)
+    state === nothing || enforce_auth_directory_context!(state, context)
     state === nothing || apply_persisted_role_binding(state, context)
     return context
 end
@@ -1754,6 +1855,8 @@ function classify_gateway_error(err)
         return 404, message
     elseif occursin("route not found", message)
         return 404, message
+    elseif occursin("duplicate ", message)
+        return 400, message
     elseif occursin("missing ", message)
         return 400, message
     elseif occursin("invalid share token", message)
@@ -1774,6 +1877,8 @@ function classify_gateway_error(err)
         return 401, message
     elseif occursin("permission denied", message)
         return 403, message
+    elseif occursin("not active in directory", message)
+        return 400, message
     elseif occursin("unsupported workspace role", message)
         return 403, message
     elseif occursin("Extension not validated for current checkpoint", message)
@@ -1852,14 +1957,121 @@ function parse_auth_policy_payload(body::AbstractDict)
     )
 end
 
+function nonempty_string(value, field_name::AbstractString)
+    text = strip(String(value))
+    isempty(text) && error("missing $(field_name)")
+    return text
+end
+
+function parse_auth_directory_payload(body::AbstractDict)
+    timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+    seen_users = Set{String}()
+    users = JuliaFlowGatewayRepository.GatewayUserRecord[]
+    for item in get(body, "users", Any[])
+        principal_id = nonempty_string(item["principalId"], "principalId")
+        principal_id in seen_users && error("duplicate principalId: $(principal_id)")
+        push!(seen_users, principal_id)
+        created_at = String(get(item, "createdAt", timestamp))
+        push!(
+            users,
+            JuliaFlowGatewayRepository.GatewayUserRecord(
+                principal_id = principal_id,
+                display_name = nonempty_string(get(item, "displayName", principal_id), "displayName"),
+                email = haskey(item, "email") && item["email"] !== nothing && !isempty(strip(String(item["email"]))) ? strip(String(item["email"])) : nothing,
+                active = Bool(get(item, "active", true)),
+                created_at = created_at,
+                updated_at = String(get(item, "updatedAt", timestamp)),
+            ),
+        )
+    end
+
+    seen_workspaces = Set{String}()
+    workspaces = JuliaFlowGatewayRepository.GatewayWorkspaceRecord[]
+    for item in get(body, "workspaces", Any[])
+        workspace_id = nonempty_string(item["workspaceId"], "workspaceId")
+        workspace_id in seen_workspaces && error("duplicate workspaceId: $(workspace_id)")
+        push!(seen_workspaces, workspace_id)
+        created_at = String(get(item, "createdAt", timestamp))
+        push!(
+            workspaces,
+            JuliaFlowGatewayRepository.GatewayWorkspaceRecord(
+                workspace_id = workspace_id,
+                name = nonempty_string(get(item, "name", workspace_id), "workspace name"),
+                active = Bool(get(item, "active", true)),
+                created_at = created_at,
+                updated_at = String(get(item, "updatedAt", timestamp)),
+            ),
+        )
+    end
+
+    return JuliaFlowGatewayRepository.GatewayAuthDirectory(
+        users = users,
+        workspaces = workspaces,
+        updated_at = String(get(body, "updatedAt", timestamp)),
+    )
+end
+
+function directory_has_records(directory::JuliaFlowGatewayRepository.GatewayAuthDirectory)
+    return !isempty(directory.users) || !isempty(directory.workspaces)
+end
+
+function validate_policy_directory_references!(
+    policy::JuliaFlowGatewayRepository.GatewayAuthPolicy,
+    directory::JuliaFlowGatewayRepository.GatewayAuthDirectory,
+)
+    directory_has_records(directory) || return policy
+    active_users = Set(user.principal_id for user in directory.users if user.active)
+    active_workspaces = Set(workspace.workspace_id for workspace in directory.workspaces if workspace.active)
+    for binding in policy.role_bindings
+        binding.principal_id in active_users || error("role binding principal not active in directory: $(binding.principal_id)")
+        binding.workspace_id in active_workspaces || error("role binding workspace not active in directory: $(binding.workspace_id)")
+    end
+    for resource_policy in policy.resource_policies
+        resource_policy.workspace_id == "*" && continue
+        resource_policy.workspace_id in active_workspaces ||
+            error("resource policy workspace not active in directory: $(resource_policy.workspace_id)")
+    end
+    return policy
+end
+
+function validate_directory_retains_admin!(
+    directory::JuliaFlowGatewayRepository.GatewayAuthDirectory,
+    context::Dict{String,Any},
+)
+    principal_id = String(context["principalId"])
+    workspace_id = String(context["workspaceId"])
+    if !isempty(directory.users)
+        any(user.principal_id == principal_id && user.active for user in directory.users) ||
+            error("admin principal not active in directory: $(principal_id)")
+    end
+    if !isempty(directory.workspaces)
+        any(workspace.workspace_id == workspace_id && workspace.active for workspace in directory.workspaces) ||
+            error("admin workspace not active in directory: $(workspace_id)")
+    end
+    return directory
+end
+
 function auth_policy_response(state::GatewayState)
     return JSON3.write(JuliaFlowGatewayRepository.auth_policy_payload(JuliaFlowGatewayRepository.load_auth_policy(state.repository)))
 end
 
 function save_auth_policy_response!(state::GatewayState, body::AbstractDict)
     policy = parse_auth_policy_payload(body)
+    validate_policy_directory_references!(policy, JuliaFlowGatewayRepository.load_auth_directory(state.repository))
     saved = JuliaFlowGatewayRepository.save_auth_policy!(state.repository, policy)
     return JSON3.write(JuliaFlowGatewayRepository.auth_policy_payload(saved))
+end
+
+function auth_directory_response(state::GatewayState)
+    directory = JuliaFlowGatewayRepository.load_auth_directory(state.repository)
+    return JSON3.write(JuliaFlowGatewayRepository.auth_directory_payload(directory))
+end
+
+function save_auth_directory_response!(state::GatewayState, body::AbstractDict, context::Dict{String,Any})
+    directory = parse_auth_directory_payload(body)
+    validate_directory_retains_admin!(directory, context)
+    saved = JuliaFlowGatewayRepository.save_auth_directory!(state.repository, directory)
+    return JSON3.write(JuliaFlowGatewayRepository.auth_directory_payload(saved))
 end
 
 function redacted_value(value)
@@ -2503,6 +2715,17 @@ function route_request(state::GatewayState, request::HTTP.Request)
             body = parse_request_body(request)
             response = save_auth_policy_response!(state, body)
             append_audit_event!(state, request, "auth.policy.update"; target_type = "auth_policy", target_id = "default")
+            return json_response(200, response)
+        end
+        method == "GET" && segments == ["api", "v1", "admin", "auth", "directory"] && begin
+            require_permission!(state, request, "policy:read")
+            return json_response(200, auth_directory_response(state))
+        end
+        method == "PUT" && segments == ["api", "v1", "admin", "auth", "directory"] && begin
+            context = require_permission!(state, request, "policy:write")
+            body = parse_request_body(request)
+            response = save_auth_directory_response!(state, body, context)
+            append_audit_event!(state, request, "auth.directory.update"; target_type = "auth_directory", target_id = "default")
             return json_response(200, response)
         end
         method == "GET" && length(segments) == 7 && segments[1:3] == ["api", "v1", "dashboards"] && segments[5] == "charts" && segments[7] == "data" && begin

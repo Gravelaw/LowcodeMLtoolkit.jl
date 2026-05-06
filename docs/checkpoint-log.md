@@ -1022,3 +1022,116 @@ Each checkpoint entry must contain:
 - Add selected-provider RSA/JWKS validation path or documented adapter fixture.
 - Add persisted users/workspaces directory admin surface and PostgreSQL auth-policy runtime evidence.
 - Keep P0 auth TODO unchecked until live-provider, directory/admin, and review evidence exist.
+
+---
+
+## Checkpoint: Repo BRD Reanalysis And Pending Implementation Plan — 2026-05-05
+
+### Work Done Till Date
+
+- Analyzed current repo implementation against the BRD, `docs/TODO.md`, `docs/brd-traceability.md`, tracker/checkpoint docs, `.omx/plans`, `.omx/context`, `.omx/reviews`, and `.omx/state`.
+- Confirmed latest completed P0 slices: materialization/150-node baseline and BI viewer polish; confirmed auth hardening is partially complete but still open.
+- Created `.omx/plans/repo-brd-pending-implementation-plan-2026-05-05.md` with staged implementation order and acceptance/verification gates.
+
+### Gaps Pending
+
+- P0 auth: RSA/live IdP validation, users/workspaces directory admin model, PostgreSQL runtime evidence, and broader security review.
+- P0 streaming: Kafka/NATS adapters, replay/exactly-once proof, watermarking, and sink transactions.
+- P0 GPU: real CUDA/KernelAbstractions kernels, device memory operations, isolation, and multi-GPU scheduling.
+- P1/P2: Hub publish/install hardening, components/control-flow, observability/perf gates, and deployment hardening.
+
+### Next Items To Implement
+
+- Implement Stage 1 auth completion plan first, preserving dev-token/disabled/share/workspace-token flows.
+- Use dependency-expert review before adding RSA/JWT, Kafka/NATS, or CUDA/KernelAbstractions dependencies.
+- Update TODO/traceability only with code/test/review evidence and run `npm run validate:brd-traceability` after any TODO/traceability status change.
+
+---
+
+## Checkpoint: Auth Directory Admin Slice — 2026-05-05
+
+### Work Done Till Date
+
+- Implemented persisted user/workspace directory contracts, repository persistence, gateway admin routes, active directory runtime enforcement, directory self-lockout prevention, durable/audit events, Settings editing UX, and tests.
+- Preserved existing dev-token/disabled/OIDC HS256, share-token, workspace-token, role/resource-policy, and audit query paths.
+- Updated TODO, BRD traceability, tracker, checkpoint, and risk register without marking P0 auth complete.
+
+### Gaps Pending
+
+- RSA/live IdP validation, PostgreSQL runtime evidence, and broader security review remain before P0 auth completion.
+- Streaming production hardening and GPU production hardening remain next P0 lanes after auth/security depth.
+
+### Next Items To Implement
+
+- Complete full verification and code review for this slice.
+- Decide/implement RSA/JWKS live-provider validation path with security/dependency review.
+- Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
+
+---
+
+## Checkpoint: Auth Directory Admin Verification And Review — 2026-05-06
+
+### Work Done Till Date
+
+- Completed local review for the auth directory admin slice after subagent quota failure.
+- Hardened directory enforcement to reject inactive/missing runtime principals/workspaces when records exist.
+- Added self-lockout prevention for directory updates and tests for disabled-user denial plus lockout rejection.
+- Verified frontend, Julia, contract, BRD traceability, build, and diff whitespace checks.
+
+### Gaps Pending
+
+- RSA/live IdP validation, PostgreSQL runtime evidence, and broader security review remain before P0 auth completion.
+- Streaming production hardening and GPU production hardening remain next P0 lanes after auth/security depth.
+
+### Next Items To Implement
+
+- Decide/implement RSA/JWKS live-provider validation path with security/dependency review.
+- Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
+- Keep P0 auth TODO unchecked until live-provider, PostgreSQL runtime, and security-review evidence exist.
+
+---
+
+## Checkpoint: RS256 OIDC/JWKS Validation Slice — 2026-05-06
+
+### Work Done Till Date
+
+- Added no-new-dependency RS256 JWT verification against OIDC discovery/JWKS metadata.
+- Implemented RSA JWK lookup plus PKCS#1 v1.5 SHA-256 signature validation in the gateway.
+- Added Julia coverage for valid RS256 token acceptance and tampered RS256 signature rejection.
+- Kept P0 auth TODO unchecked and documented remaining external live-IdP, PostgreSQL runtime, and broader security-review gaps.
+
+### Gaps Pending
+
+- External live-IdP smoke remains pending because no provider credentials/metadata target were supplied.
+- PostgreSQL runtime evidence remains pending until `JULIAFLOW_TEST_POSTGRES_URL` is available and run.
+- Broader security review remains pending before P0 auth completion.
+- Streaming production hardening and GPU production hardening remain next P0 lanes after auth/security depth.
+
+### Next Items To Implement
+
+- Complete full verification and code review for this RS256 slice.
+- Add external IdP smoke evidence when provider/credentials are available.
+- Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
+
+---
+
+## Checkpoint: RS256 OIDC/JWKS Verification And Review — 2026-05-06
+
+### Work Done Till Date
+
+- Completed local code review for RS256 OIDC/JWKS validation.
+- Added review-driven 2048-bit minimum RSA modulus enforcement.
+- Verified frontend, Julia, contract, BRD traceability, build, and diff whitespace checks.
+
+### Gaps Pending
+
+- External live-IdP smoke remains pending because no provider credentials/metadata target were supplied.
+- PostgreSQL runtime evidence remains pending until `JULIAFLOW_TEST_POSTGRES_URL` is available and run.
+- Broader security review remains pending before P0 auth completion.
+- Streaming production hardening and GPU production hardening remain next P0 lanes after auth/security depth.
+
+### Next Items To Implement
+
+- Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
+- Add external IdP smoke evidence when provider/credentials are available.
+- Run broader auth security review before marking P0 auth complete.

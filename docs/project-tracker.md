@@ -991,3 +991,118 @@ After any meaningful job:
 - Add selected-provider RSA/JWKS validation path or documented adapter fixture.
 - Add persisted users/workspaces directory admin surface and PostgreSQL auth-policy runtime evidence.
 - Keep P0 auth TODO unchecked until live-provider, directory/admin, and review evidence exist.
+
+### Repo BRD Reanalysis And Pending Implementation Plan (2026-05-05)
+
+### Work Done Till Date
+
+- Re-read current control docs, latest `.omx` plans/context/reviews/state, and implementation markers against `JuliaFlow_BRD_v1.0.docx`.
+- Confirmed current `main` is clean against `origin/main` during analysis.
+- Confirmed completed P0 evidence remains: production Arrow/DataFrames materialization + provider-neutral remote object-store adapter, 150 base nodes, BI drilldown/export polish, auth thin/admin policy slices, streaming fixture MVP, and GPU mock-worker MVP.
+- Created `.omx/plans/repo-brd-pending-implementation-plan-2026-05-05.md` as the active pending-work plan.
+
+### Gaps Pending
+
+- P0 auth remains open: RSA/live IdP validation, persisted users/workspaces directory UI/model, PostgreSQL auth-policy runtime evidence, and broader security review.
+- P0 streaming remains open: Kafka/NATS adapters, durable replay runner, exactly-once proof, production watermarking, and sink transactions.
+- P0 GPU remains open: real CUDA/KernelAbstractions kernels, device memory operations, worker isolation guarantees, and multi-GPU scheduling.
+- P1/P2 remain: Hub publish/install hardening, components/control-flow contracts, observability/perf gates, and deployment hardening.
+
+### Next Items To Implement
+
+- Start Stage 1 of `.omx/plans/repo-brd-pending-implementation-plan-2026-05-05.md`: persisted users/workspaces directory admin model, PostgreSQL runtime evidence, RSA/live IdP dependency decision, and security review.
+- Keep `docs/TODO.md` P0 item 11 unchecked until all code/test/review evidence is linked in `docs/brd-traceability.md` and `npm run validate:brd-traceability` passes.
+
+### Auth Directory Admin Slice (2026-05-05)
+
+### Work Done Till Date
+
+- Added persisted user/workspace directory model and API for the auth admin lane.
+- Added file-backed and PostgreSQL-ready repository support for `auth-directory.json` / `auth_directory`.
+- Added `GET/PUT /api/v1/admin/auth/directory` behind policy permissions plus `auth.directory.changed` durable events and `auth.directory.update` audit actions.
+- Settings now loads and edits directory users/workspaces alongside role/resource policies.
+- Added frontend, contract, Julia route, and repository coverage for directory reads, writes, policy-reference validation, active directory runtime enforcement, and directory self-lockout prevention.
+
+### Gaps Pending
+
+- RSA/live IdP validation remains pending.
+- PostgreSQL runtime evidence remains pending until `JULIAFLOW_TEST_POSTGRES_URL` is available and run.
+- Broader security review remains pending before checking P0 auth complete.
+- Streaming and GPU production hardening remain queued after auth/security depth.
+
+### Next Items To Implement
+
+- Run full verification and code review for this auth-directory slice.
+- Add dependency-expert/security-reviewed RSA/live IdP path or documented adapter fixture.
+- Add PostgreSQL runtime evidence when DB credentials/service are available.
+- Keep P0 auth TODO unchecked until live-provider, PostgreSQL runtime, and security-review evidence exist.
+
+### Auth Directory Admin Verification And Review (2026-05-06)
+
+### Work Done Till Date
+
+- Completed local code review after native review subagents hit usage limits.
+- Added active directory runtime enforcement for authenticated OIDC/dev-token contexts when directory records exist.
+- Added directory self-lockout prevention so a directory update cannot remove/disable the caller principal or workspace when those sets are present.
+- Re-ran full frontend, Julia, contract, build, traceability, and whitespace verification.
+- Stored review artifact at `.omx/reviews/code-review-p0-auth-directory-admin-2026-05-06.md`.
+
+### Gaps Pending
+
+- RSA/live IdP validation remains pending.
+- PostgreSQL runtime evidence remains pending until `JULIAFLOW_TEST_POSTGRES_URL` is available and run.
+- Broader security review remains pending before checking P0 auth complete.
+- Streaming and GPU production hardening remain queued after auth/security depth.
+
+### Next Items To Implement
+
+- Decide/implement RSA/JWKS live-provider validation path with security/dependency review.
+- Run PostgreSQL auth directory/policy evidence when DB credentials/service are available.
+- Keep P0 auth TODO unchecked until live-provider, PostgreSQL runtime, and security-review evidence exist.
+
+### RS256 OIDC/JWKS Validation Slice (2026-05-06)
+
+### Work Done Till Date
+
+- Added no-new-dependency RS256 JWT verification against OIDC discovery/JWKS metadata.
+- Implemented RSA JWK (`kty=RSA`, `n`, `e`, `kid`) lookup, BigInt RSA public verification, and PKCS#1 v1.5 SHA-256 digest validation in the gateway.
+- Preserved existing HS256 JWKS rotation and dev-token/share-token/workspace-token behavior.
+- Added Julia tests for valid RS256 JWKS token acceptance and tampered RS256 signature rejection.
+- Created autopilot planning artifacts `.omx/plans/prd-p0-auth-rs256-live-idp-2026-05-06.md` and `.omx/plans/test-spec-p0-auth-rs256-live-idp-2026-05-06.md`.
+
+### Gaps Pending
+
+- External live-IdP smoke remains pending because no provider credentials/metadata target were supplied.
+- PostgreSQL runtime evidence remains pending until `JULIAFLOW_TEST_POSTGRES_URL` is available and run.
+- Broader security review remains pending before checking P0 auth complete.
+- Streaming and GPU production hardening remain queued after auth/security depth.
+
+### Next Items To Implement
+
+- Run full verification and code review for the RS256 slice.
+- Add external IdP smoke evidence when provider/credentials are available.
+- Run PostgreSQL auth directory/policy evidence when DB credentials/service are available.
+- Keep P0 auth TODO unchecked until live-provider, PostgreSQL runtime, and security-review evidence exist.
+
+### RS256 OIDC/JWKS Verification And Review (2026-05-06)
+
+### Work Done Till Date
+
+- Completed local code review for the RS256 OIDC/JWKS validation slice.
+- Added review-driven hardening: RSA modulus must be at least 2048 bits.
+- Re-ran full frontend, Julia, contract, build, traceability, and whitespace verification.
+- Stored review artifact at `.omx/reviews/code-review-p0-auth-rs256-live-idp-2026-05-06.md`.
+
+### Gaps Pending
+
+- External live-IdP smoke remains pending because no provider credentials/metadata target were supplied.
+- PostgreSQL runtime evidence remains pending until `JULIAFLOW_TEST_POSTGRES_URL` is available and run.
+- Broader security review remains pending before checking P0 auth complete.
+- Streaming and GPU production hardening remain queued after auth/security depth.
+
+### Next Items To Implement
+
+- Run PostgreSQL auth directory/policy evidence when DB credentials/service are available.
+- Add external IdP smoke evidence when provider/credentials are available.
+- Run broader auth security review before marking P0 auth complete.
+- If auth evidence remains credential-blocked, proceed to next P0 lane: streaming production hardening.

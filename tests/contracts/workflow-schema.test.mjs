@@ -49,6 +49,7 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(spec.paths["/api/v1/hub/extensions/register"]);
   assert.ok(spec.paths["/api/v1/hub/extensions/{extensionId}/install"]);
   assert.ok(spec.paths["/api/v1/admin/auth/policies"]);
+  assert.ok(spec.paths["/api/v1/admin/auth/directory"]);
   assert.ok(spec.paths["/api/v1/audit/actions"]);
   assert.ok(spec.components.parameters.DashboardShareToken);
   assert.ok(spec.components.parameters.DashboardWorkspaceToken);
@@ -61,6 +62,9 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.DashboardChartDataResponse.properties.cache);
   assert.ok(schemas.DashboardChartDataResponse.properties.exportFormats);
   assert.ok(schemas.PublishedDashboard.properties.datasets);
+  assert.ok(schemas.GatewayAuthDirectory);
+  assert.ok(schemas.GatewayUserRecord);
+  assert.ok(schemas.GatewayWorkspaceRecord);
   assert.ok(
     spec.paths["/api/v1/dashboards/{dashboardId}"].get.parameters.some(
       (parameter) => parameter.$ref?.endsWith("/DashboardShareToken")
@@ -209,7 +213,8 @@ test("event schema exposes durable envelope and backbone event types", async () 
     "hub.extension.changed",
     "dashboard.published",
     "audit.action",
-    "auth.policy.changed"
+    "auth.policy.changed",
+    "auth.directory.changed"
   ]);
 });
 

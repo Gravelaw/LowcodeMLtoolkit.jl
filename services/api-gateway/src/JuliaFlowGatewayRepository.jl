@@ -14,6 +14,9 @@ export GatewayCheckpoint,
     GatewayRoleBinding,
     GatewayResourcePolicy,
     GatewayAuthPolicy,
+    GatewayUserRecord,
+    GatewayWorkspaceRecord,
+    GatewayAuthDirectory,
     HubExtensionRecord,
     PublishedDashboardRecord,
     AbstractGatewayRepository,
@@ -25,12 +28,14 @@ export GatewayCheckpoint,
     load_executions,
     load_events,
     load_auth_policy,
+    load_auth_directory,
     load_hub_extensions,
     load_published_dashboards,
     save_workflow!,
     save_checkpoint!,
     save_execution!,
     save_auth_policy!,
+    save_auth_directory!,
     save_hub_extension!,
     save_published_dashboard!,
     append_event!,
@@ -94,6 +99,29 @@ end
 Base.@kwdef mutable struct GatewayAuthPolicy
     role_bindings::Vector{GatewayRoleBinding} = GatewayRoleBinding[]
     resource_policies::Vector{GatewayResourcePolicy} = GatewayResourcePolicy[]
+    updated_at::String = JuliaFlowExecutionService.iso8601_timestamp()
+end
+
+Base.@kwdef mutable struct GatewayUserRecord
+    principal_id::String
+    display_name::String
+    email::Union{Nothing,String} = nothing
+    active::Bool = true
+    created_at::String = JuliaFlowExecutionService.iso8601_timestamp()
+    updated_at::String = created_at
+end
+
+Base.@kwdef mutable struct GatewayWorkspaceRecord
+    workspace_id::String
+    name::String
+    active::Bool = true
+    created_at::String = JuliaFlowExecutionService.iso8601_timestamp()
+    updated_at::String = created_at
+end
+
+Base.@kwdef mutable struct GatewayAuthDirectory
+    users::Vector{GatewayUserRecord} = GatewayUserRecord[]
+    workspaces::Vector{GatewayWorkspaceRecord} = GatewayWorkspaceRecord[]
     updated_at::String = JuliaFlowExecutionService.iso8601_timestamp()
 end
 
@@ -465,6 +493,36 @@ function auth_policy_payload(policy::GatewayAuthPolicy)
     )
 end
 
+function user_record_payload(user::GatewayUserRecord)
+    payload = Dict{String,Any}(
+        "principalId" => user.principal_id,
+        "displayName" => user.display_name,
+        "active" => user.active,
+        "createdAt" => user.created_at,
+        "updatedAt" => user.updated_at,
+    )
+    user.email === nothing || (payload["email"] = user.email)
+    return payload
+end
+
+function workspace_record_payload(workspace::GatewayWorkspaceRecord)
+    return Dict{String,Any}(
+        "workspaceId" => workspace.workspace_id,
+        "name" => workspace.name,
+        "active" => workspace.active,
+        "createdAt" => workspace.created_at,
+        "updatedAt" => workspace.updated_at,
+    )
+end
+
+function auth_directory_payload(directory::GatewayAuthDirectory)
+    return Dict(
+        "users" => [user_record_payload(user) for user in directory.users],
+        "workspaces" => [workspace_record_payload(workspace) for workspace in directory.workspaces],
+        "updatedAt" => directory.updated_at,
+    )
+end
+
 function published_dashboard_payload(dashboard::PublishedDashboardRecord)
     payload = Dict(
         "dashboardId" => dashboard.dashboard_id,
@@ -652,6 +710,37 @@ function gateway_auth_policy(item)
     )
 end
 
+function gateway_user_record(item)
+    created_at = String(get(item, "createdAt", JuliaFlowExecutionService.iso8601_timestamp()))
+    return GatewayUserRecord(
+        principal_id = String(item["principalId"]),
+        display_name = String(get(item, "displayName", item["principalId"])),
+        email = haskey(item, "email") && item["email"] !== nothing ? String(item["email"]) : nothing,
+        active = Bool(get(item, "active", true)),
+        created_at = created_at,
+        updated_at = String(get(item, "updatedAt", created_at)),
+    )
+end
+
+function gateway_workspace_record(item)
+    created_at = String(get(item, "createdAt", JuliaFlowExecutionService.iso8601_timestamp()))
+    return GatewayWorkspaceRecord(
+        workspace_id = String(item["workspaceId"]),
+        name = String(get(item, "name", item["workspaceId"])),
+        active = Bool(get(item, "active", true)),
+        created_at = created_at,
+        updated_at = String(get(item, "updatedAt", created_at)),
+    )
+end
+
+function gateway_auth_directory(item)
+    return GatewayAuthDirectory(
+        users = [gateway_user_record(user) for user in get(item, "users", Any[])],
+        workspaces = [gateway_workspace_record(workspace) for workspace in get(item, "workspaces", Any[])],
+        updated_at = String(get(item, "updatedAt", JuliaFlowExecutionService.iso8601_timestamp())),
+    )
+end
+
 function gateway_published_dashboard(item)
     return PublishedDashboardRecord(
         dashboard_id = String(item["dashboardId"]),
@@ -749,6 +838,10 @@ end
 
 function auth_policy_file(repo::FileGatewayRepository)
     return joinpath(repo.root, "auth-policy.json")
+end
+
+function auth_directory_file(repo::FileGatewayRepository)
+    return joinpath(repo.root, "auth-directory.json")
 end
 
 function hub_extensions_file(repo::FileGatewayRepository)
@@ -938,6 +1031,16 @@ function create_postgres_schema!(repo::PostgreSQLGatewayRepository)
         execute(
             conn,
             """
+            CREATE TABLE IF NOT EXISTS $(repo.schema).auth_directory (
+                directory_id TEXT PRIMARY KEY,
+                directory_payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            """,
+        )
+        execute(
+            conn,
+            """
             CREATE TABLE IF NOT EXISTS $(repo.schema).published_dashboards (
                 dashboard_id TEXT PRIMARY KEY,
                 dashboard_payload JSONB NOT NULL,
@@ -997,6 +1100,12 @@ function load_auth_policy(repo::FileGatewayRepository)
     isfile(auth_policy_file(repo)) || return GatewayAuthPolicy()
     raw = JSON3.read(read(auth_policy_file(repo), String), Dict{String,Any})
     return gateway_auth_policy(raw)
+end
+
+function load_auth_directory(repo::FileGatewayRepository)
+    isfile(auth_directory_file(repo)) || return GatewayAuthDirectory()
+    raw = JSON3.read(read(auth_directory_file(repo), String), Dict{String,Any})
+    return gateway_auth_directory(raw)
 end
 
 function load_hub_extensions(repo::FileGatewayRepository)
@@ -1094,6 +1203,42 @@ function save_auth_policy!(repo::FileGatewayRepository, policy::GatewayAuthPolic
         aggregate_type = "auth_policy",
         aggregate_id = "default",
         payload = auth_policy_payload(normalized),
+        producer = producer,
+    )
+    return normalized
+end
+
+function save_auth_directory!(repo::FileGatewayRepository, directory::GatewayAuthDirectory; producer::AbstractString = "api-gateway")
+    timestamp = JuliaFlowExecutionService.iso8601_timestamp()
+    normalized = GatewayAuthDirectory(
+        users = [
+            GatewayUserRecord(
+                principal_id = user.principal_id,
+                display_name = user.display_name,
+                email = user.email,
+                active = user.active,
+                created_at = user.created_at,
+                updated_at = timestamp,
+            ) for user in directory.users
+        ],
+        workspaces = [
+            GatewayWorkspaceRecord(
+                workspace_id = workspace.workspace_id,
+                name = workspace.name,
+                active = workspace.active,
+                created_at = workspace.created_at,
+                updated_at = timestamp,
+            ) for workspace in directory.workspaces
+        ],
+        updated_at = timestamp,
+    )
+    persist_json_file!(auth_directory_file(repo), auth_directory_payload(normalized))
+    append_event!(
+        repo,
+        "auth.directory.changed";
+        aggregate_type = "auth_directory",
+        aggregate_id = "default",
+        payload = auth_directory_payload(normalized),
         producer = producer,
     )
     return normalized
@@ -1265,6 +1410,19 @@ function load_auth_policy(repo::PostgreSQLGatewayRepository)
         row = iterate(result)
         row === nothing && return GatewayAuthPolicy()
         return gateway_auth_policy(JSON3.read(String(row[1][1]), Dict{String,Any}))
+    finally
+        close(conn)
+    end
+end
+
+function load_auth_directory(repo::PostgreSQLGatewayRepository)
+    ensure_repository!(repo)
+    conn = connect(repo)
+    try
+        result = execute(conn, "SELECT directory_payload FROM $(repo.schema).auth_directory WHERE directory_id = 'default';")
+        row = iterate(result)
+        row === nothing && return GatewayAuthDirectory()
+        return gateway_auth_directory(JSON3.read(String(row[1][1]), Dict{String,Any}))
     finally
         close(conn)
     end
@@ -1458,6 +1616,58 @@ function save_auth_policy!(repo::PostgreSQLGatewayRepository, policy::GatewayAut
         aggregate_type = "auth_policy",
         aggregate_id = "default",
         payload = auth_policy_payload(normalized),
+        producer = producer,
+    )
+    return normalized
+end
+
+function save_auth_directory!(repo::PostgreSQLGatewayRepository, directory::GatewayAuthDirectory; producer::AbstractString = "api-gateway")
+    ensure_repository!(repo)
+    timestamp = JuliaFlowExecutionService.iso8601_timestamp()
+    normalized = GatewayAuthDirectory(
+        users = [
+            GatewayUserRecord(
+                principal_id = user.principal_id,
+                display_name = user.display_name,
+                email = user.email,
+                active = user.active,
+                created_at = user.created_at,
+                updated_at = timestamp,
+            ) for user in directory.users
+        ],
+        workspaces = [
+            GatewayWorkspaceRecord(
+                workspace_id = workspace.workspace_id,
+                name = workspace.name,
+                active = workspace.active,
+                created_at = workspace.created_at,
+                updated_at = timestamp,
+            ) for workspace in directory.workspaces
+        ],
+        updated_at = timestamp,
+    )
+    conn = connect(repo)
+    try
+        execute(
+            conn,
+            """
+            INSERT INTO $(repo.schema).auth_directory (directory_id, directory_payload, updated_at)
+            VALUES ('default', \$1::jsonb, NOW())
+            ON CONFLICT (directory_id) DO UPDATE
+            SET directory_payload = EXCLUDED.directory_payload,
+                updated_at = NOW();
+            """,
+            [JSON3.write(auth_directory_payload(normalized))],
+        )
+    finally
+        close(conn)
+    end
+    append_event!(
+        repo,
+        "auth.directory.changed";
+        aggregate_type = "auth_directory",
+        aggregate_id = "default",
+        payload = auth_directory_payload(normalized),
         producer = producer,
     )
     return normalized

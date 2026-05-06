@@ -1722,6 +1722,16 @@ end
             "exp" => 4102444800,
         ),
     )
+    disabled_user_token = test_hs256_jwt(
+        Dict{String,Any}(
+            "iss" => "https://issuer.test",
+            "aud" => "juliaflow-gateway",
+            "sub" => "user-disabled",
+            "juliaflow_workspace" => "workspace-a",
+            "juliaflow_role" => "owner",
+            "exp" => 4102444800,
+        ),
+    )
     wrong_signature_token = string(viewer_claims_owner_token[1:end-2], "xx")
 
     env_pairs = (
@@ -1737,6 +1747,58 @@ end
     invalid_token_response = withenv(env_pairs...) do
         route_request(state, HTTP.Request("GET", "/api/v1/workflows", ["Authorization" => "Bearer $(wrong_signature_token)"]))
     end
+    directory_body = Dict(
+        "users" => Any[
+            Dict("principalId" => "user-owner", "displayName" => "Owner User", "email" => "owner@example.test", "active" => true),
+            Dict("principalId" => "user-viewer", "displayName" => "Viewer User", "active" => true),
+            Dict("principalId" => "user-disabled", "displayName" => "Disabled User", "active" => false),
+        ],
+        "workspaces" => Any[
+            Dict("workspaceId" => "workspace-a", "name" => "Workspace A", "active" => true),
+        ],
+    )
+    save_directory_response = withenv(env_pairs...) do
+        route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/admin/auth/directory",
+                ["Authorization" => "Bearer $(owner_token)", "Content-Type" => "application/json"],
+                JSON3.write(directory_body),
+            ),
+        )
+    end
+    lockout_directory_body = Dict(
+        "users" => Any[
+            Dict("principalId" => "user-viewer", "displayName" => "Viewer User", "active" => true),
+        ],
+        "workspaces" => Any[
+            Dict("workspaceId" => "workspace-a", "name" => "Workspace A", "active" => true),
+        ],
+    )
+    lockout_directory_response = withenv(env_pairs...) do
+        route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/admin/auth/directory",
+                ["Authorization" => "Bearer $(owner_token)", "Content-Type" => "application/json"],
+                JSON3.write(lockout_directory_body),
+            ),
+        )
+    end
+    get_directory_response = withenv(env_pairs...) do
+        route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/admin/auth/directory", ["Authorization" => "Bearer $(owner_token)"]),
+        )
+    end
+    disabled_user_response = withenv(env_pairs...) do
+        route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/workflows", ["Authorization" => "Bearer $(disabled_user_token)"]),
+        )
+    end
     policy_body = Dict(
         "roleBindings" => Any[
             Dict("principalId" => "user-viewer", "workspaceId" => "workspace-a", "role" => "viewer"),
@@ -1750,6 +1812,12 @@ end
             ),
         ],
     )
+    invalid_directory_policy_body = Dict(
+        "roleBindings" => Any[
+            Dict("principalId" => "user-disabled", "workspaceId" => "workspace-a", "role" => "viewer"),
+        ],
+        "resourcePolicies" => Any[],
+    )
     save_policy_response = withenv(env_pairs...) do
         route_request(
             state,
@@ -1758,6 +1826,17 @@ end
                 "/api/v1/admin/auth/policies",
                 ["Authorization" => "Bearer $(owner_token)", "Content-Type" => "application/json"],
                 JSON3.write(policy_body),
+            ),
+        )
+    end
+    invalid_directory_policy_response = withenv(env_pairs...) do
+        route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/admin/auth/policies",
+                ["Authorization" => "Bearer $(owner_token)", "Content-Type" => "application/json"],
+                JSON3.write(invalid_directory_policy_body),
             ),
         )
     end
@@ -1795,8 +1874,18 @@ end
     @test occursin("OIDC bearer token is required", String(missing_token_response.body))
     @test invalid_token_response.status == 401
     @test occursin("invalid OIDC token signature", String(invalid_token_response.body))
+    @test save_directory_response.status == 200
+    @test occursin("user-viewer", String(save_directory_response.body))
+    @test lockout_directory_response.status == 400
+    @test occursin("admin principal not active in directory", String(lockout_directory_response.body))
+    @test get_directory_response.status == 200
+    @test occursin("Workspace A", String(get_directory_response.body))
+    @test disabled_user_response.status == 403
+    @test occursin("principal not active in directory", String(disabled_user_response.body))
     @test save_policy_response.status == 200
     @test occursin("user-viewer", String(save_policy_response.body))
+    @test invalid_directory_policy_response.status == 400
+    @test occursin("role binding principal not active in directory", String(invalid_directory_policy_response.body))
     @test get_policy_response.status == 200
     @test occursin("resourcePolicies", String(get_policy_response.body))
     @test viewer_read_response.status == 200
@@ -1808,6 +1897,7 @@ end
     @test any(event["action"] == "auth.policy.update" for event in audit_payload["events"])
     @test !occursin("oidc-secret", String(audit_query_response.body))
     @test isfile(joinpath(store_root, "auth-policy.json"))
+    @test isfile(joinpath(store_root, "auth-directory.json"))
 end
 
 @testset "Gateway OIDC JWKS Rotation" begin
@@ -1863,4 +1953,58 @@ end
     @test rotated_old_response.status == 401
     @test occursin("OIDC JWKS key not found: kid-old", String(rotated_old_response.body))
     @test rotated_new_response.status == 200
+end
+
+@testset "Gateway OIDC RS256 JWKS" begin
+    store_root = mktempdir()
+    foundation_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "foundation.workflow.toml")
+    state = foundation_state(foundation_path; store_root = store_root)
+    jwks_path = joinpath(store_root, "jwks-rs256.json")
+    discovery_path = joinpath(store_root, "openid-configuration-rs256.json")
+
+    rsa_modulus = "kuIo4j5IbOMTRjVQWeMj6N6SyIF2Q9yLuGvmhZquzGGF9YubMVj9NPlRUk2vsB6pHd-FOE1WANIgdduQUkdJCJYuIWcQ1yV039DFdJs7IwkcSOCrA70ML7MItFupK2eV6D7llqgZoOG2n1Xfa5EATUZtqVHGoprYXMhgFatDXq5_6Ssl8tRrpoS2Gwzu6DPFDtZWnu598BzFLsKFYmNyk5UTKT6l76T79HuzGdiienfHp-Rq-IgEN3TJtVQgxAZclDfoHEHbTAGaLfHbAGC-wXmviRY9sNkhnDivoU0X6_tY44GzkQXe_5BX2xAjZAGqHckTsvwGzVI9MAWdZGq8YQ"
+    rsa_exponent = "AQAB"
+    rs256_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJzYS1saXZlLXRlc3QifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci50ZXN0IiwiYXVkIjoianVsaWFmbG93LWdhdGV3YXkiLCJzdWIiOiJ1c2VyLW93bmVyIiwianVsaWFmbG93X3dvcmtzcGFjZSI6IndvcmtzcGFjZS1hIiwianVsaWFmbG93X3JvbGUiOiJvd25lciIsImV4cCI6NDEwMjQ0NDgwMH0.VxYxaMFtZ4INHQBa8oat21Q5q5oTT-Eqb8lvqBlvIyFqlVuJ2XZjCUQMq0JioA7PsPrCvWcavFkFOBNYavrtvMfGKCQnB29hy_AonuUriwtIP6JxFBhtl6M_2pQiQb_qjKah-j3OVw-BKmOiB3NLAku9cWHdIURz-altxrINzkiYqvfGaQciznCz4xjiv6Is2r28IDSCFIksQeMcYYOmkDgs_QCklwISt4r69A1TEL3QrYjnW7--oU9W2MsuBjqahtN5oJejyeFBEPHqUx6cWIrRRdh_UAQWSe-aPYIDBJiPJW2aiF898DNMr99aOf1er_LAq1b1DCMORes-A9O4YQ"
+    tampered_token = string(rs256_token[1:end-2], "xx")
+
+    write(
+        discovery_path,
+        JSON3.write(Dict("issuer" => "https://issuer.test", "jwks_uri" => jwks_path)),
+    )
+    write(
+        jwks_path,
+        JSON3.write(
+            Dict(
+                "keys" => [
+                    Dict(
+                        "kty" => "RSA",
+                        "kid" => "rsa-live-test",
+                        "alg" => "RS256",
+                        "use" => "sig",
+                        "n" => rsa_modulus,
+                        "e" => rsa_exponent,
+                    ),
+                ],
+            ),
+        ),
+    )
+
+    env_pairs = (
+        "JULIAFLOW_AUTH_MODE" => "oidc",
+        "JULIAFLOW_OIDC_DISCOVERY_PATH" => discovery_path,
+        "JULIAFLOW_OIDC_AUDIENCE" => "juliaflow-gateway",
+        "JULIAFLOW_OIDC_ALLOWED_ALGORITHMS" => "RS256",
+    )
+
+    valid_response = withenv(env_pairs...) do
+        route_request(state, HTTP.Request("GET", "/api/v1/workflows", ["Authorization" => "Bearer $(rs256_token)"]))
+    end
+    tampered_response = withenv(env_pairs...) do
+        route_request(state, HTTP.Request("GET", "/api/v1/workflows", ["Authorization" => "Bearer $(tampered_token)"]))
+    end
+
+    @test valid_response.status == 200
+    @test occursin("wf-foundation", String(valid_response.body))
+    @test tampered_response.status == 401
+    @test occursin("invalid OIDC token signature", String(tampered_response.body))
 end

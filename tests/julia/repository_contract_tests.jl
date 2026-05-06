@@ -77,6 +77,30 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
         @test any(event.event_type == "execution.changed" && event.aggregate_id == "exec-001" for event in events)
         @test any(event.event_type == "hub.extension.changed" && event.aggregate_id == "juliaflow-base" for event in events) == false
 
+        directory = JuliaFlowApiGateway.JuliaFlowGatewayRepository.GatewayAuthDirectory(
+            users = [
+                JuliaFlowApiGateway.JuliaFlowGatewayRepository.GatewayUserRecord(
+                    principal_id = "user-owner",
+                    display_name = "Owner User",
+                    email = "owner@example.test",
+                    active = true,
+                ),
+            ],
+            workspaces = [
+                JuliaFlowApiGateway.JuliaFlowGatewayRepository.GatewayWorkspaceRecord(
+                    workspace_id = "workspace-a",
+                    name = "Workspace A",
+                    active = true,
+                ),
+            ],
+        )
+        JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_auth_directory!(repo, directory)
+        persisted_directory = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_auth_directory(repo)
+        @test length(persisted_directory.users) == 1
+        @test persisted_directory.users[1].principal_id == "user-owner"
+        @test persisted_directory.workspaces[1].workspace_id == "workspace-a"
+        @test persisted_directory.users[1].email == "owner@example.test"
+
         custom_event = JuliaFlowApiGateway.JuliaFlowGatewayRepository.append_event!(
             repo,
             "stream.checkpoint.completed";

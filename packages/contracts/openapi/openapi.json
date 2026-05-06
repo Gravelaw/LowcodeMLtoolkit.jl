@@ -790,6 +790,78 @@
           }
         }
       }
+    },
+    "/api/v1/admin/auth/directory": {
+      "get": {
+        "summary": "Read persisted auth user/workspace directory",
+        "responses": {
+          "200": {
+            "description": "Auth directory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayAuthDirectory"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Replace persisted auth user/workspace directory",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GatewayAuthDirectory"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Auth directory updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayAuthDirectory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid directory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2394,6 +2466,88 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "GatewayUserRecord": {
+        "type": "object",
+        "required": [
+          "principalId",
+          "displayName",
+          "active",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "principalId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "GatewayWorkspaceRecord": {
+        "type": "object",
+        "required": [
+          "workspaceId",
+          "name",
+          "active",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "workspaceId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "GatewayAuthDirectory": {
+        "type": "object",
+        "required": [
+          "users",
+          "workspaces",
+          "updatedAt"
+        ],
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayUserRecord"
+            }
+          },
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayWorkspaceRecord"
+            }
+          },
+          "updatedAt": {
+            "type": "string"
           }
         }
       }

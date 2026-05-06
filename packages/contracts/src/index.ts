@@ -107,6 +107,29 @@ export interface GatewayAuthPolicy {
   updatedAt: string;
 }
 
+export interface GatewayUserRecord {
+  principalId: string;
+  displayName: string;
+  email?: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GatewayWorkspaceRecord {
+  workspaceId: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GatewayAuthDirectory {
+  users: GatewayUserRecord[];
+  workspaces: GatewayWorkspaceRecord[];
+  updatedAt: string;
+}
+
 export interface GatewayAuditQueryResponse {
   events: Array<GatewayAuditActionEvent & { eventId: string; sequence: number; occurredAt: string }>;
   count: number;
@@ -699,6 +722,7 @@ export const gatewayEndpointPaths = {
   hubExtensionInstall: (extensionId: string) =>
     `/api/v1/hub/extensions/${encodeURIComponent(extensionId)}/install`,
   authPolicies: "/api/v1/admin/auth/policies",
+  authDirectory: "/api/v1/admin/auth/directory",
   auditActions: "/api/v1/audit/actions"
 } as const;
 
@@ -813,7 +837,8 @@ export type GatewayDurableEventType =
   | "hub.extension.changed"
   | "dashboard.published"
   | "audit.action"
-  | "auth.policy.changed";
+  | "auth.policy.changed"
+  | "auth.directory.changed";
 
 export interface GatewayDurableEventEnvelope<
   TType extends GatewayDurableEventType = GatewayDurableEventType,
@@ -838,6 +863,7 @@ export interface GatewayDurableEventPayloadMap {
   "dashboard.published": PublishedDashboardDefinition;
   "audit.action": GatewayAuditActionEvent;
   "auth.policy.changed": GatewayAuthPolicy;
+  "auth.directory.changed": GatewayAuthDirectory;
 }
 
 export type GatewayDurableEvent =
@@ -961,6 +987,11 @@ export interface GatewayApiClient {
     request: GatewayAuthPolicy,
     options?: GatewayRequestOptions
   ): Promise<GatewayAuthPolicy>;
+  getAuthDirectory(options?: GatewayRequestOptions): Promise<GatewayAuthDirectory>;
+  updateAuthDirectory(
+    request: GatewayAuthDirectory,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayAuthDirectory>;
   queryAuditActions(options?: GatewayRequestOptions): Promise<GatewayAuditQueryResponse>;
 }
 
@@ -1222,6 +1253,20 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "PUT",
         gatewayEndpointPaths.authPolicies,
         policy,
+        requestOptions
+      ),
+    getAuthDirectory: (requestOptions) =>
+      request<GatewayAuthDirectory>(
+        "GET",
+        gatewayEndpointPaths.authDirectory,
+        undefined,
+        requestOptions
+      ),
+    updateAuthDirectory: (directory, requestOptions) =>
+      request<GatewayAuthDirectory>(
+        "PUT",
+        gatewayEndpointPaths.authDirectory,
+        directory,
         requestOptions
       ),
     queryAuditActions: (requestOptions) =>

@@ -32,7 +32,8 @@
             "hub.extension.changed",
             "dashboard.published",
             "audit.action",
-            "auth.policy.changed"
+            "auth.policy.changed",
+            "auth.directory.changed"
           ]
         },
         "aggregateType": {
@@ -259,6 +260,25 @@
                   "type": "array"
                 },
                 "resourcePolicies": {
+                  "type": "array"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "users",
+                "workspaces",
+                "updatedAt"
+              ],
+              "properties": {
+                "users": {
+                  "type": "array"
+                },
+                "workspaces": {
                   "type": "array"
                 },
                 "updatedAt": {

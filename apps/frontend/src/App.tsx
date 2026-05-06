@@ -15,6 +15,7 @@ import {
   type GatewayDashboardPublishResponse,
   type GatewayDashboardPublishRequest,
   type GatewayAuditActionEvent,
+  type GatewayAuthDirectory,
   type GatewayAuthPolicy,
   type GatewayExecutionStateChangedEvent,
   type GatewayHealthcheck,
@@ -93,6 +94,19 @@ interface ResourcePolicyDraft {
   viewerPermissions: string;
 }
 
+interface AuthUserDraft {
+  principalId: string;
+  displayName: string;
+  email: string;
+  active: boolean;
+}
+
+interface AuthWorkspaceDraft {
+  workspaceId: string;
+  name: string;
+  active: boolean;
+}
+
 interface ViewerChartFilter {
   field: string;
   value: string;
@@ -117,6 +131,7 @@ interface WorkspaceDataState {
   health: GatewayHealthcheck | null;
   hubExtensions: GatewayHubExtensionRecord[];
   authPolicy: GatewayAuthPolicy | null;
+  authDirectory: GatewayAuthDirectory | null;
   auditActions: GatewayAuditActionEvent[];
   authAdminError: string | null;
   isLoading: boolean;
@@ -272,6 +287,29 @@ const demoAuthPolicy: GatewayAuthPolicy = {
   updatedAt: "2026-05-04T00:00:00Z"
 };
 
+const demoAuthDirectory: GatewayAuthDirectory = {
+  users: [
+    {
+      principalId: "dev:local-user",
+      displayName: "Local developer",
+      email: "dev@juliaflow.local",
+      active: true,
+      createdAt: "2026-05-05T00:00:00Z",
+      updatedAt: "2026-05-05T00:00:00Z"
+    }
+  ],
+  workspaces: [
+    {
+      workspaceId: "local-dev",
+      name: "Local development",
+      active: true,
+      createdAt: "2026-05-05T00:00:00Z",
+      updatedAt: "2026-05-05T00:00:00Z"
+    }
+  ],
+  updatedAt: "2026-05-05T00:00:00Z"
+};
+
 const demoAuditActions: GatewayAuditActionEvent[] = [
   {
     action: "auth.policy.update",
@@ -391,6 +429,23 @@ function createEmptyResourcePolicyDraft(): ResourcePolicyDraft {
   };
 }
 
+function createEmptyAuthUserDraft(): AuthUserDraft {
+  return {
+    principalId: "",
+    displayName: "",
+    email: "",
+    active: true
+  };
+}
+
+function createEmptyAuthWorkspaceDraft(): AuthWorkspaceDraft {
+  return {
+    workspaceId: "",
+    name: "",
+    active: true
+  };
+}
+
 function parsePermissionDraft(rawValue: string): ResourcePermission[] | null {
   const requestedPermissions = rawValue
     .split(",")
@@ -415,6 +470,7 @@ function createDemoState(): WorkspaceDataState {
     health: null,
     hubExtensions: demoHubExtensions,
     authPolicy: demoAuthPolicy,
+    authDirectory: demoAuthDirectory,
     auditActions: demoAuditActions,
     authAdminError: null,
     isLoading: false,
@@ -473,7 +529,7 @@ function useWorkspaceData(): WorkspaceDataState {
 
     async function load() {
       try {
-        const [health, workflowResponse, executionResponse, checkpointResponse, hubExtensionResponse, authPolicyResult, auditActionsResult] = await Promise.all([
+        const [health, workflowResponse, executionResponse, checkpointResponse, hubExtensionResponse, authPolicyResult, authDirectoryResult, auditActionsResult] = await Promise.all([
           gatewayClient.healthcheck({ signal: abortController.signal }),
           gatewayClient.listWorkflows({ signal: abortController.signal }),
           gatewayClient.listExecutions({ signal: abortController.signal }),
@@ -482,6 +538,10 @@ function useWorkspaceData(): WorkspaceDataState {
           gatewayClient.getAuthPolicy({ signal: abortController.signal }).then(
             (policy) => ({ policy, error: null }),
             (error: unknown) => ({ policy: null, error: error instanceof Error ? error.message : "Auth policy unavailable" })
+          ),
+          gatewayClient.getAuthDirectory({ signal: abortController.signal }).then(
+            (directory) => ({ directory, error: null }),
+            (error: unknown) => ({ directory: null, error: error instanceof Error ? error.message : "Auth directory unavailable" })
           ),
           gatewayClient.queryAuditActions({ signal: abortController.signal }).then(
             (response) => ({ events: response.events, error: null }),
@@ -516,8 +576,9 @@ function useWorkspaceData(): WorkspaceDataState {
           hubExtensions:
             hubExtensionResponse.items.length > 0 ? hubExtensionResponse.items : demoHubExtensions,
           authPolicy: authPolicyResult.policy,
+          authDirectory: authDirectoryResult.directory,
           auditActions: auditActionsResult.events,
-          authAdminError: authPolicyResult.error ?? auditActionsResult.error,
+          authAdminError: authPolicyResult.error ?? authDirectoryResult.error ?? auditActionsResult.error,
           isLoading: false,
           mode: "live",
           workflow:
@@ -1427,8 +1488,11 @@ function App() {
   const [executionItems, setExecutionItems] = useState<ExecutionRailItem[]>(workspaceData.executionItems);
   const [hubExtensions, setHubExtensions] = useState<GatewayHubExtensionRecord[]>(workspaceData.hubExtensions);
   const [authPolicyDraft, setAuthPolicyDraft] = useState<GatewayAuthPolicy>(workspaceData.authPolicy ?? demoAuthPolicy);
+  const [authDirectoryDraft, setAuthDirectoryDraft] = useState<GatewayAuthDirectory>(workspaceData.authDirectory ?? demoAuthDirectory);
   const [roleBindingDraft, setRoleBindingDraft] = useState<RoleBindingDraft>(() => createEmptyRoleBindingDraft());
   const [resourcePolicyDraft, setResourcePolicyDraft] = useState<ResourcePolicyDraft>(() => createEmptyResourcePolicyDraft());
+  const [authUserDraft, setAuthUserDraft] = useState<AuthUserDraft>(() => createEmptyAuthUserDraft());
+  const [authWorkspaceDraft, setAuthWorkspaceDraft] = useState<AuthWorkspaceDraft>(() => createEmptyAuthWorkspaceDraft());
   const [publishedDashboards, setPublishedDashboards] = useState<PublishedDashboardDefinition[]>([]);
   const [publishedDashboard, setPublishedDashboard] = useState<PublishedDashboardDefinition | null>(null);
   const [activeDashboardId, setActiveDashboardId] = useState<string | null>(
@@ -1451,6 +1515,7 @@ function App() {
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingAuthPolicy, setIsSavingAuthPolicy] = useState(false);
+  const [isSavingAuthDirectory, setIsSavingAuthDirectory] = useState(false);
   const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
   const [connectionDraftDirection, setConnectionDraftDirection] = useState<ConnectionDraftDirection>("outgoing");
@@ -1469,6 +1534,7 @@ function App() {
     setExecutionItems(workspaceData.executionItems);
     setHubExtensions(workspaceData.hubExtensions);
     setAuthPolicyDraft(workspaceData.authPolicy ?? demoAuthPolicy);
+    setAuthDirectoryDraft(workspaceData.authDirectory ?? demoAuthDirectory);
     setNodePositionOverrides({});
     setKnownWorkflowIds(workspaceData.workflows.map((item) => item.workflowId));
     setRealtimeNodeStates({});
@@ -1476,7 +1542,7 @@ function App() {
     setPublishedDashboard(null);
     setPublishedDashboards([]);
     setActiveDashboardId(workspaceData.workflow.dashboards?.[0]?.dashboardId ?? null);
-  }, [workspaceData.executionItems, workspaceData.hubExtensions, workspaceData.workflow, workspaceData.workflows]);
+  }, [workspaceData.authDirectory, workspaceData.authPolicy, workspaceData.executionItems, workspaceData.hubExtensions, workspaceData.workflow, workspaceData.workflows]);
 
   useEffect(() => {
     function handlePopState() {
@@ -1945,6 +2011,8 @@ function App() {
   const workflowExistsOnGateway = knownWorkflowIds.includes(workflow.workflowId) || workspaceData.mode === "live";
   const isAuthPolicySaveDisabled =
     isSavingAuthPolicy || (gatewayBaseUrl.length > 0 && workspaceData.authPolicy === null);
+  const isAuthDirectorySaveDisabled =
+    isSavingAuthDirectory || (gatewayBaseUrl.length > 0 && workspaceData.authDirectory === null);
   const relatedConnections = workflow.connections.filter(
     (connection) => connection.sourceNodeId === selectedNode.id || connection.targetNodeId === selectedNode.id
   );
@@ -2666,6 +2734,79 @@ function App() {
     setActionFeedback({ text: "Queued resource policy removal.", tone: "info" });
   }
 
+  function handleAddAuthUser() {
+    const principalId = authUserDraft.principalId.trim();
+    const displayName = authUserDraft.displayName.trim();
+    if (principalId.length === 0 || displayName.length === 0) {
+      setActionFeedback({ text: "Directory user needs principal and display name.", tone: "error" });
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const nextUser = {
+      principalId,
+      displayName,
+      email: authUserDraft.email.trim() || undefined,
+      active: authUserDraft.active,
+      createdAt:
+        authDirectoryDraft.users.find((user) => user.principalId === principalId)?.createdAt ?? timestamp,
+      updatedAt: timestamp
+    };
+    setAuthDirectoryDraft((currentDirectory) => ({
+      ...currentDirectory,
+      users: [
+        ...currentDirectory.users.filter((user) => user.principalId !== principalId),
+        nextUser
+      ]
+    }));
+    setAuthUserDraft(createEmptyAuthUserDraft());
+    setActionFeedback({ text: `Queued directory user ${principalId}.`, tone: "info" });
+  }
+
+  function handleRemoveAuthUser(index: number) {
+    setAuthDirectoryDraft((currentDirectory) => ({
+      ...currentDirectory,
+      users: currentDirectory.users.filter((_, userIndex) => userIndex !== index)
+    }));
+    setActionFeedback({ text: "Queued directory user removal.", tone: "info" });
+  }
+
+  function handleAddAuthWorkspace() {
+    const workspaceId = authWorkspaceDraft.workspaceId.trim();
+    const name = authWorkspaceDraft.name.trim();
+    if (workspaceId.length === 0 || name.length === 0) {
+      setActionFeedback({ text: "Directory workspace needs id and name.", tone: "error" });
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const nextWorkspace = {
+      workspaceId,
+      name,
+      active: authWorkspaceDraft.active,
+      createdAt:
+        authDirectoryDraft.workspaces.find((workspace) => workspace.workspaceId === workspaceId)?.createdAt ?? timestamp,
+      updatedAt: timestamp
+    };
+    setAuthDirectoryDraft((currentDirectory) => ({
+      ...currentDirectory,
+      workspaces: [
+        ...currentDirectory.workspaces.filter((workspace) => workspace.workspaceId !== workspaceId),
+        nextWorkspace
+      ]
+    }));
+    setAuthWorkspaceDraft(createEmptyAuthWorkspaceDraft());
+    setActionFeedback({ text: `Queued directory workspace ${workspaceId}.`, tone: "info" });
+  }
+
+  function handleRemoveAuthWorkspace(index: number) {
+    setAuthDirectoryDraft((currentDirectory) => ({
+      ...currentDirectory,
+      workspaces: currentDirectory.workspaces.filter((_, workspaceIndex) => workspaceIndex !== index)
+    }));
+    setActionFeedback({ text: "Queued directory workspace removal.", tone: "info" });
+  }
+
   async function handleSaveAuthPolicy() {
     if (gatewayBaseUrl.length > 0 && workspaceData.authPolicy === null) {
       setActionFeedback({ text: "Auth policy save blocked until gateway policy loads.", tone: "error" });
@@ -2694,6 +2835,37 @@ function App() {
       setActionFeedback({ text: `Auth policy save failed: ${message}`, tone: "error" });
     } finally {
       setIsSavingAuthPolicy(false);
+    }
+  }
+
+  async function handleSaveAuthDirectory() {
+    if (gatewayBaseUrl.length > 0 && workspaceData.authDirectory === null) {
+      setActionFeedback({ text: "Auth directory save blocked until gateway directory loads.", tone: "error" });
+      return;
+    }
+
+    const nextDirectory: GatewayAuthDirectory = {
+      ...authDirectoryDraft,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (gatewayBaseUrl.length === 0) {
+      setAuthDirectoryDraft(nextDirectory);
+      setActionFeedback({ text: "Demo auth directory changes stored locally.", tone: "demo" });
+      return;
+    }
+
+    setIsSavingAuthDirectory(true);
+    try {
+      const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+      const response = await gatewayClient.updateAuthDirectory(nextDirectory);
+      setAuthDirectoryDraft(response);
+      setActionFeedback({ text: "Auth directory saved to gateway.", tone: "success" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to save auth directory.";
+      setActionFeedback({ text: `Auth directory save failed: ${message}`, tone: "error" });
+    } finally {
+      setIsSavingAuthDirectory(false);
     }
   }
 
@@ -4122,12 +4294,184 @@ function App() {
                       <span>{authPolicyDraft.roleBindings.length}</span>
                     </div>
                     <div className="inspector-row">
+                      <strong>Directory users</strong>
+                      <span>{authDirectoryDraft.users.length}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Directory workspaces</strong>
+                      <span>{authDirectoryDraft.workspaces.length}</span>
+                    </div>
+                    <div className="inspector-row">
                       <strong>Resource policies</strong>
                       <span>{authPolicyDraft.resourcePolicies.length}</span>
                     </div>
                     <div className="inspector-row">
                       <strong>Policy updated</strong>
                       <span>{authPolicyDraft.updatedAt}</span>
+                    </div>
+                  </div>
+
+                  <div className="checkpoint-policy">
+                    <h2>User/workspace directory</h2>
+                    <div className="route-card-list">
+                      {authDirectoryDraft.users.slice(0, 6).map((user, index) => (
+                        <div className="route-list-item" key={user.principalId}>
+                          <strong>{user.principalId}</strong>
+                          <span>{user.displayName} · {user.active ? "active" : "disabled"}</span>
+                          <button
+                            className="danger-action-button"
+                            onClick={() => {
+                              handleRemoveAuthUser(index);
+                            }}
+                            type="button"
+                          >
+                            Remove directory user
+                          </button>
+                        </div>
+                      ))}
+                      {authDirectoryDraft.workspaces.slice(0, 6).map((workspace, index) => (
+                        <div className="route-list-item" key={workspace.workspaceId}>
+                          <strong>{workspace.workspaceId}</strong>
+                          <span>{workspace.name} · {workspace.active ? "active" : "disabled"}</span>
+                          <button
+                            className="danger-action-button"
+                            onClick={() => {
+                              handleRemoveAuthWorkspace(index);
+                            }}
+                            type="button"
+                          >
+                            Remove directory workspace
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flow-variable-editor-list" aria-label="Editable auth directory controls">
+                      <section className="flow-variable-editor">
+                        <div className="flow-variable-editor-head">
+                          <strong>Add directory user</strong>
+                          <button className="secondary-action-button" onClick={handleAddAuthUser} type="button">
+                            Queue directory user
+                          </button>
+                        </div>
+                        <label className="flow-variable-field">
+                          <span>Principal ID</span>
+                          <input
+                            aria-label="Auth directory principal id"
+                            onChange={(event) => {
+                              setAuthUserDraft((currentDraft) => ({
+                                ...currentDraft,
+                                principalId: event.target.value
+                              }));
+                            }}
+                            value={authUserDraft.principalId}
+                          />
+                        </label>
+                        <label className="flow-variable-field">
+                          <span>Display name</span>
+                          <input
+                            aria-label="Auth directory display name"
+                            onChange={(event) => {
+                              setAuthUserDraft((currentDraft) => ({
+                                ...currentDraft,
+                                displayName: event.target.value
+                              }));
+                            }}
+                            value={authUserDraft.displayName}
+                          />
+                        </label>
+                        <label className="flow-variable-field">
+                          <span>Email</span>
+                          <input
+                            aria-label="Auth directory email"
+                            onChange={(event) => {
+                              setAuthUserDraft((currentDraft) => ({
+                                ...currentDraft,
+                                email: event.target.value
+                              }));
+                            }}
+                            value={authUserDraft.email}
+                          />
+                        </label>
+                        <label className="flow-variable-field">
+                          <span>
+                            <input
+                              aria-label="Auth directory user active"
+                              checked={authUserDraft.active}
+                              onChange={(event) => {
+                                setAuthUserDraft((currentDraft) => ({
+                                  ...currentDraft,
+                                  active: event.target.checked
+                                }));
+                              }}
+                              type="checkbox"
+                            />
+                            Active user
+                          </span>
+                        </label>
+                      </section>
+
+                      <section className="flow-variable-editor">
+                        <div className="flow-variable-editor-head">
+                          <strong>Add directory workspace</strong>
+                          <button className="secondary-action-button" onClick={handleAddAuthWorkspace} type="button">
+                            Queue directory workspace
+                          </button>
+                        </div>
+                        <label className="flow-variable-field">
+                          <span>Workspace ID</span>
+                          <input
+                            aria-label="Auth directory workspace id"
+                            onChange={(event) => {
+                              setAuthWorkspaceDraft((currentDraft) => ({
+                                ...currentDraft,
+                                workspaceId: event.target.value
+                              }));
+                            }}
+                            value={authWorkspaceDraft.workspaceId}
+                          />
+                        </label>
+                        <label className="flow-variable-field">
+                          <span>Name</span>
+                          <input
+                            aria-label="Auth directory workspace name"
+                            onChange={(event) => {
+                              setAuthWorkspaceDraft((currentDraft) => ({
+                                ...currentDraft,
+                                name: event.target.value
+                              }));
+                            }}
+                            value={authWorkspaceDraft.name}
+                          />
+                        </label>
+                        <label className="flow-variable-field">
+                          <span>
+                            <input
+                              aria-label="Auth directory workspace active"
+                              checked={authWorkspaceDraft.active}
+                              onChange={(event) => {
+                                setAuthWorkspaceDraft((currentDraft) => ({
+                                  ...currentDraft,
+                                  active: event.target.checked
+                                }));
+                              }}
+                              type="checkbox"
+                            />
+                            Active workspace
+                          </span>
+                        </label>
+                      </section>
+
+                      <button
+                        className="primary-action-button"
+                        disabled={isAuthDirectorySaveDisabled}
+                        onClick={() => {
+                          void handleSaveAuthDirectory();
+                        }}
+                        type="button"
+                      >
+                        {isSavingAuthDirectory ? "Saving auth directory..." : "Save auth directory"}
+                      </button>
                     </div>
                   </div>
 
