@@ -280,12 +280,17 @@ end
     @test first_batch.metadata["stream_processed_rows"] == 2
     @test first_batch.metadata["stream_consumer_lag"] == 1
     @test first_batch.metadata["stream_backpressure"] == "ok"
-    @test first_batch.metadata["stream_watermark"] == 7
+    @test first_batch.metadata["stream_watermark"] == 2
+    @test first_batch.metadata["stream_watermark_state"]["mode"] == "processing_time"
+    @test first_batch.metadata["stream_watermark_state"]["committedWatermark"] == 2
     @test first_batch.metadata["stream_window_state"]["windows"][1]["count"] == 2
     @test first_batch.metadata["stream_checkpoint_offsets"]["lastOffset"] == 2
     @test first_batch.metadata["stream_checkpoint_offsets"]["committedOffset"] == 2
+    @test first_batch.metadata["stream_checkpoint_offsets"]["watermark"] == 2
     @test first_batch.metadata["stream_exactly_once_status"] == "committed"
     @test first_batch.metadata["stream_sink_transaction_id"] == "stream-$(first_batch.execution_id)-offset-0-2"
+    @test first_batch.metadata["stream_sink_transaction_state"]["status"] == "committed"
+    @test first_batch.metadata["stream_sink_transaction_state"]["fenceToken"] == "juliaflow-dev:0:2"
 
     replayed_first_batch = replay_stream_fixture_batch!(
         service,
@@ -321,6 +326,7 @@ end
     @test second_batch.metadata["stream_processed_offset"] == 3
     @test second_batch.metadata["stream_processed_rows"] == 3
     @test second_batch.metadata["stream_consumer_lag"] == 0
+    @test second_batch.metadata["stream_watermark"] == 3
     @test second_batch.metadata["stream_replay_status"] == "restored_from_checkpoint"
     @test second_batch.metadata["stream_replay_offset"] == 2
     @test second_batch.metadata["stream_window_state"]["windows"][1]["start"] == 30
@@ -328,7 +334,50 @@ end
     @test second_batch_payload["streamProcessedOffset"] == 3
     @test second_batch_payload["streamConsumerLag"] == 0
     @test second_batch_payload["streamBackpressure"] == "ok"
+    @test second_batch_payload["streamWatermarkState"]["mode"] == "processing_time"
+    @test second_batch_payload["streamSinkTransactionState"]["status"] == "committed"
     @test second_batch_payload["streamWindowState"]["windows"][1]["start"] == 30
+
+    event_time_workflow = load_workflow_definition(parallel_path)
+    event_time_workflow.runtime.source["kind"] = "fixture"
+    event_time_workflow.runtime.source["events"] = parallel_workflow.runtime.source["events"]
+    event_time_workflow.runtime.policy["watermark_mode"] = "event_time"
+    event_time_service = WorkerServiceState()
+    event_time_executions = GatewayExecution[
+        JuliaFlowApiGateway.materialize_execution(
+            execute_workflow(event_time_workflow; checkpoint_tag = "cp/event-time-watermark"),
+        ),
+    ]
+    queue_stream_execution!(
+        event_time_service,
+        Dict(event_time_workflow.id => event_time_workflow),
+        event_time_executions,
+        event_time_executions[1].execution_id;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    process_stream_worker_tick!(
+        event_time_service,
+        event_time_executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    event_time_batch = process_stream_fixture_batch!(
+        event_time_service,
+        Dict(event_time_workflow.id => event_time_workflow),
+        event_time_executions,
+        event_time_workflow.id;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        batch_size = 2,
+    )
+    @test event_time_batch.metadata["stream_watermark"] == 7
+    @test event_time_batch.metadata["stream_watermark_state"]["mode"] == "event_time"
+    @test event_time_batch.metadata["stream_watermark_state"]["source"] == "event_time"
+    @test event_time_batch.metadata["stream_watermark_state"]["allowedLatenessSeconds"] == 5
 
     paused_stream = set_stream_lifecycle!(
         service,

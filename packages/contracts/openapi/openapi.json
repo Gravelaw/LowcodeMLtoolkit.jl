@@ -1680,6 +1680,10 @@
           "streamWatermark": {
             "type": "integer"
           },
+          "streamWatermarkState": {
+            "type": "object",
+            "additionalProperties": true
+          },
           "streamWindowState": {
             "type": "object",
             "additionalProperties": true
@@ -1726,6 +1730,10 @@
           },
           "streamSinkTransactionId": {
             "type": "string"
+          },
+          "streamSinkTransactionState": {
+            "type": "object",
+            "additionalProperties": true
           },
           "streamIdempotencyKey": {
             "type": "string"

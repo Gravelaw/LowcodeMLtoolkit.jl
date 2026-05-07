@@ -53,6 +53,11 @@ function stream_policy_allowed_lateness(workflow)
     return max(Int(get(workflow.runtime.policy, "allowed_lateness_seconds", 0)), 0)
 end
 
+function stream_policy_watermark_mode(workflow)
+    workflow.runtime.policy === nothing && return "processing_time"
+    return String(get(workflow.runtime.policy, "watermark_mode", "processing_time"))
+end
+
 function stream_adapter_contract(workflow)
     kind = lowercase(stream_source_kind(workflow))
     source = workflow.runtime.source === nothing ? Dict{String,Any}() : workflow.runtime.source
@@ -60,7 +65,7 @@ function stream_adapter_contract(workflow)
         "kind" => kind,
         "deliverySemantics" => "source_at_least_once_sink_exactly_once_fenced",
         "replayMode" => "committed_offset",
-        "watermarkMode" => workflow.runtime.policy === nothing ? "processing_time" : String(get(workflow.runtime.policy, "watermark_mode", "processing_time")),
+        "watermarkMode" => stream_policy_watermark_mode(workflow),
     )
     if kind == "kafka"
         contract["topic"] = String(get(source, "topic", "unknown"))
@@ -78,6 +83,33 @@ function stream_adapter_contract(workflow)
         contract["offsetField"] = "offset"
     end
     return contract
+end
+
+function stream_watermark_state(workflow, execution, events, offset_start::Integer, processed_offset::Integer)
+    mode = stream_policy_watermark_mode(workflow)
+    previous_watermark = Int(get(execution.metadata, "stream_watermark", 0))
+    lateness = stream_policy_allowed_lateness(workflow)
+    candidate = previous_watermark
+    source = "previous"
+    if !isempty(events)
+        if mode == "event_time"
+            candidate = maximum(event_time_seconds(event, offset_start + index) for (index, event) in enumerate(events)) - lateness
+            source = "event_time"
+        else
+            candidate = processed_offset
+            source = "processing_time"
+        end
+    end
+    committed = max(previous_watermark, candidate)
+    return Dict{String,Any}(
+        "mode" => mode,
+        "source" => source,
+        "allowedLatenessSeconds" => lateness,
+        "previousWatermark" => previous_watermark,
+        "candidateWatermark" => candidate,
+        "committedWatermark" => committed,
+        "status" => committed > previous_watermark ? "advanced" : "held",
+    )
 end
 
 function event_time_seconds(event, fallback::Integer)
@@ -115,11 +147,22 @@ function stream_runtime_metadata(workflow, execution, events, offset_start::Inte
     previous_batches = Int(get(execution.metadata, "stream_batch_count", 0))
     lag = max(total_events - processed_offset, 0)
     max_batches = stream_policy_max_batches(workflow)
-    watermark = isempty(events) ? Int(get(execution.metadata, "stream_watermark", 0)) : maximum(event_time_seconds(event, offset_start + index) for (index, event) in enumerate(events)) - stream_policy_allowed_lateness(workflow)
+    watermark_state = stream_watermark_state(workflow, execution, events, offset_start, processed_offset)
+    watermark = Int(watermark_state["committedWatermark"])
     batch_count = isempty(events) ? previous_batches : previous_batches + 1
     topic = workflow.runtime.source === nothing ? "unknown" : String(get(workflow.runtime.source, "topic", "fixture"))
     consumer_group = workflow.runtime.source === nothing ? "unknown" : String(get(workflow.runtime.source, "consumer_group", "fixture"))
     transaction_id = "stream-$(execution.execution_id)-offset-$(offset_start)-$(processed_offset)"
+    idempotency_key = "$(topic):$(consumer_group):$(processed_offset)"
+    transaction_state = Dict{String,Any}(
+        "status" => isempty(events) ? "idle" : "committed",
+        "transactionId" => transaction_id,
+        "idempotencyKey" => idempotency_key,
+        "fenceToken" => "$(consumer_group):$(offset_start):$(processed_offset)",
+        "checkpointOffset" => processed_offset,
+        "committedOffset" => processed_offset,
+        "sinkKind" => "workflow_output",
+    )
     return Dict{String,Any}(
         "stream_adapter" => stream_source_kind(workflow),
         "stream_processed_offset" => processed_offset,
@@ -129,6 +172,7 @@ function stream_runtime_metadata(workflow, execution, events, offset_start::Inte
         "stream_consumer_lag" => lag,
         "stream_backpressure" => lag > max_batches ? "lagging" : "ok",
         "stream_watermark" => watermark,
+        "stream_watermark_state" => watermark_state,
         "stream_window_state" => fixture_window_summary(events, offset_start, workflow),
         "stream_last_checkpoint_id" => "stream-$(execution.execution_id)-batch-$(batch_count)",
         "stream_checkpoint_offsets" => Dict(
@@ -137,10 +181,12 @@ function stream_runtime_metadata(workflow, execution, events, offset_start::Inte
             "lastOffset" => processed_offset,
             "committedOffset" => processed_offset,
             "lag" => lag,
+            "watermark" => watermark,
             "transactionId" => transaction_id,
         ),
         "stream_sink_transaction_id" => transaction_id,
-        "stream_idempotency_key" => "$(topic):$(consumer_group):$(processed_offset)",
+        "stream_sink_transaction_state" => transaction_state,
+        "stream_idempotency_key" => idempotency_key,
         "stream_exactly_once_status" => isempty(events) ? "idle" : "committed",
     )
 end
@@ -333,7 +379,9 @@ function duplicate_replay_metadata(execution, replay_offset::Integer)
         "stream_replay_offset" => Int(replay_offset),
         "stream_committed_offset" => committed_offset,
         "stream_checkpoint_offsets" => checkpoint_offsets,
+        "stream_watermark_state" => get(execution.metadata, "stream_watermark_state", Dict{String,Any}()),
         "stream_sink_transaction_id" => transaction_id,
+        "stream_sink_transaction_state" => get(execution.metadata, "stream_sink_transaction_state", Dict{String,Any}()),
         "stream_idempotency_key" => String(get(execution.metadata, "stream_idempotency_key", transaction_id)),
     )
 end

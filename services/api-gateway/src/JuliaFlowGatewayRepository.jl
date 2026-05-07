@@ -418,6 +418,8 @@ function execution_payload(execution::GatewayExecution)
                 payload["streamBackpressure"] = String(value)
             elseif string_key == "stream_watermark"
                 payload["streamWatermark"] = value
+            elseif string_key == "stream_watermark_state"
+                payload["streamWatermarkState"] = value
             elseif string_key == "stream_window_state"
                 payload["streamWindowState"] = value
             elseif string_key == "stream_last_checkpoint_id"
@@ -426,6 +428,8 @@ function execution_payload(execution::GatewayExecution)
                 payload["streamCheckpointOffsets"] = value
             elseif string_key == "stream_sink_transaction_id"
                 payload["streamSinkTransactionId"] = String(value)
+            elseif string_key == "stream_sink_transaction_state"
+                payload["streamSinkTransactionState"] = value
             elseif string_key == "stream_idempotency_key"
                 payload["streamIdempotencyKey"] = String(value)
             elseif string_key == "stream_exactly_once_status"
@@ -624,6 +628,8 @@ function gateway_execution(item)
             metadata["stream_backpressure"] = value
         elseif string_key == "streamWatermark"
             metadata["stream_watermark"] = value
+        elseif string_key == "streamWatermarkState"
+            metadata["stream_watermark_state"] = value
         elseif string_key == "streamWindowState"
             metadata["stream_window_state"] = value
         elseif string_key == "streamLastCheckpointId"
@@ -632,6 +638,8 @@ function gateway_execution(item)
             metadata["stream_checkpoint_offsets"] = value
         elseif string_key == "streamSinkTransactionId"
             metadata["stream_sink_transaction_id"] = value
+        elseif string_key == "streamSinkTransactionState"
+            metadata["stream_sink_transaction_state"] = value
         elseif string_key == "streamIdempotencyKey"
             metadata["stream_idempotency_key"] = value
         elseif string_key == "streamExactlyOnceStatus"

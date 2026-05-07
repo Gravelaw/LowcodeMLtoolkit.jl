@@ -1193,3 +1193,25 @@ After any meaningful job:
 - Add production watermark and external sink transaction tests before checking P0 streaming complete.
 - Add runtime Kafka/NATS clients after dependency/provider decision.
 - Add live broker restart evidence once a broker/provider target is available.
+
+### Streaming Watermark Transaction State Slice (2026-05-07)
+
+### Work Done Till Date
+
+- Added policy-aware watermark handling for fixture streaming so processing-time and event-time modes produce explicit monotonic committed watermark state.
+- Added fenced sink transaction state metadata alongside transaction IDs and idempotency keys.
+- Exposed watermark state and sink transaction state through gateway payloads, TypeScript contracts, and OpenAPI.
+- Added Julia worker coverage for processing-time/event-time watermark behavior and contract coverage for the new payload fields.
+
+### Gaps Pending
+
+- Runtime Kafka/NATS clients remain pending until dependency/provider approval.
+- Live external sink transaction backend evidence remains pending beyond fenced fixture transaction metadata.
+- Live broker restart proof remains dependency/provider-gated beyond fixture restart evidence.
+- GPU production hardening remains queued after streaming depth.
+
+### Next Items To Implement
+
+- Add runtime Kafka/NATS clients after dependency/provider decision.
+- Add live broker restart and external sink transaction backend evidence once services are available.
+- Move to GPU production hardening if streaming runtime dependencies remain blocked.

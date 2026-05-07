@@ -585,6 +585,7 @@ export interface GatewayExecutionRecord {
   streamConsumerLag?: number;
   streamBackpressure?: "ok" | "lagging" | string;
   streamWatermark?: number;
+  streamWatermarkState?: Record<string, string | number>;
   streamWindowState?: {
     kind: string;
     size_seconds: number;
@@ -593,6 +594,7 @@ export interface GatewayExecutionRecord {
   streamLastCheckpointId?: string;
   streamCheckpointOffsets?: Record<string, string | number>;
   streamSinkTransactionId?: string;
+  streamSinkTransactionState?: Record<string, string | number>;
   streamIdempotencyKey?: string;
   streamExactlyOnceStatus?: "idle" | "committed" | "duplicate_suppressed" | string;
   streamReplayStatus?: "duplicate_skipped" | string;
