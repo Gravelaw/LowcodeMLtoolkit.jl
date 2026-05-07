@@ -1204,3 +1204,26 @@ Each checkpoint entry must contain:
 - Add durable replay runner evidence across restart using persisted checkpoint offsets.
 - Add runtime Kafka/NATS clients after dependency/provider decision.
 - Add production watermark and external sink transaction tests before checking P0 streaming complete.
+
+---
+
+## Checkpoint: Streaming Restart Replay Slice — 2026-05-07
+
+### Work Done Till Date
+
+- Added fixture restart replay coverage for streaming worker recovery from persisted committed offsets.
+- Updated `replay_stream_fixture_batch!` so replay at the committed checkpoint resumes with the next unprocessed fixture events and records restored replay metadata.
+- Added Julia worker tests that sync a fresh `WorkerServiceState` from persisted executions, resume from the committed offset, and verify prior rows are not reprocessed.
+
+### Gaps Pending
+
+- Runtime Kafka/NATS clients remain pending until dependency/provider approval.
+- Production watermarking and external sink transactions remain pending.
+- Live broker restart proof remains dependency/provider-gated beyond the no-new-dependency fixture restart evidence.
+- GPU production hardening remains queued after streaming depth.
+
+### Next Items To Implement
+
+- Add production watermark and external sink transaction tests before checking P0 streaming complete.
+- Add runtime Kafka/NATS clients after dependency/provider decision.
+- Add live broker restart evidence once a broker/provider target is available.

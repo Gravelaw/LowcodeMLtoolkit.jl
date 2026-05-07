@@ -552,16 +552,25 @@ function replay_stream_fixture_batch!(
     elseif replay_offset > committed_offset
         error("stream replay offset ahead of committed offset")
     end
-    return process_stream_fixture_batch!(
-        service,
-        workflows,
-        executions,
-        workflow_id;
-        execution_record = execution_record,
-        append_execution_event = append_execution_event,
-        materialize_execution = materialize_execution,
-        batch_size = batch_size,
+
+    workflow = workflows[workflow_id]
+    events = stream_fixture_events(workflow)
+    limit = batch_size === nothing ? stream_policy_max_batches(workflow) : max(Int(batch_size), 1)
+    committed_offset >= length(events) && return current_execution
+    next_offset = min(committed_offset + limit, length(events))
+    batch = events[(committed_offset + 1):next_offset]
+    metadata = stream_runtime_metadata(workflow, current_execution, batch, committed_offset)
+    metadata["stream_replay_status"] = "restored_from_checkpoint"
+    metadata["stream_replay_offset"] = committed_offset
+    updated = append_execution_event(
+        execution_record(current_execution);
+        message = "Streaming replay restored from checkpoint",
+        metadata = metadata,
     )
+    execution = materialize_execution(updated)
+    executions[index] = execution
+    service.stream_execution_ids[workflow_id] = execution.execution_id
+    return execution
 end
 
 function set_stream_lifecycle!(

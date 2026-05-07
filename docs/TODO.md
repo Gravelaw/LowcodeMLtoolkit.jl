@@ -1,8 +1,8 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-06
+Last updated: 2026-05-07
 Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
-Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/plans/repo-brd-endgame-2026-04-25.md`; current next-step plan: `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active risks: `docs/risk-register.md`
+Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/plans/repo-brd-endgame-2026-04-25.md`; prior auth-hardening plan: `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
 
 ## P0 — Required Before Phase 1 / Alpha Complete
 
@@ -18,7 +18,7 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 10. [x] Auth/RBAC thin contract slice: auth context types, workspace roles, resource permissions, dev-token gateway gates, dashboard share/workspace separation.
 11. [ ] Production OIDC/RBAC hardening: OIDC/JWT validation seam, JWKS/discovery key resolution with rotation tests, persisted role/resource policy repository, bounded audit query API, read-only policy/audit visibility, editable role/resource-policy mutation UX, persisted user/workspace directory admin UX, active directory runtime enforcement, directory self-lockout guard, and RS256 RSA/JWKS discovery validation are implemented; external live-IdP smoke and PostgreSQL runtime evidence remain; broader local security review is documented.
 12. [x] Streaming fixture/window/checkpoint MVP: fixture adapter batches, bounded policy batches, window summaries, lag/backpressure/watermark diagnostics, checkpoint offsets.
-13. [ ] Streaming production hardening: fixture replay duplicate suppression, committed-offset metadata, idempotency keys, sink transaction IDs, and Kafka/NATS adapter contract metadata are implemented; runtime Kafka/NATS clients, durable replay runner, production watermarking, and external sink transactions remain.
+13. [ ] Streaming production hardening: fixture replay duplicate suppression, committed-offset metadata, idempotency keys, sink transaction IDs, Kafka/NATS adapter contract metadata, and durable fixture restart replay from persisted committed offsets are implemented; runtime Kafka/NATS clients, production watermarking, and external sink transactions remain.
 14. [x] GPU execution MVP: hardware registry summary, mock GPU workload execution, CPU fallback, worker execution beyond status promotion.
 15. [ ] GPU production hardening: real CUDA/KernelAbstractions kernels, device memory ops, worker isolation guarantees, and multi-GPU scheduling.
 
@@ -78,3 +78,5 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 - 2026-05-06: Broader local auth security review documented no critical/high/medium findings after the 2048-bit RS256 modulus hardening; external live-IdP smoke and PostgreSQL runtime evidence remain before P0 item 11 can be checked.
 
 - 2026-05-06: Streaming exactly-once fixture slice adds committed-offset metadata, sink transaction IDs, idempotency keys, replay duplicate suppression, Kafka/NATS adapter contract metadata, contract/OpenAPI fields, and Julia/contract coverage; runtime Kafka/NATS clients, durable replay runner, production watermarking, and external sink transactions remain before P0 item 13 can be checked.
+
+- 2026-05-07: Streaming restart replay slice proves fixture worker recovery by syncing a fresh worker service from persisted executions and replaying from the committed checkpoint offset without reprocessing prior rows; runtime Kafka/NATS clients, production watermarking, and external sink transactions remain before P0 item 13 can be checked.

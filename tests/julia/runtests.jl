@@ -304,17 +304,25 @@ end
     @test replayed_first_batch.metadata["stream_replay_status"] == "duplicate_skipped"
     @test replayed_first_batch.metadata["stream_replay_offset"] == 0
 
-    second_batch = process_stream_fixture_batch!(
-        service,
+    restarted_service = WorkerServiceState()
+    sync_worker_service!(restarted_service, executions)
+    @test restarted_service.stream_execution_ids[parallel_workflow.id] == first_batch.execution_id
+    second_batch = replay_stream_fixture_batch!(
+        restarted_service,
         workflows,
         executions,
-        parallel_workflow.id;
+        parallel_workflow.id,
+        first_batch.metadata["stream_checkpoint_offsets"]["committedOffset"];
         execution_record = JuliaFlowApiGateway.execution_record,
         append_execution_event = append_execution_event,
         materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        batch_size = 1,
     )
     @test second_batch.metadata["stream_processed_offset"] == 3
+    @test second_batch.metadata["stream_processed_rows"] == 3
     @test second_batch.metadata["stream_consumer_lag"] == 0
+    @test second_batch.metadata["stream_replay_status"] == "restored_from_checkpoint"
+    @test second_batch.metadata["stream_replay_offset"] == 2
     @test second_batch.metadata["stream_window_state"]["windows"][1]["start"] == 30
     second_batch_payload = JuliaFlowApiGateway.execution_payload(second_batch)
     @test second_batch_payload["streamProcessedOffset"] == 3
