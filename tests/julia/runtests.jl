@@ -71,6 +71,11 @@ end
     [runtime]
     run_mode = "batch"
 
+    [[flow_variables]]
+    name = "JULIAFLOW_GPU_DEVICE"
+    type = "GPUDeviceID"
+    default = "nvidia0"
+
     [[nodes]]
     id = "node-source"
     type = "JuliaFlow.Base.CSVReader"
@@ -143,6 +148,15 @@ end
     @test gpu_spec["dispatch_plan"][2]["worker_pool"] == "alpha-gpu"
     @test gpu_spec["dispatch_plan"][2]["isolation_mode"] == "isolated"
     @test gpu_spec["dispatch_plan"][2]["accelerator"] == "cuda"
+    @test gpu_spec["dispatch_plan"][2]["scheduler_policy"] == "deterministic_device_id"
+    @test gpu_spec["dispatch_plan"][2]["placement_reason"] == "gpu_lane_isolated_worker"
+    @test gpu_spec["dispatch_plan"][2]["requested_device"] == "nvidia0"
+    @test gpu_spec["dispatch_plan"][2]["worker_capacity"]["device_slots"] == 1
+    gpu_override = execute_workflow(
+        gpu_workflow;
+        flow_variable_values = Dict("JULIAFLOW_GPU_DEVICE" => "nvidia:1"),
+    )
+    @test gpu_override["dispatch_plan"][2]["requested_device"] == "nvidia:1"
     @test_throws ErrorException validate_workflow(invalid_workflow)
     @test_throws ErrorException execute_workflow(workflow; flow_variable_values = Dict("MISSING_VAR" => "oops"))
 end
@@ -231,6 +245,46 @@ end
     )
     service = WorkerServiceState()
     executions = GatewayExecution[]
+
+    function complete_gpu_workflow_once(workflow; registry = "mock:nvidia0")
+        withenv("JULIAFLOW_GPU_REGISTRY" => registry) do
+            local_executions = GatewayExecution[]
+            push!(
+                local_executions,
+                JuliaFlowApiGateway.materialize_execution(
+                    execute_workflow(workflow; checkpoint_tag = "cp/03-alpha-gpu-bi"),
+                ),
+            )
+            local_service = WorkerServiceState()
+            queued = activate_gpu_execution!(
+                local_service,
+                local_executions,
+                local_executions[1].execution_id;
+                execution_record = JuliaFlowApiGateway.execution_record,
+                transition_execution_record = transition_execution_record,
+                materialize_execution = JuliaFlowApiGateway.materialize_execution,
+            )
+            running = promote_gpu_execution!(
+                local_service,
+                local_executions,
+                queued.execution_id;
+                execution_record = JuliaFlowApiGateway.execution_record,
+                transition_execution_record = transition_execution_record,
+                materialize_execution = JuliaFlowApiGateway.materialize_execution,
+            )
+            completed = process_gpu_compute_tick!(
+                local_service,
+                Dict(workflow.id => workflow),
+                local_executions;
+                execution_record = JuliaFlowApiGateway.execution_record,
+                transition_execution_record = transition_execution_record,
+                materialize_execution = JuliaFlowApiGateway.materialize_execution,
+            )
+            @test running.status == "running"
+            @test length(completed) == 1
+            return queued, completed[1]
+        end
+    end
 
     push!(
         executions,
@@ -422,6 +476,10 @@ end
     @test activated_gpu.metadata["dispatch_worker_pool"] == "alpha-gpu"
     @test activated_gpu.metadata["dispatch_isolation_mode"] == "isolated"
     @test activated_gpu.metadata["dispatch_accelerator"] == "cuda"
+    @test activated_gpu.metadata["dispatch_scheduler_policy"] == "deterministic_device_id"
+    @test activated_gpu.metadata["dispatch_placement_reason"] == "gpu_lane_isolated_worker"
+    @test activated_gpu.metadata["dispatch_requested_device"] == "nvidia0"
+    @test activated_gpu.metadata["dispatch_worker_capacity"]["device_slots"] == 1
     @test startswith(activated_gpu.metadata["worker_id"], "gpu-worker-")
     @test activated_gpu.execution_id in service.gpu_execution_ids
 
@@ -448,7 +506,51 @@ end
     @test completed_gpu[1].status == "completed"
     @test completed_gpu[1].metadata["gpu_execution_path"] == "gpu"
     @test completed_gpu[1].metadata["gpu_device_id"] == "nvidia0"
+    @test completed_gpu[1].metadata["gpu_requested_device"] == "nvidia0"
+    @test completed_gpu[1].metadata["gpu_selected_device"] == "nvidia0"
+    @test completed_gpu[1].metadata["gpu_fallback_reason"] == "none"
+    @test completed_gpu[1].metadata["gpu_placement_reason"] == "requested_device_match"
+    @test completed_gpu[1].metadata["gpu_scheduler_policy"] == "deterministic_device_id"
+    @test completed_gpu[1].metadata["gpu_worker_isolation_mode"] == "isolated"
+    @test completed_gpu[1].metadata["gpu_worker_capacity"]["device_count"] == 1
     @test completed_gpu[1].metadata["gpu_workload_result"]["sum"] == 10.0
+
+    requested_gpu_workflow = load_workflow_definition_text(replace(gpu_workflow_text, "gpuDevicePreference = \"nvidia0\"" => "gpuDevicePreference = \"nvidia1\""))
+    _, requested_completed = complete_gpu_workflow_once(requested_gpu_workflow; registry = "cuda:nvidia0,cuda:nvidia1")
+    @test requested_completed.metadata["gpu_execution_path"] == "gpu"
+    @test requested_completed.metadata["gpu_requested_device"] == "nvidia1"
+    @test requested_completed.metadata["gpu_selected_device"] == "nvidia1"
+    @test requested_completed.metadata["gpu_fallback_reason"] == "none"
+    @test requested_completed.metadata["gpu_request_satisfied"] == true
+    @test requested_completed.metadata["gpu_placement_fallback_used"] == false
+
+    requested_alias_gpu_workflow = load_workflow_definition_text(replace(gpu_workflow_text, "gpuDevicePreference = \"nvidia0\"" => "gpuDevicePreference = \"nvidia:1\""))
+    _, requested_alias_completed = complete_gpu_workflow_once(requested_alias_gpu_workflow; registry = "cuda:nvidia0,cuda:nvidia1")
+    @test requested_alias_completed.metadata["gpu_requested_device"] == "nvidia:1"
+    @test requested_alias_completed.metadata["gpu_selected_device"] == "nvidia1"
+    @test requested_alias_completed.metadata["gpu_fallback_reason"] == "none"
+    @test requested_alias_completed.metadata["gpu_request_satisfied"] == true
+
+    no_request_text = replace(gpu_workflow_text, ", gpuDevicePreference = \"nvidia0\"" => "")
+    no_request_workflow = load_workflow_definition_text(no_request_text)
+    no_request_queued, no_request_completed = complete_gpu_workflow_once(no_request_workflow; registry = "cuda:nvidia2,cuda:nvidia0")
+    @test !haskey(no_request_queued.metadata, "dispatch_requested_device")
+    @test no_request_completed.metadata["gpu_selected_device"] == "nvidia0"
+    @test !haskey(no_request_completed.metadata, "gpu_requested_device")
+    @test no_request_completed.metadata["gpu_placement_reason"] == "deterministic_default"
+    @test no_request_completed.metadata["gpu_worker_capacity"]["device_count"] == 2
+
+    invalid_gpu_workflow = load_workflow_definition_text(replace(gpu_workflow_text, "gpuDevicePreference = \"nvidia0\"" => "gpuDevicePreference = \"missing-device\""))
+    _, invalid_completed = complete_gpu_workflow_once(invalid_gpu_workflow; registry = "cuda:nvidia2,cuda:nvidia0")
+    @test invalid_completed.metadata["gpu_execution_path"] == "gpu"
+    @test invalid_completed.metadata["gpu_requested_device"] == "missing-device"
+    @test invalid_completed.metadata["gpu_selected_device"] == "nvidia0"
+    @test invalid_completed.metadata["gpu_fallback_used"] == false
+    @test invalid_completed.metadata["gpu_cpu_fallback_used"] == false
+    @test invalid_completed.metadata["gpu_placement_fallback_used"] == true
+    @test invalid_completed.metadata["gpu_request_satisfied"] == false
+    @test invalid_completed.metadata["gpu_fallback_reason"] == "requested_device_unavailable"
+    @test invalid_completed.metadata["gpu_placement_reason"] == "deterministic_default_after_request_miss"
 
     withenv("JULIAFLOW_GPU_REGISTRY" => "") do
         fallback_executions = GatewayExecution[]
@@ -482,6 +584,13 @@ end
         @test length(fallback_completed) == 1
         @test fallback_completed[1].metadata["gpu_execution_path"] == "cpu_fallback"
         @test fallback_completed[1].metadata["gpu_fallback_used"] == true
+        @test fallback_completed[1].metadata["gpu_cpu_fallback_used"] == true
+        @test fallback_completed[1].metadata["gpu_placement_fallback_used"] == true
+        @test fallback_completed[1].metadata["gpu_request_satisfied"] == false
+        @test fallback_completed[1].metadata["gpu_selected_device"] == "cpu-fallback"
+        @test fallback_completed[1].metadata["gpu_fallback_reason"] == "registry_empty"
+        @test fallback_completed[1].metadata["gpu_placement_reason"] == "no_matching_gpu_device"
+        @test fallback_completed[1].metadata["gpu_worker_capacity"]["device_count"] == 0
     end
 end
 
@@ -697,8 +806,14 @@ end
         @test gpu_execution["dispatchWorkerPool"] == "alpha-gpu"
         @test gpu_execution["dispatchIsolationMode"] == "isolated"
         @test gpu_execution["dispatchAccelerator"] == "cuda"
+        @test gpu_execution["dispatchSchedulerPolicy"] == "deterministic_device_id"
+        @test gpu_execution["dispatchPlacementReason"] == "gpu_lane_isolated_worker"
+        @test gpu_execution["dispatchRequestedDevice"] == "nvidia:0"
+        @test gpu_execution["dispatchWorkerCapacity"]["device_slots"] == 1
         @test startswith(gpu_execution["workerId"], "gpu-worker-")
         @test gpu_execution["dispatchPlan"][2]["lane"] == "gpu"
+        @test gpu_execution["dispatchPlan"][2]["schedulerPolicy"] == "deterministic_device_id"
+        @test gpu_execution["dispatchPlan"][2]["requestedDevice"] == "nvidia:0"
         json_updated_workflow = JSON3.read(get_workflow_response(state, "wf-foundation"), Dict{String,Any})
         @test json_updated_workflow["name"] == "Foundation JSON Save"
         @test length(json_updated_workflow["flowVariables"]) == 2

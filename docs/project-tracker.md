@@ -18,7 +18,7 @@ Tracker always records 3 things:
 - BRD: `JuliaFlow_BRD_v1.0.docx`
 - Current target phase: `Phase 1 / Alpha`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-04-29`
+- Last updated: `2026-05-08`
 
 ## Work Done Till Date
 
@@ -1215,3 +1215,119 @@ After any meaningful job:
 - Add runtime Kafka/NATS clients after dependency/provider decision.
 - Add live broker restart and external sink transaction backend evidence once services are available.
 - Move to GPU production hardening if streaming runtime dependencies remain blocked.
+
+### GPU Production-Hardening Prep Slice (2026-05-07)
+
+### Work Done Till Date
+
+- Started the next unblocked P0 GPU lane after streaming runtime dependencies remained provider/dependency-gated.
+- Extended existing GPU dispatch/worker metadata with scheduler policy, placement reason, requested device, worker capacity, selected device, fallback reason, and worker isolation state.
+- Added deterministic multi-device placement for the no-new-dependency worker path: requested device matches are honored, no-request placement uses sorted device IDs, invalid requests select a deterministic GPU fallback with explicit reason, and empty registries retain CPU fallback.
+- Updated TypeScript contracts, OpenAPI, gateway execution payload mapping, and Julia coverage for multi-device placement and fallback metadata.
+
+### Gaps Pending
+
+- Real CUDA/KernelAbstractions kernels and device-memory operations remain pending until dependency and hardware/CI approval.
+- Runtime multi-GPU isolation guarantees remain simulated metadata, not production hardware evidence.
+- GPU P0 remains unchecked until real kernel/device-memory evidence exists.
+
+### Next Items To Implement
+
+- Run full JS/build/traceability/diff verification for this prep slice.
+- Decide CUDA/KernelAbstractions dependency and hardware/CI gate before implementing real GPU kernels.
+- Add optional bounded GPU worker smoke evidence with `JULIAFLOW_WORKER_ONCE=1 julia --project=. scripts/run-gpu-worker.jl` when local state makes it useful.
+
+### BRD Reanalysis And Next-Step Plan (2026-05-07)
+
+### Work Done Till Date
+
+- Re-read tracker, checkpoint, TODO, traceability, risk register, architecture/onboarding docs, BRD docx excerpts, and current implementation seams.
+- Saved current repo-vs-BRD next-step plan at `.omx/plans/repo-brd-next-steps-2026-05-07.md`.
+- Verified BRD traceability validator and whitespace diff check pass during planning.
+
+### Gaps Pending
+
+- Current GPU production-hardening prep slice is still uncommitted and needs full Julia/JS/build verification before new feature scope.
+- Auth live-IdP/PostgreSQL evidence, streaming live broker/sink evidence, and real CUDA/KernelAbstractions evidence remain open.
+
+### Next Items To Implement
+
+- Finish verification and review for the existing GPU prep slice.
+- If CUDA/KernelAbstractions dependency/hardware gate is approved, add a small real GPU kernel smoke path behind explicit gates.
+- If GPU/runtime dependencies remain blocked, move to unblocked P1 Hub publish/install hardening.
+
+### GPU Production-Hardening Prep Verification (2026-05-08)
+
+### Work Done Till Date
+
+- Completed full verification for the current no-new-dependency GPU production-hardening prep slice.
+- Verified Julia, JS, build, BRD traceability, whitespace, and bounded GPU worker smoke evidence.
+- Confirmed the slice remains honest: it improves deterministic placement/dispatch metadata but does not claim real CUDA/KernelAbstractions execution.
+
+### Gaps Pending
+
+- Real CUDA/KernelAbstractions kernels, device-memory operations, hardware-backed isolation, and multi-GPU scheduling evidence remain pending.
+- Auth live-IdP/PostgreSQL and streaming live broker/sink evidence remain credential/provider/dependency-gated.
+
+### Next Items To Implement
+
+- Proceed to code review for the verified GPU prep diff.
+- If review is clean and GPU dependencies/hardware are approved, plan/implement a gated real GPU kernel smoke.
+- If GPU gate remains blocked, pivot to unblocked P1 Hub publish/install hardening.
+
+### GPU Prep Review Fixes (2026-05-08)
+
+### Work Done Till Date
+
+- Addressed code-review findings for GPU requested-device alias drift and stale tracker timestamp.
+- Added canonical matching for existing GPU request formats such as `nvidia:1`, `cuda:1`, `nvidia1`, and `cuda:nvidia1`.
+- Added explicit CPU fallback, placement fallback, and request-satisfied metadata to reduce observability ambiguity.
+- Added regression coverage for flow-variable dispatch override and `nvidia:1` alias placement.
+
+### Gaps Pending
+
+- Real CUDA/KernelAbstractions kernels, device-memory operations, hardware-backed isolation, and multi-GPU scheduling evidence remain pending.
+- Contract capacity objects are still intentionally loose until real GPU backend shape is known.
+
+### Next Items To Implement
+
+- Rerun Julia/JS/build/traceability/diff verification after review fixes.
+- Rerun code review and require `APPROVE` plus architecture `CLEAR` before completing autopilot.
+- If clean, choose next lane: gated CUDA/KernelAbstractions smoke when approved, otherwise P1 Hub publish/install hardening.
+
+### GPU Prep Review Fix Verification (2026-05-08)
+
+### Work Done Till Date
+
+- Reran full verification after review fixes.
+- Evidence passed: Julia suite, npm test, npm build, BRD traceability validator, diff whitespace check, and bounded GPU worker smoke.
+
+### Gaps Pending
+
+- Real CUDA/KernelAbstractions kernel/device-memory evidence remains pending before GPU P0 completion.
+- Final code-review rerun is still required before autopilot can close clean.
+
+### Next Items To Implement
+
+- Rerun code review on the fixed diff.
+- If clean, mark autopilot complete and leave GPU P0 open for real-compute evidence.
+- If review finds remaining issues, return to planning with findings.
+
+### GPU Prep Autopilot Completion (2026-05-08)
+
+### Work Done Till Date
+
+- Completed autopilot loop for GPU production-hardening prep stabilization.
+- Code review rerun returned `APPROVE` with zero issues; architecture rerun returned `CLEAR`.
+- Final slice now includes deterministic GPU request alias matching, flow-variable dispatch override alignment, explicit CPU/placement fallback metadata, contracts/OpenAPI mapping, tests, and synced control docs.
+
+### Gaps Pending
+
+- GPU P0 remains open for real CUDA/KernelAbstractions kernel, device-memory, hardware-backed isolation, and multi-GPU scheduling evidence.
+- Auth live-IdP/PostgreSQL and streaming live broker/sink evidence remain provider/dependency-gated.
+
+### Next Items To Implement
+
+- If CUDA/KernelAbstractions dependency and hardware gate is approved, implement a small gated real GPU kernel smoke.
+- Otherwise proceed to unblocked P1 Hub publish/install hardening.
+- Keep running BRD traceability validation whenever TODO/traceability state changes.

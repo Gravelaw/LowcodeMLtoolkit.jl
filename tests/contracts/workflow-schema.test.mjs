@@ -150,6 +150,10 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchWorkerPool);
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchIsolationMode);
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchAccelerator);
+  assert.ok(schemas.GatewayExecutionRecord.properties.dispatchSchedulerPolicy);
+  assert.ok(schemas.GatewayExecutionRecord.properties.dispatchPlacementReason);
+  assert.ok(schemas.GatewayExecutionRecord.properties.dispatchRequestedDevice);
+  assert.ok(schemas.GatewayExecutionRecord.properties.dispatchWorkerCapacity);
   assert.ok(schemas.GatewayExecutionRecord.properties.workerId);
   assert.ok(schemas.GatewayExecutionRecord.properties.streamLifecycleStatus);
   assert.ok(schemas.GatewayExecutionRecord.properties.streamAdapter);
@@ -164,6 +168,16 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayExecutionRecord.properties.streamExactlyOnceStatus);
   assert.ok(schemas.GatewayExecutionRecord.properties.gpuExecutionPath);
   assert.ok(schemas.GatewayExecutionRecord.properties.gpuWorkloadResult);
+  assert.ok(schemas.GatewayExecutionRecord.properties.gpuCpuFallbackUsed);
+  assert.ok(schemas.GatewayExecutionRecord.properties.gpuPlacementFallbackUsed);
+  assert.ok(schemas.GatewayExecutionRecord.properties.gpuRequestSatisfied);
+  assert.ok(schemas.GatewayExecutionRecord.properties.gpuRequestedDevice);
+  assert.ok(schemas.GatewayExecutionRecord.properties.gpuSelectedDevice);
+  assert.ok(schemas.GatewayExecutionRecord.properties.gpuFallbackReason);
+  assert.ok(schemas.GatewayExecutionRecord.properties.gpuPlacementReason);
+  assert.ok(schemas.GatewayExecutionRecord.properties.gpuSchedulerPolicy);
+  assert.ok(schemas.GatewayExecutionRecord.properties.gpuWorkerIsolationMode);
+  assert.ok(schemas.GatewayExecutionRecord.properties.gpuWorkerCapacity);
   assert.ok(schemas.CreateCheckpointResponse.properties.checkpoint);
   assert.ok(schemas.CreateCheckpointResponse.properties.checkpointCount);
   assert.ok(schemas.HubExtensionListResponse.properties.items);

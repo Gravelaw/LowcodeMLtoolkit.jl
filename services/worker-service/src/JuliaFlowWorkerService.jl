@@ -245,18 +245,96 @@ function gpu_requested_device(workflow, execution)
     return nothing
 end
 
-function select_gpu_device(workflow, execution)
+function sorted_gpu_devices()
     devices = gpu_registry()
+    sort!(devices, by = device -> (String(device["device_id"]), String(device["accelerator"])))
+    return devices
+end
+
+function gpu_device_matches(device, requested::AbstractString)
+    device_id = String(device["device_id"])
+    accelerator = String(device["accelerator"])
+    vendor = String(get(device, "vendor", accelerator))
+    requested_value = lowercase(strip(String(requested)))
+    device_id_value = lowercase(device_id)
+    accelerator_value = lowercase(accelerator)
+    vendor_value = lowercase(vendor)
+    numeric_suffix = replace(device_id_value, r"^[A-Za-z_\-]+" => "")
+    aliases = Set([
+        device_id_value,
+        "$(accelerator_value):$(device_id_value)",
+        "$(vendor_value):$(device_id_value)",
+    ])
+    isempty(numeric_suffix) || push!(aliases, "$(accelerator_value):$(numeric_suffix)")
+    isempty(numeric_suffix) || push!(aliases, "$(vendor_value):$(numeric_suffix)")
+    requested_value in aliases && return true
+    return false
+end
+
+function gpu_device_capacity(devices)
+    return Dict{String,Any}(
+        "device_count" => length(devices),
+        "worker_device_limit" => 1,
+        "isolation_mode" => "isolated",
+        "available_device_ids" => [String(device["device_id"]) for device in devices],
+    )
+end
+
+function gpu_placement_decision(workflow, execution)
+    devices = sorted_gpu_devices()
     requested = gpu_requested_device(workflow, execution)
+    if isempty(devices)
+        return Dict{String,Any}(
+            "device" => nothing,
+            "requested_device" => requested,
+            "selected_device" => "cpu-fallback",
+            "fallback_reason" => "registry_empty",
+            "placement_reason" => "no_matching_gpu_device",
+            "scheduler_policy" => "deterministic_device_id",
+            "worker_capacity" => gpu_device_capacity(devices),
+        )
+    end
+
     if requested !== nothing
         for device in devices
-            if String(device["device_id"]) == requested
-                return device
+            if gpu_device_matches(device, requested)
+                return Dict{String,Any}(
+                    "device" => device,
+                    "requested_device" => requested,
+                    "selected_device" => String(device["device_id"]),
+                    "fallback_reason" => "none",
+                    "placement_reason" => "requested_device_match",
+                    "scheduler_policy" => "deterministic_device_id",
+                    "worker_capacity" => gpu_device_capacity(devices),
+                )
             end
         end
+        device = devices[1]
+        return Dict{String,Any}(
+            "device" => device,
+            "requested_device" => requested,
+            "selected_device" => String(device["device_id"]),
+            "fallback_reason" => "requested_device_unavailable",
+            "placement_reason" => "deterministic_default_after_request_miss",
+            "scheduler_policy" => "deterministic_device_id",
+            "worker_capacity" => gpu_device_capacity(devices),
+        )
     end
-    isempty(devices) && return nothing
-    return devices[1]
+
+    device = devices[1]
+    return Dict{String,Any}(
+        "device" => device,
+        "requested_device" => nothing,
+        "selected_device" => String(device["device_id"]),
+        "fallback_reason" => "none",
+        "placement_reason" => "deterministic_default",
+        "scheduler_policy" => "deterministic_device_id",
+        "worker_capacity" => gpu_device_capacity(devices),
+    )
+end
+
+function select_gpu_device(workflow, execution)
+    return gpu_placement_decision(workflow, execution)["device"]
 end
 
 function gpu_workload_config(workflow)
@@ -292,16 +370,29 @@ end
 
 function gpu_runtime_metadata(workflow, execution)
     registry = gpu_registry_health()
-    device = select_gpu_device(workflow, execution)
+    placement = gpu_placement_decision(workflow, execution)
+    device = placement["device"]
     result = execute_gpu_workload(workflow, execution)
     path = device === nothing ? "cpu_fallback" : "gpu"
+    request_satisfied = placement["requested_device"] === nothing || String(placement["fallback_reason"]) == "none"
+    placement_fallback_used = placement["requested_device"] !== nothing && !request_satisfied
     metadata = Dict{String,Any}(
         "gpu_registry" => registry,
         "gpu_execution_path" => path,
         "gpu_workload" => String(result["kind"]),
         "gpu_workload_result" => result,
         "gpu_fallback_used" => device === nothing,
+        "gpu_cpu_fallback_used" => device === nothing,
+        "gpu_placement_fallback_used" => placement_fallback_used,
+        "gpu_request_satisfied" => request_satisfied,
+        "gpu_selected_device" => String(placement["selected_device"]),
+        "gpu_fallback_reason" => String(placement["fallback_reason"]),
+        "gpu_placement_reason" => String(placement["placement_reason"]),
+        "gpu_scheduler_policy" => String(placement["scheduler_policy"]),
+        "gpu_worker_isolation_mode" => "isolated",
+        "gpu_worker_capacity" => placement["worker_capacity"],
     )
+    placement["requested_device"] === nothing || (metadata["gpu_requested_device"] = String(placement["requested_device"]))
     if device === nothing
         metadata["gpu_device_id"] = "cpu-fallback"
         metadata["gpu_accelerator"] = "cpu"
@@ -394,9 +485,13 @@ function gpu_dispatch_metadata(execution)
         "dispatch_lane" => "gpu",
         "dispatch_worker_pool" => String(get(dispatch, "worker_pool", "alpha-gpu")),
         "dispatch_isolation_mode" => String(get(dispatch, "isolation_mode", "isolated")),
+        "dispatch_scheduler_policy" => String(get(dispatch, "scheduler_policy", "deterministic_device_id")),
+        "dispatch_placement_reason" => String(get(dispatch, "placement_reason", "gpu_lane_isolated_worker")),
+        "dispatch_worker_capacity" => get(dispatch, "worker_capacity", Dict{String,Any}("concurrency" => 1, "device_slots" => 1)),
         "worker_id" => "gpu-worker-" * execution.execution_id[1:8],
     )
     haskey(dispatch, "accelerator") && (metadata["dispatch_accelerator"] = String(dispatch["accelerator"]))
+    haskey(dispatch, "requested_device") && (metadata["dispatch_requested_device"] = String(dispatch["requested_device"]))
     return metadata
 end
 

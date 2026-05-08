@@ -569,11 +569,19 @@ export interface GatewayExecutionRecord {
     workerPool: string;
     isolationMode: "shared" | "isolated";
     accelerator?: "cuda";
+    schedulerPolicy?: "deterministic_device_id" | "shared_cpu" | string;
+    placementReason?: string;
+    requestedDevice?: string;
+    workerCapacity?: Record<string, unknown>;
   }>;
   dispatchLane?: WorkflowResourceClass;
   dispatchWorkerPool?: string;
   dispatchIsolationMode?: "shared" | "isolated";
   dispatchAccelerator?: "cuda";
+  dispatchSchedulerPolicy?: "deterministic_device_id" | "shared_cpu" | string;
+  dispatchPlacementReason?: string;
+  dispatchRequestedDevice?: string;
+  dispatchWorkerCapacity?: Record<string, unknown>;
   workerId?: string;
   streamLifecycleStatus?: StreamLifecycleStatus;
   streamAdapter?: "fixture" | "kafka" | "none" | string;
@@ -604,6 +612,9 @@ export interface GatewayExecutionRecord {
   gpuAccelerator?: string;
   gpuVendor?: string;
   gpuFallbackUsed?: boolean;
+  gpuCpuFallbackUsed?: boolean;
+  gpuPlacementFallbackUsed?: boolean;
+  gpuRequestSatisfied?: boolean;
   gpuWorkload?: string;
   gpuWorkloadResult?: Record<string, unknown>;
   gpuRegistry?: {
@@ -611,6 +622,13 @@ export interface GatewayExecutionRecord {
     devices: Array<Record<string, unknown>>;
     fallback_available: boolean;
   };
+  gpuRequestedDevice?: string;
+  gpuSelectedDevice?: string;
+  gpuFallbackReason?: "none" | "registry_empty" | "requested_device_unavailable" | string;
+  gpuPlacementReason?: string;
+  gpuSchedulerPolicy?: "deterministic_device_id" | string;
+  gpuWorkerIsolationMode?: "isolated" | string;
+  gpuWorkerCapacity?: Record<string, unknown>;
 }
 
 export interface GatewayListResponse<TItem> {

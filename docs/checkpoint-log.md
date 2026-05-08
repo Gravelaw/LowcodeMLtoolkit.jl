@@ -1251,3 +1251,129 @@ Each checkpoint entry must contain:
 - Add runtime Kafka/NATS clients after dependency/provider decision.
 - Add live broker restart and external sink transaction backend evidence once services are available.
 - Move to GPU production hardening if streaming runtime dependencies remain blocked.
+
+---
+
+## Checkpoint: GPU Production-Hardening Prep Slice — 2026-05-07
+
+### Work Done Till Date
+
+- Added no-new-dependency GPU placement/dispatch metadata for deterministic multi-device scheduling prep.
+- Worker runtime now records requested device, selected device, fallback reason, placement reason, scheduler policy, worker isolation mode, and capacity metadata.
+- Invalid requested devices fall back to deterministic GPU placement with explicit reason; CPU fallback remains reserved for empty GPU registry/no matching device availability.
+- Contracts/OpenAPI/gateway mapping and Julia tests were updated for the metadata shape.
+
+### Gaps Pending
+
+- Real CUDA/KernelAbstractions kernels, device-memory operations, and hardware-backed multi-GPU isolation remain pending.
+- CUDA/KernelAbstractions dependency and hardware/CI approval are still required before checking P0 GPU production hardening complete.
+
+### Next Items To Implement
+
+- Complete full verification: Julia suite, npm test/build, BRD traceability validator, and diff whitespace check.
+- If GPU dependencies/hardware are approved, implement a small real kernel/device-memory smoke path behind explicit gates.
+- Otherwise keep GPU production-hardening P0 open and move to other unblocked P1/P2 hardening.
+
+---
+
+## Checkpoint: BRD Reanalysis And Next-Step Plan — 2026-05-07
+
+### Work Done Till Date
+
+- Compared BRD/control docs/checkpoints against current implementation and uncommitted GPU prep state.
+- Saved next-step plan at `.omx/plans/repo-brd-next-steps-2026-05-07.md`.
+- Confirmed `npm run validate:brd-traceability` and `git diff --check` pass during planning.
+
+### Gaps Pending
+
+- Existing GPU prep slice still needs full Julia, JS, build, traceability, and review evidence before further scope.
+- Auth live-IdP/PostgreSQL, streaming live broker/sink, and real CUDA/KernelAbstractions evidence remain open.
+
+### Next Items To Implement
+
+- Complete verification/review for GPU production-hardening prep.
+- Decide whether to proceed to gated CUDA/KernelAbstractions smoke or pivot to unblocked P1 Hub hardening.
+- Keep P0 TODO items unchecked until traceability has live/provider/hardware evidence.
+
+---
+
+## Checkpoint: GPU Production-Hardening Prep Verification — 2026-05-08
+
+### Work Done Till Date
+
+- Completed full verification for the no-new-dependency GPU placement/dispatch prep slice.
+- Evidence passed: `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:brd-traceability`, `git diff --check`, and bounded `JULIAFLOW_WORKER_ONCE=1 julia --project=. scripts/run-gpu-worker.jl` smoke.
+- Kept GPU P0 open because this is still metadata/mock-worker prep, not real CUDA/KernelAbstractions compute evidence.
+
+### Gaps Pending
+
+- Real CUDA/KernelAbstractions kernels, device-memory operations, hardware-backed isolation, and multi-GPU scheduling evidence remain pending.
+- Auth live-IdP/PostgreSQL and streaming live broker/sink evidence remain credential/provider/dependency-gated.
+
+### Next Items To Implement
+
+- Complete code review for the verified GPU prep diff.
+- If review is clean, choose next lane: gated CUDA/KernelAbstractions smoke when approved, otherwise P1 Hub publish/install hardening.
+- Keep P0 TODO items unchecked until traceability has live/provider/hardware evidence.
+
+---
+
+## Checkpoint: GPU Prep Review Fixes — 2026-05-08
+
+### Work Done Till Date
+
+- Fixed review-found GPU requested-device alias drift and tracker timestamp.
+- Added explicit GPU CPU-fallback, placement-fallback, and request-satisfied metadata so observability can distinguish CPU fallback from deterministic GPU placement fallback.
+- Added regression coverage for flow-variable dispatch override and `nvidia:1` request alias placement.
+
+### Gaps Pending
+
+- Real CUDA/KernelAbstractions kernel/device-memory evidence remains pending before GPU P0 completion.
+- Capacity schema can be hardened when the real GPU backend shape is known.
+
+### Next Items To Implement
+
+- Rerun full verification after review fixes.
+- Rerun code review and complete autopilot only on `APPROVE` plus architecture `CLEAR`.
+- Keep GPU P0 unchecked until real GPU evidence exists.
+
+---
+
+## Checkpoint: GPU Prep Review Fix Verification — 2026-05-08
+
+### Work Done Till Date
+
+- Reran full verification after review fixes.
+- Evidence passed: `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:brd-traceability`, `git diff --check`, and bounded `JULIAFLOW_WORKER_ONCE=1 julia --project=. scripts/run-gpu-worker.jl` smoke.
+
+### Gaps Pending
+
+- Real CUDA/KernelAbstractions kernel/device-memory evidence remains pending before GPU P0 completion.
+- Final code-review rerun is still required before autopilot completion.
+
+### Next Items To Implement
+
+- Rerun code review on the fixed diff.
+- If clean, close autopilot with verification evidence.
+- Keep GPU P0 unchecked until real GPU evidence exists.
+
+---
+
+## Checkpoint: GPU Prep Autopilot Completion — 2026-05-08
+
+### Work Done Till Date
+
+- Completed `$autopilot` loop for GPU production-hardening prep stabilization.
+- Final verification passed: Julia suite, npm test, npm build, BRD traceability validator, diff whitespace check, bounded GPU worker smoke.
+- Final code review passed with `APPROVE`; architecture review passed with `CLEAR`.
+
+### Gaps Pending
+
+- Real CUDA/KernelAbstractions kernel/device-memory/hardware evidence remains required before checking GPU P0 complete.
+- Auth live-IdP/PostgreSQL and streaming live broker/sink evidence remain provider/dependency-gated.
+
+### Next Items To Implement
+
+- Choose next lane: gated CUDA/KernelAbstractions smoke if approved, otherwise P1 Hub publish/install hardening.
+- Preserve no-new-dependency fallback paths and honest P0 traceability.
+- Commit/push only when requested or when delivery scope includes GitHub handoff.

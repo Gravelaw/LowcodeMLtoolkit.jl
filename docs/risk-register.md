@@ -1,13 +1,13 @@
 # JuliaFlow Risk Register
 
-Last updated: 2026-05-07
+Last updated: 2026-05-08
 
 This register tracks active BRD delivery risks that should be burned down through thin, verified slices. It complements `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md`.
 
 ## Current Risk Focus
 
-Next implementation lane: streaming production hardening.
-Near-term burn-down target: `R-STREAM-001` while auth live-IdP/PostgreSQL evidence remains credential-gated.
+Next implementation lane: GPU real-compute decision/gated smoke if CUDA/KernelAbstractions dependency and hardware approval exists; otherwise unblocked P1 Hub publish/install hardening.
+Near-term burn-down target: `R-GPU-001` after no-new-dependency GPU placement prep passed local verification; auth live-IdP/PostgreSQL, streaming Kafka/NATS, and live sink evidence remain credential/dependency-gated.
 
 | ID | Area | Risk | Impact | Likelihood | Mitigation | Next Evidence | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -16,7 +16,7 @@ Near-term burn-down target: `R-STREAM-001` while auth live-IdP/PostgreSQL eviden
 | R-SEC-003 | RBAC persistence | Users/workspaces/roles/resource policies drift between contracts, file repo, and PostgreSQL-ready shapes. | Authorization behavior becomes inconsistent across storage backends. | Medium | Auth policy DTOs, file-backed persistence, PostgreSQL schema-ready tables, route enforcement, read-only Settings visibility, editable Settings role/resource-policy mutation UX, persisted user/workspace directory admin UX, active directory runtime enforcement, and directory self-lockout guard now exist. | Add PostgreSQL integration runtime evidence when DB credentials are available. | Partially mitigated |
 | R-SEC-004 | Audit privacy | Audit query/admin UI leaks raw tokens, headers, or sensitive payload data. | Security/privacy incident risk. | Medium | Bounded redacted audit action query API exists; Settings now shows audit/policy/directory visibility, editable policy/directory mutations, and frontend tests cover redacted audit rendering plus update payloads without exposing secrets. | Broader local security review is complete; keep external IdP/PG smoke evidence before P0 completion. | Mitigated for policy/directory admin UI |
 | R-STREAM-001 | Streaming | Kafka/NATS replay and exactly-once proof are not production-grade beyond fixture/window/checkpoint MVP. | Streaming P0 cannot be claimed complete. | Medium | Fixture duplicate-replay suppression, committed offsets, idempotency keys, sink transaction IDs/state, Kafka/NATS adapter contract metadata, fixture restart replay from persisted committed offsets, and policy-aware monotonic watermark state now have Julia/contract coverage. | Add runtime Kafka/NATS clients and live external sink transaction backend evidence; live broker restart proof remains dependency/provider-gated. | Partially mitigated |
-| R-GPU-001 | GPU | Real CUDA/KernelAbstractions kernels need hardware/dependency validation beyond mock worker execution. | GPU P0 remains demo-grade. | Medium | Keep CPU fallback; add bounded kernel abstraction tests and optional hardware smoke path guarded by env. | CUDA/KA smoke evidence or skipped-hardware test contract with CPU fallback proof. | Open |
+| R-GPU-001 | GPU | Real CUDA/KernelAbstractions kernels need hardware/dependency validation beyond mock worker execution. | GPU P0 remains demo-grade. | Medium | CPU fallback remains available; no-new-dependency prep now records deterministic placement, requested/selected device, fallback reason, scheduler policy, and worker isolation/capacity metadata with Julia/contract evidence plus full local verification and bounded GPU-worker smoke. | CUDA/KA smoke evidence or skipped-hardware test contract with CPU fallback proof after dependency/hardware approval. | Partially mitigated |
 | R-OBJ-001 | Object storage | Provider-specific S3/GCS/Azure deployments and credentials are not proven despite provider-neutral remote adapter. | Production cloud materialization claim remains incomplete for real providers. | Medium | Treat provider deployment as hardening; add target-provider config and credential test only when provider is selected. | Provider-specific integration fixture or deployment manifest evidence. | Open |
 | R-HUB-001 | Hub | Partner package sandboxing, artifact hashes, private/offline mirrors, and publish UX remain incomplete. | Governed Hub install/publish remains alpha. | Medium | Keep trust-policy gates; add hash verification, sandbox command fixtures, and private mirror tests in P1 lane. | Hub publish/install tests with hash, sandbox, and offline mirror fixtures. | Open |
 
@@ -24,6 +24,6 @@ Near-term burn-down target: `R-STREAM-001` while auth live-IdP/PostgreSQL eviden
 
 1. Production OIDC/RBAC: `R-SEC-001` to `R-SEC-004`.
 2. Streaming production hardening: `R-STREAM-001`.
-3. GPU production hardening: `R-GPU-001`.
+3. GPU production hardening: `R-GPU-001` real CUDA/KernelAbstractions slice after dependency/hardware gate.
 4. Provider-specific object-store deployment: `R-OBJ-001` once provider/credential target exists.
 5. Hub publish/install hardening: `R-HUB-001` in P1.

@@ -704,6 +704,31 @@ function lane_accelerator(workflow::WorkflowDefinition, lane::Symbol)
     return "cuda"
 end
 
+function lane_requested_device(workflow::WorkflowDefinition, lane::Symbol)
+    lane == :gpu || return nothing
+    for node in workflow.nodes
+        node_resource_class(node) == :gpu || continue
+        haskey(node.config, "gpuDevicePreference") || continue
+        return String(node.config["gpuDevicePreference"])
+    end
+    return nothing
+end
+
+function lane_scheduler_policy(lane::Symbol)
+    return lane == :gpu ? "deterministic_device_id" : "shared_cpu"
+end
+
+function lane_placement_reason(lane::Symbol)
+    return lane == :gpu ? "gpu_lane_isolated_worker" : "cpu_lane_shared_worker"
+end
+
+function lane_worker_capacity(lane::Symbol)
+    if lane == :gpu
+        return Dict{String,Any}("concurrency" => 1, "device_slots" => 1)
+    end
+    return Dict{String,Any}("concurrency" => 0, "device_slots" => 0)
+end
+
 function build_resource_plan(workflow::WorkflowDefinition)
     lanes = Dict(:cpu => String[], :gpu => String[])
     for node in workflow.nodes
@@ -730,9 +755,14 @@ function build_dispatch_plan(workflow::WorkflowDefinition)
             "node_ids" => get(lane_entry, "node_ids", String[]),
             "worker_pool" => lane_worker_pool(workflow, lane),
             "isolation_mode" => lane == :gpu ? "isolated" : "shared",
+            "scheduler_policy" => lane_scheduler_policy(lane),
+            "placement_reason" => lane_placement_reason(lane),
+            "worker_capacity" => lane_worker_capacity(lane),
         )
         accelerator = lane_accelerator(workflow, lane)
         accelerator === nothing || (entry["accelerator"] = accelerator)
+        requested_device = lane_requested_device(workflow, lane)
+        requested_device === nothing || (entry["requested_device"] = requested_device)
         push!(dispatch_plan, entry)
     end
 
@@ -744,6 +774,17 @@ function execution_mode(workflow::WorkflowDefinition)
     any(node_resource_class(node) == :gpu for node in workflow.nodes) || return "$(run_mode)_cpu"
     any(node.execution_hint == :gpu_required for node in workflow.nodes) && return "$(run_mode)_gpu_required"
     return "$(run_mode)_gpu_preferred"
+end
+
+function apply_gpu_request_override!(job::Dict{String,Any}, flow_variable_values::AbstractDict{<:Any,<:Any})
+    haskey(flow_variable_values, "JULIAFLOW_GPU_DEVICE") || return job
+    requested_device = String(flow_variable_values["JULIAFLOW_GPU_DEVICE"])
+    for entry in get(job, "dispatch_plan", Any[])
+        entry isa AbstractDict || continue
+        String(get(entry, "lane", "")) == "gpu" || continue
+        entry["requested_device"] = requested_device
+    end
+    return job
 end
 
 function is_stream_workflow(workflow::WorkflowDefinition)
@@ -781,6 +822,7 @@ function execute_workflow(
     job = serialize_job_spec(workflow; checkpoint_tag = checkpoint_tag)
     validated_values = validate_flow_variable_values(workflow, flow_variable_values)
     isempty(validated_values) || (job["flow_variables"] = validated_values)
+    apply_gpu_request_override!(job, validated_values)
     execution_mode_override === nothing || (job["requested_execution_mode"] = String(execution_mode_override))
     return job
 end

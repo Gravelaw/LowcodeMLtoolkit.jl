@@ -395,8 +395,11 @@ function execution_payload(execution::GatewayExecution)
                     ) for item in value
                 ]
                 for (index, item) in enumerate(value)
-                    haskey(item, "accelerator") || continue
-                    payload["dispatchPlan"][index]["accelerator"] = String(item["accelerator"])
+                    haskey(item, "accelerator") && (payload["dispatchPlan"][index]["accelerator"] = String(item["accelerator"]))
+                    haskey(item, "scheduler_policy") && (payload["dispatchPlan"][index]["schedulerPolicy"] = String(item["scheduler_policy"]))
+                    haskey(item, "placement_reason") && (payload["dispatchPlan"][index]["placementReason"] = String(item["placement_reason"]))
+                    haskey(item, "requested_device") && (payload["dispatchPlan"][index]["requestedDevice"] = String(item["requested_device"]))
+                    haskey(item, "worker_capacity") && (payload["dispatchPlan"][index]["workerCapacity"] = item["worker_capacity"])
                 end
             elseif string_key == "stream_lifecycle_status"
                 payload["streamLifecycleStatus"] = String(value)
@@ -446,6 +449,14 @@ function execution_payload(execution::GatewayExecution)
                 payload["dispatchIsolationMode"] = String(value)
             elseif string_key == "dispatch_accelerator"
                 payload["dispatchAccelerator"] = String(value)
+            elseif string_key == "dispatch_scheduler_policy"
+                payload["dispatchSchedulerPolicy"] = String(value)
+            elseif string_key == "dispatch_placement_reason"
+                payload["dispatchPlacementReason"] = String(value)
+            elseif string_key == "dispatch_requested_device"
+                payload["dispatchRequestedDevice"] = String(value)
+            elseif string_key == "dispatch_worker_capacity"
+                payload["dispatchWorkerCapacity"] = value
             elseif string_key == "worker_id"
                 payload["workerId"] = String(value)
             elseif string_key == "gpu_execution_path"
@@ -458,12 +469,32 @@ function execution_payload(execution::GatewayExecution)
                 payload["gpuVendor"] = String(value)
             elseif string_key == "gpu_fallback_used"
                 payload["gpuFallbackUsed"] = Bool(value)
+            elseif string_key == "gpu_cpu_fallback_used"
+                payload["gpuCpuFallbackUsed"] = Bool(value)
+            elseif string_key == "gpu_placement_fallback_used"
+                payload["gpuPlacementFallbackUsed"] = Bool(value)
+            elseif string_key == "gpu_request_satisfied"
+                payload["gpuRequestSatisfied"] = Bool(value)
             elseif string_key == "gpu_workload"
                 payload["gpuWorkload"] = String(value)
             elseif string_key == "gpu_workload_result"
                 payload["gpuWorkloadResult"] = value
             elseif string_key == "gpu_registry"
                 payload["gpuRegistry"] = value
+            elseif string_key == "gpu_requested_device"
+                payload["gpuRequestedDevice"] = String(value)
+            elseif string_key == "gpu_selected_device"
+                payload["gpuSelectedDevice"] = String(value)
+            elseif string_key == "gpu_fallback_reason"
+                payload["gpuFallbackReason"] = String(value)
+            elseif string_key == "gpu_placement_reason"
+                payload["gpuPlacementReason"] = String(value)
+            elseif string_key == "gpu_scheduler_policy"
+                payload["gpuSchedulerPolicy"] = String(value)
+            elseif string_key == "gpu_worker_isolation_mode"
+                payload["gpuWorkerIsolationMode"] = String(value)
+            elseif string_key == "gpu_worker_capacity"
+                payload["gpuWorkerCapacity"] = value
             else
                 payload[string_key] = value
             end
@@ -605,6 +636,10 @@ function gateway_execution(item)
                         "isolation_mode" => String(get(item, "isolationMode", "shared")),
                     )
                     haskey(item, "accelerator") && (entry["accelerator"] = String(item["accelerator"]))
+                    haskey(item, "schedulerPolicy") && (entry["scheduler_policy"] = String(item["schedulerPolicy"]))
+                    haskey(item, "placementReason") && (entry["placement_reason"] = String(item["placementReason"]))
+                    haskey(item, "requestedDevice") && (entry["requested_device"] = String(item["requestedDevice"]))
+                    haskey(item, "workerCapacity") && (entry["worker_capacity"] = item["workerCapacity"])
                     entry
                 end for item in value
             ]
@@ -656,6 +691,14 @@ function gateway_execution(item)
             metadata["dispatch_isolation_mode"] = value
         elseif string_key == "dispatchAccelerator"
             metadata["dispatch_accelerator"] = value
+        elseif string_key == "dispatchSchedulerPolicy"
+            metadata["dispatch_scheduler_policy"] = value
+        elseif string_key == "dispatchPlacementReason"
+            metadata["dispatch_placement_reason"] = value
+        elseif string_key == "dispatchRequestedDevice"
+            metadata["dispatch_requested_device"] = value
+        elseif string_key == "dispatchWorkerCapacity"
+            metadata["dispatch_worker_capacity"] = value
         elseif string_key == "workerId"
             metadata["worker_id"] = value
         elseif string_key == "gpuExecutionPath"
@@ -668,12 +711,32 @@ function gateway_execution(item)
             metadata["gpu_vendor"] = value
         elseif string_key == "gpuFallbackUsed"
             metadata["gpu_fallback_used"] = value
+        elseif string_key == "gpuCpuFallbackUsed"
+            metadata["gpu_cpu_fallback_used"] = value
+        elseif string_key == "gpuPlacementFallbackUsed"
+            metadata["gpu_placement_fallback_used"] = value
+        elseif string_key == "gpuRequestSatisfied"
+            metadata["gpu_request_satisfied"] = value
         elseif string_key == "gpuWorkload"
             metadata["gpu_workload"] = value
         elseif string_key == "gpuWorkloadResult"
             metadata["gpu_workload_result"] = value
         elseif string_key == "gpuRegistry"
             metadata["gpu_registry"] = value
+        elseif string_key == "gpuRequestedDevice"
+            metadata["gpu_requested_device"] = value
+        elseif string_key == "gpuSelectedDevice"
+            metadata["gpu_selected_device"] = value
+        elseif string_key == "gpuFallbackReason"
+            metadata["gpu_fallback_reason"] = value
+        elseif string_key == "gpuPlacementReason"
+            metadata["gpu_placement_reason"] = value
+        elseif string_key == "gpuSchedulerPolicy"
+            metadata["gpu_scheduler_policy"] = value
+        elseif string_key == "gpuWorkerIsolationMode"
+            metadata["gpu_worker_isolation_mode"] = value
+        elseif string_key == "gpuWorkerCapacity"
+            metadata["gpu_worker_capacity"] = value
         else
             metadata[string_key] = value
         end

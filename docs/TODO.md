@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-07
+Last updated: 2026-05-08
 Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
 Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/plans/repo-brd-endgame-2026-04-25.md`; prior auth-hardening plan: `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
 
@@ -20,7 +20,7 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 12. [x] Streaming fixture/window/checkpoint MVP: fixture adapter batches, bounded policy batches, window summaries, lag/backpressure/watermark diagnostics, checkpoint offsets.
 13. [ ] Streaming production hardening: fixture replay duplicate suppression, committed-offset metadata, idempotency keys, sink transaction IDs/state, Kafka/NATS adapter contract metadata, durable fixture restart replay from persisted committed offsets, and policy-aware monotonic watermark state are implemented; runtime Kafka/NATS clients and live external sink transaction backend evidence remain.
 14. [x] GPU execution MVP: hardware registry summary, mock GPU workload execution, CPU fallback, worker execution beyond status promotion.
-15. [ ] GPU production hardening: real CUDA/KernelAbstractions kernels, device memory ops, worker isolation guarantees, and multi-GPU scheduling.
+15. [ ] GPU production hardening: deterministic multi-device placement metadata, requested/selected device reporting, explicit fallback reasons, scheduler policy, and worker isolation/capacity metadata are implemented as no-new-dependency prep; real CUDA/KernelAbstractions kernels, device memory ops, hardware-backed worker isolation, and multi-GPU scheduling evidence remain pending.
 
 ## P1 — Next Alpha Hardening
 
@@ -82,3 +82,7 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 - 2026-05-07: Streaming restart replay slice proves fixture worker recovery by syncing a fresh worker service from persisted executions and replaying from the committed checkpoint offset without reprocessing prior rows; runtime Kafka/NATS clients, production watermarking, and external sink transactions remain before P0 item 13 can be checked.
 
 - 2026-05-07: Streaming watermark/transaction state slice honors processing-time vs event-time watermark policy with monotonic committed watermark metadata, exposes gateway/contract fields, and records fenced sink transaction state with Julia/contract coverage; runtime Kafka/NATS clients and live external sink backend evidence remain before P0 item 13 can be checked.
+
+- 2026-05-07: GPU production-hardening prep adds deterministic multi-device placement metadata, requested/selected device reporting, explicit fallback reasons, scheduler policy, worker isolation/capacity metadata, contract/OpenAPI fields, and Julia coverage; P0 item 15 remains unchecked until real CUDA/KernelAbstractions kernel and device-memory evidence exists.
+
+- 2026-05-08: Full verification for GPU production-hardening prep passed (`julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:brd-traceability`, `git diff --check`) plus bounded `JULIAFLOW_WORKER_ONCE=1` GPU worker smoke; P0 item 15 remains unchecked until real CUDA/KernelAbstractions kernel and device-memory evidence exists.

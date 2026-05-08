@@ -1627,7 +1627,40 @@
           "dispatchPlan": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "object",
+              "properties": {
+                "lane": {
+                  "type": "string"
+                },
+                "nodeIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "workerPool": {
+                  "type": "string"
+                },
+                "isolationMode": {
+                  "type": "string"
+                },
+                "accelerator": {
+                  "type": "string"
+                },
+                "schedulerPolicy": {
+                  "type": "string"
+                },
+                "placementReason": {
+                  "type": "string"
+                },
+                "requestedDevice": {
+                  "type": "string"
+                },
+                "workerCapacity": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
             }
           },
           "dispatchLane": {
@@ -1714,6 +1747,15 @@
           "gpuFallbackUsed": {
             "type": "boolean"
           },
+          "gpuCpuFallbackUsed": {
+            "type": "boolean"
+          },
+          "gpuPlacementFallbackUsed": {
+            "type": "boolean"
+          },
+          "gpuRequestSatisfied": {
+            "type": "boolean"
+          },
           "gpuWorkload": {
             "type": "string"
           },
@@ -1748,6 +1790,41 @@
             "type": "integer"
           },
           "streamAdapterContract": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "dispatchSchedulerPolicy": {
+            "type": "string"
+          },
+          "dispatchPlacementReason": {
+            "type": "string"
+          },
+          "dispatchRequestedDevice": {
+            "type": "string"
+          },
+          "dispatchWorkerCapacity": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "gpuRequestedDevice": {
+            "type": "string"
+          },
+          "gpuSelectedDevice": {
+            "type": "string"
+          },
+          "gpuFallbackReason": {
+            "type": "string"
+          },
+          "gpuPlacementReason": {
+            "type": "string"
+          },
+          "gpuSchedulerPolicy": {
+            "type": "string"
+          },
+          "gpuWorkerIsolationMode": {
+            "type": "string"
+          },
+          "gpuWorkerCapacity": {
             "type": "object",
             "additionalProperties": true
           }
