@@ -18,7 +18,7 @@ Tracker always records 3 things:
 - BRD: `JuliaFlow_BRD_v1.0.docx`
 - Current target phase: `Phase 1 / Alpha`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-05-08`
+- Last updated: `2026-05-09`
 
 ## Work Done Till Date
 
@@ -1331,3 +1331,42 @@ After any meaningful job:
 - If CUDA/KernelAbstractions dependency and hardware gate is approved, implement a small gated real GPU kernel smoke.
 - Otherwise proceed to unblocked P1 Hub publish/install hardening.
 - Keep running BRD traceability validation whenever TODO/traceability state changes.
+
+---
+
+## Update: Hub Publish/Install Hardening — 2026-05-09
+
+### Work Done Till Date
+
+- Closed P1 Hub publish/install hardening for Alpha metadata depth.
+- Added Hub manifest artifact hashes, compatibility sandbox command metadata, and private/offline mirror refs across TS contracts, OpenAPI, Julia gateway/repository persistence, and frontend Hub UI.
+- Added partner trust/compatibility blockers for missing/invalid SHA-256-shaped artifact hashes, missing sandbox command, and invalid mirror schemes.
+- Added frontend publish sample UX for a private mirror extension and gateway registration roundtrip coverage.
+
+### Gaps Pending
+
+- Future Hub production depth still needs actual sandbox command execution, downloaded artifact hash verification, real private registry mirror smoke, and marketplace rating/search/governance workflows.
+- P0 external gates remain: live IdP/PostgreSQL evidence, Kafka/NATS/live sink evidence, and real CUDA/KernelAbstractions hardware evidence.
+
+### Next Items To Implement
+
+- If no external providers/hardware are approved, proceed to P1 components/control-flow contracts or observability/perf gates.
+- If approval arrives, prioritize real CUDA/KernelAbstractions smoke or live provider evidence for the remaining P0 items.
+
+### Hub Hardening Review Fix Completion (2026-05-09)
+
+### Work Done Till Date
+
+- Review follow-up completed for Hub publish/install hardening.
+- Hardened lifecycle gates, all-publisher artifact hash enforcement, manifest shape handling, local-file mirror rejection, and enabled-extension disable parity.
+- Verification passed after fixes: `npm run test`, `julia --project=. tests/julia/runtests.jl`, `npm run build`, `npm run validate:brd-traceability`, and `git diff --check`.
+
+### Gaps Pending
+
+- Hub still needs future production-depth sandbox execution and artifact download verification.
+- Remaining P0 gates require external providers/hardware.
+
+### Next Items To Implement
+
+- Commit Hub hardening slice.
+- Proceed to P1 components/control-flow contracts or observability/perf gates if no external gate opens.

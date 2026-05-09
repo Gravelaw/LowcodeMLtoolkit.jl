@@ -21,6 +21,8 @@ import {
   type GatewayHealthcheck,
   type GatewayHubExtensionRecord,
   type GatewayHubInstallRequest,
+  type GatewayHubRegisterRequest,
+  type HubExtensionManifest,
   type GatewayNodeStateChangedEvent,
   type GatewayRealtimeNotification,
   type GatewayWorkflowMetadata,
@@ -343,7 +345,10 @@ const demoHubExtensions: GatewayHubExtensionRecord[] = [
       supportedCheckpoints: ["cp/02-alpha-core", "cp/03-alpha-gpu-bi"],
       compatibleCheckpoints: ["cp/02-alpha-core", "cp/03-alpha-gpu-bi"],
       dependencies: [],
-      publisherIdentity: "official:juliaflow"
+      publisherIdentity: "official:juliaflow",
+      artifactHashes: { package: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+      compatibilitySandboxCommand: "julia --project=. extensions/base/test/runtests.jl",
+      mirrorRefs: ["mirror://official/juliaflow-base"]
     },
     installState: "enabled",
     compatibility: {
@@ -383,7 +388,10 @@ const demoHubExtensions: GatewayHubExtensionRecord[] = [
       supportedCheckpoints: ["cp/03-alpha-gpu-bi"],
       compatibleCheckpoints: ["cp/03-alpha-gpu-bi"],
       dependencies: [],
-      publisherIdentity: "partner:ops-preview"
+      publisherIdentity: "partner:ops-preview",
+      artifactHashes: { package: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+      compatibilitySandboxCommand: "julia --project=. extensions/ops-preview/test/runtests.jl",
+      mirrorRefs: ["mirror://offline/ops-preview"]
     },
     installState: "upgrade_available",
     compatibility: {
@@ -1296,6 +1304,40 @@ function getHubUpgrade(extension: GatewayHubExtensionRecord) {
     upgradeAvailable: false,
     latestVersion: extension.manifest.version,
     evaluatedAt: ""
+  };
+}
+
+function hubActionBlocked(extension: GatewayHubExtensionRecord) {
+  if (extension.installState === "enabled") {
+    return false;
+  }
+  return (
+    extension.installState === "incompatible" ||
+    extension.compatibility.blockers.length > 0 ||
+    getHubTrust(extension).blockers.length > 0
+  );
+}
+
+function buildSampleHubManifest(): HubExtensionManifest {
+  return {
+    extensionId: "juliaflow-private-mirror-pack",
+    name: "Private Mirror Pack",
+    version: "0.1.0",
+    publisher: "partner",
+    summary: "Sample published partner pack with artifact hash, sandbox command, and offline mirror metadata.",
+    packageRef: "hub://private/mirror-pack",
+    tags: ["partner", "private", "offline-mirror"],
+    engineCompatibility: "alpha-core",
+    requiredContractVersion: "0.1.0",
+    supportedCheckpoints: ["cp/02-alpha-core"],
+    compatibleCheckpoints: ["cp/02-alpha-core"],
+    dependencies: [],
+    publisherIdentity: "partner:private-mirror",
+    artifactHashes: { package: "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" },
+    compatibilitySandboxCommand: "julia --project=. extensions/private-mirror/test/runtests.jl",
+    mirrorRefs: ["mirror://offline/private-mirror-pack", "private://workspace/private-mirror-pack"],
+    signature: "sig:partner:private-mirror:v0.1.0",
+    releaseNotesRef: "https://example.test/private-mirror-pack"
   };
 }
 
@@ -2585,13 +2627,21 @@ function App() {
   }
 
   async function handleHubInstall(extension: GatewayHubExtensionRecord) {
+    if (hubActionBlocked(extension)) {
+      setActionFeedback({
+        text: `Hub action blocked for ${extension.extensionId}: resolve trust and compatibility blockers first.`,
+        tone: "error"
+      });
+      return;
+    }
+
     const nextAction: GatewayHubInstallRequest = {
       action:
         getHubUpgrade(extension).upgradeAvailable
           ? "upgrade"
           : extension.installState === "enabled"
             ? "disable"
-            : extension.installState === "available" || extension.installState === "incompatible"
+            : extension.installState === "available"
               ? "install"
               : "enable"
     };
@@ -2646,6 +2696,62 @@ function App() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to update Hub extension.";
       setActionFeedback({ text: `Hub update failed: ${message}`, tone: "error" });
+    }
+  }
+
+  async function handleHubPublishSample() {
+    const manifest = buildSampleHubManifest();
+    const registerRequest: GatewayHubRegisterRequest = { manifest };
+
+    if (gatewayBaseUrl.length === 0) {
+      const demoRecord: GatewayHubExtensionRecord = {
+        extensionId: manifest.extensionId,
+        manifest,
+        installState: "available",
+        compatibility: {
+          compatible: true,
+          warnings: [],
+          blockers: [],
+          evaluatedAt: buildActionTimestampLabel()
+        },
+        trust: {
+          trusted: true,
+          level: "partner_verified",
+          warnings: [],
+          blockers: [],
+          evaluatedAt: buildActionTimestampLabel()
+        },
+        upgrade: {
+          upgradeAvailable: false,
+          latestVersion: manifest.version,
+          evaluatedAt: buildActionTimestampLabel()
+        }
+      };
+      setHubExtensions((currentExtensions) => [
+        demoRecord,
+        ...currentExtensions.filter((item) => item.extensionId !== manifest.extensionId)
+      ]);
+      setActionFeedback({
+        text: `Demo Hub publish queued for ${manifest.extensionId}.`,
+        tone: "demo"
+      });
+      return;
+    }
+
+    try {
+      const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+      const response = await gatewayClient.registerHubExtension(registerRequest);
+      setHubExtensions((currentExtensions) => [
+        response.extension,
+        ...currentExtensions.filter((item) => item.extensionId !== response.extension.extensionId)
+      ]);
+      setActionFeedback({
+        text: `Hub publish completed for ${response.extension.extensionId}.`,
+        tone: "success"
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to publish Hub extension.";
+      setActionFeedback({ text: `Hub publish failed: ${message}`, tone: "error" });
     }
   }
 
@@ -3925,8 +4031,17 @@ function App() {
                       <p className="panel-kicker">Hub</p>
                       <h2 className="workspace-title">Extension marketplace</h2>
                       <p className="panel-detail">
-                        Trust, compatibility, upgrade state, and lifecycle actions are surfaced before installation.
+                        Trust, compatibility, artifact hashes, sandbox commands, mirrors, and lifecycle actions are surfaced before installation.
                       </p>
+                      <button
+                        className="secondary-action-button"
+                        onClick={() => {
+                          void handleHubPublishSample();
+                        }}
+                        type="button"
+                      >
+                        Publish sample extension
+                      </button>
                     </div>
                     <div className="workspace-metrics">
                       <div className="metric-tile">
@@ -3947,6 +4062,11 @@ function App() {
                       </div>
                     </div>
                   </div>
+                  {actionFeedback ? (
+                    <div className={`canvas-action-feedback is-${actionFeedback.tone}`} role="status">
+                      {actionFeedback.text}
+                    </div>
+                  ) : null}
                 </div>
               </section>
 
@@ -3982,6 +4102,22 @@ function App() {
                         <span>{extension.manifest.releaseNotesRef ?? "not provided"}</span>
                       </div>
                       <div className="inspector-row">
+                        <strong>Artifact hashes</strong>
+                        <span>
+                          {Object.entries(extension.manifest.artifactHashes ?? {})
+                            .map(([artifact, hash]) => `${artifact}=${hash}`)
+                            .join("; ") || "not provided"}
+                        </span>
+                      </div>
+                      <div className="inspector-row">
+                        <strong>Sandbox command</strong>
+                        <span>{extension.manifest.compatibilitySandboxCommand ?? "not provided"}</span>
+                      </div>
+                      <div className="inspector-row">
+                        <strong>Mirror refs</strong>
+                        <span>{(extension.manifest.mirrorRefs ?? []).join("; ") || "not provided"}</span>
+                      </div>
+                      <div className="inspector-row">
                         <strong>Trust</strong>
                         <span>{getHubTrust(extension).level}</span>
                       </div>
@@ -4009,18 +4145,21 @@ function App() {
                     <div className="hub-card-actions">
                       <button
                         className="secondary-action-button"
+                        disabled={hubActionBlocked(extension)}
                         onClick={() => {
                           void handleHubInstall(extension);
                         }}
                         type="button"
                       >
-                        {getHubUpgrade(extension).upgradeAvailable
-                          ? "Upgrade"
-                          : extension.installState === "enabled"
-                            ? "Disable"
-                            : extension.installState === "available" || extension.installState === "incompatible"
-                              ? "Install"
-                              : "Enable"}
+                        {hubActionBlocked(extension)
+                          ? "Blocked"
+                          : getHubUpgrade(extension).upgradeAvailable
+                            ? "Upgrade"
+                            : extension.installState === "enabled"
+                              ? "Disable"
+                              : extension.installState === "available"
+                                ? "Install"
+                                : "Enable"}
                       </button>
                     </div>
                   </article>

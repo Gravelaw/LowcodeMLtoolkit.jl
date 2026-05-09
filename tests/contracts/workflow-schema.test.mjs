@@ -184,6 +184,9 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.HubExtensionRecord.properties.compatibility);
   assert.ok(schemas.HubExtensionRecord.properties.trust);
   assert.ok(schemas.HubExtensionRecord.properties.upgrade);
+  assert.ok(schemas.HubExtensionRecord.properties.manifest.properties.artifactHashes);
+  assert.ok(schemas.HubExtensionRecord.properties.manifest.properties.compatibilitySandboxCommand);
+  assert.ok(schemas.HubExtensionRecord.properties.manifest.properties.mirrorRefs);
   assert.ok(schemas.HubCompatibilityResult.properties.blockers);
   assert.ok(schemas.HubRegisterRequest.properties.manifest);
   assert.ok(schemas.HubRegisterResponse.properties.extension);

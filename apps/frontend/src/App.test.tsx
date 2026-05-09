@@ -169,6 +169,7 @@ describe("App", () => {
 
     let savedAuthPolicy: unknown = null;
     let savedAuthDirectory: unknown = null;
+    let publishedHubManifest: unknown = null;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
 
@@ -306,7 +307,12 @@ describe("App", () => {
                   supportedCheckpoints: ["cp/02-alpha-core"],
                   compatibleCheckpoints: ["cp/02-alpha-core"],
                   dependencies: [],
-                  publisherIdentity: "official:juliaflow"
+                  publisherIdentity: "official:juliaflow",
+                  artifactHashes: {
+                    package: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  },
+                  compatibilitySandboxCommand: "julia --project=. extensions/base/test/runtests.jl",
+                  mirrorRefs: ["mirror://official/juliaflow-base"]
                 },
                 installState: "enabled",
                 compatibility: {
@@ -345,6 +351,11 @@ describe("App", () => {
                   compatibleCheckpoints: ["cp/03-alpha-gpu-bi"],
                   dependencies: [],
                   publisherIdentity: "partner:ops-preview",
+                  artifactHashes: {
+                    package: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                  },
+                  compatibilitySandboxCommand: "julia --project=. extensions/ops-preview/test/runtests.jl",
+                  mirrorRefs: ["mirror://offline/ops-preview"],
                   releaseNotesRef: "https://example.test/ops-preview"
                 },
                 installState: "upgrade_available",
@@ -370,6 +381,39 @@ describe("App", () => {
                 }
               }
             ]
+          })
+        );
+      }
+
+      if (url.endsWith("/api/v1/hub/extensions/register") && init?.method === "POST") {
+        const request = JSON.parse(String(init.body));
+        publishedHubManifest = request.manifest;
+        return new Response(
+          JSON.stringify({
+            extension: {
+              extensionId: request.manifest.extensionId,
+              manifest: request.manifest,
+              installState: "available",
+              compatibility: {
+                compatible: true,
+                warnings: [],
+                blockers: [],
+                evaluatedAt: "2026-05-08T00:00:00Z"
+              },
+              trust: {
+                trusted: true,
+                level: "partner_verified",
+                warnings: [],
+                blockers: [],
+                evaluatedAt: "2026-05-08T00:00:00Z"
+              },
+              upgrade: {
+                upgradeAvailable: false,
+                latestVersion: request.manifest.version,
+                evaluatedAt: "2026-05-08T00:00:00Z"
+              }
+            },
+            status: "ok"
           })
         );
       }
@@ -503,7 +547,79 @@ describe("App", () => {
     expect(screen.getAllByText(/0.2.0/i).length).toBeGreaterThan(0);
     expect(screen.getByText("hub://preview/ops-pack")).toBeInTheDocument();
     expect(screen.getByText("https://example.test/ops-preview")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Upgrade/i })).toBeInTheDocument();
+    expect(screen.getByText(/package=sha256:bbbb/i)).toBeInTheDocument();
+    expect(screen.getByText("julia --project=. extensions/ops-preview/test/runtests.jl")).toBeInTheDocument();
+    expect(screen.getByText("mirror://offline/ops-preview")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Blocked/i })).toBeDisabled();
+
+    const enabledWithBlockers = {
+      extensionId: "juliaflow-base",
+      manifest: {
+        extensionId: "juliaflow-base",
+        name: "JuliaFlow Base",
+        version: "0.1.0",
+        publisher: "official",
+        summary: "Official starter node pack.",
+        packageRef: "extensions/base",
+        tags: ["official", "starter"],
+        engineCompatibility: "alpha-core",
+        requiredContractVersion: "0.1.0",
+        supportedCheckpoints: ["cp/02-alpha-core"],
+        compatibleCheckpoints: ["cp/02-alpha-core"],
+        dependencies: [],
+        publisherIdentity: "official:juliaflow",
+        artifactHashes: {
+          package: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        compatibilitySandboxCommand: "julia --project=. extensions/base/test/runtests.jl",
+        mirrorRefs: ["mirror://official/juliaflow-base"]
+      },
+      installState: "enabled",
+      compatibility: {
+        compatible: false,
+        warnings: [],
+        blockers: ["Extension must provide compatibility sandbox command"],
+        evaluatedAt: "2026-05-08T00:00:00Z"
+      },
+      trust: {
+        trusted: false,
+        level: "untrusted",
+        warnings: [],
+        blockers: ["Artifact hash for package must use sha256:<64 hex digest>"],
+        evaluatedAt: "2026-05-08T00:00:00Z"
+      },
+      upgrade: {
+        upgradeAvailable: false,
+        installedVersion: "0.1.0",
+        latestVersion: "0.1.0",
+        evaluatedAt: "2026-05-08T00:00:00Z"
+      }
+    };
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ extension: enabledWithBlockers, status: "ok" })));
+    const disableButton = screen.getByRole("button", { name: /^Disable$/i });
+    expect(disableButton).not.toBeDisabled();
+    fireEvent.click(disableButton);
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(/\/api\/v1\/hub\/extensions\/juliaflow-base\/install$/),
+        expect.objectContaining({
+          body: JSON.stringify({ action: "disable" }),
+          method: "POST"
+        })
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Publish sample extension/i }));
+    expect(await screen.findByText(/Hub publish completed for juliaflow-private-mirror-pack/i)).toBeInTheDocument();
+    expect(screen.getByText("Private Mirror Pack")).toBeInTheDocument();
+    expect(publishedHubManifest).toMatchObject({
+      extensionId: "juliaflow-private-mirror-pack",
+      artifactHashes: {
+        package: "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      compatibilitySandboxCommand: "julia --project=. extensions/private-mirror/test/runtests.jl",
+      mirrorRefs: ["mirror://offline/private-mirror-pack", "private://workspace/private-mirror-pack"]
+    });
 
     fireEvent.click(screen.getByRole("button", { name: /SettingsDelivery, theme, discovery/i }));
     expect(await screen.findByText(/Policy \+ audit management/i)).toBeInTheDocument();

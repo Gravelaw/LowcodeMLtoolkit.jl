@@ -1216,6 +1216,41 @@ function signature_matches_partner_identity(signature::AbstractString, identity_
     return occursin(marker, String(signature))
 end
 
+function valid_hub_artifact_hash(value::AbstractString)
+    hash = lowercase(strip(String(value)))
+    startswith(hash, "sha256:") || return false
+    digest = hash[8:end]
+    length(digest) == 64 || return false
+    return all(isxdigit, digest)
+end
+
+function valid_hub_mirror_ref(value::AbstractString)
+    mirror_ref = lowercase(strip(String(value)))
+    return startswith(mirror_ref, "mirror://") || startswith(mirror_ref, "private://")
+end
+
+function hub_artifact_hashes_from_manifest(manifest::AbstractDict{String,Any})
+    haskey(manifest, "artifactHashes") || error("manifest missing artifactHashes")
+    raw_hashes = manifest["artifactHashes"]
+    raw_hashes isa AbstractString && error("manifest artifactHashes must be object")
+    raw_hashes isa AbstractVector && error("manifest artifactHashes must be object")
+
+    hashes = Dict{String,String}()
+    for (artifact, hash) in pairs(raw_hashes)
+        hash isa AbstractString || error("manifest artifactHashes values must be strings")
+        hashes[String(artifact)] = String(hash)
+    end
+    return hashes
+end
+
+function hub_mirror_refs_from_manifest(manifest::AbstractDict{String,Any})
+    haskey(manifest, "mirrorRefs") || error("manifest missing mirrorRefs")
+    raw_mirror_refs = manifest["mirrorRefs"]
+    raw_mirror_refs isa AbstractString && error("manifest mirrorRefs must be an array")
+    raw_mirror_refs isa AbstractVector || error("manifest mirrorRefs must be an array")
+    return [String(entry) for entry in raw_mirror_refs]
+end
+
 function evaluate_hub_extension_trust(extension::JuliaFlowGatewayRepository.HubExtensionRecord)
     warnings = String[]
     blockers = String[]
@@ -1224,11 +1259,16 @@ function evaluate_hub_extension_trust(extension::JuliaFlowGatewayRepository.HubE
     signature = extension.signature === nothing ? "" : strip(extension.signature)
     release_notes_ref = extension.release_notes_ref === nothing ? "" : strip(extension.release_notes_ref)
 
+    if isempty(extension.artifact_hashes)
+        push!(blockers, "Extension must provide at least one artifact hash")
+    else
+        for (artifact, hash) in extension.artifact_hashes
+            valid_hub_artifact_hash(hash) || push!(blockers, "Artifact hash for $(artifact) must use sha256:<64 hex digest>")
+        end
+    end
+
     if extension.publisher == "official"
-        if extension.publisher_identity == "official:juliaflow"
-            trusted = true
-            level = "official"
-        else
+        if extension.publisher_identity != "official:juliaflow"
             push!(blockers, "Official extension publisher identity must be registered with gateway")
         end
     elseif extension.publisher == "partner"
@@ -1253,12 +1293,13 @@ function evaluate_hub_extension_trust(extension::JuliaFlowGatewayRepository.HubE
         elseif !startswith(lowercase(release_notes_ref), "https://")
             push!(blockers, "Partner extension release notes reference must be https URL")
         end
-        if isempty(blockers)
-            trusted = true
-            level = "partner_verified"
-        end
     else
         push!(blockers, "Unsupported publisher type $(extension.publisher)")
+    end
+
+    if isempty(blockers)
+        trusted = true
+        level = extension.publisher == "official" ? "official" : "partner_verified"
     end
 
     return Dict(
@@ -1292,6 +1333,12 @@ function evaluate_hub_extension_compatibility(state::GatewayState, extension::Ju
     extension.required_contract_version == current_contract_version() ||
         push!(blockers, "Requires contract version $(extension.required_contract_version), gateway provides $(current_contract_version())")
     startswith(lowercase(extension.engine_compatibility), "alpha") || push!(warnings, "Engine compatibility range $(extension.engine_compatibility) not yet enforced beyond Alpha")
+    sandbox_command = extension.compatibility_sandbox_command === nothing ? "" : strip(extension.compatibility_sandbox_command)
+    isempty(sandbox_command) && push!(blockers, "Extension must provide compatibility sandbox command")
+    for mirror_ref in extension.mirror_refs
+        valid_hub_mirror_ref(mirror_ref) ||
+            push!(blockers, "Mirror reference must use mirror:// or private:// scheme")
+    end
 
     return Dict(
         "compatible" => isempty(blockers),
@@ -1325,6 +1372,9 @@ function materialize_hub_extension(
         compatible_checkpoints = current.compatible_checkpoints,
         dependencies = current.dependencies,
         publisher_identity = current.publisher_identity,
+        artifact_hashes = current.artifact_hashes,
+        compatibility_sandbox_command = current.compatibility_sandbox_command,
+        mirror_refs = current.mirror_refs,
         signature = current.signature,
         release_notes_ref = current.release_notes_ref,
         install_state = String(install_state),
@@ -1353,7 +1403,7 @@ end
 function register_hub_extension_response!(state::GatewayState, request_body::AbstractDict{<:Any,<:Any})
     haskey(request_body, "manifest") || error("missing manifest")
     manifest = normalized_string_dict(request_body["manifest"])
-    required_fields = ("extensionId", "name", "version", "publisher", "summary", "packageRef")
+    required_fields = ("extensionId", "name", "version", "publisher", "summary", "packageRef", "artifactHashes", "mirrorRefs")
     for field in required_fields
         haskey(manifest, field) || error("manifest missing $(field)")
     end
@@ -1372,6 +1422,9 @@ function register_hub_extension_response!(state::GatewayState, request_body::Abs
         compatible_checkpoints = [String(entry) for entry in get(manifest, "compatibleCheckpoints", get(manifest, "supportedCheckpoints", Any[]))],
         dependencies = [String(entry) for entry in get(manifest, "dependencies", Any[])],
         publisher_identity = String(get(manifest, "publisherIdentity", String(manifest["publisher"]))),
+        artifact_hashes = hub_artifact_hashes_from_manifest(manifest),
+        compatibility_sandbox_command = haskey(manifest, "compatibilitySandboxCommand") ? String(manifest["compatibilitySandboxCommand"]) : nothing,
+        mirror_refs = hub_mirror_refs_from_manifest(manifest),
         signature = haskey(manifest, "signature") ? String(manifest["signature"]) : nothing,
         release_notes_ref = haskey(manifest, "releaseNotesRef") ? String(manifest["releaseNotesRef"]) : nothing,
     )
@@ -1724,7 +1777,7 @@ function install_hub_extension_response!(
     action in ("install", "enable", "disable", "upgrade") || error("unsupported Hub action: $(action)")
     compatibility = evaluate_hub_extension_compatibility(state, current)
     trust = evaluate_hub_extension_trust(current)
-    if action in ("enable", "upgrade") && (!Bool(compatibility["compatible"]) || !Bool(trust["trusted"]))
+    if action in ("install", "enable", "upgrade") && (!Bool(compatibility["compatible"]) || !Bool(trust["trusted"]))
         blocked = materialize_hub_extension(
             current;
             install_state = "incompatible",
@@ -1859,6 +1912,8 @@ function classify_gateway_error(err)
         return 400, message
     elseif occursin("missing ", message)
         return 400, message
+    elseif occursin("manifest ", message)
+        return 400, message
     elseif occursin("invalid share token", message)
         return 401, message
     elseif occursin("invalid workspace access token", message)
@@ -1882,6 +1937,14 @@ function classify_gateway_error(err)
     elseif occursin("unsupported workspace role", message)
         return 403, message
     elseif occursin("Extension not validated for current checkpoint", message)
+        return 409, message
+    elseif occursin("Artifact hash for", message)
+        return 409, message
+    elseif occursin("Extension must provide compatibility sandbox command", message)
+        return 409, message
+    elseif occursin("Mirror reference must use", message)
+        return 409, message
+    elseif occursin("Extension must provide at least one artifact hash", message)
         return 409, message
     end
 

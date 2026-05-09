@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-08
+Last updated: 2026-05-09
 Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
 Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/plans/repo-brd-endgame-2026-04-25.md`; prior auth-hardening plan: `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
 
@@ -24,7 +24,7 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 
 ## P1 — Next Alpha Hardening
 
-1. [ ] Hub publish/install hardening: artifact hashes, compatibility sandbox command, publish UX, private/offline mirror fixture.
+1. [x] Hub publish/install hardening: artifact hashes, SHA-256-shaped artifact hash gates, compatibility sandbox command metadata, publish UX, and private/offline mirror fixtures without local-file mirror refs.
 2. [ ] Components/control-flow contracts: containers, components, loop start/end, switch/case, try/catch, parallel chunk validation.
 3. [ ] Observability/perf gates: OTel/Prometheus seams, 1,000-node render harness, node dispatch microbench, coverage thresholds.
 
@@ -48,6 +48,7 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 - 2026-04-24: GPU execution MVP now includes registry-aware worker execution, mock workload completion metadata, and CPU fallback; real CUDA kernels and multi-GPU scheduling remain pending.
 - Current route shell, durable event log, Hub trust gates, BI publish/viewer, monitor diagnostics, and worker-lane lifecycle are valuable Alpha foundations.
 - Biggest gap is not UI shell; remaining biggest gaps are provider-specific cloud deployment hardening, deeper BI drilldown/viewer polish, production OIDC/RBAC, production streaming adapters/exactly-once, and real CUDA GPU compute.
+- 2026-05-09: Hub publish/install hardening now adds manifest artifact hashes, sandbox command metadata, private/offline mirror refs, partner trust/compatibility blockers, gateway publish registration, frontend publish sample UX, and Julia/frontend/contract coverage; future Hub work should execute sandbox commands and verify downloaded artifacts against hashes.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
 - 2026-04-25: BRD traceability automation now validates every checked P0/P1 TODO item against `docs/brd-traceability.md` code/test evidence links.

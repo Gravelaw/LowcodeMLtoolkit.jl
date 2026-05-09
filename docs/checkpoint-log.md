@@ -1377,3 +1377,46 @@ Each checkpoint entry must contain:
 - Choose next lane: gated CUDA/KernelAbstractions smoke if approved, otherwise P1 Hub publish/install hardening.
 - Preserve no-new-dependency fallback paths and honest P0 traceability.
 - Commit/push only when requested or when delivery scope includes GitHub handoff.
+
+---
+
+## Checkpoint: Hub Publish/Install Hardening — 2026-05-09
+
+### Work Done Till Date
+
+- Implemented Alpha Hub publish/install hardening metadata path: artifact hashes, sandbox command metadata, private/offline mirror refs, trust/compatibility blockers, gateway publish registration, persisted catalog roundtrip, and frontend publish sample UX.
+- Updated TODO, BRD traceability, risk register, project tracker, and checkpoint log for the completed P1 scope.
+- Initial verification passed for `npm run test` and `julia --project=. tests/julia/runtests.jl` after code/test changes.
+
+### Gaps Pending
+
+- Full final verification still requires build, BRD traceability validator, whitespace diff check, and review pass before commit.
+- Future Hub production depth remains: execute sandbox commands, verify downloaded artifact hashes, and test real private/offline registry mirrors.
+- Remaining P0 gates are external-provider/hardware-dependent.
+
+### Next Items To Implement
+
+- Run final verification: `npm run build`, `npm run validate:brd-traceability`, `git diff --check`, plus rerun failed checks if any.
+- Run code/architecture review; commit only if clean.
+- Continue next unblocked gap after commit: P1 components/control-flow contracts or observability/perf gates.
+
+---
+
+## Checkpoint: Hub Hardening Review Fix Completion — 2026-05-09
+
+### Work Done Till Date
+
+- Closed review findings for Hub publish/install hardening: artifact hash validation now applies to official and partner manifests, required manifest shapes are enforced, Hub install/enable/upgrade are blocked when trust or compatibility fails, and local-file mirror refs are rejected for Hub mirrors.
+- Frontend Hub lifecycle gating now still allows disabling already-enabled unsafe extensions while blocking install/enable/upgrade remediation-risk actions.
+- Added regression coverage for malformed hash payloads, official bad/missing hashes, official/partner local-file mirror rejection, unsafe enable attempts, persistence roundtrip, and UI disable parity.
+
+### Gaps Pending
+
+- External P0 gates remain: live IdP/PostgreSQL, Kafka/NATS/live sink, and real CUDA/KernelAbstractions hardware evidence.
+- Future Hub depth remains: actual sandbox execution, artifact download verification, and real private registry mirror smoke.
+- Native subagent re-review was attempted but blocked by usage-limit errors; local verification and manual review were completed instead.
+
+### Next Items To Implement
+
+- Commit the verified Hub hardening slice.
+- Continue next unblocked local gap: P1 components/control-flow contracts or observability/perf gates, unless external provider/hardware approval arrives.

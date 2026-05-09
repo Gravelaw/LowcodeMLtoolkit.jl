@@ -502,6 +502,9 @@ export interface HubExtensionManifest {
   compatibleCheckpoints: string[];
   dependencies: string[];
   publisherIdentity: string;
+  artifactHashes: Record<string, string>;
+  compatibilitySandboxCommand?: string;
+  mirrorRefs: string[];
   signature?: string;
   releaseNotesRef?: string;
 }

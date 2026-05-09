@@ -1955,7 +1955,9 @@
               "supportedCheckpoints",
               "dependencies",
               "publisherIdentity",
-              "compatibleCheckpoints"
+              "compatibleCheckpoints",
+              "artifactHashes",
+              "mirrorRefs"
             ],
             "properties": {
               "extensionId": {
@@ -2018,6 +2020,21 @@
               },
               "releaseNotesRef": {
                 "type": "string"
+              },
+              "artifactHashes": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "compatibilitySandboxCommand": {
+                "type": "string"
+              },
+              "mirrorRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               }
             }
           },

@@ -139,6 +139,9 @@ Base.@kwdef mutable struct HubExtensionRecord
     compatible_checkpoints::Vector{String} = String[]
     dependencies::Vector{String} = String[]
     publisher_identity::String = "unknown"
+    artifact_hashes::Dict{String,String} = Dict{String,String}()
+    compatibility_sandbox_command::Union{Nothing,String} = nothing
+    mirror_refs::Vector{String} = String[]
     signature::Union{Nothing,String} = nothing
     release_notes_ref::Union{Nothing,String} = nothing
     install_state::String = "available"
@@ -342,6 +345,8 @@ function hub_extension_payload(extension::HubExtensionRecord)
             "compatibleCheckpoints" => extension.compatible_checkpoints,
             "dependencies" => extension.dependencies,
             "publisherIdentity" => extension.publisher_identity,
+            "artifactHashes" => extension.artifact_hashes,
+            "mirrorRefs" => extension.mirror_refs,
         ),
         "installState" => extension.install_state,
         "compatibility" => extension.compatibility,
@@ -349,6 +354,7 @@ function hub_extension_payload(extension::HubExtensionRecord)
         "upgrade" => extension.upgrade,
     )
     extension.installed_version === nothing || (payload["installedVersion"] = extension.installed_version)
+    extension.compatibility_sandbox_command === nothing || (payload["manifest"]["compatibilitySandboxCommand"] = extension.compatibility_sandbox_command)
     extension.signature === nothing || (payload["manifest"]["signature"] = extension.signature)
     extension.release_notes_ref === nothing || (payload["manifest"]["releaseNotesRef"] = extension.release_notes_ref)
     extension.installed_at === nothing || (payload["installedAt"] = extension.installed_at)
@@ -874,6 +880,11 @@ function gateway_hub_extension(item)
         compatible_checkpoints = [String(entry) for entry in get(manifest, "compatibleCheckpoints", Any[])],
         dependencies = [String(entry) for entry in get(manifest, "dependencies", Any[])],
         publisher_identity = String(get(manifest, "publisherIdentity", "unknown")),
+        artifact_hashes = haskey(manifest, "artifactHashes") ?
+            Dict{String,String}(String(key) => String(value) for (key, value) in pairs(manifest["artifactHashes"])) :
+            Dict{String,String}(),
+        compatibility_sandbox_command = haskey(manifest, "compatibilitySandboxCommand") ? String(manifest["compatibilitySandboxCommand"]) : nothing,
+        mirror_refs = [String(entry) for entry in get(manifest, "mirrorRefs", Any[])],
         signature = haskey(manifest, "signature") ? String(manifest["signature"]) : nothing,
         release_notes_ref = haskey(manifest, "releaseNotesRef") ? String(manifest["releaseNotesRef"]) : nothing,
         install_state = String(get(item, "installState", "available")),
@@ -967,6 +978,9 @@ function default_hub_extensions()
             compatible_checkpoints = ["cp/02-alpha-core", "cp/03-alpha-gpu-bi"],
             dependencies = String[],
             publisher_identity = "official:juliaflow",
+            artifact_hashes = Dict("package" => "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+            compatibility_sandbox_command = "julia --project=. extensions/base/test/runtests.jl",
+            mirror_refs = ["mirror://official/juliaflow-base"],
             install_state = "enabled",
             trust = Dict(
                 "trusted" => true,
@@ -999,6 +1013,9 @@ function default_hub_extensions()
             compatible_checkpoints = ["cp/03-alpha-gpu-bi"],
             dependencies = String[],
             publisher_identity = "partner:ops-preview",
+            artifact_hashes = Dict("package" => "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+            compatibility_sandbox_command = "julia --project=. extensions/ops-preview/test/runtests.jl",
+            mirror_refs = ["mirror://offline/ops-preview"],
             install_state = "available",
             compatibility = Dict(
                 "compatible" => false,
