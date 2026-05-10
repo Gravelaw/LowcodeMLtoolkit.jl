@@ -732,8 +732,29 @@ function validate_oidc_jwt(token::AbstractString)
     return claims
 end
 
+function oidc_claim_roles(claims::AbstractDict)
+    roles = String[]
+    if haskey(claims, "realm_access") && claims["realm_access"] isa AbstractDict
+        append!(roles, [String(role) for role in get(claims["realm_access"], "roles", Any[])])
+    end
+    if haskey(claims, "resource_access") && claims["resource_access"] isa AbstractDict
+        for (_, resource) in pairs(claims["resource_access"])
+            resource isa AbstractDict || continue
+            append!(roles, [String(role) for role in get(resource, "roles", Any[])])
+        end
+    end
+    return roles
+end
+
 function role_from_claims(claims::AbstractDict)
-    raw_role = get(claims, "juliaflow_role", get(claims, "role", "viewer"))
+    raw_role = get(claims, "juliaflow_role", get(claims, "role", nothing))
+    if raw_role === nothing
+        claim_roles = Set(lowercase(strip(role)) for role in oidc_claim_roles(claims))
+        for role in ("owner", "editor", "viewer")
+            (role in claim_roles || "juliaflow-$(role)" in claim_roles) && return role
+        end
+        raw_role = "viewer"
+    end
     role = lowercase(strip(String(raw_role)))
     haskey(GATEWAY_ROLE_PERMISSIONS, role) || error("unsupported workspace role: $(role)")
     return role

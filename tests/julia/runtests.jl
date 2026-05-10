@@ -392,6 +392,97 @@ end
     @test second_batch_payload["streamSinkTransactionState"]["status"] == "committed"
     @test second_batch_payload["streamWindowState"]["windows"][1]["start"] == 30
 
+    mktempdir() do kafka_runtime_dir
+        kafka_events_path = joinpath(kafka_runtime_dir, "kafka-events.jsonl")
+        sink_state_path = joinpath(kafka_runtime_dir, "sink-state.json")
+        sink_output_path = joinpath(kafka_runtime_dir, "sink-output.jsonl")
+        write(
+            kafka_events_path,
+            join(
+                [
+                    JSON3.write(Dict("topic" => "parallel.events", "partition" => 0, "offset" => 1, "event_time_seconds" => 1, "region" => "north", "amount" => 10.0)),
+                    JSON3.write(Dict("topic" => "parallel.events", "partition" => 0, "offset" => 2, "event_time_seconds" => 2, "region" => "south", "amount" => 20.0)),
+                    JSON3.write(Dict("topic" => "parallel.events", "partition" => 0, "offset" => 3, "event_time_seconds" => 3, "region" => "north", "amount" => 30.0)),
+                ],
+                "\n",
+            ) * "\n",
+        )
+        withenv(
+            "JULIAFLOW_KAFKA_EVENTS_JSONL" => kafka_events_path,
+            "JULIAFLOW_STREAM_SINK_STATE_PATH" => sink_state_path,
+            "JULIAFLOW_STREAM_SINK_OUTPUT_PATH" => sink_output_path,
+        ) do
+            live_kafka_workflow = load_workflow_definition(parallel_path)
+            live_kafka_service = WorkerServiceState()
+            live_kafka_executions = GatewayExecution[
+                JuliaFlowApiGateway.materialize_execution(
+                    execute_workflow(live_kafka_workflow; checkpoint_tag = "cp/live-kafka-smoke"),
+                ),
+            ]
+            queue_stream_execution!(
+                live_kafka_service,
+                Dict(live_kafka_workflow.id => live_kafka_workflow),
+                live_kafka_executions,
+                live_kafka_executions[1].execution_id;
+                execution_record = JuliaFlowApiGateway.execution_record,
+                transition_execution_record = transition_execution_record,
+                materialize_execution = JuliaFlowApiGateway.materialize_execution,
+            )
+            process_stream_worker_tick!(
+                live_kafka_service,
+                live_kafka_executions;
+                execution_record = JuliaFlowApiGateway.execution_record,
+                transition_execution_record = transition_execution_record,
+                materialize_execution = JuliaFlowApiGateway.materialize_execution,
+            )
+            kafka_first = process_stream_fixture_batch!(
+                live_kafka_service,
+                Dict(live_kafka_workflow.id => live_kafka_workflow),
+                live_kafka_executions,
+                live_kafka_workflow.id;
+                execution_record = JuliaFlowApiGateway.execution_record,
+                append_execution_event = append_execution_event,
+                materialize_execution = JuliaFlowApiGateway.materialize_execution,
+                batch_size = 2,
+            )
+            @test kafka_first.metadata["stream_adapter"] == "kafka"
+            @test kafka_first.metadata["stream_processed_offset"] == 2
+            @test kafka_first.metadata["stream_sink_transaction_state"]["status"] == "committed"
+            @test length(readlines(sink_output_path)) == 2
+
+            kafka_duplicate = replay_stream_fixture_batch!(
+                live_kafka_service,
+                Dict(live_kafka_workflow.id => live_kafka_workflow),
+                live_kafka_executions,
+                live_kafka_workflow.id,
+                0;
+                execution_record = JuliaFlowApiGateway.execution_record,
+                append_execution_event = append_execution_event,
+                materialize_execution = JuliaFlowApiGateway.materialize_execution,
+                batch_size = 2,
+            )
+            @test kafka_duplicate.metadata["stream_exactly_once_status"] == "duplicate_suppressed"
+            @test length(readlines(sink_output_path)) == 2
+
+            live_kafka_restart = WorkerServiceState()
+            sync_worker_service!(live_kafka_restart, live_kafka_executions)
+            kafka_second = replay_stream_fixture_batch!(
+                live_kafka_restart,
+                Dict(live_kafka_workflow.id => live_kafka_workflow),
+                live_kafka_executions,
+                live_kafka_workflow.id,
+                kafka_first.metadata["stream_committed_offset"];
+                execution_record = JuliaFlowApiGateway.execution_record,
+                append_execution_event = append_execution_event,
+                materialize_execution = JuliaFlowApiGateway.materialize_execution,
+                batch_size = 1,
+            )
+            @test kafka_second.metadata["stream_processed_offset"] == 3
+            @test kafka_second.metadata["stream_replay_status"] == "restored_from_checkpoint"
+            @test length(readlines(sink_output_path)) == 3
+        end
+    end
+
     event_time_workflow = load_workflow_definition(parallel_path)
     event_time_workflow.runtime.source["kind"] = "fixture"
     event_time_workflow.runtime.source["events"] = parallel_workflow.runtime.source["events"]
@@ -2267,6 +2358,15 @@ end
             "exp" => 4102444800,
         ),
     )
+    keycloak_style_owner_token = test_hs256_jwt(
+        Dict{String,Any}(
+            "iss" => "https://issuer.test",
+            "aud" => "juliaflow-gateway",
+            "sub" => "user-keycloak-owner",
+            "realm_access" => Dict("roles" => ["default-roles-juliaflow", "owner"]),
+            "exp" => 4102444800,
+        ),
+    )
     wrong_signature_token = string(viewer_claims_owner_token[1:end-2], "xx")
 
     env_pairs = (
@@ -2281,6 +2381,12 @@ end
     end
     invalid_token_response = withenv(env_pairs...) do
         route_request(state, HTTP.Request("GET", "/api/v1/workflows", ["Authorization" => "Bearer $(wrong_signature_token)"]))
+    end
+    keycloak_role_response = withenv(env_pairs...) do
+        route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/workflows", ["Authorization" => "Bearer $(keycloak_style_owner_token)", "X-JuliaFlow-Workspace" => "workspace-a"]),
+        )
     end
     directory_body = Dict(
         "users" => Any[
@@ -2409,6 +2515,7 @@ end
     @test occursin("OIDC bearer token is required", String(missing_token_response.body))
     @test invalid_token_response.status == 401
     @test occursin("invalid OIDC token signature", String(invalid_token_response.body))
+    @test keycloak_role_response.status == 200
     @test save_directory_response.status == 200
     @test occursin("user-viewer", String(save_directory_response.body))
     @test lockout_directory_response.status == 400

@@ -1,5 +1,7 @@
 module JuliaFlowWorkerService
 
+using JSON3
+
 export WorkerServiceState,
     sync_worker_service!,
     should_dispatch_gpu_execution,
@@ -32,9 +34,37 @@ function stream_source_kind(workflow)
     return String(get(workflow.runtime.source, "kind", "unknown"))
 end
 
+function load_jsonl_events(path::AbstractString)
+    isfile(path) || error("stream events JSONL file not found: $(path)")
+    events = Any[]
+    for line in eachline(path)
+        value = strip(String(line))
+        isempty(value) && continue
+        push!(events, JSON3.read(value, Dict{String,Any}))
+    end
+    return events
+end
+
+function stream_kafka_events(workflow)
+    source = workflow.runtime.source === nothing ? Dict{String,Any}() : workflow.runtime.source
+    events_path = strip(get(ENV, "JULIAFLOW_KAFKA_EVENTS_JSONL", ""))
+    isempty(events_path) && return Any[]
+    topic = String(get(source, "topic", ""))
+    events = Any[]
+    for event in load_jsonl_events(events_path)
+        event_topic = String(get(event, "topic", topic))
+        event_topic == topic || continue
+        push!(events, event)
+    end
+    sort!(events, by = event -> Int(get(event, "offset", length(events))))
+    return events
+end
+
 function stream_fixture_events(workflow)
     workflow.runtime.source === nothing && return Any[]
-    stream_source_kind(workflow) == "fixture" || return Any[]
+    kind = stream_source_kind(workflow)
+    kind == "kafka" && return stream_kafka_events(workflow)
+    kind == "fixture" || return Any[]
     return collect(get(workflow.runtime.source, "events", Any[]))
 end
 
@@ -163,6 +193,9 @@ function stream_runtime_metadata(workflow, execution, events, offset_start::Inte
         "committedOffset" => processed_offset,
         "sinkKind" => "workflow_output",
     )
+    if !isempty(events)
+        transaction_state = commit_external_stream_sink(events, transaction_state)
+    end
     return Dict{String,Any}(
         "stream_adapter" => stream_source_kind(workflow),
         "stream_processed_offset" => processed_offset,
@@ -189,6 +222,49 @@ function stream_runtime_metadata(workflow, execution, events, offset_start::Inte
         "stream_idempotency_key" => idempotency_key,
         "stream_exactly_once_status" => isempty(events) ? "idle" : "committed",
     )
+end
+
+function commit_external_stream_sink(events, transaction_state::AbstractDict)
+    state_path = strip(get(ENV, "JULIAFLOW_STREAM_SINK_STATE_PATH", ""))
+    output_path = strip(get(ENV, "JULIAFLOW_STREAM_SINK_OUTPUT_PATH", ""))
+    isempty(state_path) && return Dict{String,Any}(String(key) => value for (key, value) in pairs(transaction_state))
+    state = isfile(state_path) ? JSON3.read(read(state_path, String), Dict{String,Any}) : Dict{String,Any}()
+    keys = Set(String(item) for item in get(state, "idempotencyKeys", Any[]))
+    key = String(transaction_state["idempotencyKey"])
+    committed = Dict{String,Any}(String(item_key) => item_value for (item_key, item_value) in pairs(transaction_state))
+    if key in keys
+        committed["status"] = "duplicate_rejected"
+        committed["duplicateRejected"] = true
+        return committed
+    end
+
+    push!(keys, key)
+    transactions = collect(get(state, "transactions", Any[]))
+    push!(transactions, Dict(
+        "transactionId" => String(transaction_state["transactionId"]),
+        "idempotencyKey" => key,
+        "committedOffset" => Int(transaction_state["committedOffset"]),
+    ))
+    next_state = Dict{String,Any}(
+        "idempotencyKeys" => sort!(collect(keys)),
+        "transactions" => transactions,
+    )
+    mkpath(dirname(state_path))
+    write(state_path, JSON3.write(next_state))
+
+    if !isempty(output_path)
+        mkpath(dirname(output_path))
+        open(output_path, "a") do io
+            for event in events
+                println(io, JSON3.write(Dict(
+                    "transactionId" => String(transaction_state["transactionId"]),
+                    "idempotencyKey" => key,
+                    "event" => event,
+                )))
+            end
+        end
+    end
+    return committed
 end
 
 function gpu_registry()
@@ -364,8 +440,32 @@ function execute_gpu_workload(workflow, execution)
             "energy" => sum(value * value for value in values),
             "max" => isempty(values) ? 0.0 : maximum(values),
         )
+    elseif kind == "cuda_ka_vector_affine"
+        return execute_cuda_ka_vector_affine(values)
     end
     error("unsupported gpu workload: $(kind)")
+end
+
+function execute_cuda_ka_vector_affine(values::Vector{Float64})
+    CUDA = Base.require(Base.PkgId(Base.UUID("052768ef-5323-5732-b1bb-66c8b64840ba"), "CUDA"))
+    KA = Base.require(Base.PkgId(Base.UUID("63c18a36-062a-441e-b654-da1e3ab1ce7c"), "KernelAbstractions"))
+    CUDA.functional() || error("CUDA runtime is not functional")
+    devices = collect(CUDA.devices())
+    isempty(devices) && error("no CUDA devices visible")
+    input = CUDA.CuArray(values)
+    output = input .* 2.0 .+ 1.0
+    CUDA.synchronize()
+    host_output = Array(output)
+    backend = string(KA.get_backend(output))
+    return Dict(
+        "kind" => "cuda_ka_vector_affine",
+        "backend" => backend,
+        "device_count" => length(devices),
+        "input_size" => length(values),
+        "sum" => sum(host_output),
+        "first" => isempty(host_output) ? 0.0 : host_output[1],
+        "last" => isempty(host_output) ? 0.0 : host_output[end],
+    )
 end
 
 function gpu_runtime_metadata(workflow, execution)

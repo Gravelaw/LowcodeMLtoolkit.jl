@@ -137,7 +137,7 @@ Before any meaningful implementation:
    - deeper BI drilldown/viewer/export polish
    - production OIDC/JWT/RBAC and persisted policy/audit query surfaces
    - production streaming adapters/replay/exactly-once hardening
-   - production CUDA/KernelAbstractions and multi-GPU hardening
+   - defer production CUDA/KernelAbstractions and multi-GPU closure to the final hardware-gated phase when GPU count is the constraint; full closure requires >=2 visible CUDA devices
 4. For broad BRD/P0 work, use the configured frontier model where available (currently GPT-5.5) for planning, architecture review, and validation.
 5. Preserve the thin-slice strategy: keep existing dev/demo fallbacks while adding production-depth paths behind explicit seams and tests.
 

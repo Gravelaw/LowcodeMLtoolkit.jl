@@ -94,6 +94,14 @@ julia --project=. scripts/run-api-gateway.jl
 
 OIDC discovery/JWKS support is mockable and tested for key rotation. Live IdP RSA/JWKS hardening and admin UI surfaces remain tracked in `docs/TODO.md` and `docs/risk-register.md`.
 
+Live Keycloak + PostgreSQL auth smoke evidence:
+
+```bash
+./scripts/smoke-keycloak-postgres-auth.sh
+```
+
+The smoke provisions Keycloak/PostgreSQL from `infra/docker/compose.dev.yml`, obtains a real RS256 token, starts the gateway with `JULIAFLOW_GATEWAY_BACKEND=postgres`, exercises protected auth directory/policy/audit routes, and prints JSON evidence.
+
 Backend selection:
 
 ```bash
@@ -126,6 +134,24 @@ Routes available now:
 - `GET /api/v1/hub/extensions`
 - `POST /api/v1/hub/extensions/{extensionId}/install`
 - `WebSocket /api/v1/realtime`
+
+Streaming live Kafka smoke:
+
+```bash
+./scripts/smoke-kafka-streaming.sh
+```
+
+The smoke uses the dev Compose Kafka broker, captures consumed records into JSONL, then drives Julia committed-offset replay and fenced sink idempotency proof.
+
+GPU CUDA/KernelAbstractions smoke:
+
+```bash
+# one-device smoke; useful evidence, not enough for final multi-GPU closure
+JULIAFLOW_CUDA_SMOKE=1 JULIAFLOW_REQUIRE_MULTI_GPU=0 julia --project=. scripts/smoke-cuda-kernel.jl
+
+# final hardware-gated phase; requires >=2 visible CUDA devices
+JULIAFLOW_CUDA_SMOKE=1 JULIAFLOW_REQUIRE_MULTI_GPU=1 julia --project=. scripts/smoke-cuda-kernel.jl
+```
 
 Streaming note:
 

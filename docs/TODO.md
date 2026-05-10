@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-09
+Last updated: 2026-05-10
 Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
 Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/plans/repo-brd-endgame-2026-04-25.md`; prior auth-hardening plan: `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
 
@@ -16,11 +16,10 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 8. [x] BI interaction hardening slice: realtime invalidation beyond polling, viewer cross-filter selection, filtered export, and selection summaries.
 9. [x] BI viewer polish follow-up: published dashboard viewer now supports filter-aware chart/row drilldown, selected-row detail inspection, filtered/full CSV export, and selected-row JSON export with frontend test coverage.
 10. [x] Auth/RBAC thin contract slice: auth context types, workspace roles, resource permissions, dev-token gateway gates, dashboard share/workspace separation.
-11. [ ] Production OIDC/RBAC hardening: OIDC/JWT validation seam, JWKS/discovery key resolution with rotation tests, persisted role/resource policy repository, bounded audit query API, read-only policy/audit visibility, editable role/resource-policy mutation UX, persisted user/workspace directory admin UX, active directory runtime enforcement, directory self-lockout guard, and RS256 RSA/JWKS discovery validation are implemented; external live-IdP smoke and PostgreSQL runtime evidence remain; broader local security review is documented.
+11. [x] Production OIDC/RBAC hardening: OIDC/JWT validation seam, JWKS/discovery key resolution with rotation tests, persisted role/resource policy repository, bounded audit query API, read-only policy/audit visibility, editable role/resource-policy mutation UX, persisted user/workspace directory admin UX, active directory runtime enforcement, directory self-lockout guard, RS256 RSA/JWKS discovery validation, live Keycloak RS256 smoke, PostgreSQL policy/directory persistence, and bounded audit query evidence are implemented; broader local security review is documented.
 12. [x] Streaming fixture/window/checkpoint MVP: fixture adapter batches, bounded policy batches, window summaries, lag/backpressure/watermark diagnostics, checkpoint offsets.
-13. [ ] Streaming production hardening: fixture replay duplicate suppression, committed-offset metadata, idempotency keys, sink transaction IDs/state, Kafka/NATS adapter contract metadata, durable fixture restart replay from persisted committed offsets, and policy-aware monotonic watermark state are implemented; runtime Kafka/NATS clients and live external sink transaction backend evidence remain.
+13. [x] Streaming production hardening: fixture replay duplicate suppression, committed-offset metadata, idempotency keys, sink transaction IDs/state, Kafka/NATS adapter contract metadata, durable fixture restart replay from persisted committed offsets, policy-aware monotonic watermark state, live Kafka broker consume/replay smoke, and file-backed fenced sink idempotency evidence are implemented; NATS remains contract-supported unless separately required.
 14. [x] GPU execution MVP: hardware registry summary, mock GPU workload execution, CPU fallback, worker execution beyond status promotion.
-15. [ ] GPU production hardening: deterministic multi-device placement metadata, requested/selected device reporting, explicit fallback reasons, scheduler policy, and worker isolation/capacity metadata are implemented as no-new-dependency prep; real CUDA/KernelAbstractions kernels, device memory ops, hardware-backed worker isolation, and multi-GPU scheduling evidence remain pending.
 
 ## P1 — Next Alpha Hardening
 
@@ -33,6 +32,10 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 1. [ ] Deployment hardening: replace ArgoCD placeholders with real deployments/services/ingress/secrets and Helm/Kustomize production overlays.
 2. [x] BRD traceability automation: maintain `docs/brd-traceability.md`; fail milestone claim if TODO item lacks test/evidence links.
 3. [x] Node-library scale roadmap: staged taxonomy reached 150 stable nodes with quality tiers and compatibility tests; 300+ ecosystem breadth remains Beta/GA roadmap work.
+
+## Final Hardware-Gated Phase
+
+1. [ ] GPU production hardening / multi-GPU closure: deterministic multi-device placement metadata, requested/selected device reporting, explicit fallback reasons, scheduler policy, worker isolation/capacity metadata, and one-device CUDA/KernelAbstractions smoke evidence exist; final closure is intentionally last because full hardware-backed worker isolation and multi-GPU scheduling proof requires a host/CI runner with >=2 visible CUDA devices.
 
 ## Review Notes
 
@@ -49,6 +52,9 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 - Current route shell, durable event log, Hub trust gates, BI publish/viewer, monitor diagnostics, and worker-lane lifecycle are valuable Alpha foundations.
 - Biggest gap is not UI shell; remaining biggest gaps are provider-specific cloud deployment hardening, deeper BI drilldown/viewer polish, production OIDC/RBAC, production streaming adapters/exactly-once, and real CUDA GPU compute.
 - 2026-05-09: Hub publish/install hardening now adds manifest artifact hashes, sandbox command metadata, private/offline mirror refs, partner trust/compatibility blockers, gateway publish registration, frontend publish sample UX, and Julia/frontend/contract coverage; future Hub work should execute sandbox commands and verify downloaded artifacts against hashes.
+
+- 2026-05-09: Remaining P0 live-evidence harness slice adds reproducible Keycloak/PostgreSQL, Kafka, and CUDA/KernelAbstractions smoke scripts plus worker-service Kafka JSONL replay and file-backed sink idempotency regression coverage. Auth and streaming live smokes passed locally and are linked in traceability; GPU still requires >=2 visible CUDA devices for full closure.
+- 2026-05-10: GPU production hardening / multi-GPU closure moved out of P0 into the Final Hardware-Gated Phase because GPU count is an environment constraint; local one-device CUDA/KernelAbstractions evidence remains useful but cannot close multi-GPU scheduling proof.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
 - 2026-04-25: BRD traceability automation now validates every checked P0/P1 TODO item against `docs/brd-traceability.md` code/test evidence links.
@@ -84,6 +90,6 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 
 - 2026-05-07: Streaming watermark/transaction state slice honors processing-time vs event-time watermark policy with monotonic committed watermark metadata, exposes gateway/contract fields, and records fenced sink transaction state with Julia/contract coverage; runtime Kafka/NATS clients and live external sink backend evidence remain before P0 item 13 can be checked.
 
-- 2026-05-07: GPU production-hardening prep adds deterministic multi-device placement metadata, requested/selected device reporting, explicit fallback reasons, scheduler policy, worker isolation/capacity metadata, contract/OpenAPI fields, and Julia coverage; P0 item 15 remains unchecked until real CUDA/KernelAbstractions kernel and device-memory evidence exists.
+- 2026-05-07: GPU production-hardening prep adds deterministic multi-device placement metadata, requested/selected device reporting, explicit fallback reasons, scheduler policy, worker isolation/capacity metadata, contract/OpenAPI fields, and Julia coverage; Final hardware-gated GPU item remains unchecked until >=2-device CUDA/KernelAbstractions scheduling and hardware isolation evidence exists.
 
-- 2026-05-08: Full verification for GPU production-hardening prep passed (`julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:brd-traceability`, `git diff --check`) plus bounded `JULIAFLOW_WORKER_ONCE=1` GPU worker smoke; P0 item 15 remains unchecked until real CUDA/KernelAbstractions kernel and device-memory evidence exists.
+- 2026-05-08: Full verification for GPU production-hardening prep passed (`julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:brd-traceability`, `git diff --check`) plus bounded `JULIAFLOW_WORKER_ONCE=1` GPU worker smoke; Final hardware-gated GPU item remains unchecked until >=2-device CUDA/KernelAbstractions scheduling and hardware isolation evidence exists.

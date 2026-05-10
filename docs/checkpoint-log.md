@@ -397,7 +397,7 @@ Each checkpoint entry must contain:
 
 ### Next Items To Implement
 
-- Implement live refresh/cache invalidation and renderer/export UX, or move to production OIDC/RBAC / streaming MVP depending P0 priority
+- Implement live refresh/cache invalidation and renderer/export UX, or move to production OIDC/RBAC / streaming MVP depending active priority
 - Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
 
 ---
@@ -424,7 +424,7 @@ Each checkpoint entry must contain:
 
 ### Next Items To Implement
 
-- Implement production streaming adapters/replay/exactly-once hardening or move to GPU execution MVP depending P0 priority
+- Implement production streaming adapters/replay/exactly-once hardening or move to GPU execution MVP depending active priority
 - Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
 
 ---
@@ -449,7 +449,7 @@ Each checkpoint entry must contain:
 
 ### Next Items To Implement
 
-- Implement production CUDA/multi-GPU hardening or move back to production Arrow/DataFrames / OIDC hardening depending P0 priority
+- Defer CUDA/multi-GPU hardening to the final hardware-gated GPU phase; continue unblocked production Arrow/DataFrames / OIDC work depending active priority
 - Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
 
 ---
@@ -475,7 +475,7 @@ Each checkpoint entry must contain:
 
 ### Next Items To Implement
 
-- Implement BI interaction hardening or move to production Arrow/DataFrames / OIDC hardening depending P0 priority
+- Implement BI interaction hardening or move to production Arrow/DataFrames / OIDC hardening depending active priority
 - Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
 
 ---
@@ -499,7 +499,7 @@ Each checkpoint entry must contain:
 
 ### Next Items To Implement
 
-- Implement real Arrow/DataFrames object-storage adapters or move to production OIDC/RBAC depending P0 priority
+- Implement real Arrow/DataFrames object-storage adapters or move to production OIDC/RBAC depending active priority
 - Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
 
 ---
@@ -521,7 +521,7 @@ Each checkpoint entry must contain:
 
 ### Next Items To Implement
 
-- Implement deeper BI drilldown and richer viewer/export polish or move to production Arrow/DataFrames / OIDC hardening depending P0 priority
+- Implement deeper BI drilldown and richer viewer/export polish or move to production Arrow/DataFrames / OIDC hardening depending active priority
 - Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
 
 ---
@@ -1037,7 +1037,7 @@ Each checkpoint entry must contain:
 
 - P0 auth: RSA/live IdP validation, users/workspaces directory admin model, PostgreSQL runtime evidence, and broader security review.
 - P0 streaming: Kafka/NATS adapters, replay/exactly-once proof, watermarking, and sink transactions.
-- P0 GPU: real CUDA/KernelAbstractions kernels, device memory operations, isolation, and multi-GPU scheduling.
+- Final hardware-gated GPU: real CUDA/KernelAbstractions kernels, device memory operations, isolation, and multi-GPU scheduling.
 - P1/P2: Hub publish/install hardening, components/control-flow, observability/perf gates, and deployment hardening.
 
 ### Next Items To Implement
@@ -1266,7 +1266,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - Real CUDA/KernelAbstractions kernels, device-memory operations, and hardware-backed multi-GPU isolation remain pending.
-- CUDA/KernelAbstractions dependency and hardware/CI approval are still required before checking P0 GPU production hardening complete.
+- CUDA/KernelAbstractions dependency and hardware/CI approval are still required before checking final GPU production closure complete.
 
 ### Next Items To Implement
 
@@ -1303,7 +1303,7 @@ Each checkpoint entry must contain:
 
 - Completed full verification for the no-new-dependency GPU placement/dispatch prep slice.
 - Evidence passed: `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:brd-traceability`, `git diff --check`, and bounded `JULIAFLOW_WORKER_ONCE=1 julia --project=. scripts/run-gpu-worker.jl` smoke.
-- Kept GPU P0 open because this is still metadata/mock-worker prep, not real CUDA/KernelAbstractions compute evidence.
+- Kept final GPU production closure open because this is still metadata/mock-worker prep, not real CUDA/KernelAbstractions compute evidence.
 
 ### Gaps Pending
 
@@ -1328,14 +1328,14 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- Real CUDA/KernelAbstractions kernel/device-memory evidence remains pending before GPU P0 completion.
+- Real CUDA/KernelAbstractions kernel/device-memory evidence remains pending before final GPU production closure.
 - Capacity schema can be hardened when the real GPU backend shape is known.
 
 ### Next Items To Implement
 
 - Rerun full verification after review fixes.
 - Rerun code review and complete autopilot only on `APPROVE` plus architecture `CLEAR`.
-- Keep GPU P0 unchecked until real GPU evidence exists.
+- Keep final hardware-gated GPU item unchecked until real GPU evidence exists.
 
 ---
 
@@ -1348,14 +1348,14 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- Real CUDA/KernelAbstractions kernel/device-memory evidence remains pending before GPU P0 completion.
+- Real CUDA/KernelAbstractions kernel/device-memory evidence remains pending before final GPU production closure.
 - Final code-review rerun is still required before autopilot completion.
 
 ### Next Items To Implement
 
 - Rerun code review on the fixed diff.
 - If clean, close autopilot with verification evidence.
-- Keep GPU P0 unchecked until real GPU evidence exists.
+- Keep final hardware-gated GPU item unchecked until real GPU evidence exists.
 
 ---
 
@@ -1369,7 +1369,7 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- Real CUDA/KernelAbstractions kernel/device-memory/hardware evidence remains required before checking GPU P0 complete.
+- Real CUDA/KernelAbstractions kernel/device-memory/hardware evidence remains required before checking final GPU production closure complete.
 - Auth live-IdP/PostgreSQL and streaming live broker/sink evidence remain provider/dependency-gated.
 
 ### Next Items To Implement
@@ -1412,7 +1412,7 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- External P0 gates remain: live IdP/PostgreSQL, Kafka/NATS/live sink, and real CUDA/KernelAbstractions hardware evidence.
+- External/provider gates remain: live IdP/PostgreSQL, Kafka/NATS/live sink, and real CUDA/KernelAbstractions hardware evidence.
 - Future Hub depth remains: actual sandbox execution, artifact download verification, and real private registry mirror smoke.
 - Native subagent re-review was attempted but blocked by usage-limit errors; local verification and manual review were completed instead.
 
@@ -1420,3 +1420,85 @@ Each checkpoint entry must contain:
 
 - Commit the verified Hub hardening slice.
 - Continue next unblocked local gap: P1 components/control-flow contracts or observability/perf gates, unless external provider/hardware approval arrives.
+
+---
+
+## Checkpoint: Remaining P0 Live-Evidence Harness Slice — 2026-05-09
+
+### Work Done Till Date
+
+- Added reproducible gated smoke harnesses for remaining P0 external evidence: Keycloak/PostgreSQL auth, Kafka streaming replay/sink idempotency, and CUDA/KernelAbstractions GPU compute.
+- Added worker-service support for Kafka captured-event replay and file-backed fenced sink idempotency state, with Julia regression coverage.
+- Added CUDA/KernelAbstractions dependencies and a gated real-kernel smoke script.
+
+### Gaps Pending
+
+- Auth P0 still needs the Keycloak/PostgreSQL smoke to pass and be recorded as evidence.
+- Streaming P0 still needs the live Kafka smoke to pass and be recorded as evidence.
+- Final hardware-gated GPU item still needs real CUDA smoke plus multi-GPU scheduling evidence on >=2 visible devices; this host only reports one CUDA GPU.
+
+### Next Items To Implement
+
+- Run the three smoke commands from README and record outputs in traceability before changing TODO checkboxes.
+- Keep P0 TODO items 11, 13, and 15 open until all required live/provider/hardware evidence exists.
+- Use the smoke outputs to fix any live-environment drift in Keycloak claims, Kafka consumption, or CUDA runtime setup.
+
+---
+
+## Checkpoint: Auth And Streaming P0 Live Evidence Closure — 2026-05-09
+
+### Work Done Till Date
+
+- Passed live auth smoke: `./scripts/smoke-keycloak-postgres-auth.sh` returned JSON evidence for Keycloak RS256, PostgreSQL repository, protected route access, policy/directory persistence, and audit query.
+- Passed live streaming smoke: `./scripts/smoke-kafka-streaming.sh` returned JSON evidence for Kafka consume/replay, committed offset 3, duplicate suppression, and fenced sink output with 3 rows.
+- Marked TODO P0 items 11 and 13 complete and linked evidence in `docs/brd-traceability.md`.
+
+### Gaps Pending
+
+- Final hardware-gated GPU item remains open because this host exposes one CUDA device and the final hardware-gated plan requires >=2 visible devices for multi-GPU scheduling evidence.
+- Provider-specific production deployments still need target-provider smoke repeats even though local-platform P0 evidence is complete for auth and Kafka streaming.
+
+### Next Items To Implement
+
+- Run the multi-GPU CUDA/KernelAbstractions smoke on suitable hardware.
+- Keep Final Hardware-Gated Phase GPU item unchecked until multi-GPU evidence is linked.
+- Rerun final verification after any GPU closure change.
+
+---
+
+## Checkpoint: GPU Hardware Constraint Rephase — 2026-05-10
+
+### Work Done Till Date
+
+- Moved GPU production hardening / multi-GPU closure to the Final Hardware-Gated Phase because GPU count is an environment constraint.
+- Updated control docs and developer-facing docs so one-device CUDA/KernelAbstractions smoke is recorded as useful evidence, not a blocker for near-term P1/P2 progress.
+- Kept auth/RBAC and Kafka streaming P0 local-platform closures unchanged.
+
+### Gaps Pending
+
+- Final GPU closure still requires >=2 visible CUDA devices, hardware-backed worker isolation proof, and linked multi-GPU scheduling evidence.
+- Provider-specific production smokes remain needed for auth, PostgreSQL, Kafka/NATS, sinks, and object-store deployments.
+
+### Next Items To Implement
+
+- Proceed with unblocked P1/P2 work unless a >=2-device GPU runner becomes available.
+- When hardware exists, run `JULIAFLOW_CUDA_SMOKE=1 JULIAFLOW_REQUIRE_MULTI_GPU=1 julia --project=. scripts/smoke-cuda-kernel.jl`, link evidence, and rerun BRD traceability validation.
+
+---
+
+## Checkpoint: P0 Closure Verification And Commit Prep — 2026-05-10
+
+### Work Done Till Date
+
+- Verified P0 closure state: `docs/TODO.md` P0 has 14 checked items and zero unchecked items; GPU multi-GPU closure is no longer P0 and is tracked in Final Hardware-Gated Phase.
+- Fresh evidence passed: live Keycloak/PostgreSQL auth smoke, live Kafka streaming smoke, Julia suite, npm test, npm build, BRD traceability validator, diff whitespace check, bounded GPU worker smoke, and one-device CUDA/KernelAbstractions smoke.
+
+### Gaps Pending
+
+- Final GPU closure still needs >=2 visible CUDA devices plus linked hardware-backed isolation and multi-GPU scheduling evidence.
+- Provider-specific production smokes remain pending for chosen external IdP, managed PostgreSQL, managed Kafka/NATS, sinks, and object stores.
+
+### Next Items To Implement
+
+- Commit all latest verified changes.
+- Continue P1/P2 lanes unless final GPU hardware becomes available.

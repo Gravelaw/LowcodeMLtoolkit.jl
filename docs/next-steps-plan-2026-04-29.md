@@ -38,7 +38,7 @@ Carry the post-50-node baseline into the next sessions with explicit sanity, rep
 5. **Production hardening lanes**
    - Auth/RBAC: OIDC/JWT validation, persisted users/workspaces/roles, audit query/admin UI.
    - Streaming: Kafka/NATS adapters, durable replay runner, exactly-once proof, sink transactions.
-   - GPU: CUDA/KernelAbstractions kernels, device-memory ops, worker isolation, multi-GPU scheduling.
+   - GPU: CUDA/KernelAbstractions kernels, device-memory ops, worker isolation, multi-GPU scheduling now belongs to the final hardware-gated phase because >=2 visible devices are required.
 
 ## Documentation Rules For Next Sessions
 

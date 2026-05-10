@@ -105,7 +105,7 @@ Still missing:
 - production Arrow/DataFrames object-storage execution depth and broader node-library scale-up
 - production OIDC/JWT/RBAC hardening and persisted policy/audit model
 - Kafka/NATS streaming adapters, replay, and exactly-once proof
-- real CUDA/KernelAbstractions GPU execution path and multi-GPU scheduling
+- final hardware-gated CUDA/KernelAbstractions multi-GPU scheduling proof
 - Hub publish/install hardening beyond current trust and compatibility shell
 
 ## Contracts Layer
@@ -168,8 +168,8 @@ Current execution shape is CPU-first, with GPU hints already modeled.
 - active stream execution lookup/state tracking for worker-owned lanes
 
 Gateway still owns persistence and realtime fan-out around those worker-service actions.
-For out-of-process streaming experiments, set `JULIAFLOW_STREAM_WORKER_MODE=process` on gateway and run `scripts/run-stream-worker.jl` against same store/backend.
-For GPU worker experiments, run `scripts/run-gpu-worker.jl` against same backend/store. Gateway event consumer will rebroadcast worker-driven GPU status changes when event backbone is enabled.
+For out-of-process streaming experiments, set `JULIAFLOW_STREAM_WORKER_MODE=process` on gateway and run `scripts/run-stream-worker.jl` against same store/backend. For live Kafka evidence, run `scripts/smoke-kafka-streaming.sh`; it captures broker records and verifies committed-offset replay plus sink idempotency.
+For GPU worker experiments, run `scripts/run-gpu-worker.jl` against same backend/store. For real compute evidence, run `scripts/smoke-cuda-kernel.jl` with `JULIAFLOW_CUDA_SMOKE=1`; final GPU production closure requires `JULIAFLOW_REQUIRE_MULTI_GPU=1` on a host with at least two visible CUDA devices. Gateway event consumer will rebroadcast worker-driven GPU status changes when event backbone is enabled.
 
 ### API Gateway
 
