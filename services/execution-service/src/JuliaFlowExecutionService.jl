@@ -11,6 +11,9 @@ export WorkflowNode,
     WorkflowConnection,
     WorkflowNodeLayout,
     WorkflowGraph,
+    WorkflowContainer,
+    WorkflowComponent,
+    WorkflowControlFlow,
     DashboardBinding,
     DashboardPanel,
     DashboardChart,
@@ -35,6 +38,10 @@ export WorkflowNode,
 
 const EXECUTION_HINTS = Set([:cpu_only, :gpu_preferred, :gpu_required])
 const EXECUTION_STATUSES = Set([:accepted, :queued, :running, :completed, :failed])
+const CONTROL_FLOW_KINDS = Set([:loop, :switch, :try_catch, :parallel_chunk])
+const LOOP_ITERATION_MODES = Set([:table_rows, :files, :parameter_range, :streaming_batches])
+const COMPONENT_FLOW_SCOPES = Set(["shared", "isolated"])
+const WORKFLOW_RESOURCE_CLASSES = Set([:cpu, :gpu])
 const EXECUTION_STATUS_TRANSITIONS = Dict(
     :accepted => Set([:queued, :failed]),
     :queued => Set([:running, :failed]),
@@ -85,6 +92,42 @@ Base.@kwdef struct WorkflowGraph
     selected_node_id::Union{Nothing,String} = nothing
 end
 
+Base.@kwdef struct WorkflowContainer
+    id::String
+    name::String
+    node_ids::Vector{String}
+    collapsed::Bool = false
+end
+
+Base.@kwdef struct WorkflowComponent
+    id::String
+    name::String
+    node_ids::Vector{String}
+    version::String = "0.1.0"
+    flow_variable_scope::String = "isolated"
+    dashboard_ids::Vector{String} = String[]
+end
+
+Base.@kwdef struct WorkflowControlFlow
+    id::String
+    kind::Symbol
+    name::Union{Nothing,String} = nothing
+    start_node_id::Union{Nothing,String} = nothing
+    end_node_id::Union{Nothing,String} = nothing
+    iteration_mode::Union{Nothing,Symbol} = nothing
+    max_iterations::Union{Nothing,Int} = nothing
+    selector::Union{Nothing,String} = nothing
+    cases::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    default_target_node_id::Union{Nothing,String} = nothing
+    try_node_ids::Vector{String} = String[]
+    catch_node_ids::Vector{String} = String[]
+    source_node_id::Union{Nothing,String} = nothing
+    target_node_id::Union{Nothing,String} = nothing
+    chunk_size::Union{Nothing,Int} = nothing
+    max_concurrency::Union{Nothing,Int} = nothing
+    resource_class::Union{Nothing,Symbol} = nothing
+end
+
 Base.@kwdef struct DashboardBinding
     outlet_node_id::String
     dataset_key::String
@@ -131,6 +174,9 @@ Base.@kwdef struct WorkflowDefinition
     flow_variables::Vector{Dict{String,Any}} = Dict{String,Any}[]
     bi_outlets::Vector{Dict{String,Any}} = Dict{String,Any}[]
     graph::Union{Nothing,WorkflowGraph} = nothing
+    containers::Vector{WorkflowContainer} = WorkflowContainer[]
+    components::Vector{WorkflowComponent} = WorkflowComponent[]
+    control_flow::Vector{WorkflowControlFlow} = WorkflowControlFlow[]
     dashboards::Vector{DashboardDefinition} = DashboardDefinition[]
     runtime::WorkflowRuntime = WorkflowRuntime()
 end
@@ -335,6 +381,60 @@ function parse_graph(raw::Dict{String,Any})
     )
 end
 
+function parse_container(raw::Dict{String,Any})
+    return WorkflowContainer(
+        id = String(get(raw, "id", get(raw, "container_id", ""))),
+        name = String(raw["name"]),
+        node_ids = [String(item) for item in get(raw, "node_ids", String[])],
+        collapsed = Bool(get(raw, "collapsed", false)),
+    )
+end
+
+function parse_component(raw::Dict{String,Any})
+    return WorkflowComponent(
+        id = String(get(raw, "id", get(raw, "component_id", ""))),
+        name = String(raw["name"]),
+        node_ids = [String(item) for item in get(raw, "node_ids", String[])],
+        version = String(get(raw, "version", "0.1.0")),
+        flow_variable_scope = String(get(raw, "flow_variable_scope", "isolated")),
+        dashboard_ids = [String(item) for item in get(raw, "dashboard_ids", String[])],
+    )
+end
+
+function optional_string(raw::Dict{String,Any}, key::String)
+    return haskey(raw, key) ? String(raw[key]) : nothing
+end
+
+function optional_int(raw::Dict{String,Any}, key::String)
+    return haskey(raw, key) ? Int(raw[key]) : nothing
+end
+
+function optional_symbol(raw::Dict{String,Any}, key::String)
+    return haskey(raw, key) ? Symbol(raw[key]) : nothing
+end
+
+function parse_control_flow(raw::Dict{String,Any})
+    return WorkflowControlFlow(
+        id = String(get(raw, "id", get(raw, "control_id", ""))),
+        kind = Symbol(raw["kind"]),
+        name = optional_string(raw, "name"),
+        start_node_id = optional_string(raw, "start_node_id"),
+        end_node_id = optional_string(raw, "end_node_id"),
+        iteration_mode = optional_symbol(raw, "iteration_mode"),
+        max_iterations = optional_int(raw, "max_iterations"),
+        selector = optional_string(raw, "selector"),
+        cases = [Dict{String,Any}(String(key) => value for (key, value) in pairs(item)) for item in get(raw, "cases", Dict{String,Any}[])],
+        default_target_node_id = optional_string(raw, "default_target_node_id"),
+        try_node_ids = [String(item) for item in get(raw, "try_node_ids", String[])],
+        catch_node_ids = [String(item) for item in get(raw, "catch_node_ids", String[])],
+        source_node_id = optional_string(raw, "source_node_id"),
+        target_node_id = optional_string(raw, "target_node_id"),
+        chunk_size = optional_int(raw, "chunk_size"),
+        max_concurrency = optional_int(raw, "max_concurrency"),
+        resource_class = optional_symbol(raw, "resource_class"),
+    )
+end
+
 function parse_dashboard_binding(raw::Dict{String,Any})
     return DashboardBinding(
         outlet_node_id = String(raw["outlet_node_id"]),
@@ -387,6 +487,9 @@ function parse_workflow_definition(raw::Dict{String,Any})
     flow_variables = get(raw, "flow_variables", Dict{String,Any}[])
     bi_outlets = get(raw["workflow"], "bi_outlets", Dict{String,Any}[])
     graph = haskey(raw["workflow"], "graph") ? parse_graph(raw["workflow"]["graph"]) : nothing
+    containers = [parse_container(item) for item in get(raw["workflow"], "containers", Dict{String,Any}[])]
+    components = [parse_component(item) for item in get(raw["workflow"], "components", Dict{String,Any}[])]
+    control_flow = [parse_control_flow(item) for item in get(raw["workflow"], "control_flow", Dict{String,Any}[])]
     dashboards = [parse_dashboard(item) for item in get(raw["workflow"], "dashboards", Dict{String,Any}[])]
     runtime = haskey(raw, "runtime") ? parse_runtime(raw["runtime"]) : WorkflowRuntime()
     return WorkflowDefinition(
@@ -398,6 +501,9 @@ function parse_workflow_definition(raw::Dict{String,Any})
         flow_variables = flow_variables,
         bi_outlets = bi_outlets,
         graph = graph,
+        containers = containers,
+        components = components,
+        control_flow = control_flow,
         dashboards = dashboards,
         runtime = runtime,
     )
@@ -478,6 +584,54 @@ function workflow_to_toml(workflow::WorkflowDefinition)
         end
         document["workflow"]["graph"] = graph_payload
     end
+    if !isempty(workflow.containers)
+        document["workflow"]["containers"] = [
+            Dict{String,Any}(
+                "id" => container.id,
+                "name" => container.name,
+                "node_ids" => container.node_ids,
+                "collapsed" => container.collapsed,
+            ) for container in workflow.containers
+        ]
+    end
+    if !isempty(workflow.components)
+        document["workflow"]["components"] = [
+            Dict{String,Any}(
+                "id" => component.id,
+                "name" => component.name,
+                "node_ids" => component.node_ids,
+                "version" => component.version,
+                "flow_variable_scope" => component.flow_variable_scope,
+                "dashboard_ids" => component.dashboard_ids,
+            ) for component in workflow.components
+        ]
+    end
+    if !isempty(workflow.control_flow)
+        document["workflow"]["control_flow"] = [
+            let
+                payload = Dict{String,Any}(
+                    "id" => control.id,
+                    "kind" => String(control.kind),
+                )
+                control.name === nothing || (payload["name"] = control.name)
+                control.start_node_id === nothing || (payload["start_node_id"] = control.start_node_id)
+                control.end_node_id === nothing || (payload["end_node_id"] = control.end_node_id)
+                control.iteration_mode === nothing || (payload["iteration_mode"] = String(control.iteration_mode))
+                control.max_iterations === nothing || (payload["max_iterations"] = control.max_iterations)
+                control.selector === nothing || (payload["selector"] = control.selector)
+                isempty(control.cases) || (payload["cases"] = control.cases)
+                control.default_target_node_id === nothing || (payload["default_target_node_id"] = control.default_target_node_id)
+                isempty(control.try_node_ids) || (payload["try_node_ids"] = control.try_node_ids)
+                isempty(control.catch_node_ids) || (payload["catch_node_ids"] = control.catch_node_ids)
+                control.source_node_id === nothing || (payload["source_node_id"] = control.source_node_id)
+                control.target_node_id === nothing || (payload["target_node_id"] = control.target_node_id)
+                control.chunk_size === nothing || (payload["chunk_size"] = control.chunk_size)
+                control.max_concurrency === nothing || (payload["max_concurrency"] = control.max_concurrency)
+                control.resource_class === nothing || (payload["resource_class"] = String(control.resource_class))
+                payload
+            end for control in workflow.control_flow
+        ]
+    end
     if !isempty(workflow.dashboards)
         document["workflow"]["dashboards"] = [
             Dict{String,Any}(
@@ -537,6 +691,53 @@ function port_lookup(node::WorkflowNode)
         lookup[port.id] = port
     end
     return lookup
+end
+
+function push_missing_node_error!(errors::Vector{String}, node_lookup::Dict{String,WorkflowNode}, owner::String, node_id::AbstractString)
+    haskey(node_lookup, String(node_id)) || push!(errors, "$(owner) references missing node: $(node_id)")
+    return errors
+end
+
+function validate_control_flow!(errors::Vector{String}, node_lookup::Dict{String,WorkflowNode}, control::WorkflowControlFlow)
+    control.kind in CONTROL_FLOW_KINDS || push!(errors, "unsupported control flow kind on $(control.id): $(control.kind)")
+
+    if control.kind == :loop
+        control.start_node_id === nothing && push!(errors, "loop $(control.id) missing start node")
+        control.end_node_id === nothing && push!(errors, "loop $(control.id) missing end node")
+        control.iteration_mode in LOOP_ITERATION_MODES || push!(errors, "loop $(control.id) has unsupported iteration mode")
+        control.max_iterations !== nothing && control.max_iterations > 0 || push!(errors, "loop $(control.id) max iterations must be > 0")
+        control.start_node_id === nothing || push_missing_node_error!(errors, node_lookup, "loop $(control.id)", control.start_node_id)
+        control.end_node_id === nothing || push_missing_node_error!(errors, node_lookup, "loop $(control.id)", control.end_node_id)
+    elseif control.kind == :switch
+        control.selector === nothing && push!(errors, "switch $(control.id) missing selector")
+        isempty(control.cases) && push!(errors, "switch $(control.id) must include at least one case")
+        for case in control.cases
+            label = String(get(case, "label", ""))
+            target = String(get(case, "target_node_id", get(case, "targetNodeId", "")))
+            isempty(label) && push!(errors, "switch $(control.id) case missing label")
+            isempty(target) && push!(errors, "switch $(control.id) case missing target node")
+            isempty(target) || push_missing_node_error!(errors, node_lookup, "switch $(control.id) case", target)
+        end
+        control.default_target_node_id === nothing || push_missing_node_error!(errors, node_lookup, "switch $(control.id) default", control.default_target_node_id)
+    elseif control.kind == :try_catch
+        isempty(control.try_node_ids) && push!(errors, "try/catch $(control.id) missing try nodes")
+        isempty(control.catch_node_ids) && push!(errors, "try/catch $(control.id) missing catch nodes")
+        for node_id in control.try_node_ids
+            push_missing_node_error!(errors, node_lookup, "try/catch $(control.id) try", node_id)
+        end
+        for node_id in control.catch_node_ids
+            push_missing_node_error!(errors, node_lookup, "try/catch $(control.id) catch", node_id)
+        end
+    elseif control.kind == :parallel_chunk
+        control.source_node_id === nothing && push!(errors, "parallel chunk $(control.id) missing source node")
+        control.chunk_size !== nothing && control.chunk_size > 0 || push!(errors, "parallel chunk $(control.id) chunk size must be > 0")
+        control.max_concurrency !== nothing && 0 < control.max_concurrency <= 1024 || push!(errors, "parallel chunk $(control.id) max concurrency must be between 1 and 1024")
+        control.resource_class === nothing || control.resource_class in WORKFLOW_RESOURCE_CLASSES || push!(errors, "parallel chunk $(control.id) has unsupported resource class")
+        control.source_node_id === nothing || push_missing_node_error!(errors, node_lookup, "parallel chunk $(control.id)", control.source_node_id)
+        control.target_node_id === nothing || push_missing_node_error!(errors, node_lookup, "parallel chunk $(control.id)", control.target_node_id)
+    end
+
+    return errors
 end
 
 function collect_validation_errors(workflow::WorkflowDefinition)
@@ -602,6 +803,47 @@ function collect_validation_errors(workflow::WorkflowDefinition)
                 push!(layout_node_ids, layout.node_id)
             end
         end
+    end
+
+    container_ids = Set{String}()
+    for container in workflow.containers
+        isempty(container.id) && push!(errors, "container id must not be empty")
+        if container.id in container_ids
+            push!(errors, "duplicate container id: $(container.id)")
+        else
+            push!(container_ids, container.id)
+        end
+        isempty(container.node_ids) && push!(errors, "container $(container.id) must include at least one node")
+        for node_id in container.node_ids
+            push_missing_node_error!(errors, node_lookup, "container $(container.id)", node_id)
+        end
+    end
+
+    component_ids = Set{String}()
+    for component in workflow.components
+        isempty(component.id) && push!(errors, "component id must not be empty")
+        if component.id in component_ids
+            push!(errors, "duplicate component id: $(component.id)")
+        else
+            push!(component_ids, component.id)
+        end
+        component.flow_variable_scope in COMPONENT_FLOW_SCOPES ||
+            push!(errors, "component $(component.id) has unsupported flow variable scope")
+        isempty(component.node_ids) && push!(errors, "component $(component.id) must include at least one node")
+        for node_id in component.node_ids
+            push_missing_node_error!(errors, node_lookup, "component $(component.id)", node_id)
+        end
+    end
+
+    control_ids = Set{String}()
+    for control in workflow.control_flow
+        isempty(control.id) && push!(errors, "control flow id must not be empty")
+        if control.id in control_ids
+            push!(errors, "duplicate control flow id: $(control.id)")
+        else
+            push!(control_ids, control.id)
+        end
+        validate_control_flow!(errors, node_lookup, control)
     end
 
     for dashboard in workflow.dashboards

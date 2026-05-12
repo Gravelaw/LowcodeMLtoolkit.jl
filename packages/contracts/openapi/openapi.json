@@ -862,6 +862,23 @@
           }
         }
       }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "Prometheus metrics endpoint",
+        "responses": {
+          "200": {
+            "description": "Prometheus text metrics",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1192,6 +1209,24 @@
               },
               "runtime": {
                 "type": "object"
+              },
+              "containers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkflowContainerDefinition"
+                }
+              },
+              "components": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkflowComponentDefinition"
+                }
+              },
+              "controlFlow": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkflowControlFlowDefinition"
+                }
               }
             }
           }
@@ -1375,6 +1410,24 @@
           },
           "runtime": {
             "type": "object"
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowContainerDefinition"
+            }
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowComponentDefinition"
+            }
+          },
+          "controlFlow": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowControlFlowDefinition"
+            }
           }
         }
       },
@@ -2672,6 +2725,179 @@
           },
           "updatedAt": {
             "type": "string"
+          }
+        }
+      },
+      "WorkflowContainerDefinition": {
+        "type": "object",
+        "required": [
+          "containerId",
+          "name",
+          "nodeIds"
+        ],
+        "properties": {
+          "containerId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "collapsed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WorkflowComponentDefinition": {
+        "type": "object",
+        "required": [
+          "componentId",
+          "name",
+          "nodeIds",
+          "version",
+          "flowVariableScope"
+        ],
+        "properties": {
+          "componentId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "version": {
+            "type": "string"
+          },
+          "flowVariableScope": {
+            "type": "string",
+            "enum": [
+              "shared",
+              "isolated"
+            ]
+          },
+          "dashboardIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ControlFlowCaseDefinition": {
+        "type": "object",
+        "required": [
+          "caseId",
+          "label",
+          "targetNodeId"
+        ],
+        "properties": {
+          "caseId": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "targetNodeId": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkflowControlFlowDefinition": {
+        "type": "object",
+        "required": [
+          "controlId",
+          "kind"
+        ],
+        "properties": {
+          "controlId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "loop",
+              "switch",
+              "try_catch",
+              "parallel_chunk"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "startNodeId": {
+            "type": "string"
+          },
+          "endNodeId": {
+            "type": "string"
+          },
+          "iterationMode": {
+            "type": "string",
+            "enum": [
+              "table_rows",
+              "files",
+              "parameter_range",
+              "streaming_batches"
+            ]
+          },
+          "maxIterations": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "selector": {
+            "type": "string"
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ControlFlowCaseDefinition"
+            }
+          },
+          "defaultTargetNodeId": {
+            "type": "string"
+          },
+          "tryNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "catchNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sourceNodeId": {
+            "type": "string"
+          },
+          "targetNodeId": {
+            "type": "string"
+          },
+          "chunkSize": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "maxConcurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1024
+          },
+          "resourceClass": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "gpu"
+            ]
           }
         }
       }

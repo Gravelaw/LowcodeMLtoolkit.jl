@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-10
+Last updated: 2026-05-12
 Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
 Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/plans/repo-brd-endgame-2026-04-25.md`; prior auth-hardening plan: `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
 
@@ -24,7 +24,7 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 ## P1 — Next Alpha Hardening
 
 1. [x] Hub publish/install hardening: artifact hashes, SHA-256-shaped artifact hash gates, compatibility sandbox command metadata, publish UX, and private/offline mirror fixtures without local-file mirror refs.
-2. [ ] Components/control-flow contracts: containers, components, loop start/end, switch/case, try/catch, parallel chunk validation.
+2. [x] Components/control-flow contracts: containers, components, switch/case and parallel chunk metadata are contract-backed across TS/OpenAPI/TOML, gateway roundtrip, Julia validation, fixtures, and frontend inspector coverage; loop and try/catch schema/validation shapes exist for future runtime execution semantics.
 3. [ ] Observability/perf gates: OTel/Prometheus seams, 1,000-node render harness, node dispatch microbench, coverage thresholds.
 
 ## P2 — Beta/GA Foundation
@@ -55,6 +55,8 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 
 - 2026-05-09: Remaining P0 live-evidence harness slice adds reproducible Keycloak/PostgreSQL, Kafka, and CUDA/KernelAbstractions smoke scripts plus worker-service Kafka JSONL replay and file-backed sink idempotency regression coverage. Auth and streaming live smokes passed locally and are linked in traceability; GPU still requires >=2 visible CUDA devices for full closure.
 - 2026-05-10: GPU production hardening / multi-GPU closure moved out of P0 into the Final Hardware-Gated Phase because GPU count is an environment constraint; local one-device CUDA/KernelAbstractions evidence remains useful but cannot close multi-GPU scheduling proof.
+- 2026-05-12: Components/control-flow contracts now add container, component, switch/case, loop, try/catch, and parallel chunk metadata shapes across contracts/OpenAPI/TOML, gateway request/response mapping, Julia parser/serializer/validator, fixture coverage, and frontend inspector visibility; future work should add full runtime semantics for loops and try/catch execution.
+- 2026-05-12: Observability/perf first gate adds Prometheus-style `/metrics`, OpenAPI path evidence, a 1,000-node/500-connection render harness, and a Julia dispatch microbench wired through `npm run validate:perf`; coverage thresholds and fuller OTel integration remain before P1 item 3 can be checked.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
 - 2026-04-25: BRD traceability automation now validates every checked P0/P1 TODO item against `docs/brd-traceability.md` code/test evidence links.

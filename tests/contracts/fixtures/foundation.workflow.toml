@@ -35,6 +35,41 @@ rows = [
   { window = "2026-Q3", region = "north", amount = 175.0, capacity = 220.0 }
 ]
 
+[[workflow.containers]]
+id = "container-prep"
+name = "Preparation Container"
+node_ids = ["node-source", "node-transform"]
+collapsed = false
+
+[[workflow.components]]
+id = "component-bi-summary"
+name = "BI Summary Component"
+node_ids = ["node-transform", "node-bi"]
+version = "0.1.0"
+flow_variable_scope = "isolated"
+dashboard_ids = ["dashboard-foundation"]
+
+[[workflow.control_flow]]
+id = "switch-region"
+kind = "switch"
+name = "Region Switch"
+selector = "flow.region"
+cases = [
+  { case_id = "west", label = "West", target_node_id = "node-transform" },
+  { case_id = "default", label = "Default", target_node_id = "node-bi" }
+]
+default_target_node_id = "node-bi"
+
+[[workflow.control_flow]]
+id = "parallel-prep"
+kind = "parallel_chunk"
+name = "Parallel Prep Chunks"
+source_node_id = "node-source"
+target_node_id = "node-transform"
+chunk_size = 1000
+max_concurrency = 4
+resource_class = "cpu"
+
 [runtime]
 run_mode = "batch"
 

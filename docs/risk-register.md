@@ -1,12 +1,12 @@
 # JuliaFlow Risk Register
 
-Last updated: 2026-05-10
+Last updated: 2026-05-12
 
 This register tracks active BRD delivery risks that should be burned down through thin, verified slices. It complements `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md`.
 
 ## Current Risk Focus
 
-Next implementation lane: continue unblocked P1/P2 work; auth and Kafka streaming P0 local-platform evidence now passed.
+Next implementation lane: continue P1 observability/perf gates after `/metrics` plus render/dispatch perf harnesses landed; auth and Kafka streaming P0 local-platform evidence now passed.
 GPU count is an environment constraint, so `R-GPU-001` multi-GPU evidence moves to the final hardware-gated phase instead of blocking near-term work. Keep `R-SEC-*` and `R-STREAM-001` monitored for provider-specific expansion beyond the local dev stack.
 
 | ID | Area | Risk | Impact | Likelihood | Mitigation | Next Evidence | Status |
@@ -17,14 +17,16 @@ GPU count is an environment constraint, so `R-GPU-001` multi-GPU evidence moves 
 | R-SEC-004 | Audit privacy | Audit query/admin UI leaks raw tokens, headers, or sensitive payload data. | Security/privacy incident risk. | Medium | Bounded redacted audit action query API exists; Settings now shows audit/policy/directory visibility, editable policy/directory mutations, and frontend tests cover redacted audit rendering plus update payloads without exposing secrets. | Broader local security review is complete; keep external IdP/PG smoke evidence before P0 completion. | Mitigated for policy/directory admin UI |
 | R-STREAM-001 | Streaming | Managed Kafka/NATS provider behavior can drift beyond local smoke. | Provider-specific streaming deployment can regress replay or sink idempotency. | Medium | Fixture duplicate-replay suppression, committed offsets, idempotency keys, sink transaction IDs/state, Kafka/NATS adapter contract metadata, restart replay, monotonic watermark state, local Kafka live smoke, and fenced file-sink idempotency evidence now exist. | Repeat for managed Kafka/NATS or HTTP/file sink target before production deployment. | Mitigated for local-platform P0 |
 | R-GPU-001 | GPU | Full multi-GPU CUDA/KernelAbstractions proof needs hardware/CI with >=2 visible CUDA devices. | Final GPU production closure waits on scarce hardware capacity, but current P0/P1 work can continue. | Medium | CPU fallback remains available; prep records deterministic placement, requested/selected device, fallback reason, scheduler policy, worker isolation/capacity metadata, and gated one-device CUDA/KernelAbstractions smoke support. | Final phase only: run `JULIAFLOW_CUDA_SMOKE=1 JULIAFLOW_REQUIRE_MULTI_GPU=1 julia --project=. scripts/smoke-cuda-kernel.jl` on >=2 visible CUDA devices and link hardware-backed isolation plus multi-GPU scheduling evidence. | Deferred to final hardware-gated phase |
+| R-OBS-001 | Observability/perf | Monitor diagnostics, metrics, render harnesses, dispatch microbench, and coverage thresholds can drift or stay too synthetic. | NFR claims may lack reproducible gates. | Medium | `/metrics`, OpenAPI path coverage, 1,000-node render harness, and Julia dispatch microbench now run through `npm run validate:perf`. | Add fuller OTel integration and real coverage threshold enforcement before checking P1 observability/perf complete. | Partial mitigation |
 | R-OBJ-001 | Object storage | Provider-specific S3/GCS/Azure deployments and credentials are not proven despite provider-neutral remote adapter. | Production cloud materialization claim remains incomplete for real providers. | Medium | Treat provider deployment as hardening; add target-provider config and credential test only when provider is selected. | Provider-specific integration fixture or deployment manifest evidence. | Open |
+| R-WC-001 | Components/control-flow | Components and control-flow could drift between canvas metadata, TOML contracts, gateway payloads, and Julia validation. | Beta workflow authoring/runtime semantics can become inconsistent. | Medium | Container/component/control-flow metadata now roundtrips through TS/OpenAPI/TOML, gateway mapping, Julia parser/serializer/validator, fixture tests, and Canvas inspector visibility. | Add full runtime execution semantics for loop and try/catch when Beta executor scope begins. | Mitigated for P1 contract metadata |
 | R-HUB-001 | Hub | Partner package sandboxing, artifact hashes, private/offline mirrors, and publish UX needed hardening beyond initial trust shell. | Governed Hub install/publish can drift without artifact and mirror metadata checks. | Medium | Manifest now carries SHA-256-shaped artifact hashes, sandbox command metadata, and private/offline mirror refs with local-file mirror refs rejected; partner trust/compatibility blockers, gateway publish registration, frontend publish UX, and Julia/frontend/contract tests are in place. | Future evidence: execute sandbox commands, verify downloaded artifacts against hashes, and test real private registry mirrors. | Mitigated for Alpha publish/install metadata |
 
 ## Risk Burn-Down Order
 
 1. Production OIDC/RBAC: `R-SEC-001` to `R-SEC-004` mitigated for local-platform P0; repeat on selected provider before production rollout.
 2. Streaming production hardening: `R-STREAM-001` mitigated for local Kafka P0; repeat on selected provider before production rollout.
-3. Continue unblocked P1/P2 work: components/control-flow contracts, observability/perf gates, and deployment hardening.
+3. Continue unblocked P1/P2 work: observability/perf gates and deployment hardening; components/control-flow contracts are mitigated for metadata/validation, with runtime loop/try-catch semantics still future work.
 4. Provider-specific object-store deployment: `R-OBJ-001` once provider/credential target exists.
 5. Hub publish/install metadata hardening: `R-HUB-001` mitigated for Alpha; revisit for real sandbox execution and artifact download verification.
 6. Final hardware-gated GPU production closure: `R-GPU-001` real CUDA/KernelAbstractions multi-GPU evidence on >=2 visible devices.

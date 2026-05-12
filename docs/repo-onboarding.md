@@ -322,8 +322,8 @@ Big gaps still open:
 - true streaming adapter/window/checkpoint/backpressure runtime
 - actual GPU compute execution path beyond dispatch metadata
 - Hub publish/search/rate UX, hash-verified install, compatibility sandbox, private mirror
-- components/metanodes and control-flow nodes
-- observability/performance/coverage gates and production deploy manifests
+- component/control-flow runtime execution semantics beyond the current contract/validation metadata slice
+- fuller OTel/coverage gates and production deploy manifests after initial `/metrics` plus render/dispatch perf harnesses
 
 See:
 

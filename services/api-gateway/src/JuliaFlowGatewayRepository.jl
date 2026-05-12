@@ -275,6 +275,55 @@ function graph_payload(graph::WorkflowGraph)
     return payload
 end
 
+function container_payload(container::WorkflowContainer)
+    return Dict{String,Any}(
+        "containerId" => container.id,
+        "name" => container.name,
+        "nodeIds" => container.node_ids,
+        "collapsed" => container.collapsed,
+    )
+end
+
+function component_payload(component::WorkflowComponent)
+    return Dict{String,Any}(
+        "componentId" => component.id,
+        "name" => component.name,
+        "nodeIds" => component.node_ids,
+        "version" => component.version,
+        "flowVariableScope" => component.flow_variable_scope,
+        "dashboardIds" => component.dashboard_ids,
+    )
+end
+
+function control_flow_payload(control::WorkflowControlFlow)
+    payload = Dict{String,Any}(
+        "controlId" => control.id,
+        "kind" => String(control.kind),
+    )
+    control.name === nothing || (payload["name"] = control.name)
+    control.start_node_id === nothing || (payload["startNodeId"] = control.start_node_id)
+    control.end_node_id === nothing || (payload["endNodeId"] = control.end_node_id)
+    control.iteration_mode === nothing || (payload["iterationMode"] = String(control.iteration_mode))
+    control.max_iterations === nothing || (payload["maxIterations"] = control.max_iterations)
+    control.selector === nothing || (payload["selector"] = control.selector)
+    isempty(control.cases) || (payload["cases"] = [
+        Dict{String,Any}(
+            "caseId" => String(get(item, "case_id", get(item, "caseId", ""))),
+            "label" => String(get(item, "label", "")),
+            "targetNodeId" => String(get(item, "target_node_id", get(item, "targetNodeId", ""))),
+        ) for item in control.cases
+    ])
+    control.default_target_node_id === nothing || (payload["defaultTargetNodeId"] = control.default_target_node_id)
+    isempty(control.try_node_ids) || (payload["tryNodeIds"] = control.try_node_ids)
+    isempty(control.catch_node_ids) || (payload["catchNodeIds"] = control.catch_node_ids)
+    control.source_node_id === nothing || (payload["sourceNodeId"] = control.source_node_id)
+    control.target_node_id === nothing || (payload["targetNodeId"] = control.target_node_id)
+    control.chunk_size === nothing || (payload["chunkSize"] = control.chunk_size)
+    control.max_concurrency === nothing || (payload["maxConcurrency"] = control.max_concurrency)
+    control.resource_class === nothing || (payload["resourceClass"] = String(control.resource_class))
+    return payload
+end
+
 function dashboard_payload(dashboard::DashboardDefinition)
     payload = Dict{String,Any}(
         "dashboardId" => dashboard.id,
@@ -315,6 +364,9 @@ function workflow_detail_payload(workflow::WorkflowDefinition)
     payload["flowVariables"] = [Dict{String,Any}(String(key) => value for (key, value) in pairs(variable)) for variable in workflow.flow_variables]
     payload["biOutlets"] = [Dict{String,Any}(String(key) => value for (key, value) in pairs(outlet)) for outlet in workflow.bi_outlets]
     workflow.graph === nothing || (payload["graph"] = graph_payload(workflow.graph))
+    isempty(workflow.containers) || (payload["containers"] = [container_payload(container) for container in workflow.containers])
+    isempty(workflow.components) || (payload["components"] = [component_payload(component) for component in workflow.components])
+    isempty(workflow.control_flow) || (payload["controlFlow"] = [control_flow_payload(control) for control in workflow.control_flow])
     isempty(workflow.dashboards) || (payload["dashboards"] = [dashboard_payload(dashboard) for dashboard in workflow.dashboards])
     payload["runtime"] = runtime_payload(workflow.runtime)
     return payload

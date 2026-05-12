@@ -1502,3 +1502,45 @@ Each checkpoint entry must contain:
 
 - Commit all latest verified changes.
 - Continue P1/P2 lanes unless final GPU hardware becomes available.
+---
+
+## Checkpoint: Components/Control-Flow Contract Slice — 2026-05-12
+
+### Work Done Till Date
+
+- Added P1 workflow metadata contracts for containers, components, switch/case, loop, try/catch, and parallel chunk definitions across TypeScript contracts, OpenAPI, JSON schema, gateway mapping, and Julia parser/serializer/validator.
+- Added foundation fixture coverage, Julia validation coverage, contract assertions, and frontend Canvas inspector visibility for component/control-flow bindings.
+- Verified initial evidence: `julia --project=. tests/julia/runtests.jl` and `npm run test` passed before documentation closure.
+
+### Gaps Pending
+
+- Full runtime execution semantics for loop and try/catch nodes remain future Beta work beyond the current P1 contract/validation slice.
+- Observability/perf gates, production deployment manifests, provider-specific object-store proof, and final >=2-device GPU closure remain open.
+
+### Next Items To Implement
+
+- Continue P1 observability/perf gates: OTel/Prometheus seam, 1,000-node render harness, node dispatch microbench, and coverage thresholds.
+- Then continue P2 deployment hardening with real K8s/Helm/Kustomize service manifests.
+- Return to final GPU closure only when >=2 visible CUDA devices are available.
+---
+
+## Checkpoint: Observability/Perf First Gate Slice — 2026-05-12
+
+### Work Done Till Date
+
+- Added a Prometheus-style `/metrics` endpoint with workflow, execution, durable event-log, consumer-lag, queued, and running execution gauges.
+- Added OpenAPI coverage for `/metrics`.
+- Added `npm run validate:perf`, combining a 1,000-node/500-connection render harness and a Julia dispatch microbench.
+- Verified `npm run validate:perf` passed with render `elapsedMs` under 500 ms and dispatch average under the configured threshold.
+
+### Gaps Pending
+
+- P1 observability/perf item remains unchecked until fuller OTel integration and real coverage thresholds land.
+- Production deployment manifests remain P2 open.
+- Final hardware-gated GPU closure remains blocked on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Add coverage threshold enforcement compatible with the existing test stack.
+- Add OTel trace/span seam around gateway request handling and execution dispatch.
+- Continue deployment hardening after observability/perf item can be checked with traceability evidence.

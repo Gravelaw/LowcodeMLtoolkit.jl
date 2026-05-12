@@ -133,6 +133,47 @@ export const sampleWorkflow: WorkflowDefinition = {
       dataType: "model"
     }
   ],
+  containers: [
+    {
+      containerId: "container-prep",
+      name: "Preparation Container",
+      nodeIds: ["node-csv-reader", "node-join"],
+      collapsed: false
+    }
+  ],
+  components: [
+    {
+      componentId: "component-forecast-bi",
+      name: "Forecast BI Component",
+      nodeIds: ["node-join", "node-bi-outlet"],
+      version: "0.1.0",
+      flowVariableScope: "isolated",
+      dashboardIds: ["ops-forecast"]
+    }
+  ],
+  controlFlow: [
+    {
+      controlId: "switch-region",
+      kind: "switch",
+      name: "Region Switch",
+      selector: "flow.region",
+      cases: [
+        { caseId: "north", label: "North", targetNodeId: "node-join" },
+        { caseId: "default", label: "Default", targetNodeId: "node-bi-outlet" }
+      ],
+      defaultTargetNodeId: "node-bi-outlet"
+    },
+    {
+      controlId: "parallel-forecast-chunks",
+      kind: "parallel_chunk",
+      name: "Parallel Forecast Chunks",
+      sourceNodeId: "node-join",
+      targetNodeId: "node-model-train",
+      chunkSize: 1000,
+      maxConcurrency: 4,
+      resourceClass: "gpu"
+    }
+  ],
   graph: {
     revision: 1,
     selectedNodeId: "node-join",

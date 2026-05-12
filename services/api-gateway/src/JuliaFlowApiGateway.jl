@@ -208,6 +208,73 @@ function normalize_graph_payload(graph)
     return payload
 end
 
+function normalize_container_payload(container)
+    normalized = normalized_string_dict(container)
+    return Dict{String,Any}(
+        "id" => String(get(normalized, "containerId", get(normalized, "id", ""))),
+        "name" => String(normalized["name"]),
+        "node_ids" => [String(item) for item in get(normalized, "nodeIds", get(normalized, "node_ids", Any[]))],
+        "collapsed" => Bool(get(normalized, "collapsed", false)),
+    )
+end
+
+function normalize_component_payload(component)
+    normalized = normalized_string_dict(component)
+    return Dict{String,Any}(
+        "id" => String(get(normalized, "componentId", get(normalized, "id", ""))),
+        "name" => String(normalized["name"]),
+        "node_ids" => [String(item) for item in get(normalized, "nodeIds", get(normalized, "node_ids", Any[]))],
+        "version" => String(get(normalized, "version", "0.1.0")),
+        "flow_variable_scope" => String(get(normalized, "flowVariableScope", get(normalized, "flow_variable_scope", "isolated"))),
+        "dashboard_ids" => [String(item) for item in get(normalized, "dashboardIds", get(normalized, "dashboard_ids", Any[]))],
+    )
+end
+
+function normalize_control_flow_case(case_payload)
+    normalized = normalized_string_dict(case_payload)
+    return Dict{String,Any}(
+        "case_id" => String(get(normalized, "caseId", get(normalized, "case_id", ""))),
+        "label" => String(normalized["label"]),
+        "target_node_id" => String(get(normalized, "targetNodeId", get(normalized, "target_node_id", ""))),
+    )
+end
+
+function normalize_control_flow_payload(control_flow)
+    normalized = normalized_string_dict(control_flow)
+    payload = Dict{String,Any}(
+        "id" => String(get(normalized, "controlId", get(normalized, "id", ""))),
+        "kind" => String(normalized["kind"]),
+    )
+    haskey(normalized, "name") && (payload["name"] = String(normalized["name"]))
+    haskey(normalized, "startNodeId") && (payload["start_node_id"] = String(normalized["startNodeId"]))
+    haskey(normalized, "start_node_id") && (payload["start_node_id"] = String(normalized["start_node_id"]))
+    haskey(normalized, "endNodeId") && (payload["end_node_id"] = String(normalized["endNodeId"]))
+    haskey(normalized, "end_node_id") && (payload["end_node_id"] = String(normalized["end_node_id"]))
+    haskey(normalized, "iterationMode") && (payload["iteration_mode"] = String(normalized["iterationMode"]))
+    haskey(normalized, "iteration_mode") && (payload["iteration_mode"] = String(normalized["iteration_mode"]))
+    haskey(normalized, "maxIterations") && (payload["max_iterations"] = Int(normalized["maxIterations"]))
+    haskey(normalized, "max_iterations") && (payload["max_iterations"] = Int(normalized["max_iterations"]))
+    haskey(normalized, "selector") && (payload["selector"] = String(normalized["selector"]))
+    haskey(normalized, "cases") && (payload["cases"] = [normalize_control_flow_case(item) for item in normalized["cases"]])
+    haskey(normalized, "defaultTargetNodeId") && (payload["default_target_node_id"] = String(normalized["defaultTargetNodeId"]))
+    haskey(normalized, "default_target_node_id") && (payload["default_target_node_id"] = String(normalized["default_target_node_id"]))
+    haskey(normalized, "tryNodeIds") && (payload["try_node_ids"] = [String(item) for item in normalized["tryNodeIds"]])
+    haskey(normalized, "try_node_ids") && (payload["try_node_ids"] = [String(item) for item in normalized["try_node_ids"]])
+    haskey(normalized, "catchNodeIds") && (payload["catch_node_ids"] = [String(item) for item in normalized["catchNodeIds"]])
+    haskey(normalized, "catch_node_ids") && (payload["catch_node_ids"] = [String(item) for item in normalized["catch_node_ids"]])
+    haskey(normalized, "sourceNodeId") && (payload["source_node_id"] = String(normalized["sourceNodeId"]))
+    haskey(normalized, "source_node_id") && (payload["source_node_id"] = String(normalized["source_node_id"]))
+    haskey(normalized, "targetNodeId") && (payload["target_node_id"] = String(normalized["targetNodeId"]))
+    haskey(normalized, "target_node_id") && (payload["target_node_id"] = String(normalized["target_node_id"]))
+    haskey(normalized, "chunkSize") && (payload["chunk_size"] = Int(normalized["chunkSize"]))
+    haskey(normalized, "chunk_size") && (payload["chunk_size"] = Int(normalized["chunk_size"]))
+    haskey(normalized, "maxConcurrency") && (payload["max_concurrency"] = Int(normalized["maxConcurrency"]))
+    haskey(normalized, "max_concurrency") && (payload["max_concurrency"] = Int(normalized["max_concurrency"]))
+    haskey(normalized, "resourceClass") && (payload["resource_class"] = String(normalized["resourceClass"]))
+    haskey(normalized, "resource_class") && (payload["resource_class"] = String(normalized["resource_class"]))
+    return payload
+end
+
 function normalize_dashboard_payload(dashboard)
     normalized = normalized_string_dict(dashboard)
     binding = normalized_string_dict(normalized["binding"])
@@ -290,6 +357,25 @@ function workflow_toml_from_request(body::AbstractDict{<:Any,<:Any})
     end
     if haskey(workflow_payload, "graph")
         raw["workflow"]["graph"] = normalize_graph_payload(workflow_payload["graph"])
+    end
+    if haskey(workflow_payload, "containers")
+        raw["workflow"]["containers"] = [
+            normalize_container_payload(container) for container in workflow_payload["containers"]
+        ]
+    end
+    if haskey(workflow_payload, "components")
+        raw["workflow"]["components"] = [
+            normalize_component_payload(component) for component in workflow_payload["components"]
+        ]
+    end
+    if haskey(workflow_payload, "controlFlow")
+        raw["workflow"]["control_flow"] = [
+            normalize_control_flow_payload(control_flow) for control_flow in workflow_payload["controlFlow"]
+        ]
+    elseif haskey(workflow_payload, "control_flow")
+        raw["workflow"]["control_flow"] = [
+            normalize_control_flow_payload(control_flow) for control_flow in workflow_payload["control_flow"]
+        ]
     end
     if haskey(workflow_payload, "dashboards")
         raw["workflow"]["dashboards"] = [
@@ -386,6 +472,36 @@ function healthcheck(state::GatewayState)
             "runningExecutionsTotal" => execution_stats.running_executions_total,
         ),
     )
+end
+
+function prometheus_metric(name::AbstractString, value)
+    return "$(name) $(value)"
+end
+
+function metrics_response(state::GatewayState)
+    event_stats = health_event_stats(state)
+    execution_stats = health_execution_stats(state)
+    lines = String[
+        "# HELP juliaflow_workflows_total Workflows loaded by the gateway.",
+        "# TYPE juliaflow_workflows_total gauge",
+        prometheus_metric("juliaflow_workflows_total", length(state.workflows)),
+        "# HELP juliaflow_executions_total Executions known to the gateway.",
+        "# TYPE juliaflow_executions_total gauge",
+        prometheus_metric("juliaflow_executions_total", length(state.executions)),
+        "# HELP juliaflow_event_log_size Durable gateway event log size.",
+        "# TYPE juliaflow_event_log_size gauge",
+        prometheus_metric("juliaflow_event_log_size", event_stats.event_log_size),
+        "# HELP juliaflow_gateway_consumer_lag Durable event consumer lag.",
+        "# TYPE juliaflow_gateway_consumer_lag gauge",
+        prometheus_metric("juliaflow_gateway_consumer_lag", event_stats.gateway_consumer_lag),
+        "# HELP juliaflow_queued_executions_total Queued executions by gateway state.",
+        "# TYPE juliaflow_queued_executions_total gauge",
+        prometheus_metric("juliaflow_queued_executions_total", execution_stats.queued_executions_total),
+        "# HELP juliaflow_running_executions_total Running executions by gateway state.",
+        "# TYPE juliaflow_running_executions_total gauge",
+        prometheus_metric("juliaflow_running_executions_total", execution_stats.running_executions_total),
+    ]
+    return join(lines, "\n") * "\n"
 end
 
 function event_consumer_poll_ms()
@@ -1914,6 +2030,10 @@ function json_response(status::Integer, body::AbstractString)
     return HTTP.Response(status, ["Content-Type" => "application/json", base_headers()...], body)
 end
 
+function text_response(status::Integer, body::AbstractString; content_type::AbstractString = "text/plain; charset=utf-8")
+    return HTTP.Response(status, ["Content-Type" => content_type, base_headers()...], body)
+end
+
 function empty_response(status::Integer)
     return HTTP.Response(status, base_headers())
 end
@@ -2778,6 +2898,7 @@ function route_request(state::GatewayState, request::HTTP.Request)
     try
         method == "OPTIONS" && return empty_response(204)
         method == "GET" && segments == ["health"] && return json_response(200, healthcheck(state))
+        method == "GET" && segments == ["metrics"] && return text_response(200, metrics_response(state); content_type = "text/plain; version=0.0.4")
         method == "GET" && segments == ["api", "v1", "workflows"] && begin
             require_permission!(state, request, "workflow:read")
             return json_response(200, list_workflows_response(state))

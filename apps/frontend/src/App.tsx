@@ -1259,6 +1259,34 @@ function buildAutoConnection(workflow: WorkflowDefinition, selectedNodeId: strin
   };
 }
 
+function controlFlowNodeIds(controlFlow: NonNullable<WorkflowDefinition["controlFlow"]>[number]): string[] {
+  return [
+    controlFlow.startNodeId,
+    controlFlow.endNodeId,
+    controlFlow.defaultTargetNodeId,
+    controlFlow.sourceNodeId,
+    controlFlow.targetNodeId,
+    ...(controlFlow.tryNodeIds ?? []),
+    ...(controlFlow.catchNodeIds ?? []),
+    ...(controlFlow.cases ?? []).map((item) => item.targetNodeId)
+  ].filter((nodeId): nodeId is string => Boolean(nodeId));
+}
+
+function describeControlFlow(controlFlow: NonNullable<WorkflowDefinition["controlFlow"]>[number]): string {
+  switch (controlFlow.kind) {
+    case "loop":
+      return `${controlFlow.iterationMode ?? "loop"} / max ${controlFlow.maxIterations ?? "unset"}`;
+    case "switch":
+      return `${controlFlow.selector ?? "selector"} / ${controlFlow.cases?.length ?? 0} cases`;
+    case "try_catch":
+      return `${controlFlow.tryNodeIds?.length ?? 0} try nodes / ${controlFlow.catchNodeIds?.length ?? 0} catch nodes`;
+    case "parallel_chunk":
+      return `chunk ${controlFlow.chunkSize ?? "unset"} / concurrency ${controlFlow.maxConcurrency ?? "unset"}`;
+    default:
+      return "control-flow metadata";
+  }
+}
+
 function buildDraftExecution(workflow: WorkflowDefinition, trigger: string, status: WorkflowStatus): ExecutionRailItem {
   return {
     id: `exec-${Date.now()}`,
@@ -2036,6 +2064,11 @@ function App() {
   const latestExecution = executionItems[0] ?? null;
   const validationItems = buildValidationItems(selectedNode, selectedNodeLayout, workflow.connections);
   const sampleOutput = buildSampleOutput(selectedNode);
+  const selectedContainers = (workflow.containers ?? []).filter((container) => container.nodeIds.includes(selectedNode.id));
+  const selectedComponents = (workflow.components ?? []).filter((component) => component.nodeIds.includes(selectedNode.id));
+  const selectedControlFlow = (workflow.controlFlow ?? []).filter((controlFlow) =>
+    controlFlowNodeIds(controlFlow).includes(selectedNode.id)
+  );
   const repositoryFamilies = new Set(workflow.nodes.map((node) => buildRepositoryGroupLabel(node.type)));
   const biOutletNode = workflow.nodes.find((node) => node.type === "bi.outlet") ?? null;
   const dashboards = workflow.dashboards ?? [];
@@ -3527,6 +3560,32 @@ function App() {
                           <div className="sample-output">
                             <strong>Sample output</strong>
                             <span>{sampleOutput}</span>
+                          </div>
+                          <div className="sample-output">
+                            <strong>Components/control-flow</strong>
+                            <span>
+                              {selectedContainers.length + selectedComponents.length + selectedControlFlow.length} metadata bindings
+                            </span>
+                          </div>
+                          <div className="validation-list">
+                            {selectedContainers.map((container) => (
+                              <div className="validation-item is-good" key={container.containerId}>
+                                <strong>{container.name}</strong>
+                                <span>Container / {container.nodeIds.length} nodes</span>
+                              </div>
+                            ))}
+                            {selectedComponents.map((component) => (
+                              <div className="validation-item is-good" key={component.componentId}>
+                                <strong>{component.name}</strong>
+                                <span>Component / {component.flowVariableScope} variables</span>
+                              </div>
+                            ))}
+                            {selectedControlFlow.map((controlFlow) => (
+                              <div className="validation-item is-good" key={controlFlow.controlId}>
+                                <strong>{controlFlow.name ?? controlFlow.controlId}</strong>
+                                <span>{controlFlow.kind}: {describeControlFlow(controlFlow)}</span>
+                              </div>
+                            ))}
                           </div>
                         </section>
                       ) : null}

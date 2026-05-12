@@ -60,6 +60,10 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /run workflow/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /open bi workspace/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /add flow variable/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /validation/i }));
+    expect(screen.getByText(/Components\/control-flow/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preparation Container/i)).toBeInTheDocument();
+    expect(screen.getByText(/Region Switch/i)).toBeInTheDocument();
   });
 
   it("lets authors drag canvas nodes to new positions", () => {

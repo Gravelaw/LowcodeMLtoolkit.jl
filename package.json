@@ -12,7 +12,10 @@
     "dev:frontend": "npm --workspace @juliaflow/frontend run dev",
     "test": "npm run test --workspaces --if-present && node --test tests/contracts/**/*.test.mjs",
     "validate:contracts": "node --test tests/contracts/**/*.test.mjs",
-    "validate:brd-traceability": "node scripts/validate-brd-traceability.mjs"
+    "validate:brd-traceability": "node scripts/validate-brd-traceability.mjs",
+    "perf:render": "node scripts/perf-render-harness.mjs",
+    "perf:dispatch": "julia --project=. scripts/bench-dispatch.jl",
+    "validate:perf": "npm run perf:render && npm run perf:dispatch"
   },
   "dependencies": {
     "smol-toml": "^1.3.4"

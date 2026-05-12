@@ -23,6 +23,12 @@ test("workflow fixture matches foundation contract expectations", async () => {
   assert.equal(workflow.flow_variables[0].type, "GPUDeviceID");
   assert.equal(workflow.workflow.graph.revision, 2);
   assert.equal(workflow.workflow.dashboards[0].charts.length, 5);
+  assert.equal(workflow.workflow.containers[0].id, "container-prep");
+  assert.deepEqual(workflow.workflow.containers[0].node_ids, ["node-source", "node-transform"]);
+  assert.equal(workflow.workflow.components[0].flow_variable_scope, "isolated");
+  assert.equal(workflow.workflow.control_flow[0].kind, "switch");
+  assert.equal(workflow.workflow.control_flow[0].cases[0].target_node_id, "node-transform");
+  assert.equal(workflow.workflow.control_flow[1].max_concurrency, 4);
   assert.equal(workflow.runtime.run_mode, "batch");
 });
 
@@ -33,6 +39,7 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
 
   assert.equal(spec.openapi, "3.1.0");
   assert.ok(spec.paths["/health"]);
+  assert.ok(spec.paths["/metrics"]);
   assert.ok(spec.paths["/api/v1/workflows"]);
   assert.ok(spec.paths["/api/v1/workflows/import"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}"]);
@@ -137,6 +144,16 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayRoleBinding);
   assert.ok(schemas.GatewayResourcePolicy);
   assert.ok(schemas.GatewayAuditQueryResponse);
+  assert.ok(schemas.WorkflowContainerDefinition);
+  assert.ok(schemas.WorkflowComponentDefinition);
+  assert.ok(schemas.WorkflowControlFlowDefinition);
+  assert.ok(schemas.ControlFlowCaseDefinition);
+  assert.ok(schemas.CreateWorkflowRequest.properties.workflow.properties.containers);
+  assert.ok(schemas.CreateWorkflowRequest.properties.workflow.properties.components);
+  assert.ok(schemas.CreateWorkflowRequest.properties.workflow.properties.controlFlow);
+  assert.ok(schemas.WorkflowDetail.properties.containers);
+  assert.ok(schemas.WorkflowDetail.properties.components);
+  assert.ok(schemas.WorkflowDetail.properties.controlFlow);
   assert.ok(schemas.WorkflowDetail.properties.graphRevision);
   assert.ok(schemas.WorkflowDetail.properties.dashboardCount);
   assert.ok(schemas.WorkflowDetail.properties.runMode);

@@ -106,6 +106,11 @@ end
     workflow = load_workflow_definition(foundation_path)
     parallel_workflow = load_workflow_definition(parallel_path)
     gpu_workflow = load_workflow_definition_text(gpu_workflow_text)
+    invalid_control_workflow = load_workflow_definition_text(replace(
+        workflow_text,
+        "max_concurrency = 4" => "max_concurrency = 0";
+        count = 1,
+    ))
     invalid_workflow = load_workflow_definition(invalid_path)
     workflow_from_text = load_workflow_definition_text(workflow_text)
     plan = build_execution_plan(workflow)
@@ -131,6 +136,14 @@ end
     @test execute_with_flow_variables["requested_execution_mode"] == "gpu_preferred"
     @test execute_with_flow_variables["status_history"][1]["at"] isa AbstractString
     @test workflow.graph.revision == 2
+    @test workflow.containers[1].id == "container-prep"
+    @test workflow.containers[1].node_ids == ["node-source", "node-transform"]
+    @test workflow.components[1].flow_variable_scope == "isolated"
+    @test workflow.components[1].dashboard_ids == ["dashboard-foundation"]
+    @test workflow.control_flow[1].kind == :switch
+    @test workflow.control_flow[1].cases[1]["target_node_id"] == "node-transform"
+    @test workflow.control_flow[2].max_concurrency == 4
+    @test occursin("parallel chunk parallel-prep max concurrency", join(collect_validation_errors(invalid_control_workflow), "; "))
     @test length(workflow.dashboards) == 1
     @test parallel_workflow.runtime.run_mode == :stream
     @test spec["resource_plan"][1]["lane"] == "cpu"
@@ -920,6 +933,7 @@ end
         @test isfile(joinpath(store_root, "workflows", "wf-parallel.toml"))
 
         health_response = route_request(state, HTTP.Request("GET", "/health"))
+        metrics_route_response = route_request(state, HTTP.Request("GET", "/metrics"))
         list_response = route_request(state, HTTP.Request("GET", "/api/v1/workflows"))
         detail_response = route_request(state, HTTP.Request("GET", "/api/v1/workflows/wf-foundation"))
         create_response = route_request(
@@ -1607,6 +1621,9 @@ end
         @test occursin("\"gpuWorkerOwnedExecutions\":", String(health_response.body))
         @test occursin("\"queuedExecutionsTotal\":", String(health_response.body))
         @test occursin("\"runningExecutionsTotal\":", String(health_response.body))
+        @test metrics_route_response.status == 200
+        @test occursin("juliaflow_workflows_total", String(metrics_route_response.body))
+        @test occursin("juliaflow_gateway_consumer_lag", String(metrics_route_response.body))
         @test list_response.status == 200
         @test occursin("wf-foundation", String(list_response.body))
         @test detail_response.status == 200

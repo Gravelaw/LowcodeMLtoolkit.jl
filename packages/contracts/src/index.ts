@@ -36,6 +36,9 @@ export interface FlowVariableDefinition {
 
 export type WorkflowRunMode = "batch" | "stream";
 export type WorkflowResourceClass = "cpu" | "gpu";
+export type ComponentFlowVariableScope = "shared" | "isolated";
+export type ControlFlowKind = "loop" | "switch" | "try_catch" | "parallel_chunk";
+export type LoopIterationMode = "table_rows" | "files" | "parameter_range" | "streaming_batches";
 export type NodeExecutionMode = "batch" | "stream" | "hybrid";
 export type DashboardChartFamily = "line" | "bar" | "area" | "table" | "metric";
 export type StreamingWindowKind = "tumbling" | "sliding";
@@ -156,6 +159,48 @@ export interface WorkflowGraphDefinition {
   nodeLayouts: WorkflowNodeLayout[];
   viewport?: WorkflowViewportState;
   selectedNodeId?: string;
+}
+
+export interface WorkflowContainerDefinition {
+  containerId: string;
+  name: string;
+  nodeIds: string[];
+  collapsed?: boolean;
+}
+
+export interface WorkflowComponentDefinition {
+  componentId: string;
+  name: string;
+  nodeIds: string[];
+  version: string;
+  flowVariableScope: ComponentFlowVariableScope;
+  dashboardIds?: string[];
+}
+
+export interface ControlFlowCaseDefinition {
+  caseId: string;
+  label: string;
+  targetNodeId: string;
+}
+
+export interface WorkflowControlFlowDefinition {
+  controlId: string;
+  kind: ControlFlowKind;
+  name?: string;
+  startNodeId?: string;
+  endNodeId?: string;
+  iterationMode?: LoopIterationMode;
+  maxIterations?: number;
+  selector?: string;
+  cases?: ControlFlowCaseDefinition[];
+  defaultTargetNodeId?: string;
+  tryNodeIds?: string[];
+  catchNodeIds?: string[];
+  sourceNodeId?: string;
+  targetNodeId?: string;
+  chunkSize?: number;
+  maxConcurrency?: number;
+  resourceClass?: WorkflowResourceClass;
 }
 
 export interface NodeCapabilityDescriptor {
@@ -301,6 +346,9 @@ export interface WorkflowDefinition {
   nodes: NodeDefinition[];
   connections: ConnectionDefinition[];
   flowVariables: FlowVariableDefinition[];
+  containers?: WorkflowContainerDefinition[];
+  components?: WorkflowComponentDefinition[];
+  controlFlow?: WorkflowControlFlowDefinition[];
   graph?: WorkflowGraphDefinition;
   dashboards?: DashboardDefinition[];
   runtime?: WorkflowRuntimeDefinition;
@@ -426,6 +474,9 @@ export interface GatewayWorkflowMetadata {
   connections: ConnectionDefinition[];
   flowVariables: FlowVariableDefinition[];
   biOutlets: Array<Record<string, unknown>>;
+  containers?: WorkflowContainerDefinition[];
+  components?: WorkflowComponentDefinition[];
+  controlFlow?: WorkflowControlFlowDefinition[];
   graph?: WorkflowGraphDefinition;
   dashboards?: DashboardDefinition[];
   runtime?: WorkflowRuntimeDefinition;
