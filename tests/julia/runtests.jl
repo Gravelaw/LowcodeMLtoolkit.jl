@@ -132,6 +132,10 @@ end
     spec = serialize_job_spec(parallel_workflow; checkpoint_tag = "cp/01-contracts-frozen")
     @test result["status"] == "accepted"
     @test result["mode"] == "batch_cpu"
+    @test haskey(result, "observability_trace")
+    @test length(result["observability_trace"]["trace_id"]) == 32
+    @test result["observability_trace"]["spans"][1]["name"] == "execution.dispatch_plan"
+    @test result["observability_trace"]["spans"][1]["attributes"]["workflow.id"] == "wf-foundation"
     @test execute_with_flow_variables["flow_variables"]["JULIAFLOW_GPU_DEVICE"] == "nvidia:0"
     @test execute_with_flow_variables["requested_execution_mode"] == "gpu_preferred"
     @test execute_with_flow_variables["status_history"][1]["at"] isa AbstractString
@@ -148,6 +152,7 @@ end
     @test parallel_workflow.runtime.run_mode == :stream
     @test spec["resource_plan"][1]["lane"] == "cpu"
     @test spec["dispatch_plan"][1]["worker_pool"] == "alpha-cpu"
+    @test spec["observability_trace"]["spans"][1]["attributes"]["dispatch.lane_count"] == length(spec["dispatch_plan"])
     @test spec["stream_lifecycle_status"] == "starting"
     appended = append_execution_event(spec; message = "heartbeat", metadata = Dict("stream_lifecycle_status" => "active"))
     @test appended["stream_lifecycle_status"] == "active"
@@ -1604,6 +1609,14 @@ end
             ),
         )
         missing_route = route_request(state, HTTP.Request("GET", "/missing"))
+        traced_health_route = route_request(
+            state,
+            HTTP.Request(
+                "GET",
+                "/health",
+                ["traceparent" => "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"],
+            ),
+        )
 
         @test health_response.status == 200
         @test occursin("workflowCount", String(health_response.body))
@@ -1621,9 +1634,15 @@ end
         @test occursin("\"gpuWorkerOwnedExecutions\":", String(health_response.body))
         @test occursin("\"queuedExecutionsTotal\":", String(health_response.body))
         @test occursin("\"runningExecutionsTotal\":", String(health_response.body))
+        @test occursin("\"otelTraceSeamEnabled\":true", String(health_response.body))
         @test metrics_route_response.status == 200
         @test occursin("juliaflow_workflows_total", String(metrics_route_response.body))
         @test occursin("juliaflow_gateway_consumer_lag", String(metrics_route_response.body))
+        @test occursin("juliaflow_observability_spans_total", String(metrics_route_response.body))
+        @test traced_health_route.status == 200
+        @test state.observability_span_count >= 1
+        @test state.observability_spans[end]["trace_id"] == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        @test state.observability_spans[end]["name"] == "HTTP GET /health"
         @test list_response.status == 200
         @test occursin("wf-foundation", String(list_response.body))
         @test detail_response.status == 200
@@ -1746,6 +1765,9 @@ end
         @test occursin("\"status\":\"updated\"", String(update_response.body))
         @test execute_response.status == 202
         @test haskey(execute_payload, "executionId")
+        @test haskey(execute_payload, "observabilityTrace")
+        @test length(execute_payload["observabilityTrace"]["trace_id"]) == 32
+        @test execute_payload["observabilityTrace"]["spans"][1]["name"] == "execution.dispatch_plan"
         @test occursin("\"checkpointTag\":\"cp/01-contracts-frozen\"", String(execute_response.body))
         @test occursin("\"requested_execution_mode\":\"gpu_preferred\"", String(execute_response.body))
         @test occursin("\"flow_variables\":{\"JULIAFLOW_GPU_DEVICE\":\"nvidia:0\"}", String(execute_response.body))

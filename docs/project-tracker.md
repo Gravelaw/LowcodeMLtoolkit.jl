@@ -1499,3 +1499,46 @@ After any meaningful job:
 - Add coverage threshold enforcement compatible with the existing test stack.
 - Add OTel trace/span seam around gateway request handling and execution dispatch.
 - Continue deployment hardening after observability/perf item can be checked with traceability evidence.
+
+### Observability/Perf Trace And Coverage Surface Slice — 2026-05-13
+
+### Work Done Till Date
+
+- Added no-new-dependency OTel-style trace/span metadata for gateway HTTP routing and execution dispatch planning.
+- Exposed observability span counters through health/metrics surfaces and contract/OpenAPI execution trace fields.
+- Added `npm run validate:coverage` as a dependency-free coverage-surface threshold gate across frontend, contracts, Julia gateway/execution, and base extension tests.
+- Verified: `julia --project=. tests/julia/runtests.jl`, `julia --project=. extensions/base/test/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:perf`, `npm run validate:coverage`, `npm run validate:brd-traceability`, and `git diff --check` passed.
+
+### Gaps Pending
+
+- P1 observability/perf item remains unchecked until real coverage-provider thresholds are approved or equivalent threshold evidence is accepted.
+- Production deployment manifests remain P2 open.
+- Final hardware-gated GPU closure remains blocked on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Either add real coverage-provider thresholds with approved dependency support or move to P2 deployment hardening.
+- Keep `npm run validate:coverage` in the standard observability/perf gate until a real provider replaces it.
+- Continue deployment hardening after observability/perf evidence is stable.
+
+### P1 Observability/Perf Closure — 2026-05-13
+
+### Work Done Till Date
+
+- Selected the official Vitest v8 coverage provider path and added `@vitest/coverage-v8` to the frontend workspace.
+- Configured real coverage thresholds in `apps/frontend/vite.config.ts` for `App.tsx` and `sample-workflow.ts`.
+- Wired `npm run validate:coverage` to run real Vitest coverage plus the dependency-free cross-surface coverage inventory, and added `npm run validate:p1` for perf + coverage + BRD traceability.
+- Marked P1 Observability/perf gates complete after linking TODO traceability evidence.
+- Verified P1 closure gates: `npm run validate:p1`, `npm run test`, `npm run build`, and `julia --project=. tests/julia/runtests.jl` passed after real coverage thresholds landed.
+
+### Gaps Pending
+
+- P1 is complete.
+- P2 deployment hardening remains open.
+- Final hardware-gated GPU closure remains blocked on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Start P2 deployment hardening: replace ArgoCD placeholders with real Deployment/Service/Ingress/SecretRef manifests and production overlays.
+- Keep coverage thresholds ratcheted upward as more frontend tests land.
+- Return to final GPU closure only when >=2 visible CUDA devices are available.

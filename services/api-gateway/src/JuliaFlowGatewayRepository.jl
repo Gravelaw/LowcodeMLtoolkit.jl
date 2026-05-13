@@ -459,6 +459,8 @@ function execution_payload(execution::GatewayExecution)
                     haskey(item, "requested_device") && (payload["dispatchPlan"][index]["requestedDevice"] = String(item["requested_device"]))
                     haskey(item, "worker_capacity") && (payload["dispatchPlan"][index]["workerCapacity"] = item["worker_capacity"])
                 end
+            elseif string_key == "observability_trace"
+                payload["observabilityTrace"] = value
             elseif string_key == "stream_lifecycle_status"
                 payload["streamLifecycleStatus"] = String(value)
             elseif string_key == "stream_adapter"

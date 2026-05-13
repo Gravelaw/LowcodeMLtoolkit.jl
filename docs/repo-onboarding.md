@@ -323,7 +323,7 @@ Big gaps still open:
 - actual GPU compute execution path beyond dispatch metadata
 - Hub publish/search/rate UX, hash-verified install, compatibility sandbox, private mirror
 - component/control-flow runtime execution semantics beyond the current contract/validation metadata slice
-- fuller OTel/coverage gates and production deploy manifests after initial `/metrics` plus render/dispatch perf harnesses
+- production deploy manifests after `/metrics`, OTel-style gateway/execution spans, render/dispatch perf harnesses, real Vitest v8 coverage thresholds, and P1 validation gate
 
 See:
 

@@ -441,11 +441,35 @@ export interface GatewayHealthcheck {
   gpuWorkerOwnedExecutions: number;
   queuedExecutionsTotal: number;
   runningExecutionsTotal: number;
+  otelTraceSeamEnabled?: boolean;
+  observabilitySpanCount?: number;
+  observabilityRecentSpanCount?: number;
+  lastTraceId?: string | null;
+  lastSpanName?: string | null;
   authMode?: GatewayAuthMode;
   authDevFallback?: boolean;
   oidcDiscoveryConfigured?: boolean;
   oidcJwksConfigured?: boolean;
   oidcAllowedAlgorithms?: string[];
+}
+
+export interface ObservabilitySpanRecord {
+  trace_id: string;
+  span_id: string;
+  name: string;
+  kind: "server" | "internal" | string;
+  started_at: string;
+  duration_ms: number;
+  status?: number;
+  method?: string;
+  path?: string;
+  attributes?: Record<string, unknown>;
+}
+
+export interface ObservabilityTraceRecord {
+  trace_id: string;
+  root_span_id: string;
+  spans: ObservabilitySpanRecord[];
 }
 
 export interface GatewayWorkflowSummary {
@@ -636,6 +660,7 @@ export interface GatewayExecutionRecord {
   dispatchPlacementReason?: string;
   dispatchRequestedDevice?: string;
   dispatchWorkerCapacity?: Record<string, unknown>;
+  observabilityTrace?: ObservabilityTraceRecord;
   workerId?: string;
   streamLifecycleStatus?: StreamLifecycleStatus;
   streamAdapter?: "fixture" | "kafka" | "none" | string;

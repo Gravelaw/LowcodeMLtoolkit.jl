@@ -52,6 +52,8 @@ Base.@kwdef mutable struct GatewayState
     canvas_subscriptions::Dict{String,Any} = Dict{String,Any}()
     dashboard_subscriptions::Dict{String,Any} = Dict{String,Any}()
     processed_event_ids::Set{String} = Set{String}()
+    observability_spans::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    observability_span_count::Int = 0
 end
 
 Base.@kwdef mutable struct CanvasSubscription
@@ -432,6 +434,7 @@ function healthcheck(state::GatewayState)
     store_id = state.repository isa FileGatewayRepository ? state.repository.root : "postgresql"
     event_stats = health_event_stats(state)
     execution_stats = health_execution_stats(state)
+    last_span = last_observability_span(state)
     queued_gpu_executions = count(
         execution -> execution.status == "queued" && JuliaFlowWorkerService.has_gpu_dispatch(execution),
         state.executions,
@@ -470,6 +473,11 @@ function healthcheck(state::GatewayState)
             "gpuWorkerOwnedExecutions" => execution_stats.gpu_worker_owned_executions,
             "queuedExecutionsTotal" => execution_stats.queued_executions_total,
             "runningExecutionsTotal" => execution_stats.running_executions_total,
+            "otelTraceSeamEnabled" => true,
+            "observabilitySpanCount" => state.observability_span_count,
+            "observabilityRecentSpanCount" => length(state.observability_spans),
+            "lastTraceId" => last_span === nothing ? nothing : last_span["trace_id"],
+            "lastSpanName" => last_span === nothing ? nothing : last_span["name"],
         ),
     )
 end
@@ -500,6 +508,12 @@ function metrics_response(state::GatewayState)
         "# HELP juliaflow_running_executions_total Running executions by gateway state.",
         "# TYPE juliaflow_running_executions_total gauge",
         prometheus_metric("juliaflow_running_executions_total", execution_stats.running_executions_total),
+        "# HELP juliaflow_observability_spans_total OTel-style spans recorded by the gateway.",
+        "# TYPE juliaflow_observability_spans_total counter",
+        prometheus_metric("juliaflow_observability_spans_total", state.observability_span_count),
+        "# HELP juliaflow_observability_recent_spans OTel-style spans retained in gateway memory.",
+        "# TYPE juliaflow_observability_recent_spans gauge",
+        prometheus_metric("juliaflow_observability_recent_spans", length(state.observability_spans)),
     ]
     return join(lines, "\n") * "\n"
 end
@@ -595,6 +609,41 @@ function request_header(request::HTTP.Request, header_name::AbstractString)
         return String(value)
     end
     return nothing
+end
+
+function observability_trace_id()
+    return replace(string(uuid4()), "-" => "")
+end
+
+function observability_span_id()
+    return observability_trace_id()[1:16]
+end
+
+function valid_observability_hex(value::AbstractString, length_limit::Integer)
+    ncodeunits(value) == length_limit || return false
+    return all(isxdigit, value)
+end
+
+function trace_id_from_request(request::HTTP.Request)
+    traceparent = request_header(request, "traceparent")
+    traceparent === nothing && return observability_trace_id()
+    parts = split(String(traceparent), '-')
+    length(parts) == 4 || return observability_trace_id()
+    valid_observability_hex(parts[2], 32) || return observability_trace_id()
+    return lowercase(String(parts[2]))
+end
+
+function record_observability_span!(state::GatewayState, span::Dict{String,Any})
+    state.observability_span_count += 1
+    push!(state.observability_spans, span)
+    excess = length(state.observability_spans) - 100
+    excess > 0 && deleteat!(state.observability_spans, 1:excess)
+    return span
+end
+
+function last_observability_span(state::GatewayState)
+    isempty(state.observability_spans) && return nothing
+    return state.observability_spans[end]
 end
 
 function auth_role_from_request(request::HTTP.Request)
@@ -2889,6 +2938,32 @@ function gateway_stream_handler(state::GatewayState)
 end
 
 function route_request(state::GatewayState, request::HTTP.Request)
+    started_at = now(UTC)
+    started_ns = time_ns()
+    method = String(request.method)
+    uri = HTTP.URI(String(request.target))
+    span = Dict{String,Any}(
+        "trace_id" => trace_id_from_request(request),
+        "span_id" => observability_span_id(),
+        "name" => "HTTP $(method) $(uri.path)",
+        "kind" => "server",
+        "method" => method,
+        "path" => uri.path,
+        "started_at" => Dates.format(started_at, dateformat"yyyy-mm-ddTHH:MM:SS.sss") * "Z",
+    )
+    status = 500
+    try
+        response = route_request_inner(state, request)
+        status = Int(response.status)
+        return response
+    finally
+        span["status"] = status
+        span["duration_ms"] = round((time_ns() - started_ns) / 1_000_000; digits = 3)
+        record_observability_span!(state, span)
+    end
+end
+
+function route_request_inner(state::GatewayState, request::HTTP.Request)
     method = String(request.method)
     uri = HTTP.URI(String(request.target))
     path = uri.path

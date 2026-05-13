@@ -203,7 +203,7 @@ function can_transition_execution_status(from_status, to_status)
 end
 
 function iso8601_timestamp()
-    return Dates.format(Dates.now(Dates.UTC), dateformat"yyyy-mm-ddTHH:MM:SS.sssZ")
+    return Dates.format(Dates.now(Dates.UTC), dateformat"yyyy-mm-ddTHH:MM:SS.sss") * "Z"
 end
 
 function execution_status_event(status::Symbol; timestamp::String = iso8601_timestamp(), message::Union{Nothing,String} = nothing)
@@ -213,6 +213,43 @@ function execution_status_event(status::Symbol; timestamp::String = iso8601_time
     )
     message === nothing || (event["message"] = message)
     return event
+end
+
+function observability_trace_id()
+    return replace(string(uuid4()), "-" => "")
+end
+
+function observability_span_id()
+    return observability_trace_id()[1:16]
+end
+
+function execution_observability_trace(
+    workflow::WorkflowDefinition,
+    dispatch_plan::Vector{Dict{String,Any}};
+    duration_ms::Real,
+)
+    trace_id = observability_trace_id()
+    return Dict{String,Any}(
+        "trace_id" => trace_id,
+        "root_span_id" => observability_span_id(),
+        "spans" => [
+            Dict{String,Any}(
+                "trace_id" => trace_id,
+                "span_id" => observability_span_id(),
+                "name" => "execution.dispatch_plan",
+                "kind" => "internal",
+                "started_at" => iso8601_timestamp(),
+                "duration_ms" => duration_ms,
+                "attributes" => Dict{String,Any}(
+                    "workflow.id" => workflow.id,
+                    "workflow.version" => workflow.version,
+                    "workflow.node_count" => length(workflow.nodes),
+                    "workflow.connection_count" => length(workflow.connections),
+                    "dispatch.lane_count" => length(dispatch_plan),
+                ),
+            ),
+        ],
+    )
 end
 
 """
@@ -230,6 +267,10 @@ function create_execution_record(
     plan = reduce(vcat, stages; init = String[])
     created_at = iso8601_timestamp()
     history = [execution_status_event(status; timestamp = created_at, message = status_message)]
+    resource_plan = build_resource_plan(workflow)
+    dispatch_started_at = time_ns()
+    dispatch_plan = build_dispatch_plan(workflow)
+    dispatch_duration_ms = round((time_ns() - dispatch_started_at) / 1_000_000; digits = 3)
 
     record = Dict{String,Any}(
         "execution_id" => string(execution_id),
@@ -245,8 +286,13 @@ function create_execution_record(
         "created_at" => created_at,
         "updated_at" => created_at,
         "status_history" => history,
-        "resource_plan" => build_resource_plan(workflow),
-        "dispatch_plan" => build_dispatch_plan(workflow),
+        "resource_plan" => resource_plan,
+        "dispatch_plan" => dispatch_plan,
+        "observability_trace" => execution_observability_trace(
+            workflow,
+            dispatch_plan;
+            duration_ms = dispatch_duration_ms,
+        ),
     )
     workflow.runtime.run_mode == :stream && (record["stream_lifecycle_status"] = "starting")
 

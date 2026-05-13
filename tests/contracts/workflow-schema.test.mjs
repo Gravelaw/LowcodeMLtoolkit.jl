@@ -131,6 +131,11 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayHealthcheck.properties.gpuWorkerOwnedExecutions);
   assert.ok(schemas.GatewayHealthcheck.properties.queuedExecutionsTotal);
   assert.ok(schemas.GatewayHealthcheck.properties.runningExecutionsTotal);
+  assert.ok(schemas.GatewayHealthcheck.properties.otelTraceSeamEnabled);
+  assert.ok(schemas.GatewayHealthcheck.properties.observabilitySpanCount);
+  assert.ok(schemas.GatewayHealthcheck.properties.observabilityRecentSpanCount);
+  assert.ok(schemas.GatewayHealthcheck.properties.lastTraceId);
+  assert.ok(schemas.GatewayHealthcheck.properties.lastSpanName);
   assert.ok(schemas.GatewayHealthcheck.properties.authMode);
   assert.ok(schemas.GatewayHealthcheck.properties.authMode.enum.includes("oidc"));
   assert.ok(schemas.GatewayHealthcheck.properties.oidcDiscoveryConfigured);
@@ -171,6 +176,9 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchPlacementReason);
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchRequestedDevice);
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchWorkerCapacity);
+  assert.ok(schemas.GatewayExecutionRecord.properties.observabilityTrace);
+  assert.ok(schemas.ObservabilityTraceRecord.properties.spans);
+  assert.ok(schemas.ObservabilitySpanRecord.properties.duration_ms);
   assert.ok(schemas.GatewayExecutionRecord.properties.workerId);
   assert.ok(schemas.GatewayExecutionRecord.properties.streamLifecycleStatus);
   assert.ok(schemas.GatewayExecutionRecord.properties.streamAdapter);
