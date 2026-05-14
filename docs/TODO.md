@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
 Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/plans/repo-brd-endgame-2026-04-25.md`; prior auth-hardening plan: `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
 
@@ -29,7 +29,7 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 
 ## P2 — Beta/GA Foundation
 
-1. [ ] Deployment hardening: replace ArgoCD placeholders with real deployments/services/ingress/secrets and Helm/Kustomize production overlays.
+1. [x] Deployment hardening: ArgoCD placeholders are replaced with Kustomize-backed API Gateway, Execution Service, Frontend, and provider-neutral platform dependency contract manifests; provider-specific production overlays/Helm bindings remain future environment work.
 2. [x] BRD traceability automation: maintain `docs/brd-traceability.md`; fail milestone claim if TODO item lacks test/evidence links.
 3. [x] Node-library scale roadmap: staged taxonomy reached 150 stable nodes with quality tiers and compatibility tests; 300+ ecosystem breadth remains Beta/GA roadmap work.
 
@@ -58,9 +58,10 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 - 2026-05-12: Components/control-flow contracts now add container, component, switch/case, loop, try/catch, and parallel chunk metadata shapes across contracts/OpenAPI/TOML, gateway request/response mapping, Julia parser/serializer/validator, fixture coverage, and frontend inspector visibility; future work should add full runtime semantics for loops and try/catch execution.
 - 2026-05-12: Observability/perf first gate adds Prometheus-style `/metrics`, OpenAPI path evidence, a 1,000-node/500-connection render harness, and a Julia dispatch microbench wired through `npm run validate:perf`; coverage thresholds and fuller OTel integration remain before P1 item 3 can be checked.
 - 2026-05-13: Observability/perf final P1 gate adds OTel-style trace/span seams, OpenAPI/TS health/execution trace fields, `@vitest/coverage-v8` real frontend coverage thresholds, dependency-free cross-surface coverage inventory, and `npm run validate:p1`; P1 item 3 is now checked with traceability evidence.
+- 2026-05-14: P2 deployment hardening replaces placeholder ArgoCD workload intent ConfigMaps with Kustomize bases/dev overlays for API Gateway, Execution Service, Frontend, and provider-neutral platform dependency service/secret contracts; `npm run validate:k8s` validates structural YAML, Kustomize references, AppProject app-of-apps policy, placeholder removal, and renders with `kubectl kustomize` or `kustomize build` when available.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
-- 2026-04-25: BRD traceability automation now validates every checked P0/P1 TODO item against `docs/brd-traceability.md` code/test evidence links.
+- 2026-04-25: BRD traceability automation now validates every checked P0/P1/P2 TODO item against `docs/brd-traceability.md` code/test evidence links.
 - 2026-04-28: production materialization adapter seam now supports configured reader/writer callbacks for Arrow/DataFrames-shaped refs with tests; package-backed local object-store adapters exist; provider-specific cloud deployment hardening remains pending.
 - 2026-04-28: base pack scale advanced from 25 to 35 stable Tier-1 nodes with cleanup/stat prep nodes and output-inspecting tests; scale 35 -> 75 -> 150 remains pending.
 

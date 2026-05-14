@@ -16,9 +16,9 @@ Tracker always records 3 things:
 
 - Name: `JuliaFlow`
 - BRD: `JuliaFlow_BRD_v1.0.docx`
-- Current target phase: `Phase 1 / Alpha`
+- Current target phase: `P2 / Beta-GA Foundation`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-05-09`
+- Last updated: `2026-05-14`
 
 ## Work Done Till Date
 
@@ -1542,3 +1542,27 @@ After any meaningful job:
 - Start P2 deployment hardening: replace ArgoCD placeholders with real Deployment/Service/Ingress/SecretRef manifests and production overlays.
 - Keep coverage thresholds ratcheted upward as more frontend tests land.
 - Return to final GPU closure only when >=2 visible CUDA devices are available.
+
+
+### P2 Deployment Hardening — 2026-05-14
+
+### Work Done Till Date
+
+- Replaced ArgoCD placeholder workload intent ConfigMaps with Kustomize bases and dev overlays for API Gateway, Execution Service, Frontend, and provider-neutral platform dependency seams.
+- API Gateway now has Deployment, Service, runtime ConfigMap, optional secret-ref template, dev Ingress, `/health` probes, `/metrics` scrape annotations, and deployable dev defaults using file-backed storage plus required dev-token auth so empty provider secrets do not grant owner fallback access.
+- Execution Service now has Deployment, internal Service, runtime ConfigMap, checkpoint/object-store/broker secret-ref template, and `scripts/run-execution-service.jl` exposing real `/health` and `/metrics` endpoints on port 8090.
+- Frontend now has Deployment, Service, dev Ingress, a mounted `juliaflow-config.js` runtime ConfigMap, and app code that reads runtime gateway config before Vite build-time fallback.
+- Platform dependency base now keeps the namespace and declares stable service/secret contracts for PostgreSQL, Redis, Kafka, object storage, and Keycloak/OIDC without committing fake production StatefulSets or real credentials.
+- Added `npm run validate:k8s` via `scripts/validate-k8s-manifests.sh`; it renders with `kubectl kustomize` or `kustomize build` when available, otherwise performs structural YAML, Kustomize reference, AppProject app-of-apps policy, and placeholder checks.
+
+### Gaps Pending
+
+- Provider-specific production overlays remain future work for selected managed PostgreSQL, Redis, Kafka/NATS, object storage, and OIDC/Keycloak providers.
+- Live cluster proof (`kubectl apply --dry-run=server -k ...`) is pending because this host has no configured `kubectl`/cluster; local validation covers structural YAML and ArgoCD policy only.
+- Final hardware-gated GPU closure remains blocked on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Add staging/prod provider overlays after provider choices and secret delivery mechanism are selected.
+- Repeat auth, streaming, object-store, and gateway smoke tests against the target provider/cluster before GA deployment claims.
+- Keep P2 manifests in CI via `npm run validate:k8s` plus existing `npm run test`, `npm run build`, and BRD traceability gates.

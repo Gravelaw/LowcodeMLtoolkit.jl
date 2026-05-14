@@ -4,3 +4,6 @@ resources:
   - ../../base
 commonLabels:
   environment: dev
+images:
+  - name: ghcr.io/juliaflow/execution-service
+    newTag: dev

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: juliaflow-frontend
+  namespace: juliaflow
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: juliaflow
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

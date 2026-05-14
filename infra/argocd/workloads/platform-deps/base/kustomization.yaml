@@ -2,7 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml
-  - dependencies-configmap.yaml
+  - service-contracts.yaml
+  - secret-templates.yaml
+  - dependency-contracts.yaml
 commonLabels:
   app.kubernetes.io/part-of: juliaflow
   app.kubernetes.io/component: platform-deps

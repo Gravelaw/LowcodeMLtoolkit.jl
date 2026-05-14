@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const TODO_PATH = new URL("../docs/TODO.md", import.meta.url);
 const TRACE_PATH = new URL("../docs/brd-traceability.md", import.meta.url);
 
-const SECTION_RE = /^##\s+(P[01])\b/;
+const SECTION_RE = /^##\s+(P[0-2])\b/;
 const NEXT_SECTION_RE = /^##\s+P[0-9]\b/;
 const CHECKED_RE = /^\s*\d+\.\s+\[x\]\s+(.+?)(?::|$)/i;
 
@@ -17,7 +17,7 @@ function normalize(text) {
     .trim();
 }
 
-export function checkedP0P1Items(todoText) {
+export function checkedMilestoneItems(todoText) {
   const lines = todoText.split(/\r?\n/);
   const items = [];
   let activeSection = null;
@@ -45,8 +45,12 @@ export function checkedP0P1Items(todoText) {
   return items;
 }
 
+export function checkedP0P1Items(todoText) {
+  return checkedMilestoneItems(todoText);
+}
+
 export function validateTraceability(todoText, traceabilityText) {
-  const items = checkedP0P1Items(todoText);
+  const items = checkedMilestoneItems(todoText);
   const traceLines = traceabilityText.split(/\r?\n/);
   const errors = [];
 
@@ -85,7 +89,7 @@ export async function main() {
   const result = validateTraceability(todoText, traceabilityText);
 
   if (!result.ok) {
-    console.error(`BRD traceability validation failed for ${result.checkedCount} checked P0/P1 TODO items:`);
+    console.error(`BRD traceability validation failed for ${result.checkedCount} checked P0/P1/P2 TODO items:`);
     for (const error of result.errors) {
       console.error(`- ${error}`);
     }
@@ -93,7 +97,7 @@ export async function main() {
     return;
   }
 
-  console.log(`BRD traceability validation passed for ${result.checkedCount} checked P0/P1 TODO items.`);
+  console.log(`BRD traceability validation passed for ${result.checkedCount} checked P0/P1/P2 TODO items.`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

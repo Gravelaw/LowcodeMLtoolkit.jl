@@ -44,11 +44,25 @@ describe("App", () => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
     MockWebSocket.instances = [];
+    delete window.__JULIAFLOW_CONFIG__;
     window.history.replaceState({}, "", "/");
   });
 
   afterEach(() => {
     cleanup();
+  });
+
+  it("uses runtime gateway config before Vite env fallback", async () => {
+    vi.stubEnv("VITE_JULIAFLOW_GATEWAY_BASE_URL", "http://gateway-env.test");
+    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "http://gateway-runtime.test" };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([])));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("http://gateway-runtime.test/api/v1/workflows", expect.any(Object));
+    });
   });
 
   it("renders the route shell and canvas-first authoring surface", () => {

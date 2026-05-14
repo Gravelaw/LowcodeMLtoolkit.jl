@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juliaflow-frontend-config
+  namespace: juliaflow
+data:
+  juliaflow-config.js: |
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: "http://api.dev.juliaflow.local"
+    };

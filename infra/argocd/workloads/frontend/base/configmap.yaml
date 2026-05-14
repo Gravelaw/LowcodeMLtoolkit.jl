@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juliaflow-frontend-config
+  namespace: juliaflow
+data:
+  juliaflow-config.js: |
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: ""
+    };
+  JULIAFLOW_GATEWAY_INTERNAL_URL: "http://juliaflow-api-gateway:8088"

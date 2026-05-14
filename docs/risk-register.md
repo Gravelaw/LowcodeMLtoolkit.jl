@@ -1,12 +1,12 @@
 # JuliaFlow Risk Register
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 This register tracks active BRD delivery risks that should be burned down through thin, verified slices. It complements `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md`.
 
 ## Current Risk Focus
 
-Next implementation lane: P2 deployment hardening. P1 observability/perf now has `/metrics`, OTel-style trace/span seams, render/dispatch perf harnesses, real Vitest v8 coverage thresholds, and validation scripts.
+Next implementation lane: provider-specific deployment proof after P2 manifest hardening. P1 observability/perf now has `/metrics`, OTel-style trace/span seams, render/dispatch perf harnesses, real Vitest v8 coverage thresholds, and validation scripts; P2 now has Kustomize-backed core workload manifests and provider-neutral dependency contracts.
 GPU count is an environment constraint, so `R-GPU-001` multi-GPU evidence moves to the final hardware-gated phase instead of blocking near-term work. Keep `R-SEC-*` and `R-STREAM-001` monitored for provider-specific expansion beyond the local dev stack.
 
 | ID | Area | Risk | Impact | Likelihood | Mitigation | Next Evidence | Status |
@@ -21,12 +21,13 @@ GPU count is an environment constraint, so `R-GPU-001` multi-GPU evidence moves 
 | R-OBJ-001 | Object storage | Provider-specific S3/GCS/Azure deployments and credentials are not proven despite provider-neutral remote adapter. | Production cloud materialization claim remains incomplete for real providers. | Medium | Treat provider deployment as hardening; add target-provider config and credential test only when provider is selected. | Provider-specific integration fixture or deployment manifest evidence. | Open |
 | R-WC-001 | Components/control-flow | Components and control-flow could drift between canvas metadata, TOML contracts, gateway payloads, and Julia validation. | Beta workflow authoring/runtime semantics can become inconsistent. | Medium | Container/component/control-flow metadata now roundtrips through TS/OpenAPI/TOML, gateway mapping, Julia parser/serializer/validator, fixture tests, and Canvas inspector visibility. | Add full runtime execution semantics for loop and try/catch when Beta executor scope begins. | Mitigated for P1 contract metadata |
 | R-HUB-001 | Hub | Partner package sandboxing, artifact hashes, private/offline mirrors, and publish UX needed hardening beyond initial trust shell. | Governed Hub install/publish can drift without artifact and mirror metadata checks. | Medium | Manifest now carries SHA-256-shaped artifact hashes, sandbox command metadata, and private/offline mirror refs with local-file mirror refs rejected; partner trust/compatibility blockers, gateway publish registration, frontend publish UX, and Julia/frontend/contract tests are in place. | Future evidence: execute sandbox commands, verify downloaded artifacts against hashes, and test real private registry mirrors. | Mitigated for Alpha publish/install metadata |
+| R-DEP-001 | Deployment | Provider-neutral Kustomize manifests can drift from selected managed services or cluster policy. | Production rollout can fail despite render-valid manifests. | Medium | P2 base/dev overlays now render API Gateway, Execution Service, Frontend, and platform dependency service/secret contracts without real secrets or fake production StatefulSets; `npm run validate:k8s` guards structural YAML, references, AppProject app-of-apps policy, placeholders, and uses `kubectl kustomize`/`kustomize build` when available. | Add staging/prod overlays for selected providers, then run server-side dry-run and provider smoke tests in target cluster. | Mitigated for P2 thin slice |
 
 ## Risk Burn-Down Order
 
 1. Production OIDC/RBAC: `R-SEC-001` to `R-SEC-004` mitigated for local-platform P0; repeat on selected provider before production rollout.
 2. Streaming production hardening: `R-STREAM-001` mitigated for local Kafka P0; repeat on selected provider before production rollout.
-3. Continue P2 work: deployment hardening; components/control-flow contracts are mitigated for metadata/validation, with runtime loop/try-catch semantics still future work.
+3. Provider-specific deployment proof: extend P2 Kustomize bases into selected staging/prod overlays and run server-side dry-run plus smokes (`R-DEP-001`).
 4. Provider-specific object-store deployment: `R-OBJ-001` once provider/credential target exists.
 5. Hub publish/install metadata hardening: `R-HUB-001` mitigated for Alpha; revisit for real sandbox execution and artifact download verification.
 6. Final hardware-gated GPU production closure: `R-GPU-001` real CUDA/KernelAbstractions multi-GPU evidence on >=2 visible devices.

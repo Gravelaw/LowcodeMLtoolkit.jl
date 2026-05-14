@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juliaflow-platform-dependency-contracts
+  namespace: juliaflow
+data:
+  posture: "provider-neutral-contracts"
+  postgresService: "juliaflow-postgres:5432; secret=juliaflow-postgres-connection"
+  redisService: "juliaflow-redis:6379; secret=juliaflow-redis-connection"
+  kafkaService: "juliaflow-kafka:9092; secret=juliaflow-kafka-connection"
+  objectStoreService: "juliaflow-object-store:9000; secret=juliaflow-object-storage-connection"
+  keycloakService: "juliaflow-keycloak:8080; secret=juliaflow-oidc-connection"
+  note: "These manifests declare stable service and secret seams only. Bind real managed services or operator-owned workloads in provider overlays. Do not commit real credentials."

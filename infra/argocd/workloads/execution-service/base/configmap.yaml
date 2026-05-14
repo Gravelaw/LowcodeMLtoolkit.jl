@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juliaflow-execution-service-config
+  namespace: juliaflow
+data:
+  JULIAFLOW_EXECUTION_MODE: "batch"
+  JULIAFLOW_EXECUTION_HOST: "0.0.0.0"
+  JULIAFLOW_EXECUTION_PORT: "8090"
+  JULIAFLOW_NODE_SDK_PATH: "services/node-sdk/src/JuliaFlowNodeSDK.jl"
+  JULIAFLOW_WORKFLOW_SCHEMA_PATH: "packages/contracts/schemas/workflow.schema.json"
+  JULIAFLOW_CHECKPOINT_ROOT: "/var/lib/juliaflow/checkpoints"
+  JULIAFLOW_OBJECT_STORE_BUCKET: "juliaflow-artifacts"
+  JULIAFLOW_STREAM_BROKER: "kafka"
+  JULIAFLOW_GPU_WORKER_MODE: "process"

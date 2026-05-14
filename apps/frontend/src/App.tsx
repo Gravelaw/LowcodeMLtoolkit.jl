@@ -147,6 +147,16 @@ interface ActionFeedback {
   tone: ActionTone;
 }
 
+interface JuliaFlowRuntimeConfig {
+  gatewayBaseUrl?: string;
+}
+
+declare global {
+  interface Window {
+    __JULIAFLOW_CONFIG__?: JuliaFlowRuntimeConfig;
+  }
+}
+
 interface NodeValidationSummary {
   detail: string;
   label: string;
@@ -175,6 +185,10 @@ interface ConnectionDraftPreview {
 }
 
 function getGatewayBaseUrl(): string {
+  const runtimeUrl = typeof window === "undefined" ? "" : String(window.__JULIAFLOW_CONFIG__?.gatewayBaseUrl ?? "").trim();
+  if (runtimeUrl.length > 0) {
+    return runtimeUrl;
+  }
   return String(import.meta.env.VITE_JULIAFLOW_GATEWAY_BASE_URL ?? "").trim();
 }
 

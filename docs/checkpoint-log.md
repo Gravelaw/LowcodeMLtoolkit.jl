@@ -1587,3 +1587,27 @@ Each checkpoint entry must contain:
 - Start P2 deployment hardening: replace ArgoCD placeholders with real Deployment/Service/Ingress/SecretRef manifests and production overlays.
 - Keep coverage thresholds ratcheted upward as more frontend tests land.
 - Return to final GPU closure only when >=2 visible CUDA devices are available.
+
+---
+
+## Checkpoint: P2 Deployment Hardening — 2026-05-14
+
+### Work Done Till Date
+
+- Replaced placeholder ArgoCD workload intent ConfigMaps with Kustomize bases and dev overlays for API Gateway, Execution Service, Frontend, and provider-neutral platform dependency seams.
+- Added workload manifests for Deployments, Services, runtime ConfigMaps, dev Ingresses, and secret templates without committing real credentials.
+- Fixed review blockers: AppProject now whitelists `argoproj.io/Application`; API Gateway dev defaults avoid required Postgres/OIDC secrets and require a dev auth token for protected routes; Execution Service runs a real HTTP health/metrics runner; frontend runtime config is mounted as `juliaflow-config.js` and read before Vite env fallback.
+- Kept platform dependencies provider-neutral by declaring namespace, service contracts, secret templates, and dependency-contract metadata instead of fake production PostgreSQL/Kafka/Keycloak/MinIO/Redis workloads.
+- Added `scripts/validate-k8s-manifests.sh` and `npm run validate:k8s` for render/static validation, including AppProject app-of-apps policy checks and structural YAML fallback when kubectl/kustomize is unavailable.
+
+### Gaps Pending
+
+- Provider-specific staging/prod overlays and live cluster server-side dry-run evidence remain pending until target providers/cluster access exist.
+- External production smoke repeats remain needed for managed IdP/PostgreSQL/Kafka/NATS/object-store choices.
+- Final hardware-gated GPU closure remains blocked until >=2 visible CUDA devices exist.
+
+### Next Items To Implement
+
+- Add selected-provider overlays and secret delivery integration (for example ExternalSecrets/SealedSecrets/provider-native secret sync) without committing credentials.
+- Run `kubectl apply --dry-run=server -k ...` against a configured cluster for all workload overlays.
+- Continue provider-specific object-store deployment proof or GA release-hardening gates next.
