@@ -1,8 +1,8 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-14
+Last updated: 2026-05-15
 Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
-Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/plans/repo-brd-endgame-2026-04-25.md`; prior auth-hardening plan: `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
+Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.omx/plans/repo-brd-endgame-2026-04-25.md`, `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
 
 ## P0 — Required Before Phase 1 / Alpha Complete
 
@@ -33,6 +33,15 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 2. [x] BRD traceability automation: maintain `docs/brd-traceability.md`; fail milestone claim if TODO item lacks test/evidence links.
 3. [x] Node-library scale roadmap: staged taxonomy reached 150 stable nodes with quality tiers and compatibility tests; 300+ ecosystem breadth remains Beta/GA roadmap work.
 
+## Current Development Phase — Provider-Specific GA Proof / Module Expansion
+
+1. [ ] Provider-specific deployment proof: add selected staging/prod overlays, secret delivery integration, server-side dry-run evidence, and auth/PostgreSQL/Kafka-or-NATS/object-store/gateway smokes.
+2. [ ] Provider-specific object-store proof: run remote Arrow IPC materialization against selected S3/GCS/Azure-compatible target with externally supplied credentials and linked evidence.
+3. [x] Frontend module expansion / BI viewer row-search slice: published dashboard viewer row search now filters visible chart rows and filtered CSV exports while preserving route shell, demo fallback, runtime config, and coverage gates.
+4. [ ] Julia runtime module expansion: add approved runtime semantics such as loop/try-catch execution or deeper worker-runtime behavior with Julia/contract tests.
+5. [ ] Governed Hub production depth: execute sandbox commands, verify downloaded artifacts against hashes, and prove private/offline registry mirror behavior.
+6. [x] Control-doc sync automation: `AGENTS.md` now requires Plan/TODO/risk/tracker/checkpoint updates for every completed slice/phase/review, and `npm run validate:control-doc-sync` enforces the guard when non-control files change.
+
 ## Final Hardware-Gated Phase
 
 1. [ ] GPU production hardening / multi-GPU closure: deterministic multi-device placement metadata, requested/selected device reporting, explicit fallback reasons, scheduler policy, worker isolation/capacity metadata, and one-device CUDA/KernelAbstractions smoke evidence exist; final closure is intentionally last because full hardware-backed worker isolation and multi-GPU scheduling proof requires a host/CI runner with >=2 visible CUDA devices.
@@ -59,6 +68,9 @@ Plan: `.omx/plans/brd-gap-review-2026-04-24.md`; current endgame plan: `.omx/pla
 - 2026-05-12: Observability/perf first gate adds Prometheus-style `/metrics`, OpenAPI path evidence, a 1,000-node/500-connection render harness, and a Julia dispatch microbench wired through `npm run validate:perf`; coverage thresholds and fuller OTel integration remain before P1 item 3 can be checked.
 - 2026-05-13: Observability/perf final P1 gate adds OTel-style trace/span seams, OpenAPI/TS health/execution trace fields, `@vitest/coverage-v8` real frontend coverage thresholds, dependency-free cross-surface coverage inventory, and `npm run validate:p1`; P1 item 3 is now checked with traceability evidence.
 - 2026-05-14: P2 deployment hardening replaces placeholder ArgoCD workload intent ConfigMaps with Kustomize bases/dev overlays for API Gateway, Execution Service, Frontend, and provider-neutral platform dependency service/secret contracts; `npm run validate:k8s` validates structural YAML, Kustomize references, AppProject app-of-apps policy, placeholder removal, and renders with `kubectl kustomize` or `kustomize build` when available.
+- 2026-05-14: Current development phase is Provider-Specific GA Proof plus frontend/Julia module expansion; see `Plan.md`. P0/P1/P2 local-platform slices are closed, while provider overlays/smokes, object-store proof, frontend depth, Julia runtime depth, Hub production verification, and final multi-GPU evidence remain open.
+- 2026-05-14: Control-doc sync automation added: `AGENTS.md` mandates Plan/TODO/risk/tracker/checkpoint updates after slice/phase/review completion and `npm run validate:control-doc-sync` guards non-control changes.
+- 2026-05-15: Frontend module expansion first slice adds BI published-viewer row search across visible chart rows, clear row-search controls, search-aware row counts, and filtered CSV export respecting both chart filter and search term.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
 - 2026-04-25: BRD traceability automation now validates every checked P0/P1/P2 TODO item against `docs/brd-traceability.md` code/test evidence links.

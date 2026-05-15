@@ -19,3 +19,14 @@ test("BRD traceability links every checked P0/P1/P2 TODO to evidence", async () 
   assert.deepEqual(result.errors, []);
   assert.equal(result.ok, true);
 });
+
+test("BRD traceability accepts validate scripts as verification evidence", () => {
+  const todoText = "## P2 Deployment Hardening\n\n1. [x] Control-doc sync automation: enforced by validator.\n";
+  const traceabilityText = "| TODO Item | Code / Doc Evidence | Test / Verification Evidence |\n"
+    + "| --- | --- | --- |\n"
+    + "| Control-doc sync automation | `scripts/validate-control-doc-sync.mjs`; `docs/project-tracker.md` | `npm run validate:control-doc-sync` |\n";
+
+  const result = validateTraceability(todoText, traceabilityText);
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.ok, true);
+});

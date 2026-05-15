@@ -67,7 +67,7 @@ export function validateTraceability(todoText, traceabilityText) {
       /`(?:apps|packages|services|extensions|src|infra|scripts|docs)\//.test(row)
     );
     const hasTestEvidence = matchingRows.some((row) =>
-      /`(?:tests\/|extensions\/[^`]+\/test\/|node tests\/|npm run test|npm run build|julia --project=\.)/.test(row)
+      /`(?:tests\/|extensions\/[^`]+\/test\/|node tests\/|npm run (?:test|build|validate:[^`\\s]+)|julia --project=\.)/.test(row)
     );
 
     if (!hasCodeEvidence) {

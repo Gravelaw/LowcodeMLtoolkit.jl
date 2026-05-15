@@ -16,9 +16,9 @@ Tracker always records 3 things:
 
 - Name: `JuliaFlow`
 - BRD: `JuliaFlow_BRD_v1.0.docx`
-- Current target phase: `P2 / Beta-GA Foundation`
+- Current target phase: `Provider-Specific GA Proof / Module Expansion`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-05-14`
+- Last updated: `2026-05-15`
 
 ## Work Done Till Date
 
@@ -1566,3 +1566,86 @@ After any meaningful job:
 - Add staging/prod provider overlays after provider choices and secret delivery mechanism are selected.
 - Repeat auth, streaming, object-store, and gateway smoke tests against the target provider/cluster before GA deployment claims.
 - Keep P2 manifests in CI via `npm run validate:k8s` plus existing `npm run test`, `npm run build`, and BRD traceability gates.
+
+### Agent Guidance / Future Module Skill Routing — 2026-05-14
+
+### Work Done Till Date
+
+- Updated `AGENTS.md` with a concise required skill-routing map for future JuliaFlow modules.
+- Added repo-local skills for BRD control-loop work, Julia development, frontend development, and provider deployment hardening under `.codex/skills/`.
+- Reaffirmed NASA/JPL Power of 10 as mandatory for all core JuliaFlow logic and preserved subagent/parallel-lane guidance for independent bounded work.
+
+### Gaps Pending
+
+- Future provider-specific deployment overlays still need live cluster proof and selected secret delivery integration.
+- Future frontend-heavy slices should use the new frontend skill plus visual/design/test skills and keep test coverage current.
+- Future Julia-heavy slices should use the Julia skill with official docs/syntax validation and Julia test evidence.
+
+### Next Items To Implement
+
+- Use `juliaflow-control-loop` before the next roadmap module implementation.
+- Use `juliaflow-provider-deployment` for selected-provider overlays or object-store deployment proof.
+- Use `juliaflow-frontend-development` for the next substantial canvas/BI/Hub frontend pass.
+
+### Current Phase Plan Sync — 2026-05-14
+
+### Work Done Till Date
+
+- Created `Plan.md` as the current plan for the Provider-Specific GA Proof / Module Expansion phase.
+- Updated `docs/TODO.md` to point at `Plan.md` and added open current-phase items for provider deployment proof, provider object-store proof, frontend expansion, Julia runtime expansion, and governed Hub production depth.
+- Updated `docs/risk-register.md` with current-phase focus plus frontend-scale and Julia-runtime-depth risks.
+
+### Gaps Pending
+
+- Provider/live-cluster evidence remains pending: selected overlays, secret delivery, server-side dry-run, and provider smokes.
+- Frontend and Julia runtime expansion remain open module lanes and need evidence per slice.
+- Final multi-GPU hardware closure remains blocked until >=2 visible CUDA devices exist.
+
+### Next Items To Implement
+
+- Start provider-specific deployment proof or object-store proof when provider/cluster/credential target exists.
+- Otherwise select the next frontend or Julia runtime module slice and run through the relevant repo-local skill and test gates.
+- Keep `Plan.md`, TODO, risks, tracker, checkpoint, and traceability synchronized after each phase change.
+
+### Control-Doc Sync Guard — 2026-05-14
+
+### Work Done Till Date
+
+- Added `scripts/validate-control-doc-sync.mjs` and `npm run validate:control-doc-sync`.
+- Updated `AGENTS.md` and `juliaflow-control-loop` so every completed slice, phase, or review must update `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md`.
+- Updated `Plan.md`, TODO, and risk register to reflect the new guard.
+- Verified the guard with `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, `node --test tests/contracts/brd-traceability.test.mjs`, `npm run test`, `npm run build`, and `git diff --check`.
+
+### Gaps Pending
+
+- The guard enforces changed-file coverage, not semantic correctness; agents still must write accurate evidence and not rubber-stamp docs.
+- CI should include `npm run validate:control-doc-sync` in future release gates.
+
+### Next Items To Implement
+
+- Run `npm run validate:control-doc-sync` before every completion claim or commit that changes non-control files.
+- Pair it with `npm run validate:brd-traceability` when TODO or traceability changes.
+- Keep using repo-local skills to decide which docs need semantic updates.
+
+
+### Frontend Module Expansion / BI Viewer Row-Search Slice — 2026-05-15
+
+### Work Done Till Date
+
+- Selected the unblocked frontend module expansion lane because provider-specific GA proof still needs external provider/cluster/credential context.
+- Added published-dashboard viewer row search that applies after existing chart cross-filters.
+- Added clear row-search controls, row-search status, search-aware chart row counts, and filtered CSV export that respects both active chart filter and row search.
+- Added frontend regression coverage for share-token viewer search and search-aware CSV export.
+
+### Gaps Pending
+
+- Provider-specific deployment proof and provider object-store proof still need selected external targets and credentials.
+- Julia runtime module expansion remains open for loop/try-catch execution semantics.
+- Governed Hub production depth remains open for sandbox execution and artifact hash verification.
+- Final GPU closure remains blocked until >=2 visible CUDA devices are available.
+
+### Next Items To Implement
+
+- Run full frontend/build/control-doc verification for this BI viewer slice.
+- Then continue the next implementable lane: Julia runtime module expansion or another frontend/Hub slice if runtime scope is deferred.
+- Keep provider-specific proof queued until a cluster/provider/secret-delivery target exists.

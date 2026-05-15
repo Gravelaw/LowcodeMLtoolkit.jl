@@ -1611,3 +1611,88 @@ Each checkpoint entry must contain:
 - Add selected-provider overlays and secret delivery integration (for example ExternalSecrets/SealedSecrets/provider-native secret sync) without committing credentials.
 - Run `kubectl apply --dry-run=server -k ...` against a configured cluster for all workload overlays.
 - Continue provider-specific object-store deployment proof or GA release-hardening gates next.
+---
+
+## Checkpoint: Agent Guidance / Future Module Skill Routing — 2026-05-14
+
+### Work Done Till Date
+
+- Added concise `AGENTS.md` guidance for future module delivery, skill invocation, frontend-heavy work, Julia language/syntax work, provider deployment work, and native subagent usage.
+- Added repo-local skills: `juliaflow-control-loop`, `juliaflow-julia-development`, `juliaflow-frontend-development`, and `juliaflow-provider-deployment`.
+- Reaffirmed NASA/JPL Power of 10 as always-on for core logic.
+
+### Gaps Pending
+
+- Future modules still require domain-specific implementation and evidence; this checkpoint only adds guidance and reusable skill surfaces.
+- Live provider/cluster proof and final multi-GPU hardware evidence remain separate future gates.
+
+### Next Items To Implement
+
+- Invoke the relevant repo-local skill before future module work.
+- Keep docs, contracts, code, tests, tracker, and checkpoint synchronized for each future slice.
+- Continue with provider-specific deployment proof, frontend expansion, or final hardware-gated GPU work when prerequisites exist.
+---
+
+## Checkpoint: Current Phase Plan Sync — 2026-05-14
+
+### Work Done Till Date
+
+- Created `Plan.md` for the current Provider-Specific GA Proof / Module Expansion phase.
+- Synced `docs/TODO.md` with open current-phase items after P0/P1/P2 local-platform closure.
+- Updated `docs/risk-register.md` to reflect provider deployment proof, frontend-scale risk, Julia-runtime-depth risk, and final GPU hardware gating.
+
+### Gaps Pending
+
+- Provider-specific overlays, secret delivery integration, server-side dry-run, and live smokes remain pending.
+- Frontend module expansion and Julia runtime module expansion are open future lanes.
+- Final GPU production hardening still requires >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Use `Plan.md` as the current plan source before the next implementation slice.
+- Continue provider-specific GA proof first when external target access exists; otherwise proceed with frontend or Julia module expansion.
+- Update TODO, risks, tracker, checkpoint, and traceability together after the next meaningful phase change.
+---
+
+## Checkpoint: Control-Doc Sync Guard — 2026-05-14
+
+### Work Done Till Date
+
+- Added a control-doc sync validator and package script: `npm run validate:control-doc-sync`.
+- Updated `AGENTS.md` and the control-loop skill so every completed slice, phase, or review requires Plan/TODO/risk/tracker/checkpoint updates.
+- Updated Plan, TODO, risk register, tracker, and checkpoint to record the guard itself.
+- Verified the guard with `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, `node --test tests/contracts/brd-traceability.test.mjs`, `npm run test`, `npm run build`, and `git diff --check`.
+
+### Gaps Pending
+
+- The validator proves required control docs were touched, not that their wording is semantically perfect.
+- Future CI/release gates should include the validator.
+
+### Next Items To Implement
+
+- Run `npm run validate:control-doc-sync` on every future slice, phase, review, and before commits with non-control changes.
+- Continue pairing control-doc sync with traceability validation for milestone/TODO changes.
+
+---
+
+## Checkpoint: Frontend Module Expansion / BI Viewer Row-Search Slice — 2026-05-15
+
+### Work Done Till Date
+
+- Implemented the first current-phase frontend module expansion slice in the BI published dashboard viewer.
+- Published viewers now have a row-search control that filters visible chart rows after chart cross-filter selection.
+- Filtered CSV export now uses the same effective viewer row set: chart filter plus row search.
+- Regression coverage now exercises share-token viewer row search, clear row search, and search-aware CSV export.
+
+### Gaps Pending
+
+- Provider-specific deployment/object-store proof still lacks live provider, cluster, and credential context.
+- Julia runtime module expansion remains pending for loop/try-catch/control-flow execution semantics.
+- Governed Hub production depth remains pending for bounded sandbox execution and artifact hash verification.
+- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete full verification: `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, and `npm run validate:brd-traceability`.
+- If full gates pass, move to Julia runtime module expansion as the next repo-local lane unless provider access appears.
+- Keep frontend route shell, demo fallback, runtime `juliaflow-config.js`, and accessible selectors intact in future frontend slices.

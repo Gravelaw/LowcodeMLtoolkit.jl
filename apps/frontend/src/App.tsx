@@ -820,6 +820,28 @@ function applyViewerChartFilter(
   return { ...data, rows, rowCount: rows.length };
 }
 
+function applyViewerRowSearch(
+  data: GatewayDashboardChartDataResponse,
+  search: string
+): GatewayDashboardChartDataResponse {
+  const needle = search.trim().toLowerCase();
+  if (needle.length === 0) {
+    return data;
+  }
+  const rows = data.rows.filter((row) =>
+    data.fields.some((field) => String(row[field] ?? "").toLowerCase().includes(needle))
+  );
+  return { ...data, rows, rowCount: rows.length };
+}
+
+function applyViewerChartView(
+  data: GatewayDashboardChartDataResponse,
+  filter: ViewerChartFilter | null,
+  search: string
+): GatewayDashboardChartDataResponse {
+  return applyViewerRowSearch(applyViewerChartFilter(data, filter), search);
+}
+
 function chartRowsJson(rows: DashboardDatasetRow[]): string {
   return `${JSON.stringify(rows, null, 2)}
 `;
@@ -1588,6 +1610,7 @@ function App() {
   const [viewerDashboard, setViewerDashboard] = useState<PublishedDashboardDefinition | null>(null);
   const [dashboardChartData, setDashboardChartData] = useState<Record<string, GatewayDashboardChartDataResponse>>({});
   const [viewerChartFilter, setViewerChartFilter] = useState<ViewerChartFilter | null>(null);
+  const [viewerRowSearch, setViewerRowSearch] = useState("");
   const [viewerChartDrilldown, setViewerChartDrilldown] = useState<ViewerChartDrilldown | null>(null);
   const [viewerChartRefreshNonce, setViewerChartRefreshNonce] = useState(0);
   const [isViewerRefreshing, setIsViewerRefreshing] = useState(false);
@@ -1666,6 +1689,7 @@ function App() {
       setViewerDashboard(null);
       setDashboardChartData({});
       setViewerChartFilter(null);
+      setViewerRowSearch("");
       setViewerChartDrilldown(null);
       return;
     }
@@ -2641,9 +2665,15 @@ function App() {
       setActionFeedback({ text: `Chart export failed: chart data pending for ${chartId}.`, tone: "error" });
       return;
     }
-    const exportData = scope === "filtered" ? applyViewerChartFilter(chartData, viewerChartFilter) : chartData;
-    const filterLabel = scope === "filtered" && viewerChartFilter
-      ? ` with filter ${viewerChartFilter.field}=${viewerChartFilter.value}`
+    const exportData = scope === "filtered"
+      ? applyViewerChartView(chartData, viewerChartFilter, viewerRowSearch)
+      : chartData;
+    const viewLabels = [
+      viewerChartFilter ? `filter ${viewerChartFilter.field}=${viewerChartFilter.value}` : null,
+      viewerRowSearch.trim().length > 0 ? `search ${viewerRowSearch.trim()}` : null
+    ].filter((label): label is string => label !== null);
+    const filterLabel = scope === "filtered" && viewLabels.length > 0
+      ? ` with ${viewLabels.join(" and ")}`
       : scope === "full"
         ? " with all rows"
         : "";
@@ -2667,6 +2697,7 @@ function App() {
     setViewerShareToken(null);
     setViewerWorkspaceToken(null);
     setViewerDashboard(null);
+    setViewerRowSearch("");
     setViewerChartDrilldown(null);
     if (typeof window !== "undefined") {
       window.history.replaceState({}, "", buildViewPath("dashboard"));
@@ -3957,16 +3988,46 @@ function App() {
                               className="secondary-action-button"
                               onClick={() => {
                                 setViewerChartFilter(null);
+                                setViewerChartDrilldown(null);
                               }}
                               type="button"
                             >
                               Clear filter {viewerChartFilter.field}={viewerChartFilter.value}
                             </button>
                           ) : null}
+                          {viewerRowSearch.trim().length > 0 ? (
+                            <button
+                              className="secondary-action-button"
+                              onClick={() => {
+                                setViewerRowSearch("");
+                                setViewerChartDrilldown(null);
+                              }}
+                              type="button"
+                            >
+                              Clear row search
+                            </button>
+                          ) : null}
                         </div>
+                        <label className="search-field">
+                          <span>Viewer row search</span>
+                          <input
+                            aria-label="Search published dashboard rows"
+                            onChange={(event) => {
+                              setViewerRowSearch(event.target.value);
+                              setViewerChartDrilldown(null);
+                            }}
+                            placeholder="filter visible rows..."
+                            type="search"
+                            value={viewerRowSearch}
+                          />
+                        </label>
                         <div className="inspector-row">
                           <strong>Selection</strong>
                           <span>{viewerChartFilter ? `${viewerChartFilter.field}=${viewerChartFilter.value}` : "all rows"}</span>
+                        </div>
+                        <div className="inspector-row">
+                          <strong>Row search</strong>
+                          <span>{viewerRowSearch.trim().length > 0 ? viewerRowSearch.trim() : "none"}</span>
                         </div>
                         <div className="inspector-row">
                           <strong>Drilldown</strong>
@@ -4011,7 +4072,9 @@ function App() {
                       <div className="flow-variable-editor-list">
                         {viewerDashboard.charts.map((chart) => {
                           const chartData = dashboardChartData[chart.chartId];
-                          const filteredChartData = chartData ? applyViewerChartFilter(chartData, viewerChartFilter) : undefined;
+                          const filteredChartData = chartData
+                            ? applyViewerChartView(chartData, viewerChartFilter, viewerRowSearch)
+                            : undefined;
                           return (
                             <article className="flow-variable-editor" key={chart.chartId}>
                               <div className="flow-variable-editor-head">

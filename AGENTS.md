@@ -57,7 +57,7 @@ Naming guidance:
 Prefer existing repo conventions over introducing a new style in touched files.
 
 ## Safety-Critical Coding Rules
-When adding core logic, follow the Power of 10 discipline in a repository-friendly form:
+NASA/JPL Power of 10 discipline is mandatory for all core JuliaFlow logic. Do not remove or weaken these rules. When adding core logic, follow the Power of 10 discipline in a repository-friendly form:
 - Use simple control flow only. Avoid `goto`, recursion, and similar hard-to-review jumps.
 - Give every loop a clear static upper bound.
 - Do not add dynamic allocation in steady-state runtime paths after startup or initialization.
@@ -103,6 +103,39 @@ Requirements:
 - keep technical accuracy intact while reducing filler
 - if the caveman skill is unavailable in a session, fall back to the closest concise style possible and note that briefly only when needed
 
+### Required Skill Routing For Future Modules
+
+Use the repo-local skills under `.codex/skills/` plus global skills when available. Invoke only the relevant subset; keep context lean.
+
+- `juliaflow-control-loop`: default for BRD/TODO/checkpoint-driven work, milestone closure, traceability, and cross-layer module delivery.
+- `juliaflow-julia-development`: Julia services, node SDK, worker runtime, base extensions, Julia syntax/package questions, `Project.toml` / `Manifest.toml`, and performance/debugging work.
+- `juliaflow-frontend-development`: React/Vite canvas, BI viewer, Hub, monitor, settings, route shell, runtime config, frontend tests, visual QA, and frontend performance.
+- `juliaflow-provider-deployment`: provider overlays, Kustomize/ArgoCD, secret delivery, live cluster dry-runs, object-store/auth/broker deployment binding.
+- Global `julia-coding` and `julia-debugging`: use with `juliaflow-julia-development`; prefer official Julia docs for syntax/API/Pkg behavior and use community sources only for troubleshooting/package discovery.
+- Global frontend skills: use `build-web-apps:react-best-practices`, `build-web-apps:frontend-testing-debugging`, `design`, `visual-ralph`, and `visual-verdict` for major frontend/UI work.
+- Review skills: use `code-review` after non-trivial changes; use `security-review` for auth, secrets, RBAC, OIDC/JWT, Hub trust, deployment, or supply-chain surfaces.
+
+For large module work, prefer `$ralplan` or `$autopilot` before edits. Use native subagents for independent bounded lanes with explicit ownership:
+
+- `explore`: fast repo map and symbol lookup
+- `researcher`: official docs/version-aware external facts
+- `dependency-expert`: dependency/package/SDK selection
+- `executor`: implementation in scoped files
+- `test-engineer`: regression and test design
+- `architect` / `critic`: boundary, risk, and tradeoff review
+- `code-reviewer`: merge-readiness review
+
+Parallelize only independent lanes. Do not delegate shared-file edits without clear ownership. Integrate results locally and own final verification.
+
+### Future Module Development Rules
+
+- Start with the current tracker/checkpoint/TODO/traceability state; do not rely on stale memory.
+- Keep `packages/contracts/` as source of truth before changing Julia or frontend payloads.
+- For Julia work, keep functions short, typed enough for clarity, validated at boundaries, and covered by `julia --project=. tests/julia/runtests.jl`.
+- For frontend work, keep route shell/demo fallback unless intentionally replaced, prefer accessible role/label selectors, and run `npm run test` plus `npm run build`.
+- For deployment work, never commit real secrets, never fake production managed services, and run `npm run validate:k8s`.
+- For milestone claims, update TODO/traceability/tracker/checkpoint together and run `npm run validate:brd-traceability`.
+- For every completed slice, phase, or review, update `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md`; then run `npm run validate:control-doc-sync`.
 
 ### Session Learnings To Keep
 
@@ -141,11 +174,13 @@ Before any meaningful implementation:
 4. For broad BRD/P0 work, use the configured frontier model where available (currently GPT-5.5) for planning, architecture review, and validation.
 5. Preserve the thin-slice strategy: keep existing dev/demo fallbacks while adding production-depth paths behind explicit seams and tests.
 
-Completion rules for any milestone claim:
+Completion rules for any slice, phase, review, or milestone claim:
 
-- Do not mark `docs/TODO.md` P0/P1 items complete unless `docs/brd-traceability.md` links code/doc evidence and test/verification evidence.
+- Do not mark `docs/TODO.md` P0/P1/P2 items complete unless `docs/brd-traceability.md` links code/doc evidence and test/verification evidence.
+- Update `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md` whenever a new slice, phase, or review is completed. This is mandatory even for instruction-only or review-only work.
+- Run `npm run validate:control-doc-sync` before claiming completion; it must pass when non-control files changed.
 - Run `npm run validate:brd-traceability` after changing TODO or BRD traceability state.
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, `docs/checkpoint-log.md`, README/onboarding docs, contracts, OpenAPI, Julia code, frontend code, and tests synchronized for the touched scope.
+- Keep `Plan.md`, `docs/TODO.md`, `docs/brd-traceability.md`, `docs/risk-register.md`, `docs/project-tracker.md`, `docs/checkpoint-log.md`, README/onboarding docs, contracts, OpenAPI, Julia code, frontend code, and tests synchronized for the touched scope.
 - After a meaningful work block, update tracker and checkpoint with the three mandatory fields: work done till date, gaps pending, next items to implement.
 
 ## Tracker And Checkpoint Rule

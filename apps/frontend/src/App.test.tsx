@@ -865,6 +865,21 @@ describe("App", () => {
     expect(await screen.findByText(/live · live/i)).toBeInTheDocument();
     expect((await screen.findAllByText("12")).length).toBeGreaterThan(0);
 
+    fireEvent.change(screen.getByLabelText(/Search published dashboard rows/i), {
+      target: { value: "Q2" }
+    });
+    expect(screen.getAllByText(/Row search/i).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText(/Search published dashboard rows/i)).toHaveValue("Q2");
+    expect((await screen.findAllByText("18")).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /Export filtered CSV/i }));
+    await waitFor(() => {
+      expect(clipboardWrite).toHaveBeenCalledWith("window,amount\n2026-Q2,18\n");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Clear row search/i }));
+    expect(screen.getByLabelText(/Search published dashboard rows/i)).toHaveValue("");
+
     fireEvent.click(screen.getByRole("button", { name: "2026-Q1" }));
     expect(await screen.findByText(/Drilldown: Trend/i)).toBeInTheDocument();
     expect(screen.getAllByText(/window=2026-Q1/i).length).toBeGreaterThan(0);
