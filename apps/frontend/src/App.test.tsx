@@ -39,6 +39,18 @@ class MockWebSocket {
   }
 }
 
+function hubVerification(verified = true, blockers: string[] = []) {
+  const status = verified ? "passed" : blockers.length > 0 ? "failed" : "pending";
+  return {
+    verified,
+    sandbox: { status, details: "test sandbox verification", blockers, checkedAt: "2026-05-08T00:00:00Z" },
+    artifacts: { status, details: "test artifact verification", blockers, checkedAt: "2026-05-08T00:00:00Z" },
+    mirrors: { status, details: "test mirror verification", blockers, checkedAt: "2026-05-08T00:00:00Z" },
+    blockers,
+    evaluatedAt: "2026-05-08T00:00:00Z"
+  };
+}
+
 describe("App", () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
@@ -346,7 +358,7 @@ describe("App", () => {
                   dependencies: [],
                   publisherIdentity: "official:juliaflow",
                   artifactHashes: {
-                    package: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    package: "sha256:ef5563c1d3bb2319a9323daebe3e4907fce4c877835371b310dc31d50e521000"
                   },
                   compatibilitySandboxCommand: "julia --project=. extensions/base/test/runtests.jl",
                   mirrorRefs: ["mirror://official/juliaflow-base"]
@@ -370,7 +382,8 @@ describe("App", () => {
                   installedVersion: "0.1.0",
                   latestVersion: "0.1.0",
                   evaluatedAt: "2026-04-20T00:00:00Z"
-                }
+                },
+                verification: hubVerification(true)
               },
               {
                 extensionId: "juliaflow-ops-preview",
@@ -415,7 +428,8 @@ describe("App", () => {
                   latestVersion: "0.2.0",
                   targetVersion: "0.2.0",
                   evaluatedAt: "2026-04-20T00:00:00Z"
-                }
+                },
+                verification: hubVerification(false, ["Extension not validated for current checkpoint cp/02-alpha-core"])
               }
             ]
           })
@@ -448,7 +462,8 @@ describe("App", () => {
                 upgradeAvailable: false,
                 latestVersion: request.manifest.version,
                 evaluatedAt: "2026-05-08T00:00:00Z"
-              }
+              },
+              verification: hubVerification(false)
             },
             status: "ok"
           })
@@ -591,6 +606,8 @@ describe("App", () => {
     expect(screen.getByText(/package=sha256:bbbb/i)).toBeInTheDocument();
     expect(screen.getByText("julia --project=. extensions/ops-preview/test/runtests.jl")).toBeInTheDocument();
     expect(screen.getByText("mirror://offline/ops-preview")).toBeInTheDocument();
+    expect(screen.getByText(/blocked\/pending · sandbox failed · artifacts failed · mirrors failed/i)).toBeInTheDocument();
+    expect(screen.getByText("Verification blockers")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Blocked/i })).toBeDisabled();
 
     const enabledWithBlockers = {
@@ -610,7 +627,7 @@ describe("App", () => {
         dependencies: [],
         publisherIdentity: "official:juliaflow",
         artifactHashes: {
-          package: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          package: "sha256:ef5563c1d3bb2319a9323daebe3e4907fce4c877835371b310dc31d50e521000"
         },
         compatibilitySandboxCommand: "julia --project=. extensions/base/test/runtests.jl",
         mirrorRefs: ["mirror://official/juliaflow-base"]
@@ -634,7 +651,8 @@ describe("App", () => {
         installedVersion: "0.1.0",
         latestVersion: "0.1.0",
         evaluatedAt: "2026-05-08T00:00:00Z"
-      }
+      },
+      verification: hubVerification(false, ["Extension must provide compatibility sandbox command"])
     };
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ extension: enabledWithBlockers, status: "ok" })));
     const disableButton = screen.getByRole("button", { name: /^Disable$/i });

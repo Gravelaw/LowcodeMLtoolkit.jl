@@ -18,7 +18,7 @@ Tracker always records 3 things:
 - BRD: `JuliaFlow_BRD_v1.0.docx`
 - Current target phase: `Provider-Specific GA Proof / Module Expansion`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-05-15`
+- Last updated: `2026-05-16`
 
 ## Work Done Till Date
 
@@ -1693,3 +1693,26 @@ After any meaningful job:
 - Run full verification: Julia suite, npm test/build, coverage, control-doc sync, BRD traceability, and diff check.
 - Continue with deeper worker-runtime or failure-driven node execution semantics if runtime depth remains the selected lane.
 - Keep provider-specific proof queued until live target access exists.
+
+
+### Governed Hub Production Depth / Deterministic Sandbox-Hash-Mirror Proof Slice — 2026-05-16
+
+### Work Done Till Date
+
+- Implemented the governed Hub production-depth deterministic proof slice.
+- Hub extension records now expose `verification` evidence for sandbox, artifacts, mirrors, blockers, and evaluation time across contracts, OpenAPI, repository payloads, gateway responses, and frontend Hub cards.
+- Install/enable/upgrade now block unsafe sandbox command shapes, deterministic artifact hash mismatches, missing artifact hash proof, and unsupported mirror refs while preserving disable as a remediation path.
+- Frontend Hub UI now surfaces verification status and blockers, and tests cover the trust/blocking state.
+
+### Gaps Pending
+
+- Real sandbox command execution still needs an isolated runner instead of request-path arbitrary command execution.
+- Downloaded artifact hash verification and real private/offline registry mirror proof remain future Hub follow-up work.
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credential context.
+- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Run and preserve full verification: Julia suite, npm test/build, coverage, control-doc sync, BRD traceability, diff check, security review, and code review.
+- Next Hub follow-up should add an isolated sandbox runner and downloaded-artifact verification when registry/mirror fixtures are available.
+- Otherwise continue deeper runtime execution semantics or provider proof once external access exists.

@@ -125,6 +125,27 @@ Base.@kwdef mutable struct GatewayAuthDirectory
     updated_at::String = JuliaFlowExecutionService.iso8601_timestamp()
 end
 
+function hub_verification_check(status::AbstractString, details::AbstractString; blockers::Vector{String} = String[])
+    return Dict{String,Any}(
+        "status" => String(status),
+        "details" => String(details),
+        "blockers" => blockers,
+        "checkedAt" => JuliaFlowExecutionService.iso8601_timestamp(),
+    )
+end
+
+function hub_verification_default()
+    timestamp = JuliaFlowExecutionService.iso8601_timestamp()
+    return Dict{String,Any}(
+        "verified" => false,
+        "sandbox" => hub_verification_check("pending", "Compatibility sandbox has not been evaluated yet"),
+        "artifacts" => hub_verification_check("pending", "Artifact hashes have not been verified yet"),
+        "mirrors" => hub_verification_check("pending", "Mirror references have not been verified yet"),
+        "blockers" => String[],
+        "evaluatedAt" => timestamp,
+    )
+end
+
 Base.@kwdef mutable struct HubExtensionRecord
     extension_id::String
     name::String
@@ -163,6 +184,7 @@ Base.@kwdef mutable struct HubExtensionRecord
         "latestVersion" => version,
         "evaluatedAt" => JuliaFlowExecutionService.iso8601_timestamp(),
     )
+    verification::Dict{String,Any} = hub_verification_default()
     installed_version::Union{Nothing,String} = nothing
     installed_at::Union{Nothing,String} = nothing
     enabled_at::Union{Nothing,String} = nothing
@@ -404,6 +426,7 @@ function hub_extension_payload(extension::HubExtensionRecord)
         "compatibility" => extension.compatibility,
         "trust" => extension.trust,
         "upgrade" => extension.upgrade,
+        "verification" => extension.verification,
     )
     extension.installed_version === nothing || (payload["installedVersion"] = extension.installed_version)
     extension.compatibility_sandbox_command === nothing || (payload["manifest"]["compatibilitySandboxCommand"] = extension.compatibility_sandbox_command)
@@ -1002,6 +1025,9 @@ function gateway_hub_extension(item)
                 "latestVersion" => String(manifest["version"]),
                 "evaluatedAt" => JuliaFlowExecutionService.iso8601_timestamp(),
             ),
+        verification = haskey(item, "verification") ?
+            Dict{String,Any}(String(key) => value for (key, value) in pairs(item["verification"])) :
+            hub_verification_default(),
         installed_version = haskey(item, "installedVersion") ? String(item["installedVersion"]) : nothing,
         installed_at = haskey(item, "installedAt") ? String(item["installedAt"]) : nothing,
         enabled_at = haskey(item, "enabledAt") ? String(item["enabledAt"]) : nothing,
@@ -1068,7 +1094,7 @@ function default_hub_extensions()
             compatible_checkpoints = ["cp/02-alpha-core", "cp/03-alpha-gpu-bi"],
             dependencies = String[],
             publisher_identity = "official:juliaflow",
-            artifact_hashes = Dict("package" => "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+            artifact_hashes = Dict("package" => "sha256:ef5563c1d3bb2319a9323daebe3e4907fce4c877835371b310dc31d50e521000"),
             compatibility_sandbox_command = "julia --project=. extensions/base/test/runtests.jl",
             mirror_refs = ["mirror://official/juliaflow-base"],
             install_state = "enabled",

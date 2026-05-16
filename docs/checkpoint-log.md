@@ -1743,3 +1743,28 @@ Each checkpoint entry must contain:
 - Complete full verification and code review for this runtime slice.
 - Continue with deeper runtime execution semantics or Hub production depth unless provider/cluster access is supplied.
 - Keep loop/try-catch runtime additions additive until failure-driven node execution is deliberately expanded.
+
+
+---
+
+## Checkpoint: Governed Hub Production Depth / Deterministic Sandbox-Hash-Mirror Proof Slice — 2026-05-16
+
+### Work Done Till Date
+
+- Added Hub `verification` evidence across TS contracts, OpenAPI, Julia repository payloads, gateway install responses, and frontend Hub cards.
+- Added deterministic install-time checks for bounded sandbox command shape, artifact hash match/mismatch, and supported `mirror://` / `private://` references.
+- Preserved safe remediation: disable remains available even when compatibility, trust, or verification blockers exist.
+- Added Julia, frontend, and contract regression coverage for passed verification, hash mismatch blocking, unsafe sandbox blocking, mirror status, and UI blocker rendering.
+
+### Gaps Pending
+
+- Real isolated sandbox execution is still pending; manifest commands are not executed directly on the request path.
+- Downloaded artifact hash verification and real private/offline registry mirror proof remain future Hub production-depth follow-ups.
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
+- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete full gate execution and review for this slice before commit/push.
+- Add isolated sandbox runner plus downloaded-artifact verification when registry/mirror fixtures are ready.
+- Continue deeper runtime execution semantics or provider proof when prerequisites are available.

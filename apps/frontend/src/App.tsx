@@ -343,6 +343,24 @@ const demoAuditActions: GatewayAuditActionEvent[] = [
   }
 ];
 
+function createHubVerification(
+  verified: boolean,
+  evaluatedAt: string,
+  blockers: string[] = []
+): GatewayHubExtensionRecord["verification"] {
+  const status = verified ? "passed" : blockers.length > 0 ? "failed" : "pending";
+  const details = verified ? "Verification proof recorded" : "Verification proof pending";
+
+  return {
+    verified,
+    sandbox: { status, details, blockers, checkedAt: evaluatedAt },
+    artifacts: { status, details, blockers, checkedAt: evaluatedAt },
+    mirrors: { status, details, blockers, checkedAt: evaluatedAt },
+    blockers,
+    evaluatedAt
+  };
+}
+
 const demoHubExtensions: GatewayHubExtensionRecord[] = [
   {
     extensionId: "juliaflow-base",
@@ -360,7 +378,7 @@ const demoHubExtensions: GatewayHubExtensionRecord[] = [
       compatibleCheckpoints: ["cp/02-alpha-core", "cp/03-alpha-gpu-bi"],
       dependencies: [],
       publisherIdentity: "official:juliaflow",
-      artifactHashes: { package: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+      artifactHashes: { package: "sha256:ef5563c1d3bb2319a9323daebe3e4907fce4c877835371b310dc31d50e521000" },
       compatibilitySandboxCommand: "julia --project=. extensions/base/test/runtests.jl",
       mirrorRefs: ["mirror://official/juliaflow-base"]
     },
@@ -384,6 +402,7 @@ const demoHubExtensions: GatewayHubExtensionRecord[] = [
       latestVersion: "0.1.0",
       evaluatedAt: "2026-04-20T00:00:00Z"
     },
+    verification: createHubVerification(true, "2026-04-20T00:00:00Z"),
     installedAt: "2026-04-20T00:00:00Z",
     enabledAt: "2026-04-20T00:00:00Z"
   },
@@ -428,6 +447,9 @@ const demoHubExtensions: GatewayHubExtensionRecord[] = [
       targetVersion: "0.2.0",
       evaluatedAt: "2026-04-20T00:00:00Z"
     },
+    verification: createHubVerification(false, "2026-04-20T00:00:00Z", [
+      "Extension not validated for current checkpoint cp/02-alpha-core"
+    ]),
     installedAt: "2026-04-20T00:00:00Z"
   }
 ];
@@ -1378,7 +1400,8 @@ function hubActionBlocked(extension: GatewayHubExtensionRecord) {
   return (
     extension.installState === "incompatible" ||
     extension.compatibility.blockers.length > 0 ||
-    getHubTrust(extension).blockers.length > 0
+    getHubTrust(extension).blockers.length > 0 ||
+    extension.verification.blockers.length > 0
   );
 }
 
@@ -2803,7 +2826,8 @@ function App() {
           upgradeAvailable: false,
           latestVersion: manifest.version,
           evaluatedAt: buildActionTimestampLabel()
-        }
+        },
+        verification: createHubVerification(false, buildActionTimestampLabel())
       };
       setHubExtensions((currentExtensions) => [
         demoRecord,
@@ -4265,6 +4289,14 @@ function App() {
                         <strong>Installed version</strong>
                         <span>{getHubUpgrade(extension).installedVersion ?? "not installed"}</span>
                       </div>
+                      <div className="inspector-row">
+                        <strong>Verification</strong>
+                        <span>
+                          {extension.verification.verified ? "verified" : "blocked/pending"} · sandbox{" "}
+                          {extension.verification.sandbox.status} · artifacts {extension.verification.artifacts.status} ·
+                          mirrors {extension.verification.mirrors.status}
+                        </span>
+                      </div>
                       {extension.compatibility.blockers.length > 0 ? (
                         <div className="inspector-row">
                           <strong>Compatibility blockers</strong>
@@ -4275,6 +4307,12 @@ function App() {
                         <div className="inspector-row">
                           <strong>Trust blockers</strong>
                           <span>{getHubTrust(extension).blockers.join("; ")}</span>
+                        </div>
+                      ) : null}
+                      {extension.verification.blockers.length > 0 ? (
+                        <div className="inspector-row">
+                          <strong>Verification blockers</strong>
+                          <span>{extension.verification.blockers.join("; ")}</span>
                         </div>
                       ) : null}
                     </div>

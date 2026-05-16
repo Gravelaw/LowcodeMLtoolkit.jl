@@ -1415,6 +1415,70 @@ function valid_hub_mirror_ref(value::AbstractString)
     return startswith(mirror_ref, "mirror://") || startswith(mirror_ref, "private://")
 end
 
+function deterministic_hub_artifact_hash(package_ref::AbstractString, artifact::AbstractString)
+    bytes = Vector{UInt8}(codeunits("juliaflow-hub-artifact\n$(String(package_ref))\n$(String(artifact))"))
+    return string("sha256:", bytes2hex(sha256(bytes)))
+end
+
+function hub_sandbox_command_allowed(command::AbstractString)
+    command_text = strip(String(command))
+    isempty(command_text) && return false
+    for marker in (';', '&', '|', '`', '$', '<', '>')
+        occursin(string(marker), command_text) && return false
+    end
+    return startswith(command_text, "julia --project=. extensions/") &&
+        endswith(command_text, "/test/runtests.jl")
+end
+
+function evaluate_hub_install_verification(extension::JuliaFlowGatewayRepository.HubExtensionRecord)
+    blockers = String[]
+    sandbox_blockers = String[]
+    artifact_blockers = String[]
+    mirror_blockers = String[]
+    sandbox_command = extension.compatibility_sandbox_command === nothing ? "" : strip(extension.compatibility_sandbox_command)
+
+    hub_sandbox_command_allowed(sandbox_command) ||
+        push!(sandbox_blockers, "Compatibility sandbox command must be bounded Julia extension test")
+
+    for (artifact, declared_hash) in extension.artifact_hashes
+        expected_hash = deterministic_hub_artifact_hash(extension.package_ref, artifact)
+        declared_hash == expected_hash ||
+            push!(artifact_blockers, "Artifact hash mismatch for $(artifact)")
+    end
+    isempty(extension.artifact_hashes) && push!(artifact_blockers, "Extension must provide at least one artifact hash")
+
+    for mirror_ref in extension.mirror_refs
+        valid_hub_mirror_ref(mirror_ref) ||
+            push!(mirror_blockers, "Mirror reference must use mirror:// or private:// scheme")
+    end
+    isempty(extension.mirror_refs) && push!(mirror_blockers, "Extension must provide at least one mirror reference")
+
+    append!(blockers, sandbox_blockers)
+    append!(blockers, artifact_blockers)
+    append!(blockers, mirror_blockers)
+
+    return Dict{String,Any}(
+        "verified" => isempty(blockers),
+        "sandbox" => JuliaFlowGatewayRepository.hub_verification_check(
+            isempty(sandbox_blockers) ? "passed" : "failed",
+            isempty(sandbox_blockers) ? "Bounded compatibility sandbox command accepted" : "Compatibility sandbox verification failed";
+            blockers = sandbox_blockers,
+        ),
+        "artifacts" => JuliaFlowGatewayRepository.hub_verification_check(
+            isempty(artifact_blockers) ? "passed" : "failed",
+            isempty(artifact_blockers) ? "Declared artifact hashes match deterministic package proof" : "Artifact hash verification failed";
+            blockers = artifact_blockers,
+        ),
+        "mirrors" => JuliaFlowGatewayRepository.hub_verification_check(
+            isempty(mirror_blockers) ? "passed" : "failed",
+            isempty(mirror_blockers) ? "Mirror references are supported for offline/private resolution" : "Mirror verification failed";
+            blockers = mirror_blockers,
+        ),
+        "blockers" => blockers,
+        "evaluatedAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
+    )
+end
+
 function hub_artifact_hashes_from_manifest(manifest::AbstractDict{String,Any})
     haskey(manifest, "artifactHashes") || error("manifest missing artifactHashes")
     raw_hashes = manifest["artifactHashes"]
@@ -1542,6 +1606,7 @@ function materialize_hub_extension(
     compatibility = current.compatibility,
     trust = current.trust,
     upgrade = current.upgrade,
+    verification = current.verification,
     installed_version = current.installed_version,
 )
     return JuliaFlowGatewayRepository.HubExtensionRecord(
@@ -1567,6 +1632,7 @@ function materialize_hub_extension(
         compatibility = compatibility,
         trust = trust,
         upgrade = upgrade,
+        verification = verification,
         installed_version = installed_version,
         installed_at = installed_at,
         enabled_at = enabled_at,
@@ -1963,6 +2029,7 @@ function install_hub_extension_response!(
     action in ("install", "enable", "disable", "upgrade") || error("unsupported Hub action: $(action)")
     compatibility = evaluate_hub_extension_compatibility(state, current)
     trust = evaluate_hub_extension_trust(current)
+    verification = action == "disable" ? current.verification : evaluate_hub_install_verification(current)
     if action in ("install", "enable", "upgrade") && (!Bool(compatibility["compatible"]) || !Bool(trust["trusted"]))
         blocked = materialize_hub_extension(
             current;
@@ -1970,10 +2037,24 @@ function install_hub_extension_response!(
             compatibility = compatibility,
             trust = trust,
             upgrade = build_hub_upgrade_info(current.version, current.installed_version),
+            verification = verification,
         )
         state.hub_extensions[extension_id] = blocked
         JuliaFlowGatewayRepository.save_hub_extension!(state.repository, blocked; producer = "api-gateway")
         error(join(vcat([String(entry) for entry in compatibility["blockers"]], [String(entry) for entry in trust["blockers"]]), "; "))
+    end
+    if action in ("install", "enable", "upgrade") && !Bool(get(verification, "verified", false))
+        blocked = materialize_hub_extension(
+            current;
+            install_state = "incompatible",
+            compatibility = compatibility,
+            trust = trust,
+            upgrade = build_hub_upgrade_info(current.version, current.installed_version),
+            verification = verification,
+        )
+        state.hub_extensions[extension_id] = blocked
+        JuliaFlowGatewayRepository.save_hub_extension!(state.repository, blocked; producer = "api-gateway")
+        error(join([String(entry) for entry in get(verification, "blockers", String[])], "; "))
     end
 
     installed_version = current.installed_version
@@ -2001,6 +2082,7 @@ function install_hub_extension_response!(
         compatibility = compatibility,
         trust = trust,
         upgrade = upgrade,
+        verification = verification,
         installed_version = installed_version,
     )
     state.hub_extensions[extension_id] = updated
@@ -2129,6 +2211,10 @@ function classify_gateway_error(err)
     elseif occursin("Extension not validated for current checkpoint", message)
         return 409, message
     elseif occursin("Artifact hash for", message)
+        return 409, message
+    elseif occursin("Artifact hash mismatch", message)
+        return 409, message
+    elseif occursin("Compatibility sandbox command must be bounded", message)
         return 409, message
     elseif occursin("Extension must provide compatibility sandbox command", message)
         return 409, message

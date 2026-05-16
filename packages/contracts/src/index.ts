@@ -563,6 +563,24 @@ export interface HubExtensionUpgradeInfo {
   evaluatedAt: string;
 }
 
+export type HubVerificationStatus = "pending" | "passed" | "failed";
+
+export interface HubVerificationCheck {
+  status: HubVerificationStatus;
+  details: string;
+  blockers: string[];
+  checkedAt: string;
+}
+
+export interface HubExtensionVerification {
+  verified: boolean;
+  sandbox: HubVerificationCheck;
+  artifacts: HubVerificationCheck;
+  mirrors: HubVerificationCheck;
+  blockers: string[];
+  evaluatedAt: string;
+}
+
 export interface HubExtensionManifest {
   extensionId: string;
   name: string;
@@ -591,6 +609,7 @@ export interface GatewayHubExtensionRecord {
   compatibility: HubExtensionCompatibilityResult;
   trust: HubExtensionTrustResult;
   upgrade: HubExtensionUpgradeInfo;
+  verification: HubExtensionVerification;
   installedAt?: string;
   enabledAt?: string;
 }

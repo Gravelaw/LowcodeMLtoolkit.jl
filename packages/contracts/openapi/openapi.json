@@ -2017,7 +2017,8 @@
           "installState",
           "compatibility",
           "trust",
-          "upgrade"
+          "upgrade",
+          "verification"
         ],
         "properties": {
           "extensionId": {
@@ -2149,6 +2150,9 @@
           },
           "installedVersion": {
             "type": "string"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/HubExtensionVerification"
           }
         }
       },
@@ -3150,6 +3154,73 @@
           },
           "bounded": {
             "type": "boolean"
+          }
+        }
+      },
+      "HubVerificationCheck": {
+        "type": "object",
+        "required": [
+          "status",
+          "details",
+          "blockers",
+          "checkedAt"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "passed",
+              "failed"
+            ]
+          },
+          "details": {
+            "type": "string"
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HubExtensionVerification": {
+        "type": "object",
+        "required": [
+          "verified",
+          "sandbox",
+          "artifacts",
+          "mirrors",
+          "blockers",
+          "evaluatedAt"
+        ],
+        "properties": {
+          "verified": {
+            "type": "boolean"
+          },
+          "sandbox": {
+            "$ref": "#/components/schemas/HubVerificationCheck"
+          },
+          "artifacts": {
+            "$ref": "#/components/schemas/HubVerificationCheck"
+          },
+          "mirrors": {
+            "$ref": "#/components/schemas/HubVerificationCheck"
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evaluatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

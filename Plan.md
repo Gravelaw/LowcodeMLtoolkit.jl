@@ -16,6 +16,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
 - Repo-local skill surfaces now exist for control-loop, Julia, frontend, and provider-deployment work.
 - First frontend module expansion slice is complete: published BI viewer row search filters visible chart rows and filtered CSV export without changing contracts.
 - Julia runtime module expansion now has loop and try/catch runtime-plan slices: both produce bounded additive execution evidence without changing node compute execution.
+- Governed Hub production-depth deterministic proof now records verification evidence and blocks unsafe sandbox/hash/mirror install paths without arbitrary command execution.
 - Final multi-GPU closure remains intentionally deferred until a runner with `>=2` visible CUDA devices exists.
 
 ## Active Development Order
@@ -42,7 +43,8 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
    - Use `juliaflow-julia-development`, `julia-coding`, and `julia-debugging`; verify with Julia tests and contract tests.
 
 5. **Governed Hub production depth**
-   - Execute sandbox commands, verify downloaded artifacts against hashes, and test private/offline registry mirrors.
+   - Deterministic sandbox/hash/mirror verification slice is complete as of 2026-05-16.
+   - Next Hub follow-up: execute real sandbox commands in an isolated runner, verify downloaded artifacts against hashes, and test real private/offline registry mirrors.
 
 6. **Final hardware-gated GPU closure**
    - Only when `>=2` visible CUDA devices exist, run `JULIAFLOW_CUDA_SMOKE=1 JULIAFLOW_REQUIRE_MULTI_GPU=1 julia --project=. scripts/smoke-cuda-kernel.jl`.
@@ -67,6 +69,12 @@ Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl
 **Julia runtime module expansion / try-catch runtime-plan slice** is complete. Try/catch metadata now emits additive `controlFlowPlan` execution evidence with try and catch body node IDs through contracts/gateway/frontend, while node-level failure catching remains a deliberate future executor expansion.
 
 Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl` and `npm run test` passed before full gate execution.
+
+## Latest Completed Slice — 2026-05-16 Hub
+
+**Governed Hub production depth / deterministic sandbox-hash-mirror proof slice** is complete. Hub extension records now carry `verification` evidence; install/enable/upgrade evaluate bounded sandbox command shape, deterministic artifact hash proof, and `mirror://` / `private://` mirror refs; unsafe commands, hash mismatches, and unsupported mirrors are blocked while disable remains a safe remediation action.
+
+Verification evidence for this slice: Julia/frontend/contract tests, build, coverage, control-doc sync, BRD traceability, and diff checks are required before commit.
 
 ## Required Skills By Lane
 

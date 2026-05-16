@@ -1038,7 +1038,7 @@ end
                             "publisherIdentity" => "partner:juliaflow-labs",
                             "signature" => "sig:partner:juliaflow-labs:v0.2.0",
                             "releaseNotesRef" => "https://example.test/labs-pack",
-                            "artifactHashes" => Dict("package" => "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
+                            "artifactHashes" => Dict("package" => "sha256:e97cfb2b9c49c0f5770cfed1060d2bd22a4b80d7ba0d44f36951438cb5ef54ce"),
                             "compatibilitySandboxCommand" => "julia --project=. extensions/labs/test/runtests.jl",
                             "mirrorRefs" => ["mirror://offline/labs-pack", "private://workspace/labs-pack"]
                         ),
@@ -1380,6 +1380,70 @@ end
                 ),
             ),
         )
+        hub_hash_mismatch_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "manifest" => Dict(
+                            "extensionId" => "juliaflow-hash-mismatch",
+                            "name" => "Hash Mismatch Pack",
+                            "version" => "0.2.0",
+                            "publisher" => "partner",
+                            "summary" => "Install-time artifact hash mismatch coverage.",
+                            "packageRef" => "hub://labs/hash-mismatch",
+                            "tags" => ["labs", "partner"],
+                            "engineCompatibility" => "alpha-core",
+                            "requiredContractVersion" => "0.1.0",
+                            "supportedCheckpoints" => ["cp/01-contracts-frozen"],
+                            "compatibleCheckpoints" => ["cp/01-contracts-frozen"],
+                            "dependencies" => String[],
+                            "publisherIdentity" => "partner:juliaflow-labs",
+                            "signature" => "sig:partner:juliaflow-labs:v0.2.0",
+                            "releaseNotesRef" => "https://example.test/hash-mismatch",
+                            "artifactHashes" => Dict("package" => "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
+                            "compatibilitySandboxCommand" => "julia --project=. extensions/labs/test/runtests.jl",
+                            "mirrorRefs" => ["mirror://offline/labs-pack"]
+                        ),
+                    ),
+                ),
+            ),
+        )
+        hub_sandbox_unsafe_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "manifest" => Dict(
+                            "extensionId" => "juliaflow-unsafe-sandbox",
+                            "name" => "Unsafe Sandbox Pack",
+                            "version" => "0.2.0",
+                            "publisher" => "partner",
+                            "summary" => "Install-time sandbox allowlist coverage.",
+                            "packageRef" => "hub://labs/unsafe-sandbox",
+                            "tags" => ["labs", "partner"],
+                            "engineCompatibility" => "alpha-core",
+                            "requiredContractVersion" => "0.1.0",
+                            "supportedCheckpoints" => ["cp/01-contracts-frozen"],
+                            "compatibleCheckpoints" => ["cp/01-contracts-frozen"],
+                            "dependencies" => String[],
+                            "publisherIdentity" => "partner:juliaflow-labs",
+                            "signature" => "sig:partner:juliaflow-labs:v0.2.0",
+                            "releaseNotesRef" => "https://example.test/unsafe-sandbox",
+                            "artifactHashes" => Dict("package" => "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
+                            "compatibilitySandboxCommand" => "python -m unsafe",
+                            "mirrorRefs" => ["mirror://offline/labs-pack"]
+                        ),
+                    ),
+                ),
+            ),
+        )
         hub_bad_mirror_ref_response = route_request(
             state,
             HTTP.Request(
@@ -1458,6 +1522,24 @@ end
             HTTP.Request(
                 "POST",
                 "/api/v1/hub/extensions/juliaflow-missing-sandbox/install",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("action" => "enable")),
+            ),
+        )
+        hub_enable_hash_mismatch_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/juliaflow-hash-mismatch/install",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("action" => "enable")),
+            ),
+        )
+        hub_enable_unsafe_sandbox_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/juliaflow-unsafe-sandbox/install",
                 ["Content-Type" => "application/json"],
                 JSON3.write(Dict("action" => "enable")),
             ),
@@ -1684,7 +1766,7 @@ end
         @test hub_register_response.status == 201
         @test occursin("\"extensionId\":\"juliaflow-labs-pack\"", String(hub_register_response.body))
         @test occursin("\"compatible\":true", String(hub_register_response.body))
-        @test occursin("\"artifactHashes\":{\"package\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"}", String(hub_register_response.body))
+        @test occursin("\"artifactHashes\":{\"package\":\"sha256:e97cfb2b9c49c0f5770cfed1060d2bd22a4b80d7ba0d44f36951438cb5ef54ce\"}", String(hub_register_response.body))
         @test occursin("\"compatibilitySandboxCommand\":\"julia --project=. extensions/labs/test/runtests.jl\"", String(hub_register_response.body))
         @test occursin("\"mirrorRefs\":[\"mirror://offline/labs-pack\",\"private://workspace/labs-pack\"]", String(hub_register_response.body))
         @test hub_bad_signature_response.status == 201
@@ -1709,6 +1791,10 @@ end
         @test occursin("Artifact hash for package must use sha256:<64 hex digest>", String(hub_bad_artifact_hash_response.body))
         @test hub_missing_sandbox_response.status == 201
         @test occursin("Extension must provide compatibility sandbox command", String(hub_missing_sandbox_response.body))
+        @test hub_hash_mismatch_response.status == 201
+        @test occursin("\"extensionId\":\"juliaflow-hash-mismatch\"", String(hub_hash_mismatch_response.body))
+        @test hub_sandbox_unsafe_response.status == 201
+        @test occursin("\"extensionId\":\"juliaflow-unsafe-sandbox\"", String(hub_sandbox_unsafe_response.body))
         @test hub_bad_mirror_ref_response.status == 201
         @test occursin("Mirror reference must use mirror:// or private:// scheme", String(hub_bad_mirror_ref_response.body))
         @test hub_partner_file_mirror_response.status == 201
@@ -1717,16 +1803,26 @@ end
         @test occursin("Artifact hash for package must use sha256:<64 hex digest>", String(hub_enable_bad_artifact_response.body))
         @test hub_enable_missing_sandbox_response.status == 409
         @test occursin("Extension must provide compatibility sandbox command", String(hub_enable_missing_sandbox_response.body))
+        @test hub_enable_hash_mismatch_response.status == 409
+        @test occursin("Artifact hash mismatch for package", String(hub_enable_hash_mismatch_response.body))
+        @test hub_enable_unsafe_sandbox_response.status == 409
+        @test occursin("Compatibility sandbox command must be bounded Julia extension test", String(hub_enable_unsafe_sandbox_response.body))
         @test hub_enable_bad_mirror_response.status == 409
         @test occursin("Mirror reference must use mirror:// or private:// scheme", String(hub_enable_bad_mirror_response.body))
         @test state.hub_extensions["juliaflow-bad-artifact-hash"].install_state != "enabled"
         @test state.hub_extensions["juliaflow-missing-sandbox"].install_state != "enabled"
+        @test state.hub_extensions["juliaflow-hash-mismatch"].verification["artifacts"]["status"] == "failed"
+        @test state.hub_extensions["juliaflow-unsafe-sandbox"].verification["sandbox"]["status"] == "failed"
         @test state.hub_extensions["juliaflow-bad-mirror-ref"].install_state != "enabled"
         hub_reloaded = load_state(store_root)
         hub_reloaded_labs = hub_reloaded.hub_extensions["juliaflow-labs-pack"]
-        @test hub_reloaded_labs.artifact_hashes["package"] == "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        @test hub_reloaded_labs.artifact_hashes["package"] == "sha256:e97cfb2b9c49c0f5770cfed1060d2bd22a4b80d7ba0d44f36951438cb5ef54ce"
         @test hub_reloaded_labs.compatibility_sandbox_command == "julia --project=. extensions/labs/test/runtests.jl"
         @test hub_reloaded_labs.mirror_refs == ["mirror://offline/labs-pack", "private://workspace/labs-pack"]
+        @test hub_reloaded_labs.verification["verified"] == true
+        @test hub_reloaded_labs.verification["sandbox"]["status"] == "passed"
+        @test hub_reloaded_labs.verification["artifacts"]["status"] == "passed"
+        @test hub_reloaded_labs.verification["mirrors"]["status"] == "passed"
         @test dashboard_publish_response.status == 200
         @test occursin("\"dashboardId\":\"dashboard-foundation\"", String(dashboard_publish_response.body))
         @test occursin("\"version\":1", String(dashboard_publish_response.body))
