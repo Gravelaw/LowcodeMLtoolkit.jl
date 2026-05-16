@@ -29,6 +29,8 @@ test("workflow fixture matches foundation contract expectations", async () => {
   assert.equal(workflow.workflow.control_flow[0].kind, "switch");
   assert.equal(workflow.workflow.control_flow[0].cases[0].target_node_id, "node-transform");
   assert.equal(workflow.workflow.control_flow[1].max_concurrency, 4);
+  assert.equal(workflow.workflow.control_flow[2].kind, "loop");
+  assert.equal(workflow.workflow.control_flow[2].max_iterations, 3);
   assert.equal(workflow.runtime.run_mode, "batch");
 });
 
@@ -167,6 +169,9 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.WorkflowDetail.properties.runtime);
   assert.ok(schemas.WorkflowDetail.properties.biOutlets);
   assert.ok(schemas.GatewayExecutionRecord.properties.resourcePlan);
+  assert.ok(schemas.GatewayExecutionRecord.properties.controlFlowPlan);
+  assert.ok(schemas.GatewayControlFlowPlanEntry.properties.bodyNodeIds);
+  assert.deepEqual(schemas.GatewayControlFlowPlanEntry.properties.kind.enum, ["loop"]);
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchPlan);
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchLane);
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchWorkerPool);

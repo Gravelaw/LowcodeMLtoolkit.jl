@@ -70,6 +70,15 @@ chunk_size = 1000
 max_concurrency = 4
 resource_class = "cpu"
 
+[[workflow.control_flow]]
+id = "loop-bi-refresh"
+kind = "loop"
+name = "Bounded BI Refresh Loop"
+start_node_id = "node-transform"
+end_node_id = "node-bi"
+iteration_mode = "table_rows"
+max_iterations = 3
+
 [runtime]
 run_mode = "batch"
 

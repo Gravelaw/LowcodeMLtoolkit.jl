@@ -620,6 +620,17 @@ export interface GatewayExecutionStatusEvent {
   metadata?: Record<string, unknown>;
 }
 
+export interface GatewayControlFlowPlanEntry {
+  controlId: string;
+  kind: Extract<ControlFlowKind, "loop">;
+  iterationMode: LoopIterationMode;
+  maxIterations: number;
+  startNodeId: string;
+  endNodeId: string;
+  bodyNodeIds: string[];
+  bounded: boolean;
+}
+
 export interface GatewayExecutionRecord {
   executionId: string;
   workflowId: string;
@@ -641,6 +652,7 @@ export interface GatewayExecutionRecord {
     lane: WorkflowResourceClass;
     nodeIds: string[];
   }>;
+  controlFlowPlan?: GatewayControlFlowPlanEntry[];
   dispatchPlan?: Array<{
     lane: WorkflowResourceClass;
     nodeIds: string[];

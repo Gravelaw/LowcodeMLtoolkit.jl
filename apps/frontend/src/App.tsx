@@ -4458,6 +4458,19 @@ function App() {
                               <dd>{item.planner}</dd>
                             </div>
                           </dl>
+                          {item.controlFlowPlan && item.controlFlowPlan.length > 0 ? (
+                            <div className="inspector-stack" aria-label={`Control-flow runtime plan ${item.id}`}>
+                              {item.controlFlowPlan.map((controlPlan) => (
+                                <div className="inspector-row" key={controlPlan.controlId}>
+                                  <strong>{controlPlan.controlId}</strong>
+                                  <span>
+                                    {controlPlan.kind} · {controlPlan.iterationMode} · max {controlPlan.maxIterations} ·{" "}
+                                    {controlPlan.bodyNodeIds.length} nodes
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
                         </article>
                       ))}
                     </div>

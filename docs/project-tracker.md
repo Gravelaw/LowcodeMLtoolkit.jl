@@ -1649,3 +1649,26 @@ After any meaningful job:
 - Run full frontend/build/control-doc verification for this BI viewer slice.
 - Then continue the next implementable lane: Julia runtime module expansion or another frontend/Hub slice if runtime scope is deferred.
 - Keep provider-specific proof queued until a cluster/provider/secret-delivery target exists.
+
+
+### Julia Runtime Module Expansion / Loop Runtime-Plan Slice — 2026-05-15
+
+### Work Done Till Date
+
+- Implemented the first Julia runtime module expansion slice for loop control-flow planning.
+- Loop metadata now validates that `start_node_id` can reach `end_node_id` in the workflow DAG and rejects unreachable loop bodies.
+- Execution records now emit additive `control_flow_plan` / `controlFlowPlan` evidence with loop id, iteration mode, max iterations, start/end nodes, bounded flag, and body node ids.
+- Gateway persistence/payload mapping, TS/OpenAPI contracts, Monitor UI rendering, fixture coverage, Julia tests, and frontend/contract tests are aligned.
+
+### Gaps Pending
+
+- Try/catch runtime execution semantics remain open as the next Julia runtime follow-up.
+- Provider-specific deployment/object-store proof still lacks live provider, cluster, and credential context.
+- Governed Hub production depth remains open for sandbox execution and artifact hash verification.
+- Final GPU closure remains blocked until >=2 visible CUDA devices are available.
+
+### Next Items To Implement
+
+- Run full verification: Julia suite, npm test/build, control-doc sync, BRD traceability, and diff check.
+- Next repo-local implementation lane should be try/catch runtime semantics unless provider access appears first.
+- Keep loop planning additive until node-level compute execution semantics are deliberately expanded.

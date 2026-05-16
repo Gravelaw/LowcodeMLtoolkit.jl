@@ -2,6 +2,7 @@ import type {
   ConnectionDefinition,
   DashboardDefinition,
   GatewayCheckpointRecord,
+  GatewayControlFlowPlanEntry,
   GatewayExecutionRecord,
   GatewayExecutionStatus,
   GatewayWorkflowMetadata,
@@ -31,6 +32,7 @@ export interface ExecutionRailItem {
   startedAt: string;
   duration: string;
   planner: string;
+  controlFlowPlan?: GatewayControlFlowPlanEntry[];
 }
 
 export interface CheckpointRailItem {
@@ -581,7 +583,8 @@ export function buildExecutionRailItems(records: GatewayExecutionRecord[]): Exec
         ? `${record.mode} · ${record.streamLifecycleStatus}`
         : record.dispatchLane
           ? `${record.mode} · ${record.dispatchLane}/${record.dispatchWorkerPool ?? "default"}`
-          : record.mode
+          : record.mode,
+      controlFlowPlan: record.controlFlowPlan
     };
   });
 }

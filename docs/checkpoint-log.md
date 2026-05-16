@@ -1696,3 +1696,27 @@ Each checkpoint entry must contain:
 - Complete full verification: `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, and `npm run validate:brd-traceability`.
 - If full gates pass, move to Julia runtime module expansion as the next repo-local lane unless provider access appears.
 - Keep frontend route shell, demo fallback, runtime `juliaflow-config.js`, and accessible selectors intact in future frontend slices.
+
+---
+
+## Checkpoint: Julia Runtime Module Expansion / Loop Runtime-Plan Slice — 2026-05-15
+
+### Work Done Till Date
+
+- Added bounded loop runtime-plan semantics without changing node compute execution.
+- Valid loops now derive ordered body node IDs from the DAG and include `controlFlowPlan` evidence on execution records.
+- Invalid loops whose end node is unreachable from the start node now fail validation.
+- Contracts, gateway payload mapping, Monitor UI, fixtures, and tests were updated for the additive execution evidence.
+
+### Gaps Pending
+
+- Try/catch runtime execution semantics remain pending.
+- Provider-specific deployment/object-store proof still requires external provider and cluster context.
+- Governed Hub sandbox/hash verification remains pending.
+- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete full verification for this runtime slice.
+- Continue with try/catch runtime semantics next unless provider/cluster access is supplied.
+- Keep control-flow runtime additions additive and evidence-backed across Julia, contracts, gateway, frontend, and tests.

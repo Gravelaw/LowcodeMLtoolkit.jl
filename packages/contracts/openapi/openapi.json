@@ -1698,6 +1698,12 @@
               "type": "object"
             }
           },
+          "controlFlowPlan": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayControlFlowPlanEntry"
+            }
+          },
           "dispatchPlan": {
             "type": "array",
             "items": {
@@ -2988,6 +2994,58 @@
             "items": {
               "$ref": "#/components/schemas/ObservabilitySpanRecord"
             }
+          }
+        }
+      },
+      "GatewayControlFlowPlanEntry": {
+        "type": "object",
+        "required": [
+          "controlId",
+          "kind",
+          "iterationMode",
+          "maxIterations",
+          "startNodeId",
+          "endNodeId",
+          "bodyNodeIds",
+          "bounded"
+        ],
+        "properties": {
+          "controlId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "loop"
+            ]
+          },
+          "iterationMode": {
+            "type": "string",
+            "enum": [
+              "table_rows",
+              "files",
+              "parameter_range",
+              "streaming_batches"
+            ]
+          },
+          "maxIterations": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "startNodeId": {
+            "type": "string"
+          },
+          "endNodeId": {
+            "type": "string"
+          },
+          "bodyNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bounded": {
+            "type": "boolean"
           }
         }
       }

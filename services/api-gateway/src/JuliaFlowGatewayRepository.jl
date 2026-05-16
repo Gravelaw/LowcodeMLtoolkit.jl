@@ -443,6 +443,19 @@ function execution_payload(execution::GatewayExecution)
                         "nodeIds" => [String(node_id) for node_id in get(item, "node_ids", Any[])],
                     ) for item in value
                 ]
+            elseif string_key == "control_flow_plan"
+                payload["controlFlowPlan"] = [
+                    Dict(
+                        "controlId" => String(get(item, "control_id", "")),
+                        "kind" => String(get(item, "kind", "")),
+                        "iterationMode" => String(get(item, "iteration_mode", "")),
+                        "maxIterations" => Int(get(item, "max_iterations", 0)),
+                        "startNodeId" => String(get(item, "start_node_id", "")),
+                        "endNodeId" => String(get(item, "end_node_id", "")),
+                        "bodyNodeIds" => [String(node_id) for node_id in get(item, "body_node_ids", Any[])],
+                        "bounded" => Bool(get(item, "bounded", false)),
+                    ) for item in value
+                ]
             elseif string_key == "dispatch_plan"
                 payload["dispatchPlan"] = [
                     Dict{String,Any}(
@@ -684,6 +697,19 @@ function gateway_execution(item)
                 Dict{String,Any}(
                     "lane" => String(get(entry, "lane", "")),
                     "node_ids" => [String(node_id) for node_id in get(entry, "nodeIds", Any[])],
+                ) for entry in value
+            ]
+        elseif string_key == "controlFlowPlan"
+            metadata["control_flow_plan"] = [
+                Dict{String,Any}(
+                    "control_id" => String(get(entry, "controlId", "")),
+                    "kind" => String(get(entry, "kind", "")),
+                    "iteration_mode" => String(get(entry, "iterationMode", "")),
+                    "max_iterations" => Int(get(entry, "maxIterations", 0)),
+                    "start_node_id" => String(get(entry, "startNodeId", "")),
+                    "end_node_id" => String(get(entry, "endNodeId", "")),
+                    "body_node_ids" => [String(node_id) for node_id in get(entry, "bodyNodeIds", Any[])],
+                    "bounded" => Bool(get(entry, "bounded", false)),
                 ) for entry in value
             ]
         elseif string_key == "dispatchPlan"

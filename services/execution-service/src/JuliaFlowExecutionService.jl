@@ -252,6 +252,26 @@ function execution_observability_trace(
     )
 end
 
+function build_control_flow_plan(workflow::WorkflowDefinition)
+    plan = Dict{String,Any}[]
+
+    for control in workflow.control_flow
+        control.kind == :loop || continue
+        push!(plan, Dict{String,Any}(
+            "control_id" => control.id,
+            "kind" => String(control.kind),
+            "iteration_mode" => String(control.iteration_mode),
+            "max_iterations" => control.max_iterations,
+            "start_node_id" => control.start_node_id,
+            "end_node_id" => control.end_node_id,
+            "body_node_ids" => loop_body_node_ids(workflow, control),
+            "bounded" => true,
+        ))
+    end
+
+    return plan
+end
+
 """
 Create durable execution record with state, timestamps, and transition history.
 """
@@ -268,6 +288,7 @@ function create_execution_record(
     created_at = iso8601_timestamp()
     history = [execution_status_event(status; timestamp = created_at, message = status_message)]
     resource_plan = build_resource_plan(workflow)
+    control_flow_plan = build_control_flow_plan(workflow)
     dispatch_started_at = time_ns()
     dispatch_plan = build_dispatch_plan(workflow)
     dispatch_duration_ms = round((time_ns() - dispatch_started_at) / 1_000_000; digits = 3)
@@ -294,6 +315,7 @@ function create_execution_record(
             duration_ms = dispatch_duration_ms,
         ),
     )
+    isempty(control_flow_plan) || (record["control_flow_plan"] = control_flow_plan)
     workflow.runtime.run_mode == :stream && (record["stream_lifecycle_status"] = "starting")
 
     if status == :queued
@@ -744,7 +766,12 @@ function push_missing_node_error!(errors::Vector{String}, node_lookup::Dict{Stri
     return errors
 end
 
-function validate_control_flow!(errors::Vector{String}, node_lookup::Dict{String,WorkflowNode}, control::WorkflowControlFlow)
+function validate_control_flow!(
+    errors::Vector{String},
+    node_lookup::Dict{String,WorkflowNode},
+    workflow::WorkflowDefinition,
+    control::WorkflowControlFlow,
+)
     control.kind in CONTROL_FLOW_KINDS || push!(errors, "unsupported control flow kind on $(control.id): $(control.kind)")
 
     if control.kind == :loop
@@ -754,6 +781,16 @@ function validate_control_flow!(errors::Vector{String}, node_lookup::Dict{String
         control.max_iterations !== nothing && control.max_iterations > 0 || push!(errors, "loop $(control.id) max iterations must be > 0")
         control.start_node_id === nothing || push_missing_node_error!(errors, node_lookup, "loop $(control.id)", control.start_node_id)
         control.end_node_id === nothing || push_missing_node_error!(errors, node_lookup, "loop $(control.id)", control.end_node_id)
+        if control.start_node_id !== nothing &&
+           control.end_node_id !== nothing &&
+           haskey(node_lookup, control.start_node_id) &&
+           haskey(node_lookup, control.end_node_id)
+            try
+                loop_body_node_ids(workflow, control)
+            catch err
+                push!(errors, sprint(showerror, err))
+            end
+        end
     elseif control.kind == :switch
         control.selector === nothing && push!(errors, "switch $(control.id) missing selector")
         isempty(control.cases) && push!(errors, "switch $(control.id) must include at least one case")
@@ -889,7 +926,7 @@ function collect_validation_errors(workflow::WorkflowDefinition)
         else
             push!(control_ids, control.id)
         end
-        validate_control_flow!(errors, node_lookup, control)
+        validate_control_flow!(errors, node_lookup, workflow, control)
     end
 
     for dashboard in workflow.dashboards
@@ -923,6 +960,55 @@ function graph_state(workflow::WorkflowDefinition)
     end
 
     return (node_order = node_order, in_degree = in_degree, adjacency = adjacency)
+end
+
+function control_flow_graph(workflow::WorkflowDefinition)
+    node_order = Dict(node.id => index for (index, node) in enumerate(workflow.nodes))
+    adjacency = Dict(node.id => String[] for node in workflow.nodes)
+    reverse_adjacency = Dict(node.id => String[] for node in workflow.nodes)
+
+    for connection in workflow.connections
+        haskey(adjacency, connection.source_node_id) || continue
+        haskey(reverse_adjacency, connection.target_node_id) || continue
+        push!(adjacency[connection.source_node_id], connection.target_node_id)
+        push!(reverse_adjacency[connection.target_node_id], connection.source_node_id)
+    end
+
+    return (node_order = node_order, adjacency = adjacency, reverse_adjacency = reverse_adjacency)
+end
+
+function bounded_reachable_nodes(adjacency::Dict{String,Vector{String}}, start_node_id::String, max_nodes::Int)
+    visited = Set([start_node_id])
+    frontier = [start_node_id]
+
+    for _ in 1:max_nodes
+        isempty(frontier) && break
+        next_frontier = String[]
+        for current_node_id in frontier
+            for target_node_id in get(adjacency, current_node_id, String[])
+                target_node_id in visited && continue
+                push!(visited, target_node_id)
+                push!(next_frontier, target_node_id)
+            end
+        end
+        frontier = next_frontier
+    end
+
+    return visited
+end
+
+function loop_body_node_ids(workflow::WorkflowDefinition, control::WorkflowControlFlow)
+    control.start_node_id === nothing && error("loop $(control.id) missing start node")
+    control.end_node_id === nothing && error("loop $(control.id) missing end node")
+
+    graph = control_flow_graph(workflow)
+    max_nodes = max(length(workflow.nodes), 1)
+    forward = bounded_reachable_nodes(graph.adjacency, control.start_node_id, max_nodes)
+    control.end_node_id in forward || error("loop $(control.id) end node unreachable from start node")
+    backward = bounded_reachable_nodes(graph.reverse_adjacency, control.end_node_id, max_nodes)
+    body = [node_id for node_id in intersect(forward, backward)]
+    sort!(body, by = node_id -> graph.node_order[node_id])
+    return body
 end
 
 function build_parallel_stages(workflow::WorkflowDefinition)

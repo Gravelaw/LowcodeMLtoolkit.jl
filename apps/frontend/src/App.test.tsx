@@ -285,7 +285,19 @@ describe("App", () => {
                 connectionCount: 3,
                 createdAt: "2026-04-18T12:00:00Z",
                 updatedAt: "2026-04-18T12:01:00Z",
-                statusHistory: []
+                statusHistory: [],
+                controlFlowPlan: [
+                  {
+                    controlId: "loop-bi-refresh",
+                    kind: "loop",
+                    iterationMode: "table_rows",
+                    maxIterations: 3,
+                    startNodeId: "node-transform",
+                    endNodeId: "node-bi-outlet",
+                    bodyNodeIds: ["node-transform", "node-bi-outlet"],
+                    bounded: true
+                  }
+                ]
               }
             ]
           })
@@ -556,6 +568,8 @@ describe("App", () => {
     expect(screen.getByText(/Consumer catch-up/i)).toBeInTheDocument();
     expect(screen.getByText(/Total queued executions/i)).toBeInTheDocument();
     expect(screen.getByText(/Total running executions/i)).toBeInTheDocument();
+    expect(screen.getByText("loop-bi-refresh")).toBeInTheDocument();
+    expect(screen.getByText(/loop · table_rows · max 3 · 2 nodes/i)).toBeInTheDocument();
     expect(screen.getAllByText("12").length).toBeGreaterThan(0);
     expect(screen.getByText("10")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
