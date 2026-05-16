@@ -79,6 +79,13 @@ end_node_id = "node-bi"
 iteration_mode = "table_rows"
 max_iterations = 3
 
+[[workflow.control_flow]]
+id = "try-bi-outlet"
+kind = "try_catch"
+name = "BI Outlet Guard"
+try_node_ids = ["node-transform"]
+catch_node_ids = ["node-bi"]
+
 [runtime]
 run_mode = "batch"
 

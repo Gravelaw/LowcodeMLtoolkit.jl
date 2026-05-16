@@ -116,6 +116,11 @@ end
         "end_node_id = \"node-bi\"" => "end_node_id = \"node-source\"";
         count = 1,
     ))
+    invalid_try_catch_workflow = load_workflow_definition_text(replace(
+        workflow_text,
+        "catch_node_ids = [\"node-bi\"]" => "catch_node_ids = [\"node-missing\"]";
+        count = 1,
+    ))
     invalid_workflow = load_workflow_definition(invalid_path)
     workflow_from_text = load_workflow_definition_text(workflow_text)
     plan = build_execution_plan(workflow)
@@ -154,11 +159,17 @@ end
     @test workflow.control_flow[2].max_concurrency == 4
     @test workflow.control_flow[3].kind == :loop
     @test workflow.control_flow[3].max_iterations == 3
+    @test workflow.control_flow[4].kind == :try_catch
+    @test workflow.control_flow[4].catch_node_ids == ["node-bi"]
     @test result["control_flow_plan"][1]["control_id"] == "loop-bi-refresh"
     @test result["control_flow_plan"][1]["body_node_ids"] == ["node-transform", "node-bi"]
     @test result["control_flow_plan"][1]["bounded"] == true
+    @test result["control_flow_plan"][2]["control_id"] == "try-bi-outlet"
+    @test result["control_flow_plan"][2]["try_node_ids"] == ["node-transform"]
+    @test result["control_flow_plan"][2]["catch_node_ids"] == ["node-bi"]
     @test occursin("parallel chunk parallel-prep max concurrency", join(collect_validation_errors(invalid_control_workflow), "; "))
     @test occursin("loop loop-bi-refresh end node unreachable from start node", join(collect_validation_errors(invalid_loop_workflow), "; "))
+    @test occursin("try/catch try-bi-outlet catch references missing node: node-missing", join(collect_validation_errors(invalid_try_catch_workflow), "; "))
     @test length(workflow.dashboards) == 1
     @test parallel_workflow.runtime.run_mode == :stream
     @test spec["resource_plan"][1]["lane"] == "cpu"
@@ -879,6 +890,9 @@ end
         @test accepted_execution["statusHistory"][1]["at"] isa AbstractString
         @test accepted_execution["controlFlowPlan"][1]["controlId"] == "loop-bi-refresh"
         @test accepted_execution["controlFlowPlan"][1]["bodyNodeIds"] == ["node-transform", "node-bi"]
+        @test accepted_execution["controlFlowPlan"][2]["controlId"] == "try-bi-outlet"
+        @test accepted_execution["controlFlowPlan"][2]["tryNodeIds"] == ["node-transform"]
+        @test accepted_execution["controlFlowPlan"][2]["catchNodeIds"] == ["node-bi"]
         queued_execution_json = transition_execution_response!(
             state,
             accepted_execution["executionId"];

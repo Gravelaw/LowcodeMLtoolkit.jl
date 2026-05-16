@@ -39,9 +39,10 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 2. [ ] Provider-specific object-store proof: run remote Arrow IPC materialization against selected S3/GCS/Azure-compatible target with externally supplied credentials and linked evidence.
 3. [x] Frontend module expansion / BI viewer row-search slice: published dashboard viewer row search now filters visible chart rows and filtered CSV exports while preserving route shell, demo fallback, runtime config, and coverage gates.
 4. [x] Julia runtime module expansion / loop runtime-plan slice: loop control-flow metadata now validates reachable bounded loop bodies and emits additive execution `controlFlowPlan` evidence across Julia, gateway, contracts, and Monitor UI.
-5. [ ] Julia runtime module expansion follow-up: add try/catch execution semantics or deeper worker-runtime behavior with Julia/contract/frontend tests.
-6. [ ] Governed Hub production depth: execute sandbox commands, verify downloaded artifacts against hashes, and prove private/offline registry mirror behavior.
-7. [x] Control-doc sync automation: `AGENTS.md` now requires Plan/TODO/risk/tracker/checkpoint updates for every completed slice/phase/review, and `npm run validate:control-doc-sync` enforces the guard when non-control files change.
+5. [x] Julia runtime module expansion / try-catch runtime-plan slice: try/catch control-flow metadata now emits additive execution `controlFlowPlan` evidence with try/catch body node ids across Julia, gateway, contracts, and Monitor UI.
+6. [ ] Julia runtime module expansion follow-up: add deeper worker-runtime or failure-driven node execution behavior with Julia/contract/frontend tests.
+7. [ ] Governed Hub production depth: execute sandbox commands, verify downloaded artifacts against hashes, and prove private/offline registry mirror behavior.
+8. [x] Control-doc sync automation: `AGENTS.md` now requires Plan/TODO/risk/tracker/checkpoint updates for every completed slice/phase/review, and `npm run validate:control-doc-sync` enforces the guard when non-control files change.
 
 ## Final Hardware-Gated Phase
 
@@ -73,6 +74,7 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 - 2026-05-14: Control-doc sync automation added: `AGENTS.md` mandates Plan/TODO/risk/tracker/checkpoint updates after slice/phase/review completion and `npm run validate:control-doc-sync` guards non-control changes.
 - 2026-05-15: Frontend module expansion first slice adds BI published-viewer row search across visible chart rows, clear row-search controls, search-aware row counts, and filtered CSV export respecting both chart filter and search term.
 - 2026-05-15: Julia runtime module expansion first slice adds bounded loop runtime-plan evidence: loop start/end reachability validation, body node derivation, gateway persistence/payload mapping, TS/OpenAPI `controlFlowPlan`, and Monitor UI rendering.
+- 2026-05-16: Julia runtime module expansion try/catch slice adds bounded try/catch runtime-plan evidence: try/catch body node IDs now persist through Julia execution records, gateway payload mapping, TS/OpenAPI `controlFlowPlan`, and Monitor UI rendering; failure-driven node execution remains future work.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
 - 2026-04-25: BRD traceability automation now validates every checked P0/P1/P2 TODO item against `docs/brd-traceability.md` code/test evidence links.

@@ -620,9 +620,9 @@ export interface GatewayExecutionStatusEvent {
   metadata?: Record<string, unknown>;
 }
 
-export interface GatewayControlFlowPlanEntry {
+export interface GatewayLoopControlFlowPlanEntry {
   controlId: string;
-  kind: Extract<ControlFlowKind, "loop">;
+  kind: "loop";
   iterationMode: LoopIterationMode;
   maxIterations: number;
   startNodeId: string;
@@ -630,6 +630,18 @@ export interface GatewayControlFlowPlanEntry {
   bodyNodeIds: string[];
   bounded: boolean;
 }
+
+export interface GatewayTryCatchControlFlowPlanEntry {
+  controlId: string;
+  kind: "try_catch";
+  tryNodeIds: string[];
+  catchNodeIds: string[];
+  bounded: boolean;
+}
+
+export type GatewayControlFlowPlanEntry =
+  | GatewayLoopControlFlowPlanEntry
+  | GatewayTryCatchControlFlowPlanEntry;
 
 export interface GatewayExecutionRecord {
   executionId: string;

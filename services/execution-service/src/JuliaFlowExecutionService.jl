@@ -256,17 +256,26 @@ function build_control_flow_plan(workflow::WorkflowDefinition)
     plan = Dict{String,Any}[]
 
     for control in workflow.control_flow
-        control.kind == :loop || continue
-        push!(plan, Dict{String,Any}(
-            "control_id" => control.id,
-            "kind" => String(control.kind),
-            "iteration_mode" => String(control.iteration_mode),
-            "max_iterations" => control.max_iterations,
-            "start_node_id" => control.start_node_id,
-            "end_node_id" => control.end_node_id,
-            "body_node_ids" => loop_body_node_ids(workflow, control),
-            "bounded" => true,
-        ))
+        if control.kind == :loop
+            push!(plan, Dict{String,Any}(
+                "control_id" => control.id,
+                "kind" => String(control.kind),
+                "iteration_mode" => String(control.iteration_mode),
+                "max_iterations" => control.max_iterations,
+                "start_node_id" => control.start_node_id,
+                "end_node_id" => control.end_node_id,
+                "body_node_ids" => loop_body_node_ids(workflow, control),
+                "bounded" => true,
+            ))
+        elseif control.kind == :try_catch
+            push!(plan, Dict{String,Any}(
+                "control_id" => control.id,
+                "kind" => String(control.kind),
+                "try_node_ids" => copy(control.try_node_ids),
+                "catch_node_ids" => copy(control.catch_node_ids),
+                "bounded" => true,
+            ))
+        end
     end
 
     return plan

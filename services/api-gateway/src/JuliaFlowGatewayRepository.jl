@@ -445,16 +445,21 @@ function execution_payload(execution::GatewayExecution)
                 ]
             elseif string_key == "control_flow_plan"
                 payload["controlFlowPlan"] = [
-                    Dict(
-                        "controlId" => String(get(item, "control_id", "")),
-                        "kind" => String(get(item, "kind", "")),
-                        "iterationMode" => String(get(item, "iteration_mode", "")),
-                        "maxIterations" => Int(get(item, "max_iterations", 0)),
-                        "startNodeId" => String(get(item, "start_node_id", "")),
-                        "endNodeId" => String(get(item, "end_node_id", "")),
-                        "bodyNodeIds" => [String(node_id) for node_id in get(item, "body_node_ids", Any[])],
-                        "bounded" => Bool(get(item, "bounded", false)),
-                    ) for item in value
+                    let
+                        entry = Dict{String,Any}(
+                            "controlId" => String(get(item, "control_id", "")),
+                            "kind" => String(get(item, "kind", "")),
+                            "bounded" => Bool(get(item, "bounded", false)),
+                        )
+                        haskey(item, "iteration_mode") && (entry["iterationMode"] = String(item["iteration_mode"]))
+                        haskey(item, "max_iterations") && (entry["maxIterations"] = Int(item["max_iterations"]))
+                        haskey(item, "start_node_id") && (entry["startNodeId"] = String(item["start_node_id"]))
+                        haskey(item, "end_node_id") && (entry["endNodeId"] = String(item["end_node_id"]))
+                        haskey(item, "body_node_ids") && (entry["bodyNodeIds"] = [String(node_id) for node_id in item["body_node_ids"]])
+                        haskey(item, "try_node_ids") && (entry["tryNodeIds"] = [String(node_id) for node_id in item["try_node_ids"]])
+                        haskey(item, "catch_node_ids") && (entry["catchNodeIds"] = [String(node_id) for node_id in item["catch_node_ids"]])
+                        entry
+                    end for item in value
                 ]
             elseif string_key == "dispatch_plan"
                 payload["dispatchPlan"] = [
@@ -701,16 +706,21 @@ function gateway_execution(item)
             ]
         elseif string_key == "controlFlowPlan"
             metadata["control_flow_plan"] = [
-                Dict{String,Any}(
-                    "control_id" => String(get(entry, "controlId", "")),
-                    "kind" => String(get(entry, "kind", "")),
-                    "iteration_mode" => String(get(entry, "iterationMode", "")),
-                    "max_iterations" => Int(get(entry, "maxIterations", 0)),
-                    "start_node_id" => String(get(entry, "startNodeId", "")),
-                    "end_node_id" => String(get(entry, "endNodeId", "")),
-                    "body_node_ids" => [String(node_id) for node_id in get(entry, "bodyNodeIds", Any[])],
-                    "bounded" => Bool(get(entry, "bounded", false)),
-                ) for entry in value
+                let
+                    plan_entry = Dict{String,Any}(
+                        "control_id" => String(get(entry, "controlId", "")),
+                        "kind" => String(get(entry, "kind", "")),
+                        "bounded" => Bool(get(entry, "bounded", false)),
+                    )
+                    haskey(entry, "iterationMode") && (plan_entry["iteration_mode"] = String(entry["iterationMode"]))
+                    haskey(entry, "maxIterations") && (plan_entry["max_iterations"] = Int(entry["maxIterations"]))
+                    haskey(entry, "startNodeId") && (plan_entry["start_node_id"] = String(entry["startNodeId"]))
+                    haskey(entry, "endNodeId") && (plan_entry["end_node_id"] = String(entry["endNodeId"]))
+                    haskey(entry, "bodyNodeIds") && (plan_entry["body_node_ids"] = [String(node_id) for node_id in entry["bodyNodeIds"]])
+                    haskey(entry, "tryNodeIds") && (plan_entry["try_node_ids"] = [String(node_id) for node_id in entry["tryNodeIds"]])
+                    haskey(entry, "catchNodeIds") && (plan_entry["catch_node_ids"] = [String(node_id) for node_id in entry["catchNodeIds"]])
+                    plan_entry
+                end for entry in value
             ]
         elseif string_key == "dispatchPlan"
             metadata["dispatch_plan"] = [

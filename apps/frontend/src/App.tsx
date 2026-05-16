@@ -4463,10 +4463,17 @@ function App() {
                               {item.controlFlowPlan.map((controlPlan) => (
                                 <div className="inspector-row" key={controlPlan.controlId}>
                                   <strong>{controlPlan.controlId}</strong>
-                                  <span>
-                                    {controlPlan.kind} · {controlPlan.iterationMode} · max {controlPlan.maxIterations} ·{" "}
-                                    {controlPlan.bodyNodeIds.length} nodes
-                                  </span>
+                                  {controlPlan.kind === "loop" ? (
+                                    <span>
+                                      {controlPlan.kind} · {controlPlan.iterationMode} · max {controlPlan.maxIterations} ·{" "}
+                                      {controlPlan.bodyNodeIds.length} nodes
+                                    </span>
+                                  ) : (
+                                    <span>
+                                      {controlPlan.kind} · {controlPlan.tryNodeIds.length} try nodes ·{" "}
+                                      {controlPlan.catchNodeIds.length} catch nodes
+                                    </span>
+                                  )}
                                 </div>
                               ))}
                             </div>

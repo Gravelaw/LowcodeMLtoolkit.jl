@@ -1,6 +1,6 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-05-15
+Last updated: 2026-05-16
 
 ## Current Phase
 
@@ -15,7 +15,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
 - P2 is closed for Kustomize-backed ArgoCD workload manifests and provider-neutral dependency seams.
 - Repo-local skill surfaces now exist for control-loop, Julia, frontend, and provider-deployment work.
 - First frontend module expansion slice is complete: published BI viewer row search filters visible chart rows and filtered CSV export without changing contracts.
-- First Julia runtime module expansion slice is complete: loop control-flow metadata now produces bounded runtime planning evidence without changing node compute execution.
+- Julia runtime module expansion now has loop and try/catch runtime-plan slices: both produce bounded additive execution evidence without changing node compute execution.
 - Final multi-GPU closure remains intentionally deferred until a runner with `>=2` visible CUDA devices exists.
 
 ## Active Development Order
@@ -36,8 +36,9 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
    - Preserve route shell, demo fallback, runtime `juliaflow-config.js`, accessibility selectors, and coverage gates.
 
 4. **Julia runtime module expansion**
-   - First loop runtime-plan slice is complete as of 2026-05-15.
-   - Next Julia runtime follow-up: try/catch execution semantics or deeper worker-runtime behavior.
+   - Loop runtime-plan slice is complete as of 2026-05-15.
+   - Try/catch runtime-plan slice is complete as of 2026-05-16.
+   - Next Julia runtime follow-up: deeper worker-runtime or failure-driven node execution behavior.
    - Use `juliaflow-julia-development`, `julia-coding`, and `julia-debugging`; verify with Julia tests and contract tests.
 
 5. **Governed Hub production depth**
@@ -58,6 +59,12 @@ Verification evidence for this slice: `npm --workspace @juliaflow/frontend run t
 ## Latest Completed Slice — 2026-05-15 Runtime
 
 **Julia runtime module expansion / loop runtime-plan slice** is complete. Loop control-flow metadata now validates start-to-end reachability, derives bounded body node IDs from the workflow DAG, emits additive `controlFlowPlan` execution evidence through contracts/gateway/frontend, and keeps node compute execution unchanged.
+
+Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl` and `npm run test` passed before full gate execution.
+
+## Latest Completed Slice — 2026-05-16 Runtime
+
+**Julia runtime module expansion / try-catch runtime-plan slice** is complete. Try/catch metadata now emits additive `controlFlowPlan` execution evidence with try and catch body node IDs through contracts/gateway/frontend, while node-level failure catching remains a deliberate future executor expansion.
 
 Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl` and `npm run test` passed before full gate execution.
 

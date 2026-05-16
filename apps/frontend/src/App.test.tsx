@@ -296,6 +296,13 @@ describe("App", () => {
                     endNodeId: "node-bi-outlet",
                     bodyNodeIds: ["node-transform", "node-bi-outlet"],
                     bounded: true
+                  },
+                  {
+                    controlId: "try-bi-outlet",
+                    kind: "try_catch",
+                    tryNodeIds: ["node-transform"],
+                    catchNodeIds: ["node-bi-outlet"],
+                    bounded: true
                   }
                 ]
               }
@@ -570,6 +577,8 @@ describe("App", () => {
     expect(screen.getByText(/Total running executions/i)).toBeInTheDocument();
     expect(screen.getByText("loop-bi-refresh")).toBeInTheDocument();
     expect(screen.getByText(/loop · table_rows · max 3 · 2 nodes/i)).toBeInTheDocument();
+    expect(screen.getByText("try-bi-outlet")).toBeInTheDocument();
+    expect(screen.getByText(/try_catch · 1 try nodes · 1 catch nodes/i)).toBeInTheDocument();
     expect(screen.getAllByText("12").length).toBeGreaterThan(0);
     expect(screen.getByText("10")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();

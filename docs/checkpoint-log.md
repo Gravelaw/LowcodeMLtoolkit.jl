@@ -1720,3 +1720,26 @@ Each checkpoint entry must contain:
 - Complete full verification for this runtime slice.
 - Continue with try/catch runtime semantics next unless provider/cluster access is supplied.
 - Keep control-flow runtime additions additive and evidence-backed across Julia, contracts, gateway, frontend, and tests.
+
+---
+
+## Checkpoint: Julia Runtime Module Expansion / Try-Catch Runtime-Plan Slice — 2026-05-16
+
+### Work Done Till Date
+
+- Added additive try/catch runtime-plan evidence without changing node compute execution.
+- Execution records now include try/catch `controlFlowPlan` entries with try and catch node IDs.
+- Contracts, gateway payload mapping, Monitor UI, fixtures, and tests were updated for the try/catch evidence shape.
+
+### Gaps Pending
+
+- Failure-driven executor semantics and worker-runtime behavior remain pending.
+- Provider-specific deployment/object-store proof still requires external provider and cluster context.
+- Governed Hub sandbox/hash verification remains pending.
+- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete full verification and code review for this runtime slice.
+- Continue with deeper runtime execution semantics or Hub production depth unless provider/cluster access is supplied.
+- Keep loop/try-catch runtime additions additive until failure-driven node execution is deliberately expanded.

@@ -1672,3 +1672,24 @@ After any meaningful job:
 - Run full verification: Julia suite, npm test/build, control-doc sync, BRD traceability, and diff check.
 - Next repo-local implementation lane should be try/catch runtime semantics unless provider access appears first.
 - Keep loop planning additive until node-level compute execution semantics are deliberately expanded.
+
+### Julia Runtime Module Expansion / Try-Catch Runtime-Plan Slice — 2026-05-16
+
+### Work Done Till Date
+
+- Implemented the next Julia runtime module expansion slice for try/catch control-flow planning.
+- Try/catch metadata now emits additive `controlFlowPlan` evidence with ordered try and catch node IDs.
+- Gateway persistence/payload mapping, TS/OpenAPI contracts, Monitor UI rendering, foundation fixture coverage, Julia tests, frontend tests, contract tests, and traceability docs are aligned.
+
+### Gaps Pending
+
+- Failure-driven node execution semantics remain open; this slice does not catch runtime node failures or branch executor state.
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credential context.
+- Governed Hub sandbox/hash verification remains pending.
+- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Run full verification: Julia suite, npm test/build, coverage, control-doc sync, BRD traceability, and diff check.
+- Continue with deeper worker-runtime or failure-driven node execution semantics if runtime depth remains the selected lane.
+- Keep provider-specific proof queued until live target access exists.

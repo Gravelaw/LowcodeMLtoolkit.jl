@@ -2999,6 +2999,74 @@
       },
       "GatewayControlFlowPlanEntry": {
         "type": "object",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/GatewayLoopControlFlowPlanEntry"
+          },
+          {
+            "$ref": "#/components/schemas/GatewayTryCatchControlFlowPlanEntry"
+          }
+        ],
+        "required": [
+          "controlId",
+          "kind",
+          "bounded"
+        ],
+        "properties": {
+          "controlId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "loop",
+              "try_catch"
+            ]
+          },
+          "iterationMode": {
+            "type": "string",
+            "enum": [
+              "table_rows",
+              "files",
+              "parameter_range",
+              "streaming_batches"
+            ]
+          },
+          "maxIterations": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "startNodeId": {
+            "type": "string"
+          },
+          "endNodeId": {
+            "type": "string"
+          },
+          "bodyNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bounded": {
+            "type": "boolean"
+          },
+          "tryNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "catchNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GatewayLoopControlFlowPlanEntry": {
+        "type": "object",
         "required": [
           "controlId",
           "kind",
@@ -3039,6 +3107,42 @@
             "type": "string"
           },
           "bodyNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bounded": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GatewayTryCatchControlFlowPlanEntry": {
+        "type": "object",
+        "required": [
+          "controlId",
+          "kind",
+          "tryNodeIds",
+          "catchNodeIds",
+          "bounded"
+        ],
+        "properties": {
+          "controlId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "try_catch"
+            ]
+          },
+          "tryNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "catchNodeIds": {
             "type": "array",
             "items": {
               "type": "string"

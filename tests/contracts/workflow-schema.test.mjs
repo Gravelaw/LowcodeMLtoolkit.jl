@@ -31,6 +31,8 @@ test("workflow fixture matches foundation contract expectations", async () => {
   assert.equal(workflow.workflow.control_flow[1].max_concurrency, 4);
   assert.equal(workflow.workflow.control_flow[2].kind, "loop");
   assert.equal(workflow.workflow.control_flow[2].max_iterations, 3);
+  assert.equal(workflow.workflow.control_flow[3].kind, "try_catch");
+  assert.deepEqual(workflow.workflow.control_flow[3].catch_node_ids, ["node-bi"]);
   assert.equal(workflow.runtime.run_mode, "batch");
 });
 
@@ -170,8 +172,13 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.WorkflowDetail.properties.biOutlets);
   assert.ok(schemas.GatewayExecutionRecord.properties.resourcePlan);
   assert.ok(schemas.GatewayExecutionRecord.properties.controlFlowPlan);
+  assert.equal(schemas.GatewayControlFlowPlanEntry.oneOf.length, 2);
+  assert.ok(schemas.GatewayLoopControlFlowPlanEntry);
+  assert.ok(schemas.GatewayTryCatchControlFlowPlanEntry);
   assert.ok(schemas.GatewayControlFlowPlanEntry.properties.bodyNodeIds);
-  assert.deepEqual(schemas.GatewayControlFlowPlanEntry.properties.kind.enum, ["loop"]);
+  assert.ok(schemas.GatewayControlFlowPlanEntry.properties.tryNodeIds);
+  assert.ok(schemas.GatewayControlFlowPlanEntry.properties.catchNodeIds);
+  assert.deepEqual(schemas.GatewayControlFlowPlanEntry.properties.kind.enum, ["loop", "try_catch"]);
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchPlan);
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchLane);
   assert.ok(schemas.GatewayExecutionRecord.properties.dispatchWorkerPool);
