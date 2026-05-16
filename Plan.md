@@ -15,7 +15,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
 - P2 is closed for Kustomize-backed ArgoCD workload manifests and provider-neutral dependency seams.
 - Repo-local skill surfaces now exist for control-loop, Julia, frontend, and provider-deployment work.
 - First frontend module expansion slice is complete: published BI viewer row search filters visible chart rows and filtered CSV export without changing contracts.
-- Julia runtime module expansion now has loop and try/catch runtime-plan slices: both produce bounded additive execution evidence without changing node compute execution.
+- Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, and try/catch failure-recovery route slices: failed-node telemetry for covered try nodes records bounded catch-route evidence while uncaught nodes still fail.
 - Governed Hub production-depth deterministic proof now records verification evidence and blocks unsafe sandbox/hash/mirror install paths without arbitrary command execution.
 - Final multi-GPU closure remains intentionally deferred until a runner with `>=2` visible CUDA devices exists.
 
@@ -39,7 +39,8 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
 4. **Julia runtime module expansion**
    - Loop runtime-plan slice is complete as of 2026-05-15.
    - Try/catch runtime-plan slice is complete as of 2026-05-16.
-   - Next Julia runtime follow-up: deeper worker-runtime or failure-driven node execution behavior.
+   - Try/catch failure-recovery route slice is complete as of 2026-05-16.
+   - Next Julia runtime follow-up: real catch-node compute execution and worker-runtime branch state.
    - Use `juliaflow-julia-development`, `julia-coding`, and `julia-debugging`; verify with Julia tests and contract tests.
 
 5. **Governed Hub production depth**
@@ -69,6 +70,12 @@ Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl
 **Julia runtime module expansion / try-catch runtime-plan slice** is complete. Try/catch metadata now emits additive `controlFlowPlan` execution evidence with try and catch body node IDs through contracts/gateway/frontend, while node-level failure catching remains a deliberate future executor expansion.
 
 Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl` and `npm run test` passed before full gate execution.
+
+## Latest Completed Slice — 2026-05-16 Runtime Failure Recovery
+
+**Julia runtime module expansion / try-catch failure-recovery route slice** is complete. Execution status updates that report `failedNodeId` for a node covered by existing try/catch metadata now record `controlFlowRecovery` catch-route evidence and keep the execution non-terminal; failed-node telemetry outside try/catch still transitions normally to failed. The evidence is exposed through contracts, OpenAPI, gateway payloads, Monitor UI, and tests.
+
+Verification evidence for this slice: Julia/frontend/contract tests, build, coverage, control-doc sync, BRD traceability, and diff checks are required before commit.
 
 ## Latest Completed Slice — 2026-05-16 Hub
 

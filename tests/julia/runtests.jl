@@ -167,6 +167,12 @@ end
     @test result["control_flow_plan"][2]["control_id"] == "try-bi-outlet"
     @test result["control_flow_plan"][2]["try_node_ids"] == ["node-transform"]
     @test result["control_flow_plan"][2]["catch_node_ids"] == ["node-bi"]
+    recovery = try_catch_recovery_metadata(workflow, "node-transform")
+    @test recovery["control_id"] == "try-bi-outlet"
+    @test recovery["failed_node_id"] == "node-transform"
+    @test recovery["catch_node_ids"] == ["node-bi"]
+    @test recovery["status"] == "recovered"
+    @test try_catch_recovery_metadata(workflow, "node-source") === nothing
     @test occursin("parallel chunk parallel-prep max concurrency", join(collect_validation_errors(invalid_control_workflow), "; "))
     @test occursin("loop loop-bi-refresh end node unreachable from start node", join(collect_validation_errors(invalid_loop_workflow), "; "))
     @test occursin("try/catch try-bi-outlet catch references missing node: node-missing", join(collect_validation_errors(invalid_try_catch_workflow), "; "))
@@ -893,6 +899,36 @@ end
         @test accepted_execution["controlFlowPlan"][2]["controlId"] == "try-bi-outlet"
         @test accepted_execution["controlFlowPlan"][2]["tryNodeIds"] == ["node-transform"]
         @test accepted_execution["controlFlowPlan"][2]["catchNodeIds"] == ["node-bi"]
+        recovered_execution_json = transition_execution_response!(
+            state,
+            accepted_execution["executionId"];
+            status = "failed",
+            message = "Transform failed; route to catch",
+            metadata = Dict{String,Any}("failedNodeId" => "node-transform"),
+        )
+        recovered_execution = JSON3.read(recovered_execution_json, Dict{String,Any})
+        @test recovered_execution["status"] == "accepted"
+        @test recovered_execution["controlFlowRecovery"]["controlId"] == "try-bi-outlet"
+        @test recovered_execution["controlFlowRecovery"]["failedNodeId"] == "node-transform"
+        @test recovered_execution["controlFlowRecovery"]["catchNodeIds"] == ["node-bi"]
+        @test recovered_execution["statusHistory"][end]["message"] == "Transform failed; route to catch"
+        uncaught_execution = JSON3.read(execution_accept_response(state, "wf-foundation"), Dict{String,Any})
+        uncaught_failed_json = transition_execution_response!(
+            state,
+            uncaught_execution["executionId"];
+            status = "failed",
+            message = "Source failed without catch",
+            metadata = Dict{String,Any}("failedNodeId" => "node-source"),
+        )
+        uncaught_failed = JSON3.read(uncaught_failed_json, Dict{String,Any})
+        @test uncaught_failed["status"] == "failed"
+        @test !haskey(uncaught_failed, "controlFlowRecovery")
+        @test_throws ErrorException transition_execution_response!(
+            state,
+            uncaught_failed["executionId"];
+            status = "failed",
+            metadata = Dict{String,Any}("failedNodeId" => "node-transform"),
+        )
         queued_execution_json = transition_execution_response!(
             state,
             accepted_execution["executionId"];

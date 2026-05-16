@@ -662,6 +662,14 @@ export type GatewayControlFlowPlanEntry =
   | GatewayLoopControlFlowPlanEntry
   | GatewayTryCatchControlFlowPlanEntry;
 
+export interface GatewayControlFlowRecovery {
+  controlId: string;
+  failedNodeId: string;
+  catchNodeIds: string[];
+  status: "recovered";
+  bounded: boolean;
+}
+
 export interface GatewayExecutionRecord {
   executionId: string;
   workflowId: string;
@@ -684,6 +692,7 @@ export interface GatewayExecutionRecord {
     nodeIds: string[];
   }>;
   controlFlowPlan?: GatewayControlFlowPlanEntry[];
+  controlFlowRecovery?: GatewayControlFlowRecovery;
   dispatchPlan?: Array<{
     lane: WorkflowResourceClass;
     nodeIds: string[];

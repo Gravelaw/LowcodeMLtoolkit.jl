@@ -172,6 +172,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.WorkflowDetail.properties.biOutlets);
   assert.ok(schemas.GatewayExecutionRecord.properties.resourcePlan);
   assert.ok(schemas.GatewayExecutionRecord.properties.controlFlowPlan);
+  assert.ok(schemas.GatewayExecutionRecord.properties.controlFlowRecovery);
+  assert.ok(schemas.GatewayControlFlowRecovery.properties.catchNodeIds);
   assert.equal(schemas.GatewayControlFlowPlanEntry.oneOf.length, 2);
   assert.ok(schemas.GatewayLoopControlFlowPlanEntry);
   assert.ok(schemas.GatewayTryCatchControlFlowPlanEntry);

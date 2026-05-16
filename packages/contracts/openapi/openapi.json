@@ -1910,6 +1910,9 @@
           },
           "observabilityTrace": {
             "$ref": "#/components/schemas/ObservabilityTraceRecord"
+          },
+          "controlFlowRecovery": {
+            "$ref": "#/components/schemas/GatewayControlFlowRecovery"
           }
         },
         "additionalProperties": true
@@ -3221,6 +3224,39 @@
           "evaluatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "GatewayControlFlowRecovery": {
+        "type": "object",
+        "required": [
+          "controlId",
+          "failedNodeId",
+          "catchNodeIds",
+          "status",
+          "bounded"
+        ],
+        "properties": {
+          "controlId": {
+            "type": "string"
+          },
+          "failedNodeId": {
+            "type": "string"
+          },
+          "catchNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "recovered"
+            ]
+          },
+          "bounded": {
+            "type": "boolean"
           }
         }
       }

@@ -1716,3 +1716,26 @@ After any meaningful job:
 - Run and preserve full verification: Julia suite, npm test/build, coverage, control-doc sync, BRD traceability, diff check, security review, and code review.
 - Next Hub follow-up should add an isolated sandbox runner and downloaded-artifact verification when registry/mirror fixtures are available.
 - Otherwise continue deeper runtime execution semantics or provider proof once external access exists.
+
+
+### Julia Runtime Module Expansion / Try-Catch Failure-Recovery Route Slice — 2026-05-16
+
+### Work Done Till Date
+
+- Implemented the next Julia runtime module expansion slice for failure-driven try/catch route evidence.
+- Execution status updates with `failedNodeId` for a node covered by try/catch metadata now record bounded `controlFlowRecovery` evidence with control id, failed node id, catch node ids, status, and bounded flag.
+- Failed-node telemetry outside any try block still follows the normal terminal failed transition.
+- Contracts, OpenAPI, gateway payload mapping, Monitor UI, Julia tests, frontend tests, and contract tests were updated.
+
+### Gaps Pending
+
+- Real catch-node compute execution and worker-runtime branch state remain pending.
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credential context.
+- Governed Hub real sandbox/download/mirror proof still requires isolated runner and registry/mirror fixtures.
+- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Run full verification: Julia suite, npm test/build, coverage, control-doc sync, BRD traceability, and diff check.
+- Continue runtime depth with catch-node compute or worker branch-state execution if no provider access exists.
+- Keep the recovery route additive until real node compute execution is deliberately expanded.

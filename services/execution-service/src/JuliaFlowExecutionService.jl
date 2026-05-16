@@ -31,6 +31,7 @@ export WorkflowNode,
     build_parallel_stages,
     build_execution_plan,
     serialize_job_spec,
+    try_catch_recovery_metadata,
     append_execution_event,
     is_stream_workflow,
     validate_workflow,
@@ -279,6 +280,24 @@ function build_control_flow_plan(workflow::WorkflowDefinition)
     end
 
     return plan
+end
+
+function try_catch_recovery_metadata(workflow::WorkflowDefinition, failed_node_id::AbstractString)
+    failed_node = String(failed_node_id)
+
+    for control in workflow.control_flow
+        control.kind == :try_catch || continue
+        failed_node in control.try_node_ids || continue
+        return Dict{String,Any}(
+            "control_id" => control.id,
+            "failed_node_id" => failed_node,
+            "catch_node_ids" => copy(control.catch_node_ids),
+            "status" => "recovered",
+            "bounded" => true,
+        )
+    end
+
+    return nothing
 end
 
 """

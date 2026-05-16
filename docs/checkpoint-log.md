@@ -1768,3 +1768,28 @@ Each checkpoint entry must contain:
 - Complete full gate execution and review for this slice before commit/push.
 - Add isolated sandbox runner plus downloaded-artifact verification when registry/mirror fixtures are ready.
 - Continue deeper runtime execution semantics or provider proof when prerequisites are available.
+
+
+---
+
+## Checkpoint: Julia Runtime Module Expansion / Try-Catch Failure-Recovery Route Slice — 2026-05-16
+
+### Work Done Till Date
+
+- Added try/catch failure-recovery routing on top of existing try/catch metadata.
+- Status updates reporting `failedNodeId` for a covered try node now append recovery evidence and keep the execution non-terminal.
+- Uncaught failed-node telemetry still transitions to failed normally.
+- Updated contracts, OpenAPI, gateway mapping, frontend Monitor UI, Julia tests, frontend tests, contract tests, tracker, TODO, risk register, and traceability docs.
+
+### Gaps Pending
+
+- Real catch-node compute execution is not implemented in this slice.
+- Worker-runtime branch state and catch-node scheduling remain future runtime work.
+- Provider-specific deployment/object-store proof and real Hub sandbox/download/mirror proof remain gated on external context/fixtures.
+- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete full verification and code review for this slice.
+- Add real catch-node compute and worker branch-state execution in a future runtime slice.
+- Continue provider proof only when cluster/provider/credential prerequisites exist.

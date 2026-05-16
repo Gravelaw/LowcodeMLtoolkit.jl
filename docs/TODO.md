@@ -40,10 +40,11 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 3. [x] Frontend module expansion / BI viewer row-search slice: published dashboard viewer row search now filters visible chart rows and filtered CSV exports while preserving route shell, demo fallback, runtime config, and coverage gates.
 4. [x] Julia runtime module expansion / loop runtime-plan slice: loop control-flow metadata now validates reachable bounded loop bodies and emits additive execution `controlFlowPlan` evidence across Julia, gateway, contracts, and Monitor UI.
 5. [x] Julia runtime module expansion / try-catch runtime-plan slice: try/catch control-flow metadata now emits additive execution `controlFlowPlan` evidence with try/catch body node ids across Julia, gateway, contracts, and Monitor UI.
-6. [ ] Julia runtime module expansion follow-up: add deeper worker-runtime or failure-driven node execution behavior with Julia/contract/frontend tests.
-7. [x] Governed Hub production depth / deterministic sandbox-hash-mirror proof slice: Hub records now include install-time verification evidence; install/enable/upgrade block unsafe sandbox command shapes, artifact hash mismatches, and unsupported mirrors while disable remains a remediation path.
-8. [ ] Governed Hub production depth follow-up: execute real sandbox commands in an isolated runner, verify downloaded artifacts against declared hashes, and prove real private/offline registry mirror behavior.
-9. [x] Control-doc sync automation: `AGENTS.md` now requires Plan/TODO/risk/tracker/checkpoint updates for every completed slice/phase/review, and `npm run validate:control-doc-sync` enforces the guard when non-control files change.
+6. [x] Julia runtime module expansion follow-up / try-catch failure-recovery slice: failed-node telemetry for a try node now records bounded `controlFlowRecovery` catch-route evidence without terminal-failing, while uncaught failed-node telemetry still transitions to failed.
+7. [ ] Julia runtime module expansion follow-up: execute real catch-node compute and worker-runtime branch state beyond recovery-route evidence.
+8. [x] Governed Hub production depth / deterministic sandbox-hash-mirror proof slice: Hub records now include install-time verification evidence; install/enable/upgrade block unsafe sandbox command shapes, artifact hash mismatches, and unsupported mirrors while disable remains a remediation path.
+9. [ ] Governed Hub production depth follow-up: execute real sandbox commands in an isolated runner, verify downloaded artifacts against declared hashes, and prove real private/offline registry mirror behavior.
+10. [x] Control-doc sync automation: `AGENTS.md` now requires Plan/TODO/risk/tracker/checkpoint updates for every completed slice/phase/review, and `npm run validate:control-doc-sync` enforces the guard when non-control files change.
 
 ## Final Hardware-Gated Phase
 
@@ -77,6 +78,7 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 - 2026-05-15: Julia runtime module expansion first slice adds bounded loop runtime-plan evidence: loop start/end reachability validation, body node derivation, gateway persistence/payload mapping, TS/OpenAPI `controlFlowPlan`, and Monitor UI rendering.
 - 2026-05-16: Julia runtime module expansion try/catch slice adds bounded try/catch runtime-plan evidence: try/catch body node IDs now persist through Julia execution records, gateway payload mapping, TS/OpenAPI `controlFlowPlan`, and Monitor UI rendering; failure-driven node execution remains future work.
 - 2026-05-16: Governed Hub production-depth deterministic proof slice adds `verification` evidence to Hub contracts/API records, blocks install/enable/upgrade on bounded sandbox command rejection, artifact hash mismatch, or unsupported mirror refs, and keeps disable as the remediation path; real isolated sandbox execution and downloaded artifact/private registry proof remain follow-up work.
+- 2026-05-16: Julia runtime try/catch failure-recovery slice turns failed-node telemetry for covered try nodes into bounded `controlFlowRecovery` catch-route evidence while preserving normal failed transitions for uncaught nodes; real catch-node compute and worker branch state remain future work.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
 - 2026-04-25: BRD traceability automation now validates every checked P0/P1/P2 TODO item against `docs/brd-traceability.md` code/test evidence links.

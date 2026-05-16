@@ -316,7 +316,14 @@ describe("App", () => {
                     catchNodeIds: ["node-bi-outlet"],
                     bounded: true
                   }
-                ]
+                ],
+                controlFlowRecovery: {
+                  controlId: "try-bi-outlet",
+                  failedNodeId: "node-transform",
+                  catchNodeIds: ["node-bi-outlet"],
+                  status: "recovered",
+                  bounded: true
+                }
               }
             ]
           })
@@ -594,6 +601,7 @@ describe("App", () => {
     expect(screen.getByText(/loop · table_rows · max 3 · 2 nodes/i)).toBeInTheDocument();
     expect(screen.getByText("try-bi-outlet")).toBeInTheDocument();
     expect(screen.getByText(/try_catch · 1 try nodes · 1 catch nodes/i)).toBeInTheDocument();
+    expect(screen.getByText(/recovered · node-transform via try-bi-outlet · 1 catch nodes/i)).toBeInTheDocument();
     expect(screen.getAllByText("12").length).toBeGreaterThan(0);
     expect(screen.getByText("10")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();

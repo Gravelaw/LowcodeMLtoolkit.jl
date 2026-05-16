@@ -1341,8 +1341,31 @@ function transition_execution_response!(
     metadata::Dict{String,Any} = Dict{String,Any}(),
 )
     index = find_execution_index(state, execution_id)
+    current_execution = state.executions[index]
+    failed_node_key = haskey(metadata, "failedNodeId") ? "failedNodeId" :
+                      (haskey(metadata, "failed_node_id") ? "failed_node_id" : nothing)
+    if String(status) == "failed" && failed_node_key !== nothing && !(current_execution.status in ("completed", "failed"))
+        failed_node_id = string(metadata[failed_node_key])
+        recovery = JuliaFlowGatewayRepository.JuliaFlowExecutionService.try_catch_recovery_metadata(
+            state.workflows[current_execution.workflow_id],
+            failed_node_id,
+        )
+        if recovery !== nothing
+            recovery_message = message === nothing ? "Try/catch recovery planned" : message
+            updated = JuliaFlowGatewayRepository.JuliaFlowExecutionService.append_execution_event(
+                execution_record(current_execution);
+                message = recovery_message,
+                metadata = Dict{String,Any}("control_flow_recovery" => recovery),
+            )
+            execution = materialize_execution(updated)
+            state.executions[index] = execution
+            save_execution!(state.repository, execution; producer = "api-gateway")
+            event_backbone_enabled() || broadcast_execution_update!(state, execution.workflow_id, execution)
+            return JSON3.write(execution_payload(execution))
+        end
+    end
     updated = JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record(
-        execution_record(state.executions[index]),
+        execution_record(current_execution),
         status;
         message = message,
         metadata = metadata,

@@ -4516,6 +4516,15 @@ function App() {
                               ))}
                             </div>
                           ) : null}
+                          {item.controlFlowRecovery ? (
+                            <div className="inspector-row">
+                              <strong>Recovery</strong>
+                              <span>
+                                {item.controlFlowRecovery.status} · {item.controlFlowRecovery.failedNodeId} via{" "}
+                                {item.controlFlowRecovery.controlId} · {item.controlFlowRecovery.catchNodeIds.length} catch nodes
+                              </span>
+                            </div>
+                          ) : null}
                         </article>
                       ))}
                     </div>

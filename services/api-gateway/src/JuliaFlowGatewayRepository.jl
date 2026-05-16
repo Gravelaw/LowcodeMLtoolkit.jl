@@ -484,6 +484,14 @@ function execution_payload(execution::GatewayExecution)
                         entry
                     end for item in value
                 ]
+            elseif string_key == "control_flow_recovery"
+                payload["controlFlowRecovery"] = Dict{String,Any}(
+                    "controlId" => String(get(value, "control_id", "")),
+                    "failedNodeId" => String(get(value, "failed_node_id", "")),
+                    "catchNodeIds" => [String(node_id) for node_id in get(value, "catch_node_ids", Any[])],
+                    "status" => String(get(value, "status", "")),
+                    "bounded" => Bool(get(value, "bounded", false)),
+                )
             elseif string_key == "dispatch_plan"
                 payload["dispatchPlan"] = [
                     Dict{String,Any}(
@@ -745,6 +753,14 @@ function gateway_execution(item)
                     plan_entry
                 end for entry in value
             ]
+        elseif string_key == "controlFlowRecovery"
+            metadata["control_flow_recovery"] = Dict{String,Any}(
+                "control_id" => String(get(value, "controlId", "")),
+                "failed_node_id" => String(get(value, "failedNodeId", "")),
+                "catch_node_ids" => [String(node_id) for node_id in get(value, "catchNodeIds", Any[])],
+                "status" => String(get(value, "status", "")),
+                "bounded" => Bool(get(value, "bounded", false)),
+            )
         elseif string_key == "dispatchPlan"
             metadata["dispatch_plan"] = [
                 let
