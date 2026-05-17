@@ -1916,6 +1916,60 @@
           },
           "controlFlowBranchState": {
             "$ref": "#/components/schemas/GatewayControlFlowBranchState"
+          },
+          "executorSchedule": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "stageIndex",
+                "nodeIds",
+                "lanes",
+                "workerPools",
+                "schedulerPolicy",
+                "readyAfterStage",
+                "maxConcurrency",
+                "bounded"
+              ],
+              "properties": {
+                "stageIndex": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "nodeIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "lanes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "workerPools": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "schedulerPolicy": {
+                  "type": "string"
+                },
+                "readyAfterStage": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "maxConcurrency": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "bounded": {
+                  "type": "boolean"
+                }
+              }
+            }
           }
         },
         "additionalProperties": true

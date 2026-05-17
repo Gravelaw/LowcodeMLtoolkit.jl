@@ -1808,3 +1808,27 @@ After any meaningful job:
 - Run final control-doc validators, diff check, code review, then commit/push the verified runtime DAG branch slice.
 - If provider/credential context appears, prioritize provider-specific deployment and object-store proof; otherwise continue broader runtime executor scheduling or frontend/Hub polish.
 - Keep runtime additions additive and evidence-backed across contracts, Julia, frontend, and tests.
+
+---
+
+## Update: Runtime Executor Stage-Schedule Slice — 2026-05-17
+
+### Work Done Till Date
+
+- Completed the next Julia runtime module expansion step after provider/deployment, object-store, external registry, and GPU final gates remained externally blocked.
+- Execution records now include bounded topological `executorSchedule` evidence for general workflow DAG stages.
+- Schedule evidence records stage indexes, node IDs, resource lanes, worker pools, readiness barriers, max concurrency, bounded status, and scheduler policy.
+- Gateway mapping, TS/OpenAPI contracts, Monitor rendering, Julia tests, frontend tests, TODO, risks, traceability, and plan were updated together.
+
+### Gaps Pending
+
+- True asynchronous multi-tick executor scheduling remains future runtime work; this slice is additive evidence, not a full executor rewrite.
+- Provider-specific deployment proof and remote object-store proof still require selected provider, cluster, and credentials.
+- External Hub registry/provider mirror proof still requires registry/provider context.
+- Final GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete full verification, clean code review, commit, push, and remote publication verification.
+- If provider/credential context appears, prioritize provider-specific deployment and object-store proof.
+- Otherwise continue runtime depth with true asynchronous multi-tick executor scheduling or choose frontend/Hub polish if runtime scope should pause.

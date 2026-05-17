@@ -30,6 +30,7 @@ export WorkflowNode,
     load_workflow_definition,
     build_parallel_stages,
     build_execution_plan,
+    build_executor_schedule,
     serialize_job_spec,
     try_catch_recovery_metadata,
     append_execution_event,
@@ -319,6 +320,7 @@ function create_execution_record(
     control_flow_plan = build_control_flow_plan(workflow)
     dispatch_started_at = time_ns()
     dispatch_plan = build_dispatch_plan(workflow)
+    executor_schedule = build_executor_schedule(workflow, stages)
     dispatch_duration_ms = round((time_ns() - dispatch_started_at) / 1_000_000; digits = 3)
 
     record = Dict{String,Any}(
@@ -337,6 +339,7 @@ function create_execution_record(
         "status_history" => history,
         "resource_plan" => resource_plan,
         "dispatch_plan" => dispatch_plan,
+        "executor_schedule" => executor_schedule,
         "observability_trace" => execution_observability_trace(
             workflow,
             dispatch_plan;
@@ -1169,6 +1172,35 @@ function build_dispatch_plan(workflow::WorkflowDefinition)
     end
 
     return dispatch_plan
+end
+
+function build_executor_schedule(workflow::WorkflowDefinition, stages::Vector{Vector{String}})
+    node_lookup = Dict(node.id => node for node in workflow.nodes)
+    schedule = Dict{String,Any}[]
+
+    for (index, stage) in pairs(stages)
+        lanes = Symbol[]
+        worker_pools = String[]
+        for node_id in stage
+            node = node_lookup[node_id]
+            lane = node_resource_class(node)
+            push!(lanes, lane)
+            push!(worker_pools, lane_worker_pool(workflow, lane))
+        end
+        lane_names = sort(unique(String(lane) for lane in lanes))
+        push!(schedule, Dict{String,Any}(
+            "stage_index" => Int(index),
+            "node_ids" => copy(stage),
+            "lanes" => lane_names,
+            "worker_pools" => sort(unique(worker_pools)),
+            "scheduler_policy" => "topological_stage_barrier",
+            "ready_after_stage" => index == 1 ? 0 : Int(index - 1),
+            "max_concurrency" => length(stage),
+            "bounded" => true,
+        ))
+    end
+
+    return schedule
 end
 
 function execution_mode(workflow::WorkflowDefinition)

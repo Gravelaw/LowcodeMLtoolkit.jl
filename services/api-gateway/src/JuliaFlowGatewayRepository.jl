@@ -549,6 +549,19 @@ function execution_payload(execution::GatewayExecution)
                     haskey(item, "requested_device") && (payload["dispatchPlan"][index]["requestedDevice"] = String(item["requested_device"]))
                     haskey(item, "worker_capacity") && (payload["dispatchPlan"][index]["workerCapacity"] = item["worker_capacity"])
                 end
+            elseif string_key == "executor_schedule"
+                payload["executorSchedule"] = [
+                    Dict{String,Any}(
+                        "stageIndex" => Int(get(item, "stage_index", 0)),
+                        "nodeIds" => [String(node_id) for node_id in get(item, "node_ids", Any[])],
+                        "lanes" => [String(lane) for lane in get(item, "lanes", Any[])],
+                        "workerPools" => [String(pool) for pool in get(item, "worker_pools", Any[])],
+                        "schedulerPolicy" => String(get(item, "scheduler_policy", "")),
+                        "readyAfterStage" => Int(get(item, "ready_after_stage", 0)),
+                        "maxConcurrency" => Int(get(item, "max_concurrency", 0)),
+                        "bounded" => Bool(get(item, "bounded", false)),
+                    ) for item in value
+                ]
             elseif string_key == "observability_trace"
                 payload["observabilityTrace"] = value
             elseif string_key == "stream_lifecycle_status"
@@ -859,6 +872,19 @@ function gateway_execution(item)
                     haskey(item, "workerCapacity") && (entry["worker_capacity"] = item["workerCapacity"])
                     entry
                 end for item in value
+            ]
+        elseif string_key == "executorSchedule"
+            metadata["executor_schedule"] = [
+                Dict{String,Any}(
+                    "stage_index" => Int(get(item, "stageIndex", 0)),
+                    "node_ids" => [String(node_id) for node_id in get(item, "nodeIds", Any[])],
+                    "lanes" => [String(lane) for lane in get(item, "lanes", Any[])],
+                    "worker_pools" => [String(pool) for pool in get(item, "workerPools", Any[])],
+                    "scheduler_policy" => String(get(item, "schedulerPolicy", "")),
+                    "ready_after_stage" => Int(get(item, "readyAfterStage", 0)),
+                    "max_concurrency" => Int(get(item, "maxConcurrency", 0)),
+                    "bounded" => Bool(get(item, "bounded", false)),
+                ) for item in value
             ]
         elseif string_key == "streamLifecycleStatus"
             metadata["stream_lifecycle_status"] = value

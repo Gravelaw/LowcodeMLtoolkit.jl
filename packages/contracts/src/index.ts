@@ -699,6 +699,17 @@ export interface GatewayControlFlowBranchState {
   nodeResults: GatewayControlFlowBranchNodeResult[];
 }
 
+export interface GatewayExecutorScheduleStage {
+  stageIndex: number;
+  nodeIds: string[];
+  lanes: WorkflowResourceClass[];
+  workerPools: string[];
+  schedulerPolicy: "topological_stage_barrier" | string;
+  readyAfterStage: number;
+  maxConcurrency: number;
+  bounded: boolean;
+}
+
 export interface GatewayExecutionRecord {
   executionId: string;
   workflowId: string;
@@ -734,6 +745,7 @@ export interface GatewayExecutionRecord {
     requestedDevice?: string;
     workerCapacity?: Record<string, unknown>;
   }>;
+  executorSchedule?: GatewayExecutorScheduleStage[];
   dispatchLane?: WorkflowResourceClass;
   dispatchWorkerPool?: string;
   dispatchIsolationMode?: "shared" | "isolated";

@@ -324,6 +324,28 @@ describe("App", () => {
                   status: "recovered",
                   bounded: true
                 },
+                executorSchedule: [
+                  {
+                    stageIndex: 1,
+                    nodeIds: ["node-source"],
+                    lanes: ["cpu"],
+                    workerPools: ["alpha-cpu"],
+                    schedulerPolicy: "topological_stage_barrier",
+                    readyAfterStage: 0,
+                    maxConcurrency: 1,
+                    bounded: true
+                  },
+                  {
+                    stageIndex: 2,
+                    nodeIds: ["node-transform", "node-bi-outlet"],
+                    lanes: ["cpu"],
+                    workerPools: ["alpha-cpu"],
+                    schedulerPolicy: "topological_stage_barrier",
+                    readyAfterStage: 1,
+                    maxConcurrency: 2,
+                    bounded: true
+                  }
+                ],
                 controlFlowBranchState: {
                   controlId: "try-bi-outlet",
                   failedNodeId: "node-transform",
@@ -642,6 +664,7 @@ describe("App", () => {
     expect(screen.getByText(/recovered · node-transform via try-bi-outlet · 1 catch nodes/i)).toBeInTheDocument();
     expect(screen.getByText(/catch completed · 1 catch nodes · control-flow-worker-test/i)).toBeInTheDocument();
     expect(screen.getByText(/stage 1\/1 · active 0/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 stages · max concurrency 2 · topological_stage_barrier/i)).toBeInTheDocument();
     expect(screen.getAllByText("12").length).toBeGreaterThan(0);
     expect(screen.getByText("10")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();

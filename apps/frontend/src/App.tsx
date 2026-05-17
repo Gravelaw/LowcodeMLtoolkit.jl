@@ -4532,6 +4532,16 @@ function App() {
                               </span>
                             </div>
                           ) : null}
+                          {item.executorSchedule && item.executorSchedule.length > 0 ? (
+                            <div className="inspector-row">
+                              <strong>Executor</strong>
+                              <span>
+                                {item.executorSchedule.length} stages · max concurrency {Math.max(
+                                  ...item.executorSchedule.map((stage) => stage.maxConcurrency)
+                                )} · {item.executorSchedule[0].schedulerPolicy}
+                              </span>
+                            </div>
+                          ) : null}
                           {item.controlFlowBranchState ? (
                             <div className="inspector-row">
                               <strong>Branch</strong>

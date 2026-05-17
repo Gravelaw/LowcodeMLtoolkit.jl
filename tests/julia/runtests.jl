@@ -265,6 +265,11 @@ end
     @test parallel_workflow.runtime.run_mode == :stream
     @test spec["resource_plan"][1]["lane"] == "cpu"
     @test spec["dispatch_plan"][1]["worker_pool"] == "alpha-cpu"
+    @test spec["executor_schedule"][1]["node_ids"] == ["node-source"]
+    @test spec["executor_schedule"][2]["node_ids"] == ["node-left", "node-right"]
+    @test spec["executor_schedule"][2]["max_concurrency"] == 2
+    @test spec["executor_schedule"][3]["ready_after_stage"] == 2
+    @test spec["executor_schedule"][3]["scheduler_policy"] == "topological_stage_barrier"
     @test spec["observability_trace"]["spans"][1]["attributes"]["dispatch.lane_count"] == length(spec["dispatch_plan"])
     @test spec["stream_lifecycle_status"] == "starting"
     appended = append_execution_event(spec; message = "heartbeat", metadata = Dict("stream_lifecycle_status" => "active"))
@@ -1108,6 +1113,9 @@ end
             metadata = Dict{String,Any}("failedNodeId" => "node-transform"),
         )
         scheduler_execution = JSON3.read(execution_accept_response(state, "wf-foundation"), Dict{String,Any})
+        @test scheduler_execution["executorSchedule"][1]["stageIndex"] == 1
+        @test scheduler_execution["executorSchedule"][1]["schedulerPolicy"] == "topological_stage_barrier"
+        @test scheduler_execution["executorSchedule"][2]["readyAfterStage"] == 1
         queued_execution_json = transition_execution_response!(
             state,
             scheduler_execution["executionId"];
