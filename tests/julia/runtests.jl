@@ -47,6 +47,91 @@ function test_oct_jwk(kid::AbstractString, secret::AbstractString)
     return Dict("kty" => "oct", "kid" => String(kid), "alg" => "HS256", "k" => test_base64url(Vector{UInt8}(codeunits(secret))))
 end
 
+function runtime_branch_workflow_text()
+    return """
+    version = "0.1.0"
+
+    [workflow]
+    id = "wf-catch-branch-dag"
+    name = "Catch Branch DAG"
+
+    [[workflow.bi_outlets]]
+    node_id = "catch-bi"
+    name = "Catch BI Outlet"
+    rows = [
+      { status = "recovered", count = 2 },
+      { status = "audited", count = 1 }
+    ]
+
+    [[workflow.control_flow]]
+    id = "try-catch-dag"
+    kind = "try_catch"
+    name = "Catch DAG Guard"
+    try_node_ids = ["node-transform"]
+    catch_node_ids = ["catch-log", "catch-clean", "catch-bi"]
+
+    [runtime]
+    run_mode = "batch"
+
+    [[nodes]]
+    id = "node-source"
+    name = "Source"
+    type = "JuliaFlow.Base.CSVReader"
+    execution_hint = "cpu_only"
+    ports = [{ id = "out", direction = "output", type = "data_table" }]
+    config = { path = "assets/sample.csv" }
+
+    [[nodes]]
+    id = "node-transform"
+    name = "Transform"
+    type = "JuliaFlow.Base.ColumnSelect"
+    execution_hint = "cpu_only"
+    ports = [
+      { id = "in", direction = "input", type = "data_table" },
+      { id = "out", direction = "output", type = "data_table" }
+    ]
+    config = { columns = ["amount"] }
+
+    [[nodes]]
+    id = "catch-log"
+    name = "Catch Log"
+    type = "JuliaFlow.Base.AuditLog"
+    execution_hint = "cpu_only"
+    ports = []
+    config = { event = "recover" }
+
+    [[nodes]]
+    id = "catch-clean"
+    name = "Catch Clean"
+    type = "JuliaFlow.Base.CleanRows"
+    execution_hint = "cpu_only"
+    ports = [{ id = "out", direction = "output", type = "data_table" }]
+    config = { strategy = "safe" }
+
+    [[nodes]]
+    id = "catch-bi"
+    name = "Catch BI"
+    type = "JuliaFlow.BI.DataOutlet"
+    execution_hint = "cpu_only"
+    ports = [{ id = "in", direction = "input", type = "data_table" }]
+    config = { outlet = "catch-bi" }
+
+    [[connections]]
+    source_node_id = "node-source"
+    source_port_id = "out"
+    target_node_id = "node-transform"
+    target_port_id = "in"
+    data_type = "data_table"
+
+    [[connections]]
+    source_node_id = "catch-clean"
+    source_port_id = "out"
+    target_node_id = "catch-bi"
+    target_port_id = "in"
+    data_type = "data_table"
+    """
+end
+
 @testset "Node SDK" begin
     payload = (format = :arrow_ipc, ref = "minio://wf/output.arrow")
     @test validate_arrow_boundary(payload)
@@ -287,10 +372,12 @@ end
     data_type = "data_table"
     """
     gpu_workflow = load_workflow_definition_text(gpu_workflow_text)
+    runtime_branch_workflow = load_workflow_definition_text(runtime_branch_workflow_text())
     workflows = Dict(
         foundation_workflow.id => foundation_workflow,
         parallel_workflow.id => parallel_workflow,
         gpu_workflow.id => gpu_workflow,
+        runtime_branch_workflow.id => runtime_branch_workflow,
     )
     service = WorkerServiceState()
     executions = GatewayExecution[]
@@ -330,6 +417,41 @@ end
     @test catch_branch_payload["controlFlowBranchState"]["nodeResults"][1]["rowCount"] == 3
     @test JuliaFlowApiGateway.node_runtime_status("node-transform", catch_branch[1]) == "error"
     @test JuliaFlowApiGateway.node_runtime_status("node-bi", catch_branch[1]) == "executed"
+
+    runtime_branch_execution = JuliaFlowApiGateway.materialize_execution(
+        execute_workflow(runtime_branch_workflow; checkpoint_tag = "cp/branch-dag"),
+    )
+    runtime_branch_record = append_execution_event(
+        JuliaFlowApiGateway.execution_record(runtime_branch_execution);
+        message = "Transform failed; schedule catch DAG",
+        metadata = Dict(
+            "control_flow_recovery" => try_catch_recovery_metadata(runtime_branch_workflow, "node-transform"),
+        ),
+    )
+    push!(executions, JuliaFlowApiGateway.materialize_execution(runtime_branch_record))
+    runtime_branches = process_control_flow_recovery_tick!(
+        service,
+        workflows,
+        executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    runtime_branch = runtime_branches[end]
+    runtime_branch_state = runtime_branch.metadata["control_flow_branch_state"]
+    @test runtime_branch_state["branch_stages"] == [["catch-log", "catch-clean"], ["catch-bi"]]
+    @test runtime_branch_state["branch_stage_index"] == 2
+    @test runtime_branch_state["branch_stage_count"] == 2
+    @test runtime_branch_state["completed_node_ids"] == ["catch-log", "catch-clean", "catch-bi"]
+    @test runtime_branch_state["active_node_ids"] == String[]
+    @test runtime_branch_state["stage_results"][1]["node_ids"] == ["catch-log", "catch-clean"]
+    @test runtime_branch_state["stage_results"][2]["node_results"][1]["node_id"] == "catch-bi"
+    @test runtime_branch_state["stage_results"][2]["node_results"][1]["row_count"] == 2
+    runtime_branch_payload = JuliaFlowApiGateway.execution_payload(runtime_branch)
+    @test runtime_branch_payload["controlFlowBranchState"]["branchStages"] == [["catch-log", "catch-clean"], ["catch-bi"]]
+    @test runtime_branch_payload["controlFlowBranchState"]["branchStageIndex"] == 2
+    @test runtime_branch_payload["controlFlowBranchState"]["stageResults"][2]["nodeResults"][1]["rowCount"] == 2
 
     function complete_gpu_workflow_once(workflow; registry = "mock:nvidia0")
         withenv("JULIAFLOW_GPU_REGISTRY" => registry) do
@@ -965,6 +1087,8 @@ end
         @test recovered_branch_payload["status"] == "completed"
         @test recovered_branch_payload["controlFlowBranchState"]["branch"] == "catch"
         @test recovered_branch_payload["controlFlowBranchState"]["completedNodeIds"] == ["node-bi"]
+        @test recovered_branch_payload["controlFlowBranchState"]["branchStages"] == [["node-bi"]]
+        @test recovered_branch_payload["controlFlowBranchState"]["branchStageCount"] == 1
         @test recovered_branch_payload["controlFlowBranchState"]["nodeResults"][1]["rowCount"] == 3
         uncaught_execution = JSON3.read(execution_accept_response(state, "wf-foundation"), Dict{String,Any})
         uncaught_failed_json = transition_execution_response!(

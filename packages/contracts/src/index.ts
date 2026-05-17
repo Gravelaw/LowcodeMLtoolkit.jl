@@ -683,11 +683,19 @@ export interface GatewayControlFlowBranchState {
   failedNodeId: string;
   branch: "catch";
   catchNodeIds: string[];
+  branchStages?: string[][];
+  branchStageIndex?: number;
+  branchStageCount?: number;
   activeNodeIds: string[];
   completedNodeIds: string[];
   status: "completed";
   bounded: boolean;
   workerId: string;
+  stageResults?: Array<{
+    stageIndex: number;
+    nodeIds: string[];
+    nodeResults: GatewayControlFlowBranchNodeResult[];
+  }>;
   nodeResults: GatewayControlFlowBranchNodeResult[];
 }
 

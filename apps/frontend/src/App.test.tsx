@@ -329,11 +329,29 @@ describe("App", () => {
                   failedNodeId: "node-transform",
                   branch: "catch",
                   catchNodeIds: ["node-bi-outlet"],
+                  branchStages: [["node-bi-outlet"]],
+                  branchStageIndex: 1,
+                  branchStageCount: 1,
                   activeNodeIds: [],
                   completedNodeIds: ["node-bi-outlet"],
                   status: "completed",
                   bounded: true,
                   workerId: "control-flow-worker-test",
+                  stageResults: [
+                    {
+                      stageIndex: 1,
+                      nodeIds: ["node-bi-outlet"],
+                      nodeResults: [
+                        {
+                          nodeId: "node-bi-outlet",
+                          nodeType: "JuliaFlow.BI.DataOutlet",
+                          status: "executed",
+                          outputKind: "bi_outlet",
+                          rowCount: 3
+                        }
+                      ]
+                    }
+                  ],
                   nodeResults: [
                     {
                       nodeId: "node-bi-outlet",
@@ -623,6 +641,7 @@ describe("App", () => {
     expect(screen.getByText(/try_catch · 1 try nodes · 1 catch nodes/i)).toBeInTheDocument();
     expect(screen.getByText(/recovered · node-transform via try-bi-outlet · 1 catch nodes/i)).toBeInTheDocument();
     expect(screen.getByText(/catch completed · 1 catch nodes · control-flow-worker-test/i)).toBeInTheDocument();
+    expect(screen.getByText(/stage 1\/1 · active 0/i)).toBeInTheDocument();
     expect(screen.getAllByText("12").length).toBeGreaterThan(0);
     expect(screen.getByText("10")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();

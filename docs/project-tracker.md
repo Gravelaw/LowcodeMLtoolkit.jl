@@ -1784,3 +1784,27 @@ After any meaningful job:
 - If provider context appears, burn down `R-DEP-001` / `R-OBJ-001` with staging/prod overlays, secret delivery, server-side dry-run, and provider smokes.
 - Otherwise continue the next repo-local lane: general DAG branch rescheduling or frontend/Hub module polish.
 - Keep `JULIAFLOW_HUB_SANDBOX_EXECUTE` env-gated and allowlisted; do not execute arbitrary manifest commands.
+
+---
+
+## Update: Runtime DAG Branch Rescheduling Slice — 2026-05-17
+
+### Work Done Till Date
+
+- Completed the next unblocked Julia runtime module expansion step after provider/deployment and external registry lanes remained credential/context gated.
+- Worker-service catch-branch execution now derives deterministic DAG stages from catch-node workflow connections, preserving bounded execution by catch node count.
+- Branch evidence now includes `branchStages`, `branchStageIndex`, `branchStageCount`, and per-stage `stageResults` through Julia metadata, gateway payload mapping, TS/OpenAPI contracts, and Monitor UI.
+- Added regression coverage for independent catch nodes executing before a dependent BI outlet node with row-count evidence.
+
+### Gaps Pending
+
+- Broader multi-node executor scheduling beyond completed catch-branch DAG stages remains future runtime work.
+- Provider-specific deployment proof and remote object-store proof still require selected provider, cluster, and credentials.
+- External Hub registry/provider mirror proof still requires provider or registry context.
+- Final GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+
+### Next Items To Implement
+
+- Run final control-doc validators, diff check, code review, then commit/push the verified runtime DAG branch slice.
+- If provider/credential context appears, prioritize provider-specific deployment and object-store proof; otherwise continue broader runtime executor scheduling or frontend/Hub polish.
+- Keep runtime additions additive and evidence-backed across contracts, Julia, frontend, and tests.

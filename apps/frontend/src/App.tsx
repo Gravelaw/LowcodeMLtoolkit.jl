@@ -4539,6 +4539,14 @@ function App() {
                                 {item.controlFlowBranchState.branch} {item.controlFlowBranchState.status} ·{" "}
                                 {item.controlFlowBranchState.completedNodeIds.length} catch nodes ·{" "}
                                 {item.controlFlowBranchState.workerId}
+                                {item.controlFlowBranchState.branchStageCount ? (
+                                  <>
+                                    {" "}
+                                    · stage {item.controlFlowBranchState.branchStageIndex ?? 0}/
+                                    {item.controlFlowBranchState.branchStageCount} · active{" "}
+                                    {item.controlFlowBranchState.activeNodeIds.length}
+                                  </>
+                                ) : null}
                               </span>
                             </div>
                           ) : null}

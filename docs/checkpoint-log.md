@@ -1842,3 +1842,26 @@ Each checkpoint entry must contain:
 - Complete security/code review, commit, push, and verify remote publication for this slice.
 - If external provider context appears, proceed to `R-DEP-001` and `R-OBJ-001`; otherwise continue general DAG branch rescheduling or frontend/Hub polish.
 - Keep sandbox execution env-gated and allowlisted in future Hub work.
+
+---
+
+## Checkpoint: Julia Runtime Module Expansion / DAG Branch Rescheduling Slice — 2026-05-17
+
+### Work Done Till Date
+
+- Implemented bounded DAG branch rescheduling for recovered try/catch catch branches.
+- Worker-service now groups catch nodes into deterministic dependency stages from workflow connections and records stage-level branch metadata.
+- Gateway repository mapping, TS/OpenAPI contracts, Monitor UI, Julia tests, frontend tests, TODO, risk register, traceability, plan, and tracker were updated together.
+
+### Gaps Pending
+
+- General executor scheduling across non-catch runtime paths remains open.
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
+- External Hub registry/provider mirror proof remains gated on external registry/provider context.
+- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete full verification and clean code review for this slice.
+- Commit and push after gates pass.
+- Continue broader multi-node executor scheduling unless provider context becomes available first.

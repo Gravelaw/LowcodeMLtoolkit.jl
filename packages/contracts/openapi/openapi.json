@@ -3356,6 +3356,52 @@
             "items": {
               "$ref": "#/components/schemas/GatewayControlFlowBranchNodeResult"
             }
+          },
+          "branchStages": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "branchStageIndex": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "branchStageCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stageResults": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "stageIndex",
+                "nodeIds",
+                "nodeResults"
+              ],
+              "properties": {
+                "stageIndex": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "nodeIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "nodeResults": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GatewayControlFlowBranchNodeResult"
+                  }
+                }
+              }
+            }
           }
         }
       }

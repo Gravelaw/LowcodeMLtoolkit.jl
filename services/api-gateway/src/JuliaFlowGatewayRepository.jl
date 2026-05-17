@@ -498,11 +498,31 @@ function execution_payload(execution::GatewayExecution)
                     "failedNodeId" => String(get(value, "failed_node_id", "")),
                     "branch" => String(get(value, "branch", "")),
                     "catchNodeIds" => [String(node_id) for node_id in get(value, "catch_node_ids", Any[])],
+                    "branchStages" => [
+                        [String(node_id) for node_id in stage] for stage in get(value, "branch_stages", Any[])
+                    ],
+                    "branchStageIndex" => Int(get(value, "branch_stage_index", 0)),
+                    "branchStageCount" => Int(get(value, "branch_stage_count", 0)),
                     "activeNodeIds" => [String(node_id) for node_id in get(value, "active_node_ids", Any[])],
                     "completedNodeIds" => [String(node_id) for node_id in get(value, "completed_node_ids", Any[])],
                     "status" => String(get(value, "status", "")),
                     "bounded" => Bool(get(value, "bounded", false)),
                     "workerId" => String(get(value, "worker_id", "")),
+                    "stageResults" => [
+                        Dict{String,Any}(
+                            "stageIndex" => Int(get(item, "stage_index", 0)),
+                            "nodeIds" => [String(node_id) for node_id in get(item, "node_ids", Any[])],
+                            "nodeResults" => [
+                                Dict{String,Any}(
+                                    "nodeId" => String(get(result, "node_id", "")),
+                                    "nodeType" => String(get(result, "node_type", "")),
+                                    "status" => String(get(result, "status", "")),
+                                    "outputKind" => String(get(result, "output_kind", "")),
+                                    "rowCount" => Int(get(result, "row_count", 0)),
+                                ) for result in get(item, "node_results", Any[])
+                            ],
+                        ) for item in get(value, "stage_results", Any[])
+                    ],
                     "nodeResults" => [
                         Dict{String,Any}(
                             "nodeId" => String(get(item, "node_id", "")),
@@ -788,11 +808,31 @@ function gateway_execution(item)
                 "failed_node_id" => String(get(value, "failedNodeId", "")),
                 "branch" => String(get(value, "branch", "")),
                 "catch_node_ids" => [String(node_id) for node_id in get(value, "catchNodeIds", Any[])],
+                "branch_stages" => [
+                    [String(node_id) for node_id in stage] for stage in get(value, "branchStages", Any[])
+                ],
+                "branch_stage_index" => Int(get(value, "branchStageIndex", 0)),
+                "branch_stage_count" => Int(get(value, "branchStageCount", 0)),
                 "active_node_ids" => [String(node_id) for node_id in get(value, "activeNodeIds", Any[])],
                 "completed_node_ids" => [String(node_id) for node_id in get(value, "completedNodeIds", Any[])],
                 "status" => String(get(value, "status", "")),
                 "bounded" => Bool(get(value, "bounded", false)),
                 "worker_id" => String(get(value, "workerId", "")),
+                "stage_results" => [
+                    Dict{String,Any}(
+                        "stage_index" => Int(get(item, "stageIndex", 0)),
+                        "node_ids" => [String(node_id) for node_id in get(item, "nodeIds", Any[])],
+                        "node_results" => [
+                            Dict{String,Any}(
+                                "node_id" => String(get(result, "nodeId", "")),
+                                "node_type" => String(get(result, "nodeType", "")),
+                                "status" => String(get(result, "status", "")),
+                                "output_kind" => String(get(result, "outputKind", "")),
+                                "row_count" => Int(get(result, "rowCount", 0)),
+                            ) for result in get(item, "nodeResults", Any[])
+                        ],
+                    ) for item in get(value, "stageResults", Any[])
+                ],
                 "node_results" => [
                     Dict{String,Any}(
                         "node_id" => String(get(item, "nodeId", "")),

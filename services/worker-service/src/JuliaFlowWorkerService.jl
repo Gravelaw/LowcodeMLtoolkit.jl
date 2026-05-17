@@ -81,19 +81,79 @@ function catch_node_result(workflow, node_id::AbstractString)
     )
 end
 
+function workflow_node_order(workflow)
+    order = Dict{String,Int}()
+    for (index, node) in pairs(workflow.nodes)
+        order[node.id] = Int(index)
+    end
+    return order
+end
+
+function catch_branch_stages(workflow, catch_node_ids::Vector{String})
+    order = workflow_node_order(workflow)
+    catch_nodes = Set(catch_node_ids)
+    in_degree = Dict(node_id => 0 for node_id in catch_node_ids)
+    adjacency = Dict(node_id => String[] for node_id in catch_node_ids)
+    for connection in workflow.connections
+        source = connection.source_node_id
+        target = connection.target_node_id
+        source in catch_nodes && target in catch_nodes || continue
+        push!(adjacency[source], target)
+        in_degree[target] += 1
+    end
+
+    ready = [node_id for node_id in catch_node_ids if in_degree[node_id] == 0]
+    stages = Vector{Vector{String}}()
+    scheduled = 0
+    max_stages = max(length(catch_node_ids), 1)
+    while !isempty(ready) && length(stages) < max_stages
+        sort!(ready, by = node_id -> get(order, node_id, typemax(Int)))
+        stage = unique(copy(ready))
+        push!(stages, stage)
+        scheduled += length(stage)
+        next_ready = String[]
+        for current in stage
+            for target in adjacency[current]
+                in_degree[target] -= 1
+                in_degree[target] == 0 && push!(next_ready, target)
+            end
+        end
+        ready = next_ready
+    end
+    scheduled == length(catch_node_ids) || error("catch branch contains cycle or unresolved dependency")
+    return stages
+end
+
+function catch_branch_stage_results(workflow, branch_stages::Vector{Vector{String}})
+    return [
+        Dict{String,Any}(
+            "stage_index" => index,
+            "node_ids" => copy(stage),
+            "node_results" => [catch_node_result(workflow, node_id) for node_id in stage],
+        ) for (index, stage) in pairs(branch_stages)
+    ]
+end
+
 function control_flow_branch_metadata(workflow, execution, recovery)
     catch_node_ids = [String(node_id) for node_id in get(recovery, "catch_node_ids", Any[])]
-    node_results = [catch_node_result(workflow, node_id) for node_id in catch_node_ids]
+    branch_stages = catch_branch_stages(workflow, catch_node_ids)
+    completed_node_ids = reduce(vcat, branch_stages; init = String[])
+    stage_results = catch_branch_stage_results(workflow, branch_stages)
+    node_results = reduce(vcat, [stage["node_results"] for stage in stage_results]; init = Dict{String,Any}[])
     return Dict{String,Any}(
         "control_id" => String(get(recovery, "control_id", "")),
         "failed_node_id" => String(get(recovery, "failed_node_id", "")),
         "branch" => "catch",
         "catch_node_ids" => catch_node_ids,
+        "branch_stages" => branch_stages,
+        "branch_stage_index" => length(branch_stages),
+        "branch_stage_count" => length(branch_stages),
         "active_node_ids" => String[],
-        "completed_node_ids" => copy(catch_node_ids),
+        "completed_node_ids" => completed_node_ids,
         "status" => "completed",
         "bounded" => Bool(get(recovery, "bounded", true)),
         "worker_id" => worker_id("control-flow-worker", execution.execution_id),
+        "stage_results" => stage_results,
         "node_results" => node_results,
     )
 end

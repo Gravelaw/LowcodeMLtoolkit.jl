@@ -15,7 +15,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
 - P2 is closed for Kustomize-backed ArgoCD workload manifests and provider-neutral dependency seams.
 - Repo-local skill surfaces now exist for control-loop, Julia, frontend, and provider-deployment work.
 - First frontend module expansion slice is complete: published BI viewer row search filters visible chart rows and filtered CSV export without changing contracts.
-- Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, try/catch failure-recovery routing, and catch-branch worker execution slices: covered failed nodes queue catch work, worker-service executes bounded catch branches, and Monitor surfaces branch completion evidence.
+- Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, try/catch failure-recovery routing, catch-branch worker execution, and DAG branch rescheduling slices: covered failed nodes queue catch work, worker-service schedules catch branch DAG stages, and Monitor surfaces branch/stage completion evidence.
 - Governed Hub production-depth proof now records verification evidence, blocks unsafe sandbox/hash/mirror install paths, executes an env-gated allowlisted sandbox fixture, verifies downloaded artifact hashes from a local artifact-store registry, and resolves private/offline mirror refs through a local registry.
 - Final multi-GPU closure remains intentionally deferred until a runner with `>=2` visible CUDA devices exists.
 
@@ -41,7 +41,8 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
    - Try/catch runtime-plan slice is complete as of 2026-05-16.
    - Try/catch failure-recovery route slice is complete as of 2026-05-16.
    - Catch-node compute / worker branch-state slice is complete as of 2026-05-17.
-   - Next Julia runtime follow-up: general DAG branch rescheduling beyond the current bounded catch-node worker tick.
+   - General DAG branch rescheduling for catch branches is complete as of 2026-05-17.
+   - Next Julia runtime follow-up: broader multi-node executor scheduling beyond completed catch-branch DAG stages.
    - Use `juliaflow-julia-development`, `julia-coding`, and `julia-debugging`; verify with Julia tests and contract tests.
 
 5. **Governed Hub production depth**
@@ -85,6 +86,13 @@ Verification evidence for this slice: Julia/frontend/contract tests, build, cove
 **Julia runtime module expansion / catch-node branch-state slice** is complete. Recovered try/catch executions now queue bounded catch-branch work, worker-service processes the branch, records `controlFlowBranchState` with worker id, completed catch nodes, and deterministic BI outlet row-count node results, then completes the execution without weakening terminal failure guards. The evidence is exposed through contracts, OpenAPI, gateway payloads, Monitor UI, and tests.
 
 Verification evidence for this slice: Julia/frontend/contract tests, build, coverage, control-doc sync, BRD traceability, and diff checks are required before completion.
+
+
+## Latest Completed Slice — 2026-05-17 Runtime DAG Branch Rescheduling
+
+**Julia runtime module expansion / DAG branch rescheduling slice** is complete. Recovered try/catch executions now derive deterministic catch-branch DAG stages from workflow connections, execute independent catch nodes before dependent BI outlet nodes, persist `branchStages` / `stageResults`, and surface branch-stage progress in Monitor without changing broader executor semantics.
+
+Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:coverage`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
 ## Latest Completed Slice — 2026-05-16 Hub
 
