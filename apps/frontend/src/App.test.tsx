@@ -359,9 +359,31 @@ describe("App", () => {
                     {
                       stageIndex: 1,
                       nodeIds: ["node-source"],
-                      status: "completed"
+                      status: "completed",
+                      nodeResults: [
+                        {
+                          nodeId: "node-source",
+                          nodeType: "JuliaFlow.Base.CSVReader",
+                          status: "executed",
+                          outputKind: "node",
+                          rowCount: 12,
+                          outputRefs: ["memory://executor/run-1/node-source"]
+                        }
+                      ]
                     }
-                  ]
+                  ],
+                  nodeResults: [
+                    {
+                      nodeId: "node-source",
+                      nodeType: "JuliaFlow.Base.CSVReader",
+                      status: "executed",
+                      outputKind: "node",
+                      rowCount: 12,
+                      outputRefs: ["memory://executor/run-1/node-source"]
+                    }
+                  ],
+                  failedNodeId: "node-transform",
+                  errorMessage: "fixture executor failure"
                 },
                 controlFlowBranchState: {
                   controlId: "try-bi-outlet",
@@ -683,6 +705,7 @@ describe("App", () => {
     expect(screen.getByText(/stage 1\/1 · active 0/i)).toBeInTheDocument();
     expect(screen.getByText(/2 stages · max concurrency 2 · topological_stage_barrier/i)).toBeInTheDocument();
     expect(screen.getByText(/executor running · stage 2\/2 · active 2 · completed 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 results · failed node-transform · fixture executor failure/i)).toBeInTheDocument();
     expect(screen.getAllByText("12").length).toBeGreaterThan(0);
     expect(screen.getByText("10")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();

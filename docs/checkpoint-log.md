@@ -1911,3 +1911,26 @@ Each checkpoint entry must contain:
 - Run full verification and code review for this slice.
 - Commit and push after gates pass.
 - Continue real node execution/output/error handling inside staged executor ticks unless provider context becomes available first.
+
+---
+
+## Checkpoint: Julia Runtime Module Expansion / Executor Node Result-Error Binding Slice — 2026-05-17
+
+### Work Done Till Date
+
+- Added callback-bound node output/error telemetry to staged executor ticks.
+- Worker-service now records per-stage node results, flattened executor node results, output refs/row counts, and failed-node/error metadata.
+- Gateway payload mapping, TS/OpenAPI contracts, Monitor UI, Julia regression tests, frontend tests, and control docs were synchronized.
+
+### Gaps Pending
+
+- Full base-extension dataflow execution and payload propagation through the callback seam remain open.
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
+- External Hub registry/provider mirror proof remains gated on external registry/provider context.
+- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+
+### Next Items To Implement
+
+- Run full verification and code review for this slice.
+- Commit and push after gates pass.
+- Continue full dataflow/payload execution binding unless provider context becomes available first.

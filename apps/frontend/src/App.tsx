@@ -4552,6 +4552,21 @@ function App() {
                               </span>
                             </div>
                           ) : null}
+                          {item.executorState?.nodeResults?.length ? (
+                            <div className="inspector-row">
+                              <strong>Executor nodes</strong>
+                              <span>
+                                {item.executorState.nodeResults.length} results
+                                {item.executorState.failedNodeId ? (
+                                  <>
+                                    {" "}
+                                    · failed {item.executorState.failedNodeId}
+                                    {item.executorState.errorMessage ? ` · ${item.executorState.errorMessage}` : ""}
+                                  </>
+                                ) : null}
+                              </span>
+                            </div>
+                          ) : null}
                           {item.controlFlowBranchState ? (
                             <div className="inspector-row">
                               <strong>Branch</strong>

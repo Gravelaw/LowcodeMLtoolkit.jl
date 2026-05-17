@@ -533,6 +533,86 @@ end
     @test executor_payload["executorState"]["completedStageIndexes"] == [1, 2, 3]
     @test executor_payload["executorState"]["stageResults"][2]["nodeIds"] == ["node-left", "node-right"]
 
+    function executor_fixture_node_result(_workflow, execution, node_id)
+        return Dict{String,Any}(
+            "node_id" => String(node_id),
+            "node_type" => "fixture.$(node_id)",
+            "status" => "executed",
+            "output_kind" => "node",
+            "row_count" => node_id == "node-source" ? 11 : 0,
+            "output_refs" => ["memory://executor/$(execution.execution_id)/$(node_id)"],
+        )
+    end
+
+    executor_result_executions = GatewayExecution[]
+    push!(
+        executor_result_executions,
+        JuliaFlowApiGateway.materialize_execution(
+            execute_workflow(batch_parallel_workflow; checkpoint_tag = "cp/executor-node-results"),
+        ),
+    )
+    executor_result_service = WorkerServiceState()
+    for _ in 1:5
+        process_executor_schedule_tick!(
+            executor_result_service,
+            executor_result_executions;
+            workflows = workflows,
+            execute_stage_node = executor_fixture_node_result,
+            execution_record = JuliaFlowApiGateway.execution_record,
+            transition_execution_record = transition_execution_record,
+            append_execution_event = append_execution_event,
+            materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        )
+    end
+    executor_result_state = executor_result_executions[1].metadata["executor_state"]
+    @test executor_result_executions[1].status == "completed"
+    @test length(executor_result_state["node_results"]) == 4
+    @test executor_result_state["stage_results"][1]["node_results"][1]["row_count"] == 11
+    @test executor_result_state["stage_results"][2]["node_results"][1]["output_refs"][1] ==
+        "memory://executor/$(executor_result_executions[1].execution_id)/node-left"
+    executor_result_payload = JuliaFlowApiGateway.execution_payload(executor_result_executions[1])
+    @test executor_result_payload["executorState"]["nodeResults"][1]["rowCount"] == 11
+    @test executor_result_payload["executorState"]["stageResults"][2]["nodeResults"][2]["nodeId"] == "node-right"
+    @test JuliaFlowApiGateway.node_runtime_status("node-right", executor_result_executions[1]) == "executed"
+
+    function failing_executor_fixture_node(_workflow, execution, node_id)
+        node_id == "node-left" && error("fixture executor failure")
+        return executor_fixture_node_result(_workflow, execution, node_id)
+    end
+
+    executor_error_executions = GatewayExecution[]
+    push!(
+        executor_error_executions,
+        JuliaFlowApiGateway.materialize_execution(
+            execute_workflow(batch_parallel_workflow; checkpoint_tag = "cp/executor-node-error"),
+        ),
+    )
+    executor_error_service = WorkerServiceState()
+    for _ in 1:4
+        process_executor_schedule_tick!(
+            executor_error_service,
+            executor_error_executions;
+            workflows = workflows,
+            execute_stage_node = failing_executor_fixture_node,
+            execution_record = JuliaFlowApiGateway.execution_record,
+            transition_execution_record = transition_execution_record,
+            append_execution_event = append_execution_event,
+            materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        )
+    end
+    executor_error_state = executor_error_executions[1].metadata["executor_state"]
+    @test executor_error_executions[1].status == "failed"
+    @test executor_error_state["status"] == "failed"
+    @test executor_error_state["failed_node_id"] == "node-left"
+    @test occursin("fixture executor failure", executor_error_state["error_message"])
+    @test executor_error_state["completed_node_ids"] == ["node-source"]
+    @test executor_error_state["stage_results"][2]["status"] == "failed"
+    @test executor_error_state["stage_results"][2]["node_results"][1]["status"] == "error"
+    executor_error_payload = JuliaFlowApiGateway.execution_payload(executor_error_executions[1])
+    @test executor_error_payload["executorState"]["failedNodeId"] == "node-left"
+    @test occursin("fixture executor failure", executor_error_payload["executorState"]["errorMessage"])
+    @test JuliaFlowApiGateway.node_runtime_status("node-left", executor_error_executions[1]) == "error"
+
     function complete_gpu_workflow_once(workflow; registry = "mock:nvidia0")
         withenv("JULIAFLOW_GPU_REGISTRY" => registry) do
             local_executions = GatewayExecution[]

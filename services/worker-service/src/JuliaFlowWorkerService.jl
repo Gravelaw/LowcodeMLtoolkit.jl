@@ -68,12 +68,82 @@ function executor_stage_node_ids(stage)
     return [String(node_id) for node_id in get(stage, "node_ids", Any[])]
 end
 
-function executor_stage_result(stage)
+function executor_default_node_result(workflow, execution, node_id::AbstractString)
+    node_type = workflow_node_type(workflow, node_id)
+    row_count = bi_outlet_row_count(workflow, node_id)
+    output_kind = row_count > 0 || occursin("DataOutlet", node_type) ? "bi_outlet" : "node"
+    result = Dict{String,Any}(
+        "node_id" => String(node_id),
+        "node_type" => node_type,
+        "status" => "executed",
+        "output_kind" => output_kind,
+        "row_count" => row_count,
+    )
+    row_count > 0 || (result["output_refs"] = ["memory://executor/$(execution.execution_id)/$(node_id)"])
+    return result
+end
+
+function normalize_executor_node_result(raw_result, workflow, execution, node_id::AbstractString)
+    result = raw_result isa AbstractDict ? Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_result)) :
+        executor_default_node_result(workflow, execution, node_id)
+    haskey(result, "node_id") || (result["node_id"] = String(get(result, "nodeId", node_id)))
+    haskey(result, "node_type") || (result["node_type"] = String(get(result, "nodeType", workflow_node_type(workflow, node_id))))
+    haskey(result, "status") || (result["status"] = "executed")
+    haskey(result, "output_kind") || (result["output_kind"] = String(get(result, "outputKind", "node")))
+    haskey(result, "row_count") || (result["row_count"] = Int(get(result, "rowCount", 0)))
+    haskey(result, "output_refs") || (result["output_refs"] = [String(ref) for ref in get(result, "outputRefs", String[])])
+    if !haskey(result, "error_message") && haskey(result, "errorMessage")
+        result["error_message"] = String(result["errorMessage"])
+    end
+    result["node_id"] = String(result["node_id"])
+    result["node_type"] = String(result["node_type"])
+    result["status"] = String(result["status"])
+    result["output_kind"] = String(result["output_kind"])
+    result["row_count"] = Int(result["row_count"])
+    result["output_refs"] = [String(ref) for ref in result["output_refs"]]
+    if haskey(result, "error_message")
+        result["error_message"] = String(result["error_message"])
+    end
+    return result
+end
+
+function executor_error_node_result(workflow, node_id::AbstractString, error)
     return Dict{String,Any}(
+        "node_id" => String(node_id),
+        "node_type" => workflow_node_type(workflow, node_id),
+        "status" => "error",
+        "output_kind" => "error",
+        "row_count" => 0,
+        "output_refs" => String[],
+        "error_message" => sprint(showerror, error),
+    )
+end
+
+function execute_executor_stage_nodes(workflow, execution, node_ids::Vector{String}, execute_stage_node)
+    results = Dict{String,Any}[]
+    for node_id in node_ids
+        result = try
+            raw_result = execute_stage_node === nothing ?
+                executor_default_node_result(workflow, execution, node_id) :
+                execute_stage_node(workflow, execution, node_id)
+            normalize_executor_node_result(raw_result, workflow, execution, node_id)
+        catch error
+            executor_error_node_result(workflow, node_id, error)
+        end
+        push!(results, result)
+        String(result["status"]) in ("error", "failed") && return results, result
+    end
+    return results, nothing
+end
+
+function executor_stage_result(stage; status::AbstractString = "completed", node_results = nothing)
+    result = Dict{String,Any}(
         "stage_index" => Int(get(stage, "stage_index", 0)),
         "node_ids" => executor_stage_node_ids(stage),
-        "status" => "completed",
+        "status" => String(status),
     )
+    node_results === nothing || (result["node_results"] = node_results)
+    return result
 end
 
 function executor_completed_node_ids(schedule, completed_stage_count::Int)
@@ -90,24 +160,55 @@ function executor_stage_results(schedule, completed_stage_count::Int)
     return [executor_stage_result(schedule[index]) for index in 1:bounded_count]
 end
 
-function executor_state_metadata(execution, schedule; status::AbstractString, current_stage_index::Int, completed_stage_count::Int)
+function executor_existing_stage_results(state)
+    raw_results = get(state, "stage_results", Any[])
+    raw_results isa AbstractVector || return Dict{String,Any}[]
+    return [Dict{String,Any}(String(key) => value for (key, value) in pairs(result)) for result in raw_results]
+end
+
+function executor_existing_node_results(state)
+    raw_results = get(state, "node_results", Any[])
+    raw_results isa AbstractVector || return Dict{String,Any}[]
+    return [Dict{String,Any}(String(key) => value for (key, value) in pairs(result)) for result in raw_results]
+end
+
+function executor_merge_stage_results(schedule, state, stage_result, completed_stage_count::Int)
+    existing = Dict(Int(get(result, "stage_index", 0)) => result for result in executor_existing_stage_results(state))
+    existing[Int(stage_result["stage_index"])] = stage_result
+    bounded_count = min(max(completed_stage_count, 0), length(schedule))
+    return [get(existing, index, executor_stage_result(schedule[index])) for index in 1:bounded_count]
+end
+
+function executor_state_metadata(
+    execution,
+    schedule;
+    status::AbstractString,
+    current_stage_index::Int,
+    completed_stage_count::Int,
+    stage_results = nothing,
+    node_results = nothing,
+    failed_node_id::Union{Nothing,AbstractString} = nothing,
+    error_message::Union{Nothing,AbstractString} = nothing,
+)
     stage_count = length(schedule)
     active_node_ids = status == "running" && 1 <= current_stage_index <= stage_count ?
         executor_stage_node_ids(schedule[current_stage_index]) : String[]
     completed_stage_indexes = collect(1:min(max(completed_stage_count, 0), stage_count))
-    return Dict{String,Any}(
-        "executor_state" => Dict{String,Any}(
-            "status" => String(status),
-            "current_stage_index" => Int(current_stage_index),
-            "stage_count" => stage_count,
-            "active_node_ids" => active_node_ids,
-            "completed_node_ids" => executor_completed_node_ids(schedule, completed_stage_count),
-            "completed_stage_indexes" => completed_stage_indexes,
-            "worker_id" => executor_worker_id(execution),
-            "bounded" => true,
-            "stage_results" => executor_stage_results(schedule, completed_stage_count),
-        ),
+    state = Dict{String,Any}(
+        "status" => String(status),
+        "current_stage_index" => Int(current_stage_index),
+        "stage_count" => stage_count,
+        "active_node_ids" => active_node_ids,
+        "completed_node_ids" => executor_completed_node_ids(schedule, completed_stage_count),
+        "completed_stage_indexes" => completed_stage_indexes,
+        "worker_id" => executor_worker_id(execution),
+        "bounded" => true,
+        "stage_results" => stage_results === nothing ? executor_stage_results(schedule, completed_stage_count) : stage_results,
     )
+    node_results === nothing || (state["node_results"] = node_results)
+    failed_node_id === nothing || (state["failed_node_id"] = String(failed_node_id))
+    error_message === nothing || (state["error_message"] = String(error_message))
+    return Dict{String,Any}("executor_state" => state)
 end
 
 function should_process_executor_schedule(execution)
@@ -917,6 +1018,8 @@ end
 function process_executor_schedule_tick!(
     service::WorkerServiceState,
     executions;
+    workflows = nothing,
+    execute_stage_node = nothing,
     execution_record,
     transition_execution_record,
     append_execution_event,
@@ -935,13 +1038,62 @@ function process_executor_schedule_tick!(
         elseif execution.status == "queued"
             metadata = executor_state_metadata(execution, schedule; status = "running", current_stage_index = 1, completed_stage_count = 0)
             updated = transition_execution_record(execution_record(execution), "running"; message = "Executor stage 1 started", metadata = metadata)
-        elseif current_stage >= length(schedule)
-            metadata = executor_state_metadata(execution, schedule; status = "completed", current_stage_index = length(schedule), completed_stage_count = length(schedule))
-            updated = transition_execution_record(execution_record(execution), "completed"; message = "Executor schedule completed", metadata = metadata)
         else
-            next_stage = max(current_stage + 1, 1)
-            metadata = executor_state_metadata(execution, schedule; status = "running", current_stage_index = next_stage, completed_stage_count = max(current_stage, 1))
-            updated = append_execution_event(execution_record(execution); message = "Executor stage $(max(current_stage, 1)) completed", metadata = metadata)
+            workflow = workflows === nothing ? nothing : get(workflows, execution.workflow_id, nothing)
+            stage_index = min(max(current_stage, 1), length(schedule))
+            stage_node_ids = executor_stage_node_ids(schedule[stage_index])
+            node_results, failed_result = workflow === nothing ?
+                (nothing, nothing) :
+                execute_executor_stage_nodes(workflow, execution, stage_node_ids, execute_stage_node)
+            completed_count = failed_result === nothing ? stage_index : max(stage_index - 1, 0)
+            stage_status = failed_result === nothing ? "completed" : "failed"
+            stage_result = executor_stage_result(schedule[stage_index]; status = stage_status, node_results = node_results)
+            stage_results = executor_merge_stage_results(schedule, state, stage_result, stage_index)
+            all_node_results = node_results === nothing ? nothing : vcat(executor_existing_node_results(state), node_results)
+
+            if failed_result !== nothing
+                metadata = executor_state_metadata(
+                    execution,
+                    schedule;
+                    status = "failed",
+                    current_stage_index = stage_index,
+                    completed_stage_count = completed_count,
+                    stage_results = stage_results,
+                    node_results = all_node_results,
+                    failed_node_id = failed_result["node_id"],
+                    error_message = get(failed_result, "error_message", "executor node failed"),
+                )
+                metadata["failedNodeId"] = failed_result["node_id"]
+                updated = transition_execution_record(
+                    execution_record(execution),
+                    "failed";
+                    message = "Executor node $(failed_result["node_id"]) failed",
+                    metadata = metadata,
+                )
+            elseif current_stage >= length(schedule)
+                metadata = executor_state_metadata(
+                    execution,
+                    schedule;
+                    status = "completed",
+                    current_stage_index = length(schedule),
+                    completed_stage_count = length(schedule),
+                    stage_results = stage_results,
+                    node_results = all_node_results,
+                )
+                updated = transition_execution_record(execution_record(execution), "completed"; message = "Executor schedule completed", metadata = metadata)
+            else
+                next_stage = max(current_stage + 1, 1)
+                metadata = executor_state_metadata(
+                    execution,
+                    schedule;
+                    status = "running",
+                    current_stage_index = next_stage,
+                    completed_stage_count = max(current_stage, 1),
+                    stage_results = stage_results,
+                    node_results = all_node_results,
+                )
+                updated = append_execution_event(execution_record(execution); message = "Executor stage $(max(current_stage, 1)) completed", metadata = metadata)
+            end
         end
 
         materialized = materialize_execution(updated)

@@ -2862,6 +2862,12 @@ function active_node_ids(execution::GatewayExecution)
         !isempty(active_nodes) && return Set(String(node_id) for node_id in active_nodes)
     end
 
+    executor_state = get(execution.metadata, "executor_state", nothing)
+    if executor_state isa AbstractDict
+        active_nodes = get(executor_state, "active_node_ids", Any[])
+        !isempty(active_nodes) && return Set(String(node_id) for node_id in active_nodes)
+    end
+
     isempty(execution.stages) && return Set{String}()
 
     if execution.status == "accepted" || execution.status == "queued"
@@ -2893,6 +2899,21 @@ function node_runtime_status(node_id::AbstractString, execution::Union{Nothing,G
     recovery = get(execution.metadata, "control_flow_recovery", nothing)
     if recovery isa AbstractDict && String(get(recovery, "failed_node_id", "")) == String(node_id)
         return "error"
+    end
+
+    executor_state = get(execution.metadata, "executor_state", nothing)
+    if executor_state isa AbstractDict
+        failed_node_id = String(get(executor_state, "failed_node_id", ""))
+        failed_node_id == String(node_id) && return "error"
+        for result in get(executor_state, "node_results", Any[])
+            String(get(result, "node_id", "")) == String(node_id) || continue
+            String(get(result, "status", "")) in ("error", "failed") && return "error"
+            String(get(result, "status", "")) == "executed" && return "executed"
+        end
+        completed_nodes = Set(String(item) for item in get(executor_state, "completed_node_ids", Any[]))
+        active_nodes = Set(String(item) for item in get(executor_state, "active_node_ids", Any[]))
+        String(node_id) in completed_nodes && return "executed"
+        String(node_id) in active_nodes && return "running"
     end
 
     if execution.status == "completed"

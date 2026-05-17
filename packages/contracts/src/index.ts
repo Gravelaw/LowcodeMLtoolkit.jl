@@ -715,6 +715,17 @@ export interface GatewayExecutorStageResult {
   stageIndex: number;
   nodeIds: string[];
   status: "completed" | string;
+  nodeResults?: GatewayExecutorNodeResult[];
+}
+
+export interface GatewayExecutorNodeResult {
+  nodeId: string;
+  nodeType: string;
+  status: "executed" | "error" | string;
+  outputKind: "node" | "bi_outlet" | "error" | string;
+  rowCount: number;
+  outputRefs: string[];
+  errorMessage?: string;
 }
 
 export interface GatewayExecutorState {
@@ -727,6 +738,9 @@ export interface GatewayExecutorState {
   workerId: string;
   bounded: boolean;
   stageResults: GatewayExecutorStageResult[];
+  nodeResults?: GatewayExecutorNodeResult[];
+  failedNodeId?: string;
+  errorMessage?: string;
 }
 
 export interface GatewayExecutionRecord {

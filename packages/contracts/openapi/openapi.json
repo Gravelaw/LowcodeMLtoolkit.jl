@@ -2043,9 +2043,97 @@
                     },
                     "status": {
                       "type": "string"
+                    },
+                    "nodeResults": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "nodeId",
+                          "nodeType",
+                          "status",
+                          "outputKind",
+                          "rowCount",
+                          "outputRefs"
+                        ],
+                        "properties": {
+                          "nodeId": {
+                            "type": "string"
+                          },
+                          "nodeType": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "outputKind": {
+                            "type": "string"
+                          },
+                          "rowCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "outputRefs": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "errorMessage": {
+                            "type": "string"
+                          }
+                        }
+                      }
                     }
                   }
                 }
+              },
+              "nodeResults": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "nodeId",
+                    "nodeType",
+                    "status",
+                    "outputKind",
+                    "rowCount",
+                    "outputRefs"
+                  ],
+                  "properties": {
+                    "nodeId": {
+                      "type": "string"
+                    },
+                    "nodeType": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "outputKind": {
+                      "type": "string"
+                    },
+                    "rowCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "outputRefs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "errorMessage": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "failedNodeId": {
+                "type": "string"
+              },
+              "errorMessage": {
+                "type": "string"
               }
             }
           }

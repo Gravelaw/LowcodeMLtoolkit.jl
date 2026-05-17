@@ -577,9 +577,39 @@ function execution_payload(execution::GatewayExecution)
                             "stageIndex" => Int(get(item, "stage_index", 0)),
                             "nodeIds" => [String(node_id) for node_id in get(item, "node_ids", Any[])],
                             "status" => String(get(item, "status", "")),
+                            "nodeResults" => [
+                                let
+                                    node_result = Dict{String,Any}(
+                                        "nodeId" => String(get(result, "node_id", "")),
+                                        "nodeType" => String(get(result, "node_type", "")),
+                                        "status" => String(get(result, "status", "")),
+                                        "outputKind" => String(get(result, "output_kind", "")),
+                                        "rowCount" => Int(get(result, "row_count", 0)),
+                                        "outputRefs" => [String(ref) for ref in get(result, "output_refs", Any[])],
+                                    )
+                                    haskey(result, "error_message") && (node_result["errorMessage"] = String(result["error_message"]))
+                                    node_result
+                                end for result in get(item, "node_results", Any[])
+                            ],
                         ) for item in get(value, "stage_results", Any[])
                     ],
                 )
+                payload["executorState"]["nodeResults"] = [
+                    let
+                        node_result = Dict{String,Any}(
+                            "nodeId" => String(get(item, "node_id", "")),
+                            "nodeType" => String(get(item, "node_type", "")),
+                            "status" => String(get(item, "status", "")),
+                            "outputKind" => String(get(item, "output_kind", "")),
+                            "rowCount" => Int(get(item, "row_count", 0)),
+                            "outputRefs" => [String(ref) for ref in get(item, "output_refs", Any[])],
+                        )
+                        haskey(item, "error_message") && (node_result["errorMessage"] = String(item["error_message"]))
+                        node_result
+                    end for item in get(value, "node_results", Any[])
+                ]
+                haskey(value, "failed_node_id") && (payload["executorState"]["failedNodeId"] = String(value["failed_node_id"]))
+                haskey(value, "error_message") && (payload["executorState"]["errorMessage"] = String(value["error_message"]))
             elseif string_key == "observability_trace"
                 payload["observabilityTrace"] = value
             elseif string_key == "stream_lifecycle_status"
@@ -919,9 +949,39 @@ function gateway_execution(item)
                         "stage_index" => Int(get(item, "stageIndex", 0)),
                         "node_ids" => [String(node_id) for node_id in get(item, "nodeIds", Any[])],
                         "status" => String(get(item, "status", "")),
+                        "node_results" => [
+                            let
+                                node_result = Dict{String,Any}(
+                                    "node_id" => String(get(result, "nodeId", "")),
+                                    "node_type" => String(get(result, "nodeType", "")),
+                                    "status" => String(get(result, "status", "")),
+                                    "output_kind" => String(get(result, "outputKind", "")),
+                                    "row_count" => Int(get(result, "rowCount", 0)),
+                                    "output_refs" => [String(ref) for ref in get(result, "outputRefs", Any[])],
+                                )
+                                haskey(result, "errorMessage") && (node_result["error_message"] = String(result["errorMessage"]))
+                                node_result
+                            end for result in get(item, "nodeResults", Any[])
+                        ],
                     ) for item in get(value, "stageResults", Any[])
                 ],
             )
+            metadata["executor_state"]["node_results"] = [
+                let
+                    node_result = Dict{String,Any}(
+                        "node_id" => String(get(item, "nodeId", "")),
+                        "node_type" => String(get(item, "nodeType", "")),
+                        "status" => String(get(item, "status", "")),
+                        "output_kind" => String(get(item, "outputKind", "")),
+                        "row_count" => Int(get(item, "rowCount", 0)),
+                        "output_refs" => [String(ref) for ref in get(item, "outputRefs", Any[])],
+                    )
+                    haskey(item, "errorMessage") && (node_result["error_message"] = String(item["errorMessage"]))
+                    node_result
+                end for item in get(value, "nodeResults", Any[])
+            ]
+            haskey(value, "failedNodeId") && (metadata["executor_state"]["failed_node_id"] = String(value["failedNodeId"]))
+            haskey(value, "errorMessage") && (metadata["executor_state"]["error_message"] = String(value["errorMessage"]))
         elseif string_key == "streamLifecycleStatus"
             metadata["stream_lifecycle_status"] = value
         elseif string_key == "streamAdapter"
