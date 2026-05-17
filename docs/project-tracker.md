@@ -1761,3 +1761,26 @@ After any meaningful job:
 - Complete full gate execution and code review for this slice.
 - If no provider access exists, choose between general DAG branch rescheduling or Hub isolated sandbox/download proof as the next repo-local lane.
 - Keep provider proof queued until target provider/cluster/secret context is available.
+
+### Governed Hub Production Depth / Isolated Sandbox-Artifact-Mirror Proof Slice (2026-05-17)
+
+#### Work Done Till Date
+
+- Implemented the next risk-first Hub production-depth slice after provider deployment/object-store risks were blocked by missing external provider, cluster, and credential context.
+- Hub install/enable/upgrade now executes only allowlisted Julia extension test fixtures when `JULIAFLOW_HUB_SANDBOX_EXECUTE=1`; arbitrary manifest commands remain rejected.
+- Added local artifact-store registry verification for downloaded artifact bytes and mirror-registry resolution for `mirror://` / `private://` refs, including negative blockers for missing artifact and mirror entries.
+- Frontend Hub cards now render sandbox/artifact/mirror verification details.
+- Added `extensions/labs/test/runtests.jl` plus Julia and frontend regression coverage; Autopilot PRD/test-spec artifacts were created under `.omx/plans/`.
+
+#### Gaps Pending
+
+- Provider-specific deployment and object-store proof still require external provider, cluster, and credentials.
+- External Hub registry/provider mirror proof remains pending until registry/provider context exists.
+- General DAG branch rescheduling remains future runtime work.
+- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+#### Next Items To Implement
+
+- If provider context appears, burn down `R-DEP-001` / `R-OBJ-001` with staging/prod overlays, secret delivery, server-side dry-run, and provider smokes.
+- Otherwise continue the next repo-local lane: general DAG branch rescheduling or frontend/Hub module polish.
+- Keep `JULIAFLOW_HUB_SANDBOX_EXECUTE` env-gated and allowlisted; do not execute arbitrary manifest commands.

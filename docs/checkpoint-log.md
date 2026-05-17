@@ -1818,3 +1818,27 @@ Each checkpoint entry must contain:
 - Complete full verification and code review for this slice.
 - Continue with general DAG branch rescheduling or Hub isolated sandbox proof if provider context remains unavailable.
 - Keep all future slice claims tied to traceability and control-doc sync gates.
+
+---
+
+## Checkpoint: Governed Hub Production Depth / Isolated Sandbox-Artifact-Mirror Proof Slice — 2026-05-17
+
+### Work Done Till Date
+
+- Prioritized unblocked `R-HUB-001` after provider deployment/object-store risks remained gated on external provider, cluster, and credentials.
+- Added env-gated allowlisted sandbox fixture execution for Hub installs, local artifact-store hash verification, and private/offline mirror-registry resolution.
+- Missing artifact-store entries and missing mirror-registry refs now block install/enable/upgrade with verification evidence, while unsafe sandbox/file-mirror behavior remains blocked.
+- Hub UI now surfaces verification details; Julia/frontend regression coverage and the labs sandbox fixture were added.
+
+### Gaps Pending
+
+- External Hub registry/provider mirror proof remains pending until provider or registry context exists.
+- Provider-specific deployment/object-store proof still requires live target context and credentials.
+- General DAG branch rescheduling remains future runtime work.
+- Final GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete security/code review, commit, push, and verify remote publication for this slice.
+- If external provider context appears, proceed to `R-DEP-001` and `R-OBJ-001`; otherwise continue general DAG branch rescheduling or frontend/Hub polish.
+- Keep sandbox execution env-gated and allowlisted in future Hub work.

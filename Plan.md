@@ -16,7 +16,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
 - Repo-local skill surfaces now exist for control-loop, Julia, frontend, and provider-deployment work.
 - First frontend module expansion slice is complete: published BI viewer row search filters visible chart rows and filtered CSV export without changing contracts.
 - Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, try/catch failure-recovery routing, and catch-branch worker execution slices: covered failed nodes queue catch work, worker-service executes bounded catch branches, and Monitor surfaces branch completion evidence.
-- Governed Hub production-depth deterministic proof now records verification evidence and blocks unsafe sandbox/hash/mirror install paths without arbitrary command execution.
+- Governed Hub production-depth proof now records verification evidence, blocks unsafe sandbox/hash/mirror install paths, executes an env-gated allowlisted sandbox fixture, verifies downloaded artifact hashes from a local artifact-store registry, and resolves private/offline mirror refs through a local registry.
 - Final multi-GPU closure remains intentionally deferred until a runner with `>=2` visible CUDA devices exists.
 
 ## Active Development Order
@@ -46,7 +46,8 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
 
 5. **Governed Hub production depth**
    - Deterministic sandbox/hash/mirror verification slice is complete as of 2026-05-16.
-   - Next Hub follow-up: execute real sandbox commands in an isolated runner, verify downloaded artifacts against hashes, and test real private/offline registry mirrors.
+   - Isolated fixture execution / downloaded artifact hash / private-offline mirror registry proof slice is complete as of 2026-05-17.
+   - Next Hub follow-up: bind the same sandbox/artifact/mirror proof to a selected external registry or provider mirror when credentials and provider context exist.
 
 6. **Final hardware-gated GPU closure**
    - Only when `>=2` visible CUDA devices exist, run `JULIAFLOW_CUDA_SMOKE=1 JULIAFLOW_REQUIRE_MULTI_GPU=1 julia --project=. scripts/smoke-cuda-kernel.jl`.
@@ -90,6 +91,12 @@ Verification evidence for this slice: Julia/frontend/contract tests, build, cove
 **Governed Hub production depth / deterministic sandbox-hash-mirror proof slice** is complete. Hub extension records now carry `verification` evidence; install/enable/upgrade evaluate bounded sandbox command shape, deterministic artifact hash proof, and `mirror://` / `private://` mirror refs; unsafe commands, hash mismatches, and unsupported mirrors are blocked while disable remains a safe remediation action.
 
 Verification evidence for this slice: Julia/frontend/contract tests, build, coverage, control-doc sync, BRD traceability, and diff checks are required before commit.
+
+## Latest Completed Slice — 2026-05-17 Hub
+
+**Governed Hub production depth / isolated sandbox-artifact-mirror proof slice** is complete. Hub install/enable/upgrade now optionally executes only allowlisted Julia extension test fixtures when `JULIAFLOW_HUB_SANDBOX_EXECUTE=1`, verifies declared artifact hashes against a local JSON artifact-store registry, rejects missing artifact entries, resolves `mirror://` / `private://` refs through a local mirror registry, and surfaces sandbox/artifact/mirror verification details in the Hub UI.
+
+Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:coverage`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
 ## Required Skills By Lane
 

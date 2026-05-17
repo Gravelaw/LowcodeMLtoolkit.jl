@@ -44,8 +44,9 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 7. [x] Julia runtime module expansion follow-up / catch-node branch-state slice: worker-service now executes bounded catch branches after recovery, records `controlFlowBranchState`, surfaces deterministic catch-node BI outlet row-count results, and completes recovered executions.
 8. [ ] Julia runtime module expansion follow-up: add general DAG branch rescheduling beyond the current bounded catch-node worker tick.
 9. [x] Governed Hub production depth / deterministic sandbox-hash-mirror proof slice: Hub records now include install-time verification evidence; install/enable/upgrade block unsafe sandbox command shapes, artifact hash mismatches, and unsupported mirrors while disable remains a remediation path.
-10. [ ] Governed Hub production depth follow-up: execute real sandbox commands in an isolated runner, verify downloaded artifacts against declared hashes, and prove real private/offline registry mirror behavior.
-11. [x] Control-doc sync automation: `AGENTS.md` now requires Plan/TODO/risk/tracker/checkpoint updates for every completed slice/phase/review, and `npm run validate:control-doc-sync` enforces the guard when non-control files change.
+10. [x] Governed Hub production depth follow-up: execute allowlisted sandbox commands in an isolated fixture runner, verify downloaded artifacts against declared hashes from an artifact-store registry, and prove private/offline mirror refs through a mirror registry.
+11. [ ] Governed Hub external registry/provider proof: bind sandbox/artifact/mirror verification to a selected external Hub registry or provider mirror when credentials and provider context exist.
+12. [x] Control-doc sync automation: `AGENTS.md` now requires Plan/TODO/risk/tracker/checkpoint updates for every completed slice/phase/review, and `npm run validate:control-doc-sync` enforces the guard when non-control files change.
 
 ## Final Hardware-Gated Phase
 
@@ -81,6 +82,7 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 - 2026-05-16: Governed Hub production-depth deterministic proof slice adds `verification` evidence to Hub contracts/API records, blocks install/enable/upgrade on bounded sandbox command rejection, artifact hash mismatch, or unsupported mirror refs, and keeps disable as the remediation path; real isolated sandbox execution and downloaded artifact/private registry proof remain follow-up work.
 - 2026-05-16: Julia runtime try/catch failure-recovery slice turns failed-node telemetry for covered try nodes into bounded `controlFlowRecovery` catch-route evidence while preserving normal failed transitions for uncaught nodes.
 - 2026-05-17: Julia runtime catch-node branch-state slice executes bounded catch branches in worker-service, records `controlFlowBranchState` with worker id, completed catch node IDs, deterministic BI outlet row-count node results, and completes recovered executions; broader DAG branch rescheduling remains future work.
+- 2026-05-17: Governed Hub isolated sandbox/artifact/mirror proof executes only allowlisted Julia extension test fixtures under `JULIAFLOW_HUB_SANDBOX_EXECUTE=1`, verifies downloaded artifact bytes through `JULIAFLOW_HUB_ARTIFACT_STORE`, resolves private/offline mirror refs through `JULIAFLOW_HUB_MIRROR_REGISTRY`, blocks missing artifacts/mirrors, and renders verification details in Hub cards.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
 - 2026-04-25: BRD traceability automation now validates every checked P0/P1/P2 TODO item against `docs/brd-traceability.md` code/test evidence links.

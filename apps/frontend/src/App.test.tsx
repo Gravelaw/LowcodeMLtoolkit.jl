@@ -636,6 +636,7 @@ describe("App", () => {
     expect(screen.getByText("julia --project=. extensions/ops-preview/test/runtests.jl")).toBeInTheDocument();
     expect(screen.getByText("mirror://offline/ops-preview")).toBeInTheDocument();
     expect(screen.getByText(/blocked\/pending · sandbox failed · artifacts failed · mirrors failed/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/test sandbox verification · test artifact verification · test mirror verification/i).length).toBeGreaterThan(0);
     expect(screen.getByText("Verification blockers")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Blocked/i })).toBeDisabled();
 

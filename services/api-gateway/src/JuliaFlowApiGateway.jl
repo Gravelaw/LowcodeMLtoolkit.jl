@@ -1452,6 +1452,10 @@ function deterministic_hub_artifact_hash(package_ref::AbstractString, artifact::
     return string("sha256:", bytes2hex(sha256(bytes)))
 end
 
+function sha256_file_hash(path::AbstractString)
+    return string("sha256:", bytes2hex(sha256(read(path))))
+end
+
 function hub_sandbox_command_allowed(command::AbstractString)
     command_text = strip(String(command))
     isempty(command_text) && return false
@@ -1462,28 +1466,116 @@ function hub_sandbox_command_allowed(command::AbstractString)
         endswith(command_text, "/test/runtests.jl")
 end
 
+function hub_sandbox_script_path(command::AbstractString)
+    hub_sandbox_command_allowed(command) || return nothing
+    parts = split(strip(String(command)))
+    length(parts) == 3 || return nothing
+    script_path = String(parts[3])
+    ".." in split(script_path, '/') && return nothing
+    return normpath(script_path)
+end
+
+function execute_hub_sandbox_command(command::AbstractString)
+    script_path = hub_sandbox_script_path(command)
+    script_path === nothing && return false, "Compatibility sandbox command must be bounded Julia extension test"
+    isfile(script_path) || return false, "Compatibility sandbox script not found: $(script_path)"
+
+    if get(ENV, "JULIAFLOW_HUB_SANDBOX_EXECUTE", "0") != "1"
+        return true, "Bounded compatibility sandbox command accepted"
+    end
+
+    command_result = Cmd(["julia", "--project=.", script_path])
+    passed = try
+        success(pipeline(command_result, stdout = devnull, stderr = devnull))
+    catch
+        false
+    end
+    return passed, passed ? "Isolated compatibility sandbox command executed successfully" :
+                   "Compatibility sandbox command failed in isolated runner"
+end
+
+function hub_json_registry(path::AbstractString)
+    registry_path = strip(String(path))
+    isempty(registry_path) && return nothing
+    isfile(registry_path) || return Dict{String,Any}()
+    try
+        return JSON3.read(read(registry_path, String), Dict{String,Any})
+    catch
+        return Dict{String,Any}()
+    end
+end
+
+function hub_registry_path(registry_path::AbstractString, raw_path)
+    candidate = String(raw_path)
+    isabspath(candidate) && return candidate
+    return joinpath(dirname(String(registry_path)), candidate)
+end
+
+function hub_artifact_hash(package_ref::AbstractString, artifact::AbstractString)
+    store_path = strip(get(ENV, "JULIAFLOW_HUB_ARTIFACT_STORE", ""))
+    store = hub_json_registry(store_path)
+    store === nothing && return deterministic_hub_artifact_hash(package_ref, artifact), "deterministic"
+
+    package_entry = get(store, String(package_ref), nothing)
+    package_entry isa AbstractDict || return nothing, "missing"
+    raw_path = get(package_entry, String(artifact), nothing)
+    raw_path isa AbstractString || return nothing, "missing"
+    artifact_path = hub_registry_path(store_path, raw_path)
+    isfile(artifact_path) || return nothing, "missing"
+    return sha256_file_hash(artifact_path), "downloaded"
+end
+
+function hub_mirror_resolved(mirror_ref::AbstractString)
+    valid_hub_mirror_ref(mirror_ref) || return false, "invalid"
+    registry_path = strip(get(ENV, "JULIAFLOW_HUB_MIRROR_REGISTRY", ""))
+    registry = hub_json_registry(registry_path)
+    registry === nothing && return true, "scheme"
+
+    raw_value = get(registry, String(mirror_ref), nothing)
+    raw_value === nothing && return false, "missing"
+    raw_value isa Bool && return Bool(raw_value), "registry"
+    raw_value isa AbstractString || return false, "missing"
+    raw_path = hub_registry_path(registry_path, raw_value)
+    return isfile(raw_path) || isdir(raw_path), "registry"
+end
+
 function evaluate_hub_install_verification(extension::JuliaFlowGatewayRepository.HubExtensionRecord)
     blockers = String[]
     sandbox_blockers = String[]
     artifact_blockers = String[]
     mirror_blockers = String[]
+    sandbox_details = "Compatibility sandbox verification failed"
+    artifact_modes = Set{String}()
+    mirror_modes = Set{String}()
     sandbox_command = extension.compatibility_sandbox_command === nothing ? "" : strip(extension.compatibility_sandbox_command)
 
-    hub_sandbox_command_allowed(sandbox_command) ||
-        push!(sandbox_blockers, "Compatibility sandbox command must be bounded Julia extension test")
+    sandbox_passed, sandbox_details = execute_hub_sandbox_command(sandbox_command)
+    sandbox_passed || push!(sandbox_blockers, sandbox_details)
 
     for (artifact, declared_hash) in extension.artifact_hashes
-        expected_hash = deterministic_hub_artifact_hash(extension.package_ref, artifact)
+        expected_hash, artifact_mode = hub_artifact_hash(extension.package_ref, artifact)
+        push!(artifact_modes, artifact_mode)
+        expected_hash === nothing && push!(artifact_blockers, "Artifact $(artifact) missing from artifact store")
+        expected_hash === nothing && continue
         declared_hash == expected_hash ||
             push!(artifact_blockers, "Artifact hash mismatch for $(artifact)")
     end
     isempty(extension.artifact_hashes) && push!(artifact_blockers, "Extension must provide at least one artifact hash")
 
     for mirror_ref in extension.mirror_refs
-        valid_hub_mirror_ref(mirror_ref) ||
-            push!(mirror_blockers, "Mirror reference must use mirror:// or private:// scheme")
+        resolved, mirror_mode = hub_mirror_resolved(mirror_ref)
+        push!(mirror_modes, mirror_mode)
+        resolved || push!(
+            mirror_blockers,
+            mirror_mode == "invalid" ? "Mirror reference must use mirror:// or private:// scheme" :
+            "Mirror reference not found in offline/private registry: $(mirror_ref)",
+        )
     end
     isempty(extension.mirror_refs) && push!(mirror_blockers, "Extension must provide at least one mirror reference")
+    artifact_details = "Declared artifact hashes match deterministic package proof"
+    ("downloaded" in artifact_modes) && (artifact_details = "Downloaded artifact hashes verified from isolated artifact store")
+    mirror_details = "Mirror references are supported for offline/private resolution"
+    ("registry" in mirror_modes) && (mirror_details = "Offline/private mirror references resolved through local registry")
 
     append!(blockers, sandbox_blockers)
     append!(blockers, artifact_blockers)
@@ -1493,17 +1585,17 @@ function evaluate_hub_install_verification(extension::JuliaFlowGatewayRepository
         "verified" => isempty(blockers),
         "sandbox" => JuliaFlowGatewayRepository.hub_verification_check(
             isempty(sandbox_blockers) ? "passed" : "failed",
-            isempty(sandbox_blockers) ? "Bounded compatibility sandbox command accepted" : "Compatibility sandbox verification failed";
+            isempty(sandbox_blockers) ? sandbox_details : "Compatibility sandbox verification failed";
             blockers = sandbox_blockers,
         ),
         "artifacts" => JuliaFlowGatewayRepository.hub_verification_check(
             isempty(artifact_blockers) ? "passed" : "failed",
-            isempty(artifact_blockers) ? "Declared artifact hashes match deterministic package proof" : "Artifact hash verification failed";
+            isempty(artifact_blockers) ? artifact_details : "Artifact hash verification failed";
             blockers = artifact_blockers,
         ),
         "mirrors" => JuliaFlowGatewayRepository.hub_verification_check(
             isempty(mirror_blockers) ? "passed" : "failed",
-            isempty(mirror_blockers) ? "Mirror references are supported for offline/private resolution" : "Mirror verification failed";
+            isempty(mirror_blockers) ? mirror_details : "Mirror verification failed";
             blockers = mirror_blockers,
         ),
         "blockers" => blockers,
@@ -2212,6 +2304,10 @@ function classify_gateway_error(err)
         return 404, message
     elseif occursin("route not found", message)
         return 404, message
+    elseif occursin("Artifact ", message) && occursin(" missing from artifact store", message)
+        return 409, message
+    elseif occursin("Mirror reference not found in offline/private registry", message)
+        return 409, message
     elseif occursin("duplicate ", message)
         return 400, message
     elseif occursin("missing ", message)

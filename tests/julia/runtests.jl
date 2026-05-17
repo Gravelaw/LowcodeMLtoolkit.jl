@@ -1644,6 +1644,159 @@ end
                 JSON3.write(Dict("action" => "enable")),
             ),
         )
+        hub_artifact_fixture_path = joinpath(store_root, "hub-artifacts", "labs-package.txt")
+        mkpath(dirname(hub_artifact_fixture_path))
+        write(hub_artifact_fixture_path, "downloaded hub package bytes\n")
+        hub_artifact_hash = "sha256:" * bytes2hex(sha256(read(hub_artifact_fixture_path)))
+        hub_artifact_store_path = joinpath(store_root, "hub-artifact-store.json")
+        hub_mirror_registry_path = joinpath(store_root, "hub-mirror-registry.json")
+        write(
+            hub_artifact_store_path,
+            JSON3.write(Dict("hub://labs/download-proof" => Dict("package" => hub_artifact_fixture_path))),
+        )
+        write(
+            hub_mirror_registry_path,
+            JSON3.write(Dict("mirror://offline/download-proof" => true, "private://workspace/download-proof" => true)),
+        )
+        hub_download_register_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "manifest" => Dict(
+                            "extensionId" => "juliaflow-download-proof",
+                            "name" => "Download Proof Pack",
+                            "version" => "0.3.0",
+                            "publisher" => "partner",
+                            "summary" => "Downloaded artifact and private mirror proof.",
+                            "packageRef" => "hub://labs/download-proof",
+                            "tags" => ["labs", "partner"],
+                            "engineCompatibility" => "alpha-core",
+                            "requiredContractVersion" => "0.1.0",
+                            "supportedCheckpoints" => ["cp/01-contracts-frozen"],
+                            "compatibleCheckpoints" => ["cp/01-contracts-frozen"],
+                            "dependencies" => String[],
+                            "publisherIdentity" => "partner:juliaflow-labs",
+                            "signature" => "sig:partner:juliaflow-labs:v0.3.0",
+                            "releaseNotesRef" => "https://example.test/download-proof",
+                            "artifactHashes" => Dict("package" => hub_artifact_hash),
+                            "compatibilitySandboxCommand" => "julia --project=. extensions/labs/test/runtests.jl",
+                            "mirrorRefs" => ["mirror://offline/download-proof", "private://workspace/download-proof"],
+                        ),
+                    ),
+                ),
+            ),
+        )
+        hub_download_enable_response = withenv(
+            "JULIAFLOW_HUB_SANDBOX_EXECUTE" => "1",
+            "JULIAFLOW_HUB_ARTIFACT_STORE" => hub_artifact_store_path,
+            "JULIAFLOW_HUB_MIRROR_REGISTRY" => hub_mirror_registry_path,
+        ) do
+            route_request(
+                state,
+                HTTP.Request(
+                    "POST",
+                    "/api/v1/hub/extensions/juliaflow-download-proof/install",
+                    ["Content-Type" => "application/json"],
+                    JSON3.write(Dict("action" => "enable")),
+                ),
+            )
+        end
+        hub_missing_artifact_register_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "manifest" => Dict(
+                            "extensionId" => "juliaflow-missing-artifact-file",
+                            "name" => "Missing Artifact File Pack",
+                            "version" => "0.3.0",
+                            "publisher" => "partner",
+                            "summary" => "Missing artifact store proof.",
+                            "packageRef" => "hub://labs/missing-artifact-file",
+                            "tags" => ["labs", "partner"],
+                            "engineCompatibility" => "alpha-core",
+                            "requiredContractVersion" => "0.1.0",
+                            "supportedCheckpoints" => ["cp/01-contracts-frozen"],
+                            "compatibleCheckpoints" => ["cp/01-contracts-frozen"],
+                            "dependencies" => String[],
+                            "publisherIdentity" => "partner:juliaflow-labs",
+                            "signature" => "sig:partner:juliaflow-labs:v0.3.0",
+                            "releaseNotesRef" => "https://example.test/missing-artifact-file",
+                            "artifactHashes" => Dict("package" => hub_artifact_hash),
+                            "compatibilitySandboxCommand" => "julia --project=. extensions/labs/test/runtests.jl",
+                            "mirrorRefs" => ["mirror://offline/download-proof"],
+                        ),
+                    ),
+                ),
+            ),
+        )
+        hub_missing_artifact_enable_response = withenv(
+            "JULIAFLOW_HUB_ARTIFACT_STORE" => hub_artifact_store_path,
+            "JULIAFLOW_HUB_MIRROR_REGISTRY" => hub_mirror_registry_path,
+        ) do
+            route_request(
+                state,
+                HTTP.Request(
+                    "POST",
+                    "/api/v1/hub/extensions/juliaflow-missing-artifact-file/install",
+                    ["Content-Type" => "application/json"],
+                    JSON3.write(Dict("action" => "enable")),
+                ),
+            )
+        end
+        hub_missing_mirror_register_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/hub/extensions/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "manifest" => Dict(
+                            "extensionId" => "juliaflow-missing-mirror",
+                            "name" => "Missing Mirror Pack",
+                            "version" => "0.3.0",
+                            "publisher" => "partner",
+                            "summary" => "Missing mirror registry proof.",
+                            "packageRef" => "hub://labs/download-proof",
+                            "tags" => ["labs", "partner"],
+                            "engineCompatibility" => "alpha-core",
+                            "requiredContractVersion" => "0.1.0",
+                            "supportedCheckpoints" => ["cp/01-contracts-frozen"],
+                            "compatibleCheckpoints" => ["cp/01-contracts-frozen"],
+                            "dependencies" => String[],
+                            "publisherIdentity" => "partner:juliaflow-labs",
+                            "signature" => "sig:partner:juliaflow-labs:v0.3.0",
+                            "releaseNotesRef" => "https://example.test/missing-mirror",
+                            "artifactHashes" => Dict("package" => hub_artifact_hash),
+                            "compatibilitySandboxCommand" => "julia --project=. extensions/labs/test/runtests.jl",
+                            "mirrorRefs" => ["mirror://offline/missing-mirror"],
+                        ),
+                    ),
+                ),
+            ),
+        )
+        hub_missing_mirror_enable_response = withenv(
+            "JULIAFLOW_HUB_ARTIFACT_STORE" => hub_artifact_store_path,
+            "JULIAFLOW_HUB_MIRROR_REGISTRY" => hub_mirror_registry_path,
+        ) do
+            route_request(
+                state,
+                HTTP.Request(
+                    "POST",
+                    "/api/v1/hub/extensions/juliaflow-missing-mirror/install",
+                    ["Content-Type" => "application/json"],
+                    JSON3.write(Dict("action" => "enable")),
+                ),
+            )
+        end
         dashboard_publish_response = route_request(
             state,
             HTTP.Request(
@@ -1900,11 +2053,25 @@ end
         @test occursin("Compatibility sandbox command must be bounded Julia extension test", String(hub_enable_unsafe_sandbox_response.body))
         @test hub_enable_bad_mirror_response.status == 409
         @test occursin("Mirror reference must use mirror:// or private:// scheme", String(hub_enable_bad_mirror_response.body))
+        @test hub_download_register_response.status == 201
+        @test hub_download_enable_response.status == 200
+        @test occursin("Isolated compatibility sandbox command executed successfully", String(hub_download_enable_response.body))
+        @test occursin("Downloaded artifact hashes verified from isolated artifact store", String(hub_download_enable_response.body))
+        @test occursin("Offline/private mirror references resolved through local registry", String(hub_download_enable_response.body))
+        @test hub_missing_artifact_register_response.status == 201
+        @test hub_missing_artifact_enable_response.status == 409
+        @test occursin("Artifact package missing from artifact store", String(hub_missing_artifact_enable_response.body))
+        @test hub_missing_mirror_register_response.status == 201
+        @test hub_missing_mirror_enable_response.status == 409
+        @test occursin("Mirror reference not found in offline/private registry", String(hub_missing_mirror_enable_response.body))
         @test state.hub_extensions["juliaflow-bad-artifact-hash"].install_state != "enabled"
         @test state.hub_extensions["juliaflow-missing-sandbox"].install_state != "enabled"
         @test state.hub_extensions["juliaflow-hash-mismatch"].verification["artifacts"]["status"] == "failed"
         @test state.hub_extensions["juliaflow-unsafe-sandbox"].verification["sandbox"]["status"] == "failed"
         @test state.hub_extensions["juliaflow-bad-mirror-ref"].install_state != "enabled"
+        @test state.hub_extensions["juliaflow-download-proof"].verification["sandbox"]["details"] == "Isolated compatibility sandbox command executed successfully"
+        @test state.hub_extensions["juliaflow-download-proof"].verification["artifacts"]["details"] == "Downloaded artifact hashes verified from isolated artifact store"
+        @test state.hub_extensions["juliaflow-download-proof"].verification["mirrors"]["details"] == "Offline/private mirror references resolved through local registry"
         hub_reloaded = load_state(store_root)
         hub_reloaded_labs = hub_reloaded.hub_extensions["juliaflow-labs-pack"]
         @test hub_reloaded_labs.artifact_hashes["package"] == "sha256:e97cfb2b9c49c0f5770cfed1060d2bd22a4b80d7ba0d44f36951438cb5ef54ce"

@@ -4297,6 +4297,13 @@ function App() {
                           mirrors {extension.verification.mirrors.status}
                         </span>
                       </div>
+                      <div className="inspector-row">
+                        <strong>Verification details</strong>
+                        <span>
+                          {extension.verification.sandbox.details} · {extension.verification.artifacts.details} ·{" "}
+                          {extension.verification.mirrors.details}
+                        </span>
+                      </div>
                       {extension.compatibility.blockers.length > 0 ? (
                         <div className="inspector-row">
                           <strong>Compatibility blockers</strong>
