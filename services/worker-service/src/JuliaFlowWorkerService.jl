@@ -9,6 +9,7 @@ export WorkerServiceState,
     promote_gpu_execution!,
     process_gpu_worker_tick!,
     process_gpu_compute_tick!,
+    process_control_flow_recovery_tick!,
     queue_stream_execution!,
     promote_stream_execution!,
     process_stream_worker_tick!,
@@ -22,10 +23,79 @@ export WorkerServiceState,
 Base.@kwdef mutable struct WorkerServiceState
     stream_execution_ids::Dict{String,String} = Dict{String,String}()
     gpu_execution_ids::Set{String} = Set{String}()
+    control_flow_branch_execution_ids::Set{String} = Set{String}()
 end
 
 function stream_lifecycle_status(execution)
     return get(execution.metadata, "stream_lifecycle_status", nothing)
+end
+
+function control_flow_recovery(execution)
+    recovery = get(execution.metadata, "control_flow_recovery", nothing)
+    recovery isa AbstractDict || return nothing
+    return recovery
+end
+
+function has_completed_control_flow_branch(execution)
+    branch_state = get(execution.metadata, "control_flow_branch_state", nothing)
+    branch_state isa AbstractDict || return false
+    return String(get(branch_state, "status", "")) == "completed"
+end
+
+function worker_id(prefix::AbstractString, execution_id::AbstractString)
+    last_index = min(lastindex(execution_id), 8)
+    return String(prefix) * "-" * execution_id[1:last_index]
+end
+
+function workflow_node_type(workflow, node_id::AbstractString)
+    requested = String(node_id)
+    for node in workflow.nodes
+        node.id == requested && return node.type
+    end
+    return "unknown"
+end
+
+function bi_outlet_row_count(workflow, node_id::AbstractString)
+    requested = String(node_id)
+    for raw_outlet in workflow.bi_outlets
+        raw_outlet isa AbstractDict || continue
+        outlet = Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_outlet))
+        current_id = haskey(outlet, "node_id") ? String(outlet["node_id"]) : String(get(outlet, "nodeId", ""))
+        current_id == requested || continue
+        rows = get(outlet, "rows", Any[])
+        return rows isa AbstractVector ? length(rows) : 0
+    end
+    return 0
+end
+
+function catch_node_result(workflow, node_id::AbstractString)
+    node_type = workflow_node_type(workflow, node_id)
+    row_count = bi_outlet_row_count(workflow, node_id)
+    output_kind = row_count > 0 || occursin("DataOutlet", node_type) ? "bi_outlet" : "node"
+    return Dict{String,Any}(
+        "node_id" => String(node_id),
+        "node_type" => node_type,
+        "status" => "executed",
+        "output_kind" => output_kind,
+        "row_count" => row_count,
+    )
+end
+
+function control_flow_branch_metadata(workflow, execution, recovery)
+    catch_node_ids = [String(node_id) for node_id in get(recovery, "catch_node_ids", Any[])]
+    node_results = [catch_node_result(workflow, node_id) for node_id in catch_node_ids]
+    return Dict{String,Any}(
+        "control_id" => String(get(recovery, "control_id", "")),
+        "failed_node_id" => String(get(recovery, "failed_node_id", "")),
+        "branch" => "catch",
+        "catch_node_ids" => catch_node_ids,
+        "active_node_ids" => String[],
+        "completed_node_ids" => copy(catch_node_ids),
+        "status" => "completed",
+        "bounded" => Bool(get(recovery, "bounded", true)),
+        "worker_id" => worker_id("control-flow-worker", execution.execution_id),
+        "node_results" => node_results,
+    )
 end
 
 
@@ -525,6 +595,7 @@ end
 function sync_worker_service!(service::WorkerServiceState, executions)
     empty!(service.stream_execution_ids)
     empty!(service.gpu_execution_ids)
+    empty!(service.control_flow_branch_execution_ids)
 
     for execution in executions
         lifecycle = stream_lifecycle_status(execution)
@@ -532,6 +603,7 @@ function sync_worker_service!(service::WorkerServiceState, executions)
             service.stream_execution_ids[execution.workflow_id] = execution.execution_id
         end
         has_gpu_dispatch(execution) && push!(service.gpu_execution_ids, execution.execution_id)
+        has_completed_control_flow_branch(execution) && push!(service.control_flow_branch_execution_ids, execution.execution_id)
     end
 
     return service
@@ -973,6 +1045,67 @@ function process_gpu_compute_tick!(
         index = find_execution_index(executions, execution.execution_id)
         executions[index] = updated_execution
         push!(service.gpu_execution_ids, updated_execution.execution_id)
+        push!(updated_executions, updated_execution)
+    end
+    return updated_executions
+end
+
+function process_control_flow_recovery_tick!(
+    service::WorkerServiceState,
+    workflows,
+    executions;
+    execution_record,
+    transition_execution_record,
+    append_execution_event,
+    materialize_execution,
+)
+    updated_executions = Any[]
+    for execution in executions
+        execution.status == "completed" && continue
+        execution.status == "failed" && continue
+        recovery = control_flow_recovery(execution)
+        recovery === nothing && continue
+        has_completed_control_flow_branch(execution) && continue
+        workflow = workflows[execution.workflow_id]
+
+        current = execution_record(execution)
+        if execution.status == "accepted"
+            current = transition_execution_record(
+                current,
+                "queued";
+                message = "Catch branch queued for worker execution",
+            )
+        end
+        if String(get(current, "status", "")) == "queued"
+            current = transition_execution_record(
+                current,
+                "running";
+                message = "Catch branch worker started",
+            )
+        end
+
+        metadata = Dict{String,Any}(
+            "control_flow_branch_state" => control_flow_branch_metadata(workflow, execution, recovery),
+        )
+        if String(get(current, "status", "")) == "running"
+            current = transition_execution_record(
+                current,
+                "completed";
+                message = "Catch branch worker completed",
+                metadata = metadata,
+            )
+        else
+            current = append_execution_event(
+                current;
+                message = "Catch branch worker completed",
+                metadata = metadata,
+            )
+        end
+
+        updated_execution = materialize_execution(current)
+        index = find_execution_index(executions, execution.execution_id)
+        executions[index] = updated_execution
+        push!(service.control_flow_branch_execution_ids, updated_execution.execution_id)
         push!(updated_executions, updated_execution)
     end
     return updated_executions

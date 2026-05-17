@@ -1793,3 +1793,28 @@ Each checkpoint entry must contain:
 - Complete full verification and code review for this slice.
 - Add real catch-node compute and worker branch-state execution in a future runtime slice.
 - Continue provider proof only when cluster/provider/credential prerequisites exist.
+
+
+---
+
+## Checkpoint: Julia Runtime Module Expansion / Catch-Node Branch-State Slice — 2026-05-17
+
+### Work Done Till Date
+
+- Added worker-service catch-branch execution after try/catch recovery.
+- Recovered executions now queue branch work, execute bounded catch nodes, record `controlFlowBranchState`, and complete once the catch branch finishes.
+- Branch evidence includes worker id, failed node id, catch/completed node IDs, deterministic BI outlet row-count node results, gateway payload mapping, contracts/OpenAPI, and Monitor UI rendering.
+- Added Julia, frontend, and contract regression coverage plus Autopilot PRD/test-spec artifacts.
+
+### Gaps Pending
+
+- General DAG branch rescheduling and broader executor scheduling remain future runtime work.
+- Provider-specific deployment/object-store proof still requires provider, cluster, and credential context.
+- Real Hub sandbox/download/private-mirror proof still requires isolated runner and registry fixtures.
+- Final GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete full verification and code review for this slice.
+- Continue with general DAG branch rescheduling or Hub isolated sandbox proof if provider context remains unavailable.
+- Keep all future slice claims tied to traceability and control-doc sync gates.

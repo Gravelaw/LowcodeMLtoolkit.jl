@@ -1352,11 +1352,20 @@ function transition_execution_response!(
         )
         if recovery !== nothing
             recovery_message = message === nothing ? "Try/catch recovery planned" : message
-            updated = JuliaFlowGatewayRepository.JuliaFlowExecutionService.append_execution_event(
-                execution_record(current_execution);
-                message = recovery_message,
-                metadata = Dict{String,Any}("control_flow_recovery" => recovery),
-            )
+            recovery_metadata = Dict{String,Any}("control_flow_recovery" => recovery)
+            current_record = execution_record(current_execution)
+            updated = current_execution.status == "accepted" ?
+                      JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record(
+                          current_record,
+                          "queued";
+                          message = recovery_message,
+                          metadata = recovery_metadata,
+                      ) :
+                      JuliaFlowGatewayRepository.JuliaFlowExecutionService.append_execution_event(
+                          current_record;
+                          message = recovery_message,
+                          metadata = recovery_metadata,
+                      )
             execution = materialize_execution(updated)
             state.executions[index] = execution
             save_execution!(state.repository, execution; producer = "api-gateway")
@@ -2751,6 +2760,12 @@ function latest_execution_for_workflow(state::GatewayState, workflow_id::Abstrac
 end
 
 function active_node_ids(execution::GatewayExecution)
+    branch_state = get(execution.metadata, "control_flow_branch_state", nothing)
+    if branch_state isa AbstractDict
+        active_nodes = get(branch_state, "active_node_ids", Any[])
+        !isempty(active_nodes) && return Set(String(node_id) for node_id in active_nodes)
+    end
+
     isempty(execution.stages) && return Set{String}()
 
     if execution.status == "accepted" || execution.status == "queued"
@@ -2768,6 +2783,21 @@ end
 
 function node_runtime_status(node_id::AbstractString, execution::Union{Nothing,GatewayExecution})
     execution === nothing && return "configured"
+
+    branch_state = get(execution.metadata, "control_flow_branch_state", nothing)
+    if branch_state isa AbstractDict
+        failed_node_id = String(get(branch_state, "failed_node_id", ""))
+        completed_nodes = Set(String(item) for item in get(branch_state, "completed_node_ids", Any[]))
+        active_nodes = Set(String(item) for item in get(branch_state, "active_node_ids", Any[]))
+        failed_node_id == String(node_id) && return "error"
+        String(node_id) in completed_nodes && return "executed"
+        String(node_id) in active_nodes && return "running"
+    end
+
+    recovery = get(execution.metadata, "control_flow_recovery", nothing)
+    if recovery isa AbstractDict && String(get(recovery, "failed_node_id", "")) == String(node_id)
+        return "error"
+    end
 
     if execution.status == "completed"
         return "executed"

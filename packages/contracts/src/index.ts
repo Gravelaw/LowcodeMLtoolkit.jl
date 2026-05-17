@@ -670,6 +670,27 @@ export interface GatewayControlFlowRecovery {
   bounded: boolean;
 }
 
+export interface GatewayControlFlowBranchNodeResult {
+  nodeId: string;
+  nodeType: string;
+  status: "executed";
+  outputKind: string;
+  rowCount: number;
+}
+
+export interface GatewayControlFlowBranchState {
+  controlId: string;
+  failedNodeId: string;
+  branch: "catch";
+  catchNodeIds: string[];
+  activeNodeIds: string[];
+  completedNodeIds: string[];
+  status: "completed";
+  bounded: boolean;
+  workerId: string;
+  nodeResults: GatewayControlFlowBranchNodeResult[];
+}
+
 export interface GatewayExecutionRecord {
   executionId: string;
   workflowId: string;
@@ -693,6 +714,7 @@ export interface GatewayExecutionRecord {
   }>;
   controlFlowPlan?: GatewayControlFlowPlanEntry[];
   controlFlowRecovery?: GatewayControlFlowRecovery;
+  controlFlowBranchState?: GatewayControlFlowBranchState;
   dispatchPlan?: Array<{
     lane: WorkflowResourceClass;
     nodeIds: string[];

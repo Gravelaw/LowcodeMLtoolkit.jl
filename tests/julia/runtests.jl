@@ -223,7 +223,9 @@ end
 end
 
 @testset "Worker Service" begin
+    foundation_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "foundation.workflow.toml")
     parallel_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "parallel.workflow.toml")
+    foundation_workflow = load_workflow_definition(foundation_path)
     kafka_workflow = load_workflow_definition(parallel_path)
     kafka_metadata = JuliaFlowWorkerService.build_stream_execution_metadata(kafka_workflow)
     @test kafka_metadata["stream_adapter_contract"]["kind"] == "kafka"
@@ -286,11 +288,48 @@ end
     """
     gpu_workflow = load_workflow_definition_text(gpu_workflow_text)
     workflows = Dict(
+        foundation_workflow.id => foundation_workflow,
         parallel_workflow.id => parallel_workflow,
         gpu_workflow.id => gpu_workflow,
     )
     service = WorkerServiceState()
     executions = GatewayExecution[]
+
+    push!(
+        executions,
+        JuliaFlowApiGateway.materialize_execution(
+            execute_workflow(foundation_workflow; checkpoint_tag = "cp/02-alpha-core"),
+        ),
+    )
+    recovery_record = append_execution_event(
+        JuliaFlowApiGateway.execution_record(executions[1]);
+        message = "Transform failed; route to catch",
+        metadata = Dict(
+            "control_flow_recovery" => try_catch_recovery_metadata(foundation_workflow, "node-transform"),
+        ),
+    )
+    executions[1] = JuliaFlowApiGateway.materialize_execution(recovery_record)
+    catch_branch = process_control_flow_recovery_tick!(
+        service,
+        workflows,
+        executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test length(catch_branch) == 1
+    @test catch_branch[1].status == "completed"
+    @test catch_branch[1].metadata["control_flow_branch_state"]["branch"] == "catch"
+    @test catch_branch[1].metadata["control_flow_branch_state"]["completed_node_ids"] == ["node-bi"]
+    @test catch_branch[1].metadata["control_flow_branch_state"]["node_results"][1]["output_kind"] == "bi_outlet"
+    @test catch_branch[1].metadata["control_flow_branch_state"]["node_results"][1]["row_count"] == 3
+    @test catch_branch[1].execution_id in service.control_flow_branch_execution_ids
+    catch_branch_payload = JuliaFlowApiGateway.execution_payload(catch_branch[1])
+    @test catch_branch_payload["controlFlowBranchState"]["workerId"] == catch_branch[1].metadata["control_flow_branch_state"]["worker_id"]
+    @test catch_branch_payload["controlFlowBranchState"]["nodeResults"][1]["rowCount"] == 3
+    @test JuliaFlowApiGateway.node_runtime_status("node-transform", catch_branch[1]) == "error"
+    @test JuliaFlowApiGateway.node_runtime_status("node-bi", catch_branch[1]) == "executed"
 
     function complete_gpu_workflow_once(workflow; registry = "mock:nvidia0")
         withenv("JULIAFLOW_GPU_REGISTRY" => registry) do
@@ -342,7 +381,7 @@ end
         service,
         workflows,
         executions,
-        executions[1].execution_id;
+        executions[end].execution_id;
         execution_record = JuliaFlowApiGateway.execution_record,
         transition_execution_record = transition_execution_record,
         materialize_execution = JuliaFlowApiGateway.materialize_execution,
@@ -907,11 +946,26 @@ end
             metadata = Dict{String,Any}("failedNodeId" => "node-transform"),
         )
         recovered_execution = JSON3.read(recovered_execution_json, Dict{String,Any})
-        @test recovered_execution["status"] == "accepted"
+        @test recovered_execution["status"] == "queued"
         @test recovered_execution["controlFlowRecovery"]["controlId"] == "try-bi-outlet"
         @test recovered_execution["controlFlowRecovery"]["failedNodeId"] == "node-transform"
         @test recovered_execution["controlFlowRecovery"]["catchNodeIds"] == ["node-bi"]
         @test recovered_execution["statusHistory"][end]["message"] == "Transform failed; route to catch"
+        recovered_branches = JuliaFlowApiGateway.JuliaFlowWorkerService.process_control_flow_recovery_tick!(
+            state.worker_service,
+            state.workflows,
+            state.executions;
+            execution_record = JuliaFlowApiGateway.execution_record,
+            transition_execution_record = transition_execution_record,
+            append_execution_event = append_execution_event,
+            materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        )
+        @test length(recovered_branches) == 1
+        recovered_branch_payload = JuliaFlowApiGateway.execution_payload(recovered_branches[1])
+        @test recovered_branch_payload["status"] == "completed"
+        @test recovered_branch_payload["controlFlowBranchState"]["branch"] == "catch"
+        @test recovered_branch_payload["controlFlowBranchState"]["completedNodeIds"] == ["node-bi"]
+        @test recovered_branch_payload["controlFlowBranchState"]["nodeResults"][1]["rowCount"] == 3
         uncaught_execution = JSON3.read(execution_accept_response(state, "wf-foundation"), Dict{String,Any})
         uncaught_failed_json = transition_execution_response!(
             state,
@@ -929,9 +983,10 @@ end
             status = "failed",
             metadata = Dict{String,Any}("failedNodeId" => "node-transform"),
         )
+        scheduler_execution = JSON3.read(execution_accept_response(state, "wf-foundation"), Dict{String,Any})
         queued_execution_json = transition_execution_response!(
             state,
-            accepted_execution["executionId"];
+            scheduler_execution["executionId"];
             status = "queued",
             message = "Queued for CPU scheduler",
             metadata = Dict{String,Any}("queueName" => "foundation-cpu"),

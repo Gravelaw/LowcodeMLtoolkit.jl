@@ -492,6 +492,27 @@ function execution_payload(execution::GatewayExecution)
                     "status" => String(get(value, "status", "")),
                     "bounded" => Bool(get(value, "bounded", false)),
                 )
+            elseif string_key == "control_flow_branch_state"
+                payload["controlFlowBranchState"] = Dict{String,Any}(
+                    "controlId" => String(get(value, "control_id", "")),
+                    "failedNodeId" => String(get(value, "failed_node_id", "")),
+                    "branch" => String(get(value, "branch", "")),
+                    "catchNodeIds" => [String(node_id) for node_id in get(value, "catch_node_ids", Any[])],
+                    "activeNodeIds" => [String(node_id) for node_id in get(value, "active_node_ids", Any[])],
+                    "completedNodeIds" => [String(node_id) for node_id in get(value, "completed_node_ids", Any[])],
+                    "status" => String(get(value, "status", "")),
+                    "bounded" => Bool(get(value, "bounded", false)),
+                    "workerId" => String(get(value, "worker_id", "")),
+                    "nodeResults" => [
+                        Dict{String,Any}(
+                            "nodeId" => String(get(item, "node_id", "")),
+                            "nodeType" => String(get(item, "node_type", "")),
+                            "status" => String(get(item, "status", "")),
+                            "outputKind" => String(get(item, "output_kind", "")),
+                            "rowCount" => Int(get(item, "row_count", 0)),
+                        ) for item in get(value, "node_results", Any[])
+                    ],
+                )
             elseif string_key == "dispatch_plan"
                 payload["dispatchPlan"] = [
                     Dict{String,Any}(
@@ -760,6 +781,27 @@ function gateway_execution(item)
                 "catch_node_ids" => [String(node_id) for node_id in get(value, "catchNodeIds", Any[])],
                 "status" => String(get(value, "status", "")),
                 "bounded" => Bool(get(value, "bounded", false)),
+            )
+        elseif string_key == "controlFlowBranchState"
+            metadata["control_flow_branch_state"] = Dict{String,Any}(
+                "control_id" => String(get(value, "controlId", "")),
+                "failed_node_id" => String(get(value, "failedNodeId", "")),
+                "branch" => String(get(value, "branch", "")),
+                "catch_node_ids" => [String(node_id) for node_id in get(value, "catchNodeIds", Any[])],
+                "active_node_ids" => [String(node_id) for node_id in get(value, "activeNodeIds", Any[])],
+                "completed_node_ids" => [String(node_id) for node_id in get(value, "completedNodeIds", Any[])],
+                "status" => String(get(value, "status", "")),
+                "bounded" => Bool(get(value, "bounded", false)),
+                "worker_id" => String(get(value, "workerId", "")),
+                "node_results" => [
+                    Dict{String,Any}(
+                        "node_id" => String(get(item, "nodeId", "")),
+                        "node_type" => String(get(item, "nodeType", "")),
+                        "status" => String(get(item, "status", "")),
+                        "output_kind" => String(get(item, "outputKind", "")),
+                        "row_count" => Int(get(item, "rowCount", 0)),
+                    ) for item in get(value, "nodeResults", Any[])
+                ],
             )
         elseif string_key == "dispatchPlan"
             metadata["dispatch_plan"] = [

@@ -1913,6 +1913,9 @@
           },
           "controlFlowRecovery": {
             "$ref": "#/components/schemas/GatewayControlFlowRecovery"
+          },
+          "controlFlowBranchState": {
+            "$ref": "#/components/schemas/GatewayControlFlowBranchState"
           }
         },
         "additionalProperties": true
@@ -3257,6 +3260,102 @@
           },
           "bounded": {
             "type": "boolean"
+          }
+        }
+      },
+      "GatewayControlFlowBranchNodeResult": {
+        "type": "object",
+        "required": [
+          "nodeId",
+          "nodeType",
+          "status",
+          "outputKind",
+          "rowCount"
+        ],
+        "properties": {
+          "nodeId": {
+            "type": "string"
+          },
+          "nodeType": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "executed"
+            ]
+          },
+          "outputKind": {
+            "type": "string"
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "GatewayControlFlowBranchState": {
+        "type": "object",
+        "required": [
+          "controlId",
+          "failedNodeId",
+          "branch",
+          "catchNodeIds",
+          "activeNodeIds",
+          "completedNodeIds",
+          "status",
+          "bounded",
+          "workerId",
+          "nodeResults"
+        ],
+        "properties": {
+          "controlId": {
+            "type": "string"
+          },
+          "failedNodeId": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string",
+            "enum": [
+              "catch"
+            ]
+          },
+          "catchNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "activeNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "completedNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "bounded": {
+            "type": "boolean"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "nodeResults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayControlFlowBranchNodeResult"
+            }
           }
         }
       }

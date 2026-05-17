@@ -4525,6 +4525,16 @@ function App() {
                               </span>
                             </div>
                           ) : null}
+                          {item.controlFlowBranchState ? (
+                            <div className="inspector-row">
+                              <strong>Branch</strong>
+                              <span>
+                                {item.controlFlowBranchState.branch} {item.controlFlowBranchState.status} ·{" "}
+                                {item.controlFlowBranchState.completedNodeIds.length} catch nodes ·{" "}
+                                {item.controlFlowBranchState.workerId}
+                              </span>
+                            </div>
+                          ) : null}
                         </article>
                       ))}
                     </div>

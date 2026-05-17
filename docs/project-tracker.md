@@ -18,7 +18,7 @@ Tracker always records 3 things:
 - BRD: `JuliaFlow_BRD_v1.0.docx`
 - Current target phase: `Provider-Specific GA Proof / Module Expansion`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-05-16`
+- Last updated: `2026-05-17`
 
 ## Work Done Till Date
 
@@ -1739,3 +1739,25 @@ After any meaningful job:
 - Run full verification: Julia suite, npm test/build, coverage, control-doc sync, BRD traceability, and diff check.
 - Continue runtime depth with catch-node compute or worker branch-state execution if no provider access exists.
 - Keep the recovery route additive until real node compute execution is deliberately expanded.
+
+### Julia Runtime Module Expansion / Catch-Node Branch-State Slice — 2026-05-17
+
+#### Work Done Till Date
+
+- Implemented bounded catch-branch worker execution after try/catch recovery.
+- Recovered executions now queue catch branch work, worker-service processes catch nodes, records `controlFlowBranchState`, and completes the recovered execution.
+- Branch state includes worker id, catch/completed node IDs, failed node ID, bounded status, and deterministic BI outlet row-count node results.
+- Contracts, OpenAPI, gateway mapping, Monitor UI, Julia tests, frontend tests, contract tests, PRD/test-spec artifacts, TODO, traceability, risk register, and checkpoint docs were updated.
+
+#### Gaps Pending
+
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
+- General DAG branch rescheduling beyond the bounded catch-node worker tick remains future runtime work.
+- Real Hub isolated sandbox/download/private-mirror proof remains future work.
+- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
+
+#### Next Items To Implement
+
+- Complete full gate execution and code review for this slice.
+- If no provider access exists, choose between general DAG branch rescheduling or Hub isolated sandbox/download proof as the next repo-local lane.
+- Keep provider proof queued until target provider/cluster/secret context is available.

@@ -2,6 +2,7 @@ import type {
   ConnectionDefinition,
   DashboardDefinition,
   GatewayCheckpointRecord,
+  GatewayControlFlowBranchState,
   GatewayControlFlowPlanEntry,
   GatewayControlFlowRecovery,
   GatewayExecutionRecord,
@@ -35,6 +36,7 @@ export interface ExecutionRailItem {
   planner: string;
   controlFlowPlan?: GatewayControlFlowPlanEntry[];
   controlFlowRecovery?: GatewayControlFlowRecovery;
+  controlFlowBranchState?: GatewayControlFlowBranchState;
 }
 
 export interface CheckpointRailItem {
@@ -587,7 +589,8 @@ export function buildExecutionRailItems(records: GatewayExecutionRecord[]): Exec
           ? `${record.mode} · ${record.dispatchLane}/${record.dispatchWorkerPool ?? "default"}`
           : record.mode,
       controlFlowPlan: record.controlFlowPlan,
-      controlFlowRecovery: record.controlFlowRecovery
+      controlFlowRecovery: record.controlFlowRecovery,
+      controlFlowBranchState: record.controlFlowBranchState
     };
   });
 }
