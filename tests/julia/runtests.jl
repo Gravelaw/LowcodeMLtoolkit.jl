@@ -378,11 +378,19 @@ end
     """
     gpu_workflow = load_workflow_definition_text(gpu_workflow_text)
     runtime_branch_workflow = load_workflow_definition_text(runtime_branch_workflow_text())
+    batch_parallel_workflow = load_workflow_definition_text(
+        replace(
+            replace(read(parallel_path, String), "run_mode = \"stream\"" => "run_mode = \"batch\""),
+            "id = \"wf-parallel\"" => "id = \"wf-parallel-batch\"";
+            count = 1,
+        ),
+    )
     workflows = Dict(
         foundation_workflow.id => foundation_workflow,
         parallel_workflow.id => parallel_workflow,
         gpu_workflow.id => gpu_workflow,
         runtime_branch_workflow.id => runtime_branch_workflow,
+        batch_parallel_workflow.id => batch_parallel_workflow,
     )
     service = WorkerServiceState()
     executions = GatewayExecution[]
@@ -457,6 +465,73 @@ end
     @test runtime_branch_payload["controlFlowBranchState"]["branchStages"] == [["catch-log", "catch-clean"], ["catch-bi"]]
     @test runtime_branch_payload["controlFlowBranchState"]["branchStageIndex"] == 2
     @test runtime_branch_payload["controlFlowBranchState"]["stageResults"][2]["nodeResults"][1]["rowCount"] == 2
+
+    push!(
+        executions,
+        JuliaFlowApiGateway.materialize_execution(
+            execute_workflow(batch_parallel_workflow; checkpoint_tag = "cp/executor-multitick"),
+        ),
+    )
+    executor_tick_one = process_executor_schedule_tick!(
+        service,
+        executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test executor_tick_one[1].status == "queued"
+    @test executor_tick_one[1].metadata["executor_state"]["status"] == "queued"
+    executor_tick_two = process_executor_schedule_tick!(
+        service,
+        executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test executor_tick_two[1].status == "running"
+    @test executor_tick_two[1].metadata["executor_state"]["current_stage_index"] == 1
+    @test executor_tick_two[1].metadata["executor_state"]["active_node_ids"] == ["node-source"]
+    executor_tick_three = process_executor_schedule_tick!(
+        service,
+        executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test executor_tick_three[1].status == "running"
+    @test executor_tick_three[1].metadata["executor_state"]["current_stage_index"] == 2
+    @test executor_tick_three[1].metadata["executor_state"]["completed_node_ids"] == ["node-source"]
+    @test executor_tick_three[1].metadata["executor_state"]["active_node_ids"] == ["node-left", "node-right"]
+    executor_tick_four = process_executor_schedule_tick!(
+        service,
+        executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test executor_tick_four[1].status == "running"
+    @test executor_tick_four[1].metadata["executor_state"]["current_stage_index"] == 3
+    @test executor_tick_four[1].metadata["executor_state"]["completed_stage_indexes"] == [1, 2]
+    executor_tick_five = process_executor_schedule_tick!(
+        service,
+        executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = transition_execution_record,
+        append_execution_event = append_execution_event,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test executor_tick_five[1].status == "completed"
+    @test executor_tick_five[1].metadata["executor_state"]["status"] == "completed"
+    @test executor_tick_five[1].metadata["executor_state"]["completed_node_ids"] == ["node-source", "node-left", "node-right", "node-sink"]
+    @test executor_tick_five[1].metadata["executor_state"]["stage_results"][3]["status"] == "completed"
+    executor_payload = JuliaFlowApiGateway.execution_payload(executor_tick_five[1])
+    @test executor_payload["executorState"]["currentStageIndex"] == 3
+    @test executor_payload["executorState"]["completedStageIndexes"] == [1, 2, 3]
+    @test executor_payload["executorState"]["stageResults"][2]["nodeIds"] == ["node-left", "node-right"]
 
     function complete_gpu_workflow_once(workflow; registry = "mock:nvidia0")
         withenv("JULIAFLOW_GPU_REGISTRY" => registry) do

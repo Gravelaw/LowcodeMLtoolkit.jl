@@ -1832,3 +1832,27 @@ After any meaningful job:
 - Complete full verification, clean code review, commit, push, and remote publication verification.
 - If provider/credential context appears, prioritize provider-specific deployment and object-store proof.
 - Otherwise continue runtime depth with true asynchronous multi-tick executor scheduling or choose frontend/Hub polish if runtime scope should pause.
+
+---
+
+## Update: Runtime Multi-Tick Executor Slice — 2026-05-17
+
+### Work Done Till Date
+
+- Completed the next Julia runtime module expansion step after provider/deployment, object-store, external registry, and GPU final gates remained externally blocked.
+- Worker-service now advances CPU batch executions over existing `executorSchedule` metadata one bounded stage per tick.
+- New `executorState` metadata records queued/running/completed state, current stage, stage count, active/completed node IDs, completed stage indexes, worker id, bounded status, and stage results.
+- Gateway mapping, TS/OpenAPI contracts, Monitor rendering, Julia tests, frontend tests, TODO, risks, traceability, and plan were updated together.
+
+### Gaps Pending
+
+- Real node compute/output/error handling inside executor stage ticks remains future runtime work; this slice is metadata-only scheduling behavior.
+- Provider-specific deployment proof and remote object-store proof still require selected provider, cluster, and credentials.
+- External Hub registry/provider mirror proof still requires registry/provider context.
+- Final GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete full verification, clean code review, commit, push, and remote publication verification.
+- If provider/credential context appears, prioritize provider-specific deployment and object-store proof.
+- Otherwise continue runtime depth by binding real node execution/output/error handling into staged executor ticks.

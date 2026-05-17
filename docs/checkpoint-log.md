@@ -1888,3 +1888,26 @@ Each checkpoint entry must contain:
 - Run full verification and code review for this slice.
 - Commit and push after gates pass.
 - Continue true multi-tick executor scheduling unless provider context becomes available first.
+
+---
+
+## Checkpoint: Julia Runtime Module Expansion / Multi-Tick Executor Slice — 2026-05-17
+
+### Work Done Till Date
+
+- Added metadata-only multi-tick executor scheduling over existing `executorSchedule` evidence.
+- Worker-service now progresses CPU batch executions through accepted -> queued -> running stage progress -> completed with one bounded stage action per tick.
+- Gateway payload mapping, TS/OpenAPI contracts, Monitor UI, Julia regression tests, frontend tests, and control docs were synchronized.
+
+### Gaps Pending
+
+- Real node execution, output materialization, and per-node error propagation remain open for future staged executor work.
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
+- External Hub registry/provider mirror proof remains gated on external registry/provider context.
+- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+
+### Next Items To Implement
+
+- Run full verification and code review for this slice.
+- Commit and push after gates pass.
+- Continue real node execution/output/error handling inside staged executor ticks unless provider context becomes available first.

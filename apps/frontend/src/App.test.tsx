@@ -346,6 +346,23 @@ describe("App", () => {
                     bounded: true
                   }
                 ],
+                executorState: {
+                  status: "running",
+                  currentStageIndex: 2,
+                  stageCount: 2,
+                  activeNodeIds: ["node-transform", "node-bi-outlet"],
+                  completedNodeIds: ["node-source"],
+                  completedStageIndexes: [1],
+                  workerId: "executor-worker-test",
+                  bounded: true,
+                  stageResults: [
+                    {
+                      stageIndex: 1,
+                      nodeIds: ["node-source"],
+                      status: "completed"
+                    }
+                  ]
+                },
                 controlFlowBranchState: {
                   controlId: "try-bi-outlet",
                   failedNodeId: "node-transform",
@@ -665,6 +682,7 @@ describe("App", () => {
     expect(screen.getByText(/catch completed · 1 catch nodes · control-flow-worker-test/i)).toBeInTheDocument();
     expect(screen.getByText(/stage 1\/1 · active 0/i)).toBeInTheDocument();
     expect(screen.getByText(/2 stages · max concurrency 2 · topological_stage_barrier/i)).toBeInTheDocument();
+    expect(screen.getByText(/executor running · stage 2\/2 · active 2 · completed 1/i)).toBeInTheDocument();
     expect(screen.getAllByText("12").length).toBeGreaterThan(0);
     expect(screen.getByText("10")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();

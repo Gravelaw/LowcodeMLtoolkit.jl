@@ -10,6 +10,7 @@ export WorkerServiceState,
     process_gpu_worker_tick!,
     process_gpu_compute_tick!,
     process_control_flow_recovery_tick!,
+    process_executor_schedule_tick!,
     queue_stream_execution!,
     promote_stream_execution!,
     process_stream_worker_tick!,
@@ -24,6 +25,7 @@ Base.@kwdef mutable struct WorkerServiceState
     stream_execution_ids::Dict{String,String} = Dict{String,String}()
     gpu_execution_ids::Set{String} = Set{String}()
     control_flow_branch_execution_ids::Set{String} = Set{String}()
+    executor_execution_ids::Set{String} = Set{String}()
 end
 
 function stream_lifecycle_status(execution)
@@ -40,6 +42,82 @@ function has_completed_control_flow_branch(execution)
     branch_state = get(execution.metadata, "control_flow_branch_state", nothing)
     branch_state isa AbstractDict || return false
     return String(get(branch_state, "status", "")) == "completed"
+end
+
+function executor_schedule(execution)
+    schedule = get(execution.metadata, "executor_schedule", Any[])
+    schedule isa AbstractVector || return Any[]
+    return schedule
+end
+
+function executor_state(execution)
+    state = get(execution.metadata, "executor_state", nothing)
+    state isa AbstractDict || return Dict{String,Any}()
+    return Dict{String,Any}(String(key) => value for (key, value) in pairs(state))
+end
+
+function has_executor_schedule(execution)
+    return !isempty(executor_schedule(execution))
+end
+
+function executor_worker_id(execution)
+    return worker_id("executor-worker", execution.execution_id)
+end
+
+function executor_stage_node_ids(stage)
+    return [String(node_id) for node_id in get(stage, "node_ids", Any[])]
+end
+
+function executor_stage_result(stage)
+    return Dict{String,Any}(
+        "stage_index" => Int(get(stage, "stage_index", 0)),
+        "node_ids" => executor_stage_node_ids(stage),
+        "status" => "completed",
+    )
+end
+
+function executor_completed_node_ids(schedule, completed_stage_count::Int)
+    completed = String[]
+    bounded_count = min(max(completed_stage_count, 0), length(schedule))
+    for index in 1:bounded_count
+        append!(completed, executor_stage_node_ids(schedule[index]))
+    end
+    return completed
+end
+
+function executor_stage_results(schedule, completed_stage_count::Int)
+    bounded_count = min(max(completed_stage_count, 0), length(schedule))
+    return [executor_stage_result(schedule[index]) for index in 1:bounded_count]
+end
+
+function executor_state_metadata(execution, schedule; status::AbstractString, current_stage_index::Int, completed_stage_count::Int)
+    stage_count = length(schedule)
+    active_node_ids = status == "running" && 1 <= current_stage_index <= stage_count ?
+        executor_stage_node_ids(schedule[current_stage_index]) : String[]
+    completed_stage_indexes = collect(1:min(max(completed_stage_count, 0), stage_count))
+    return Dict{String,Any}(
+        "executor_state" => Dict{String,Any}(
+            "status" => String(status),
+            "current_stage_index" => Int(current_stage_index),
+            "stage_count" => stage_count,
+            "active_node_ids" => active_node_ids,
+            "completed_node_ids" => executor_completed_node_ids(schedule, completed_stage_count),
+            "completed_stage_indexes" => completed_stage_indexes,
+            "worker_id" => executor_worker_id(execution),
+            "bounded" => true,
+            "stage_results" => executor_stage_results(schedule, completed_stage_count),
+        ),
+    )
+end
+
+function should_process_executor_schedule(execution)
+    has_executor_schedule(execution) || return false
+    execution.status in ("accepted", "queued", "running") || return false
+    execution.status == "running" && isempty(executor_state(execution)) && return false
+    String(execution.mode) == "batch_cpu" || return false
+    stream_lifecycle_status(execution) === nothing || return false
+    get(execution.metadata, "dispatch_lane", nothing) === nothing || return false
+    return true
 end
 
 function worker_id(prefix::AbstractString, execution_id::AbstractString)
@@ -834,6 +912,44 @@ function promote_stream_execution!(
     executions[index] = updated_execution
     service.stream_execution_ids[updated_execution.workflow_id] = updated_execution.execution_id
     return updated_execution
+end
+
+function process_executor_schedule_tick!(
+    service::WorkerServiceState,
+    executions;
+    execution_record,
+    transition_execution_record,
+    append_execution_event,
+    materialize_execution,
+)
+    updated_executions = Any[]
+    for (index, execution) in pairs(executions)
+        should_process_executor_schedule(execution) || continue
+        schedule = executor_schedule(execution)
+        state = executor_state(execution)
+        current_stage = Int(get(state, "current_stage_index", 0))
+
+        if execution.status == "accepted"
+            metadata = executor_state_metadata(execution, schedule; status = "queued", current_stage_index = 0, completed_stage_count = 0)
+            updated = transition_execution_record(execution_record(execution), "queued"; message = "Queued for executor schedule", metadata = metadata)
+        elseif execution.status == "queued"
+            metadata = executor_state_metadata(execution, schedule; status = "running", current_stage_index = 1, completed_stage_count = 0)
+            updated = transition_execution_record(execution_record(execution), "running"; message = "Executor stage 1 started", metadata = metadata)
+        elseif current_stage >= length(schedule)
+            metadata = executor_state_metadata(execution, schedule; status = "completed", current_stage_index = length(schedule), completed_stage_count = length(schedule))
+            updated = transition_execution_record(execution_record(execution), "completed"; message = "Executor schedule completed", metadata = metadata)
+        else
+            next_stage = max(current_stage + 1, 1)
+            metadata = executor_state_metadata(execution, schedule; status = "running", current_stage_index = next_stage, completed_stage_count = max(current_stage, 1))
+            updated = append_execution_event(execution_record(execution); message = "Executor stage $(max(current_stage, 1)) completed", metadata = metadata)
+        end
+
+        materialized = materialize_execution(updated)
+        executions[index] = materialized
+        push!(service.executor_execution_ids, materialized.execution_id)
+        push!(updated_executions, materialized)
+    end
+    return updated_executions
 end
 
 function process_stream_worker_tick!(

@@ -15,7 +15,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
 - P2 is closed for Kustomize-backed ArgoCD workload manifests and provider-neutral dependency seams.
 - Repo-local skill surfaces now exist for control-loop, Julia, frontend, and provider-deployment work.
 - First frontend module expansion slice is complete: published BI viewer row search filters visible chart rows and filtered CSV export without changing contracts.
-- Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, try/catch failure-recovery routing, catch-branch worker execution, DAG branch rescheduling, and general executor stage-schedule evidence slices: covered failed nodes queue catch work, worker-service schedules catch branch DAG stages, execution records carry bounded topological executor schedules, and Monitor surfaces branch/stage/scheduler evidence.
+- Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, try/catch failure-recovery routing, catch-branch worker execution, DAG branch rescheduling, executor stage-schedule evidence, and metadata-only multi-tick executor scheduling slices: covered failed nodes queue catch work, worker-service schedules catch branch DAG stages, execution records carry bounded topological executor schedules, and Monitor surfaces branch/stage/scheduler progress.
 - Governed Hub production-depth proof now records verification evidence, blocks unsafe sandbox/hash/mirror install paths, executes an env-gated allowlisted sandbox fixture, verifies downloaded artifact hashes from a local artifact-store registry, and resolves private/offline mirror refs through a local registry.
 - Final multi-GPU closure remains intentionally deferred until a runner with `>=2` visible CUDA devices exists.
 
@@ -43,7 +43,8 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
    - Catch-node compute / worker branch-state slice is complete as of 2026-05-17.
    - General DAG branch rescheduling for catch branches is complete as of 2026-05-17.
    - Executor stage-schedule evidence for general workflow DAGs is complete as of 2026-05-17.
-   - Next Julia runtime follow-up: true asynchronous multi-tick executor scheduling beyond additive stage evidence.
+   - Metadata-only multi-tick executor scheduling is complete as of 2026-05-17.
+   - Next Julia runtime follow-up: bind real node execution/output/error handling into staged executor ticks.
    - Use `juliaflow-julia-development`, `julia-coding`, and `julia-debugging`; verify with Julia tests and contract tests.
 
 5. **Governed Hub production depth**
@@ -105,6 +106,13 @@ Verification evidence for this slice: Julia/frontend/contract tests, build, cove
 ## Latest Completed Slice — 2026-05-17 Runtime Executor Schedule
 
 **Julia runtime module expansion / executor stage-schedule slice** is complete. Execution records now derive a bounded topological `executorSchedule` for general workflow DAGs with stage indexes, node IDs, lanes, worker pools, readiness barriers, max concurrency, and scheduler policy. Gateway payloads, TS/OpenAPI contracts, Monitor UI, and tests expose the evidence without implementing asynchronous multi-tick execution.
+
+Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:coverage`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+
+
+## Latest Completed Slice — 2026-05-17 Runtime Multi-Tick Executor
+
+**Julia runtime module expansion / metadata-only multi-tick executor slice** is complete. Worker-service now advances CPU batch executions over existing `executorSchedule` one bounded stage per tick: accepted to queued, queued to running, running stage progress through append-only events, and final stage to completed. Gateway payloads, TS/OpenAPI contracts, Monitor UI, and tests expose `executorState` without executing real node compute.
 
 Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:coverage`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 

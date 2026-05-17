@@ -7,6 +7,7 @@ import type {
   GatewayControlFlowRecovery,
   GatewayExecutionRecord,
   GatewayExecutorScheduleStage,
+  GatewayExecutorState,
   GatewayExecutionStatus,
   GatewayWorkflowMetadata,
   GatewayWorkflowSummary,
@@ -39,6 +40,7 @@ export interface ExecutionRailItem {
   controlFlowRecovery?: GatewayControlFlowRecovery;
   controlFlowBranchState?: GatewayControlFlowBranchState;
   executorSchedule?: GatewayExecutorScheduleStage[];
+  executorState?: GatewayExecutorState;
 }
 
 export interface CheckpointRailItem {
@@ -593,7 +595,8 @@ export function buildExecutionRailItems(records: GatewayExecutionRecord[]): Exec
       controlFlowPlan: record.controlFlowPlan,
       controlFlowRecovery: record.controlFlowRecovery,
       controlFlowBranchState: record.controlFlowBranchState,
-      executorSchedule: record.executorSchedule
+      executorSchedule: record.executorSchedule,
+      executorState: record.executorState
     };
   });
 }

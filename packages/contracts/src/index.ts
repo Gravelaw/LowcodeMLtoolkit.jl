@@ -710,6 +710,25 @@ export interface GatewayExecutorScheduleStage {
   bounded: boolean;
 }
 
+
+export interface GatewayExecutorStageResult {
+  stageIndex: number;
+  nodeIds: string[];
+  status: "completed" | string;
+}
+
+export interface GatewayExecutorState {
+  status: "queued" | "running" | "completed" | string;
+  currentStageIndex: number;
+  stageCount: number;
+  activeNodeIds: string[];
+  completedNodeIds: string[];
+  completedStageIndexes: number[];
+  workerId: string;
+  bounded: boolean;
+  stageResults: GatewayExecutorStageResult[];
+}
+
 export interface GatewayExecutionRecord {
   executionId: string;
   workflowId: string;
@@ -746,6 +765,7 @@ export interface GatewayExecutionRecord {
     workerCapacity?: Record<string, unknown>;
   }>;
   executorSchedule?: GatewayExecutorScheduleStage[];
+  executorState?: GatewayExecutorState;
   dispatchLane?: WorkflowResourceClass;
   dispatchWorkerPool?: string;
   dispatchIsolationMode?: "shared" | "isolated";

@@ -1970,6 +1970,84 @@
                 }
               }
             }
+          },
+          "executorState": {
+            "type": "object",
+            "required": [
+              "status",
+              "currentStageIndex",
+              "stageCount",
+              "activeNodeIds",
+              "completedNodeIds",
+              "completedStageIndexes",
+              "workerId",
+              "bounded",
+              "stageResults"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "currentStageIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "stageCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "activeNodeIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "completedNodeIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "completedStageIndexes": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "workerId": {
+                "type": "string"
+              },
+              "bounded": {
+                "type": "boolean"
+              },
+              "stageResults": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "stageIndex",
+                    "nodeIds",
+                    "status"
+                  ],
+                  "properties": {
+                    "stageIndex": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "nodeIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "additionalProperties": true

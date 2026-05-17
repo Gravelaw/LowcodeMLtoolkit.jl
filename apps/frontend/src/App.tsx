@@ -4542,6 +4542,16 @@ function App() {
                               </span>
                             </div>
                           ) : null}
+                          {item.executorState ? (
+                            <div className="inspector-row">
+                              <strong>Executor state</strong>
+                              <span>
+                                executor {item.executorState.status} · stage {item.executorState.currentStageIndex}/
+                                {item.executorState.stageCount} · active {item.executorState.activeNodeIds.length} · completed{" "}
+                                {item.executorState.completedNodeIds.length}
+                              </span>
+                            </div>
+                          ) : null}
                           {item.controlFlowBranchState ? (
                             <div className="inspector-row">
                               <strong>Branch</strong>

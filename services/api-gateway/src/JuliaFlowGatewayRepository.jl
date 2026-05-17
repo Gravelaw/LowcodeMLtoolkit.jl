@@ -562,6 +562,24 @@ function execution_payload(execution::GatewayExecution)
                         "bounded" => Bool(get(item, "bounded", false)),
                     ) for item in value
                 ]
+            elseif string_key == "executor_state"
+                payload["executorState"] = Dict{String,Any}(
+                    "status" => String(get(value, "status", "")),
+                    "currentStageIndex" => Int(get(value, "current_stage_index", 0)),
+                    "stageCount" => Int(get(value, "stage_count", 0)),
+                    "activeNodeIds" => [String(node_id) for node_id in get(value, "active_node_ids", Any[])],
+                    "completedNodeIds" => [String(node_id) for node_id in get(value, "completed_node_ids", Any[])],
+                    "completedStageIndexes" => [Int(index) for index in get(value, "completed_stage_indexes", Any[])],
+                    "workerId" => String(get(value, "worker_id", "")),
+                    "bounded" => Bool(get(value, "bounded", false)),
+                    "stageResults" => [
+                        Dict{String,Any}(
+                            "stageIndex" => Int(get(item, "stage_index", 0)),
+                            "nodeIds" => [String(node_id) for node_id in get(item, "node_ids", Any[])],
+                            "status" => String(get(item, "status", "")),
+                        ) for item in get(value, "stage_results", Any[])
+                    ],
+                )
             elseif string_key == "observability_trace"
                 payload["observabilityTrace"] = value
             elseif string_key == "stream_lifecycle_status"
@@ -886,6 +904,24 @@ function gateway_execution(item)
                     "bounded" => Bool(get(item, "bounded", false)),
                 ) for item in value
             ]
+        elseif string_key == "executorState"
+            metadata["executor_state"] = Dict{String,Any}(
+                "status" => String(get(value, "status", "")),
+                "current_stage_index" => Int(get(value, "currentStageIndex", 0)),
+                "stage_count" => Int(get(value, "stageCount", 0)),
+                "active_node_ids" => [String(node_id) for node_id in get(value, "activeNodeIds", Any[])],
+                "completed_node_ids" => [String(node_id) for node_id in get(value, "completedNodeIds", Any[])],
+                "completed_stage_indexes" => [Int(index) for index in get(value, "completedStageIndexes", Any[])],
+                "worker_id" => String(get(value, "workerId", "")),
+                "bounded" => Bool(get(value, "bounded", false)),
+                "stage_results" => [
+                    Dict{String,Any}(
+                        "stage_index" => Int(get(item, "stageIndex", 0)),
+                        "node_ids" => [String(node_id) for node_id in get(item, "nodeIds", Any[])],
+                        "status" => String(get(item, "status", "")),
+                    ) for item in get(value, "stageResults", Any[])
+                ],
+            )
         elseif string_key == "streamLifecycleStatus"
             metadata["stream_lifecycle_status"] = value
         elseif string_key == "streamAdapter"
