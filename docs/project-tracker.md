@@ -1880,3 +1880,28 @@ After any meaningful job:
 - Complete full verification, clean code review, commit, push, and remote publication verification.
 - If provider/credential context appears, prioritize provider-specific deployment and object-store proof.
 - Otherwise continue runtime depth by binding the callback seam to full base-extension dataflow/payload propagation, or switch to frontend/Hub polish if runtime scope should pause.
+
+---
+
+## Update: Runtime Executor Base-Extension Dataflow Binding Slice — 2026-05-18
+
+### Work Done Till Date
+
+- Completed the next unblocked `R-RUNTIME-001` slice after provider deployment, object-store, external registry, and GPU gates remained externally blocked.
+- Base extension now exposes an `ExecutorDataflowState` and `execute_executor_dataflow_node!` helper for executor callbacks.
+- The helper resolves registered base nodes, builds `NodeContext` inputs from upstream executor outputs, executes source/transform/sink nodes, stores Arrow IPC payloads for downstream nodes, and returns row/output/persisted-ref telemetry.
+- Julia runtime tests now prove staged executor ticks can run a real base source -> filter -> sink chain and persist executor node results.
+- Extension tests now prove the helper runs base source/filter nodes directly.
+
+### Gaps Pending
+
+- Broader callback-bound dataflow coverage across all base nodes and production scheduling policies remains future runtime work.
+- Provider-specific deployment proof and remote object-store proof still require selected provider, cluster, and credentials.
+- External Hub registry/provider mirror proof still requires registry/provider context.
+- Final GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete full verification, clean code review, commit, push, and remote publication verification.
+- If provider/credential context appears, prioritize provider-specific deployment and object-store proof.
+- Otherwise continue runtime depth by broadening callback-bound dataflow coverage and production scheduling policy evidence, or switch to frontend/Hub polish if runtime scope should pause.

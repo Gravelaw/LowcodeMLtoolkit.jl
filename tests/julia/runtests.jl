@@ -613,6 +613,116 @@ end
     @test occursin("fixture executor failure", executor_error_payload["executorState"]["errorMessage"])
     @test JuliaFlowApiGateway.node_runtime_status("node-left", executor_error_executions[1]) == "error"
 
+    executor_dataflow_workflow = load_workflow_definition_text("""
+    version = "0.1.0"
+
+    [workflow]
+    id = "wf-executor-dataflow"
+    name = "Executor Dataflow"
+
+    [runtime]
+    run_mode = "batch"
+
+    [[nodes]]
+    id = "node-source"
+    name = "Source"
+    type = "base.arrow_table_source"
+    execution_hint = "cpu_only"
+    ports = [{ id = "source_out", direction = "output", type = "data_table" }]
+    config = { output_port_id = "source_out", ref = "object://executor/source.arrow" }
+
+    [[nodes]]
+    id = "node-filter"
+    name = "Filter"
+    type = "base.filter_rows"
+    execution_hint = "cpu_only"
+    ports = [
+      { id = "table_in", direction = "input", type = "data_table" },
+      { id = "table_out", direction = "output", type = "data_table" }
+    ]
+    config = { input_port_id = "table_in", output_port_id = "table_out", predicate = "amount >= 100" }
+
+    [[nodes]]
+    id = "node-sink"
+    name = "Sink"
+    type = "base.arrow_table_sink"
+    execution_hint = "cpu_only"
+    ports = [{ id = "table_in", direction = "input", type = "data_table" }]
+    config = { input_port_id = "table_in", destination_uri = "warehouse://executor/result.arrow", mode = "overwrite" }
+
+    [[connections]]
+    source_node_id = "node-source"
+    source_port_id = "source_out"
+    target_node_id = "node-filter"
+    target_port_id = "table_in"
+    data_type = "data_table"
+
+    [[connections]]
+    source_node_id = "node-filter"
+    source_port_id = "table_out"
+    target_node_id = "node-sink"
+    target_port_id = "table_in"
+    data_type = "data_table"
+    """)
+    dataflow_writer = Ref{Any}(nothing)
+    dataflow_state = ExecutorDataflowState(
+        metadata = Dict{String,Any}(
+            "tabular_ref_reader" => (ref, _context) -> begin
+                @test ref == "object://executor/source.arrow"
+                return (
+                    rows = [
+                        Dict("region" => "west", "amount" => 120.0),
+                        Dict("region" => "east", "amount" => 80.0),
+                        Dict("region" => "north", "amount" => 200.0),
+                    ],
+                    schema = ["region", "amount"],
+                    adapter = "executor_reader",
+                )
+            end,
+            "tabular_ref_writer" => (destination_uri, rows, _context) -> begin
+                dataflow_writer[] = (destination_uri = destination_uri, rows = rows)
+                return (ref = destination_uri, row_count = length(rows), adapter = "executor_writer")
+            end,
+        ),
+    )
+    dataflow_executions = GatewayExecution[]
+    push!(
+        dataflow_executions,
+        JuliaFlowApiGateway.materialize_execution(
+            execute_workflow(executor_dataflow_workflow; checkpoint_tag = "cp/executor-dataflow"),
+        ),
+    )
+    dataflow_service = WorkerServiceState()
+    dataflow_workflows = Dict(executor_dataflow_workflow.id => executor_dataflow_workflow)
+    for _ in 1:5
+        process_executor_schedule_tick!(
+            dataflow_service,
+            dataflow_executions;
+            workflows = dataflow_workflows,
+            execute_stage_node = (workflow, execution, node_id) ->
+                execute_executor_dataflow_node!(dataflow_state, workflow, execution, node_id),
+            execution_record = JuliaFlowApiGateway.execution_record,
+            transition_execution_record = transition_execution_record,
+            append_execution_event = append_execution_event,
+            materialize_execution = JuliaFlowApiGateway.materialize_execution,
+        )
+    end
+    dataflow_executor_state = dataflow_executions[1].metadata["executor_state"]
+    @test dataflow_executions[1].status == "completed"
+    @test length(dataflow_executor_state["node_results"]) == 3
+    @test dataflow_executor_state["node_results"][1]["node_key"] == ARROW_TABLE_SOURCE_NODE_KEY
+    @test dataflow_executor_state["node_results"][1]["row_count"] == 3
+    @test dataflow_executor_state["node_results"][2]["node_key"] == FILTER_ROWS_NODE_KEY
+    @test dataflow_executor_state["node_results"][2]["row_count"] == 2
+    @test dataflow_executor_state["node_results"][3]["node_key"] == ARROW_TABLE_SINK_NODE_KEY
+    @test dataflow_executor_state["node_results"][3]["persisted_ref"] == "warehouse://executor/result.arrow"
+    @test dataflow_writer[].destination_uri == "warehouse://executor/result.arrow"
+    @test length(dataflow_writer[].rows) == 2
+    @test haskey(dataflow_state.outputs["node-filter"], "table_out")
+    dataflow_payload = JuliaFlowApiGateway.execution_payload(dataflow_executions[1])
+    @test dataflow_payload["executorState"]["nodeResults"][2]["rowCount"] == 2
+    @test JuliaFlowApiGateway.node_runtime_status("node-sink", dataflow_executions[1]) == "executed"
+
     function complete_gpu_workflow_once(workflow; registry = "mock:nvidia0")
         withenv("JULIAFLOW_GPU_REGISTRY" => registry) do
             local_executions = GatewayExecution[]

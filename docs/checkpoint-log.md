@@ -1934,3 +1934,26 @@ Each checkpoint entry must contain:
 - Run full verification and code review for this slice.
 - Commit and push after gates pass.
 - Continue full dataflow/payload execution binding unless provider context becomes available first.
+
+---
+
+## Checkpoint: Julia Runtime Module Expansion / Base-Extension Dataflow Binding Slice — 2026-05-18
+
+### Work Done Till Date
+
+- Added a focused base-extension executor dataflow helper for staged executor callbacks.
+- Executor callbacks can now execute registered base source/transform/sink nodes, propagate Arrow IPC payloads through stored stage outputs, and return row/output/persisted-ref telemetry.
+- Julia regression tests, extension tests, and control docs were synchronized.
+
+### Gaps Pending
+
+- Broader callback-bound dataflow coverage across all base nodes and production scheduling policies remains open.
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
+- External Hub registry/provider mirror proof remains gated on external registry/provider context.
+- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+
+### Next Items To Implement
+
+- Run full verification and code review for this slice.
+- Commit and push after gates pass.
+- Continue broader executor dataflow coverage unless provider context becomes available first.

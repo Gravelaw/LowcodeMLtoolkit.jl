@@ -597,6 +597,50 @@ end
     end
 end
 
+@testset "Executor dataflow helper runs base nodes" begin
+    source_node = (
+        id = "node-source",
+        type = ARROW_TABLE_SOURCE_NODE_KEY,
+        config = Dict("output_port_id" => "source_out", "ref" => "object://demo/source.arrow"),
+    )
+    filter_node = (
+        id = "node-filter",
+        type = FILTER_ROWS_NODE_KEY,
+        config = Dict("input_port_id" => "table_in", "output_port_id" => "table_out", "predicate" => "amount >= 100"),
+    )
+    workflow = (
+        id = string(uuid4()),
+        nodes = [source_node, filter_node],
+        connections = [
+            (
+                source_node_id = "node-source",
+                source_port_id = "source_out",
+                target_node_id = "node-filter",
+                target_port_id = "table_in",
+            ),
+        ],
+    )
+    execution = (execution_id = string(uuid4()),)
+    state = ExecutorDataflowState(
+        metadata = Dict{String,Any}(
+            "tabular_ref_reader" => (ref, _context) -> begin
+                @test ref == "object://demo/source.arrow"
+                return (rows = SAMPLE_ROWS, schema = ["region", "amount"], adapter = "executor_reader")
+            end,
+        ),
+    )
+
+    source_result = execute_executor_dataflow_node!(state, workflow, execution, "node-source")
+    filter_result = execute_executor_dataflow_node!(state, workflow, execution, "node-filter")
+
+    @test source_result["node_key"] == ARROW_TABLE_SOURCE_NODE_KEY
+    @test source_result["row_count"] == 3
+    @test haskey(state.outputs["node-source"], "source_out")
+    @test filter_result["node_key"] == FILTER_ROWS_NODE_KEY
+    @test filter_result["row_count"] == 2
+    @test state.outputs["node-filter"]["table_out"].row_count == 2
+end
+
 @testset "Linear model trainer node" begin
     execution_id = uuid4()
     node_id = uuid4()

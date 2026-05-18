@@ -494,7 +494,122 @@ export ArrowPassthroughNode,
     AGGREGATE_ROWS_INPUT_PORT_ID,
     AGGREGATE_ROWS_OUTPUT_PORT_ID,
     available_nodes,
-    execute_passthrough
+    execute_passthrough,
+    ExecutorDataflowState,
+    execute_executor_dataflow_node!
+
+Base.@kwdef mutable struct ExecutorDataflowState
+    outputs::Dict{String,Dict{String,Any}} = Dict{String,Dict{String,Any}}()
+    metadata::Dict{String,Any} = Dict{String,Any}()
+end
+
+function workflow_node_by_id(workflow, node_id::AbstractString)
+    requested = String(node_id)
+    for node in workflow.nodes
+        String(node.id) == requested && return node
+    end
+    error("workflow node not found: $(node_id)")
+end
+
+function base_node_key(node)
+    configured = get(node.config, "node_key", get(node.config, "nodeKey", node.type))
+    key = String(configured)
+    haskey(NODE_REGISTRY, key) && return key
+    lower_key = lowercase(key)
+    haskey(NODE_REGISTRY, lower_key) && return lower_key
+    error("base extension node type not registered: $(key)")
+end
+
+function executor_dataflow_inputs(state::ExecutorDataflowState, workflow, node_id::AbstractString)
+    inputs = Dict{String,NamedTuple}()
+    for connection in workflow.connections
+        String(connection.target_node_id) == String(node_id) || continue
+        source_id = String(connection.source_node_id)
+        source_port = String(connection.source_port_id)
+        target_port = String(connection.target_port_id)
+        source_outputs = get(state.outputs, source_id, nothing)
+        source_outputs === nothing && error("missing executor dataflow output for node $(source_id)")
+        haskey(source_outputs, source_port) || error("missing executor dataflow output port $(source_port)")
+        payload = source_outputs[source_port]
+        payload isa NamedTuple || error("executor dataflow payload must be a NamedTuple")
+        inputs[target_port] = payload
+    end
+    return inputs
+end
+
+function output_refs(outputs::AbstractDict)
+    refs = String[]
+    for output in values(outputs)
+        output isa NamedTuple || continue
+        haskey(output, :ref) && push!(refs, String(output.ref))
+    end
+    return refs
+end
+
+function result_row_count(result::NodeResult)
+    row_count = get(result.telemetry, "row_count", nothing)
+    row_count === nothing || return Int(row_count)
+    for output in values(result.outputs)
+        output isa NamedTuple || continue
+        haskey(output, :row_count) && return Int(output.row_count)
+        if haskey(output, :rows) && output.rows isa AbstractVector
+            return length(output.rows)
+        end
+    end
+    return 0
+end
+
+function result_output_kind(result::NodeResult)
+    !isempty(result.outputs) && return "node"
+    haskey(result.telemetry, "persisted_ref") && return "sink"
+    haskey(result.telemetry, "persisted_path") && return "sink"
+    return "node"
+end
+
+function executor_node_result(node, key::String, result::NodeResult)
+    refs = output_refs(result.outputs)
+    haskey(result.telemetry, "output_ref") && push!(refs, String(result.telemetry["output_ref"]))
+    haskey(result.telemetry, "persisted_ref") && push!(refs, String(result.telemetry["persisted_ref"]))
+    node_result = Dict{String,Any}(
+        "node_id" => String(node.id),
+        "node_type" => String(node.type),
+        "status" => "executed",
+        "output_kind" => result_output_kind(result),
+        "row_count" => result_row_count(result),
+        "output_refs" => unique(refs),
+        "node_key" => key,
+    )
+    isempty(result.warnings) || (node_result["warnings"] = copy(result.warnings))
+    haskey(result.telemetry, "persisted_path") && (node_result["persisted_path"] = String(result.telemetry["persisted_path"]))
+    haskey(result.telemetry, "persisted_ref") && (node_result["persisted_ref"] = String(result.telemetry["persisted_ref"]))
+    return node_result
+end
+
+function executor_context_uuid(value)
+    return try
+        UUID(String(value))
+    catch
+        uuid4()
+    end
+end
+
+function execute_executor_dataflow_node!(state::ExecutorDataflowState, workflow, execution, node_id::AbstractString)
+    node = workflow_node_by_id(workflow, node_id)
+    key = base_node_key(node)
+    node_type = NODE_REGISTRY[key]
+    config = configure(node_type, node.config)
+    context = NodeContext(
+        workflow_id = executor_context_uuid(workflow.id),
+        execution_id = executor_context_uuid(execution.execution_id),
+        node_id = uuid4(),
+        inputs = executor_dataflow_inputs(state, workflow, node_id),
+        config = config,
+        metadata = state.metadata,
+    )
+    result = execute(node_type, context)
+    state.outputs[String(node_id)] = Dict{String,Any}(String(port) => payload for (port, payload) in pairs(result.outputs))
+    return executor_node_result(node, key, result)
+end
 
 function available_nodes()
     return copy(NODE_REGISTRY)

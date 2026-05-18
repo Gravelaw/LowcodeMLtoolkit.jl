@@ -1,6 +1,6 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 ## Current Phase
 
@@ -15,7 +15,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
 - P2 is closed for Kustomize-backed ArgoCD workload manifests and provider-neutral dependency seams.
 - Repo-local skill surfaces now exist for control-loop, Julia, frontend, and provider-deployment work.
 - First frontend module expansion slice is complete: published BI viewer row search filters visible chart rows and filtered CSV export without changing contracts.
-- Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, try/catch failure-recovery routing, catch-branch worker execution, DAG branch rescheduling, executor stage-schedule evidence, metadata-only multi-tick executor scheduling, and executor node result/error binding slices: covered failed nodes queue catch work, worker-service schedules catch branch DAG stages, execution records carry bounded topological executor schedules, staged executor ticks can persist node output/error telemetry, and Monitor surfaces branch/stage/scheduler progress.
+- Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, try/catch failure-recovery routing, catch-branch worker execution, DAG branch rescheduling, executor stage-schedule evidence, metadata-only multi-tick executor scheduling, executor node result/error binding, and base-extension dataflow binding slices: covered failed nodes queue catch work, worker-service schedules catch branch DAG stages, execution records carry bounded topological executor schedules, staged executor ticks persist node output/error telemetry, and base extension source/transform/sink nodes can propagate Arrow IPC payloads through executor callbacks.
 - Governed Hub production-depth proof now records verification evidence, blocks unsafe sandbox/hash/mirror install paths, executes an env-gated allowlisted sandbox fixture, verifies downloaded artifact hashes from a local artifact-store registry, and resolves private/offline mirror refs through a local registry.
 - Final multi-GPU closure remains intentionally deferred until a runner with `>=2` visible CUDA devices exists.
 
@@ -45,7 +45,8 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
    - Executor stage-schedule evidence for general workflow DAGs is complete as of 2026-05-17.
    - Metadata-only multi-tick executor scheduling is complete as of 2026-05-17.
    - Executor node result/error binding is complete as of 2026-05-17.
-   - Next Julia runtime follow-up: bind the callback seam to the full base-extension dataflow engine and payload propagation.
+   - Base-extension dataflow callback binding is complete as of 2026-05-18.
+   - Next Julia runtime follow-up: expand callback-bound dataflow from the focused base source/transform/sink path to broader node coverage and production scheduling policies.
    - Use `juliaflow-julia-development`, `julia-coding`, and `julia-debugging`; verify with Julia tests and contract tests.
 
 5. **Governed Hub production depth**
@@ -123,6 +124,13 @@ Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl
 **Julia runtime module expansion / executor node result-error binding slice** is complete. Worker-service executor ticks now accept bounded workflow/node execution callbacks, persist per-stage and flattened node output telemetry under `executorState`, and fail fast with failed-node/error metadata when a staged node errors. Gateway payloads, TS/OpenAPI contracts, Monitor UI, and tests expose node-result and error details while keeping full base-extension dataflow execution as a future slice.
 
 Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:coverage`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+
+
+## Latest Completed Slice — 2026-05-18 Runtime Executor Dataflow
+
+**Julia runtime module expansion / base-extension dataflow binding slice** is complete. The base extension now exposes an `ExecutorDataflowState` plus `execute_executor_dataflow_node!` callback helper that resolves registered base nodes, builds `NodeContext` inputs from upstream executor outputs, executes real source/transform/sink nodes, stores downstream Arrow IPC payloads, and returns executor node-result telemetry with row counts/output refs/persisted refs. Worker-service staged executor ticks can use this callback seam without changing stream/GPU ownership.
+
+Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl`, `julia --project=. extensions/base/test/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:coverage`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
 ## Latest Completed Slice — 2026-05-17 Hub
 
