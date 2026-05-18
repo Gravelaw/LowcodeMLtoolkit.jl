@@ -597,48 +597,75 @@ end
     end
 end
 
-@testset "Executor dataflow helper runs base nodes" begin
+@testset "Executor dataflow helper resolves authored base aliases" begin
     source_node = (
         id = "node-source",
-        type = ARROW_TABLE_SOURCE_NODE_KEY,
-        config = Dict("output_port_id" => "source_out", "ref" => "object://demo/source.arrow"),
+        type = "JuliaFlow.Base.CSVReader",
+        config = Dict("path" => "object://demo/source.arrow"),
+        ports = [(id = "source_out", direction = "output", type = "data_table")],
     )
-    filter_node = (
-        id = "node-filter",
-        type = FILTER_ROWS_NODE_KEY,
-        config = Dict("input_port_id" => "table_in", "output_port_id" => "table_out", "predicate" => "amount >= 100"),
+    select_node = (
+        id = "node-select",
+        type = "JuliaFlow.Base.ColumnSelect",
+        config = Dict("columns" => ["region", "amount"]),
+        ports = [
+            (id = "table_in", direction = "input", type = "data_table"),
+            (id = "table_out", direction = "output", type = "data_table"),
+        ],
+    )
+    sink_node = (
+        id = "node-sink",
+        type = "JuliaFlow.Base.ArrowSink",
+        config = Dict("destination" => "warehouse://demo/selected.arrow"),
+        ports = [(id = "table_in", direction = "input", type = "data_table")],
     )
     workflow = (
         id = string(uuid4()),
-        nodes = [source_node, filter_node],
+        nodes = [source_node, select_node, sink_node],
         connections = [
             (
                 source_node_id = "node-source",
                 source_port_id = "source_out",
-                target_node_id = "node-filter",
+                target_node_id = "node-select",
+                target_port_id = "table_in",
+            ),
+            (
+                source_node_id = "node-select",
+                source_port_id = "table_out",
+                target_node_id = "node-sink",
                 target_port_id = "table_in",
             ),
         ],
     )
     execution = (execution_id = string(uuid4()),)
+    writer_result = Ref{Any}(nothing)
     state = ExecutorDataflowState(
         metadata = Dict{String,Any}(
             "tabular_ref_reader" => (ref, _context) -> begin
                 @test ref == "object://demo/source.arrow"
                 return (rows = SAMPLE_ROWS, schema = ["region", "amount"], adapter = "executor_reader")
             end,
+            "tabular_ref_writer" => (destination_uri, rows, _context) -> begin
+                writer_result[] = (destination_uri = destination_uri, rows = rows)
+                return (ref = destination_uri, row_count = length(rows), adapter = "executor_writer")
+            end,
         ),
     )
 
     source_result = execute_executor_dataflow_node!(state, workflow, execution, "node-source")
-    filter_result = execute_executor_dataflow_node!(state, workflow, execution, "node-filter")
+    select_result = execute_executor_dataflow_node!(state, workflow, execution, "node-select")
+    sink_result = execute_executor_dataflow_node!(state, workflow, execution, "node-sink")
 
     @test source_result["node_key"] == ARROW_TABLE_SOURCE_NODE_KEY
     @test source_result["row_count"] == 3
     @test haskey(state.outputs["node-source"], "source_out")
-    @test filter_result["node_key"] == FILTER_ROWS_NODE_KEY
-    @test filter_result["row_count"] == 2
-    @test state.outputs["node-filter"]["table_out"].row_count == 2
+    @test select_result["node_key"] == SELECT_COLUMNS_NODE_KEY
+    @test select_result["row_count"] == 3
+    @test state.outputs["node-select"]["table_out"].schema == ["region", "amount"]
+    @test sink_result["node_key"] == ARROW_TABLE_SINK_NODE_KEY
+    @test sink_result["persisted_ref"] == "warehouse://demo/selected.arrow"
+    @test writer_result[].destination_uri == "warehouse://demo/selected.arrow"
+    @test length(writer_result[].rows) == 3
 end
 
 @testset "Linear model trainer node" begin

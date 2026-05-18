@@ -1957,3 +1957,27 @@ Each checkpoint entry must contain:
 - Run full verification and code review for this slice.
 - Commit and push after gates pass.
 - Continue broader executor dataflow coverage unless provider context becomes available first.
+
+---
+
+## Checkpoint: Julia Runtime Module Expansion / Executor Dataflow Authored-Alias Coverage Slice — 2026-05-18
+
+### Work Done Till Date
+
+- Added authored-node alias coverage to the base-extension executor dataflow helper.
+- UI/contract-style base node types now resolve into canonical base node keys for staged executor callbacks.
+- Authored workflow ports now supply default input/output port IDs for source, transform, aggregate, and sink nodes.
+- Julia runtime and extension regressions cover alias-authored Arrow IPC dataflow through staged executor ticks.
+
+### Gaps Pending
+
+- Production scheduling policy evidence for callback-bound executor dataflow remains open.
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
+- External Hub registry/provider mirror proof remains gated on external registry/provider context.
+- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+
+### Next Items To Implement
+
+- Run full verification and code review for this slice.
+- Commit and push after gates pass.
+- Continue production scheduling policy evidence unless provider context becomes available first.

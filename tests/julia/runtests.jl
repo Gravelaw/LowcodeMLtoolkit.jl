@@ -626,39 +626,57 @@ end
     [[nodes]]
     id = "node-source"
     name = "Source"
-    type = "base.arrow_table_source"
+    type = "JuliaFlow.Base.CSVReader"
     execution_hint = "cpu_only"
     ports = [{ id = "source_out", direction = "output", type = "data_table" }]
-    config = { output_port_id = "source_out", ref = "object://executor/source.arrow" }
+    config = { path = "object://executor/source.arrow" }
 
     [[nodes]]
-    id = "node-filter"
-    name = "Filter"
-    type = "base.filter_rows"
+    id = "node-select"
+    name = "Select"
+    type = "JuliaFlow.Base.ColumnSelect"
     execution_hint = "cpu_only"
     ports = [
       { id = "table_in", direction = "input", type = "data_table" },
       { id = "table_out", direction = "output", type = "data_table" }
     ]
-    config = { input_port_id = "table_in", output_port_id = "table_out", predicate = "amount >= 100" }
+    config = { columns = ["region", "amount"] }
+
+    [[nodes]]
+    id = "node-aggregate"
+    name = "Aggregate"
+    type = "JuliaFlow.Base.AggregateRows"
+    execution_hint = "cpu_only"
+    ports = [
+      { id = "table_in", direction = "input", type = "data_table" },
+      { id = "table_out", direction = "output", type = "data_table" }
+    ]
+    config = { group_by = ["region"], aggregation = "sum", value_column = "amount" }
 
     [[nodes]]
     id = "node-sink"
     name = "Sink"
-    type = "base.arrow_table_sink"
+    type = "JuliaFlow.Base.ArrowSink"
     execution_hint = "cpu_only"
     ports = [{ id = "table_in", direction = "input", type = "data_table" }]
-    config = { input_port_id = "table_in", destination_uri = "warehouse://executor/result.arrow", mode = "overwrite" }
+    config = { destination = "warehouse://executor/result.arrow", mode = "overwrite" }
 
     [[connections]]
     source_node_id = "node-source"
     source_port_id = "source_out"
-    target_node_id = "node-filter"
+    target_node_id = "node-select"
     target_port_id = "table_in"
     data_type = "data_table"
 
     [[connections]]
-    source_node_id = "node-filter"
+    source_node_id = "node-select"
+    source_port_id = "table_out"
+    target_node_id = "node-aggregate"
+    target_port_id = "table_in"
+    data_type = "data_table"
+
+    [[connections]]
+    source_node_id = "node-aggregate"
     source_port_id = "table_out"
     target_node_id = "node-sink"
     target_port_id = "table_in"
@@ -694,7 +712,7 @@ end
     )
     dataflow_service = WorkerServiceState()
     dataflow_workflows = Dict(executor_dataflow_workflow.id => executor_dataflow_workflow)
-    for _ in 1:5
+    for _ in 1:8
         process_executor_schedule_tick!(
             dataflow_service,
             dataflow_executions;
@@ -709,18 +727,21 @@ end
     end
     dataflow_executor_state = dataflow_executions[1].metadata["executor_state"]
     @test dataflow_executions[1].status == "completed"
-    @test length(dataflow_executor_state["node_results"]) == 3
+    @test length(dataflow_executor_state["node_results"]) == 4
     @test dataflow_executor_state["node_results"][1]["node_key"] == ARROW_TABLE_SOURCE_NODE_KEY
     @test dataflow_executor_state["node_results"][1]["row_count"] == 3
-    @test dataflow_executor_state["node_results"][2]["node_key"] == FILTER_ROWS_NODE_KEY
-    @test dataflow_executor_state["node_results"][2]["row_count"] == 2
-    @test dataflow_executor_state["node_results"][3]["node_key"] == ARROW_TABLE_SINK_NODE_KEY
-    @test dataflow_executor_state["node_results"][3]["persisted_ref"] == "warehouse://executor/result.arrow"
+    @test dataflow_executor_state["node_results"][2]["node_key"] == SELECT_COLUMNS_NODE_KEY
+    @test dataflow_executor_state["node_results"][2]["row_count"] == 3
+    @test dataflow_executor_state["node_results"][3]["node_key"] == AGGREGATE_ROWS_NODE_KEY
+    @test dataflow_executor_state["node_results"][3]["row_count"] == 3
+    @test dataflow_executor_state["node_results"][4]["node_key"] == ARROW_TABLE_SINK_NODE_KEY
+    @test dataflow_executor_state["node_results"][4]["persisted_ref"] == "warehouse://executor/result.arrow"
     @test dataflow_writer[].destination_uri == "warehouse://executor/result.arrow"
-    @test length(dataflow_writer[].rows) == 2
-    @test haskey(dataflow_state.outputs["node-filter"], "table_out")
+    @test length(dataflow_writer[].rows) == 3
+    @test dataflow_writer[].rows[1]["region"] == "east"
+    @test haskey(dataflow_state.outputs["node-aggregate"], "table_out")
     dataflow_payload = JuliaFlowApiGateway.execution_payload(dataflow_executions[1])
-    @test dataflow_payload["executorState"]["nodeResults"][2]["rowCount"] == 2
+    @test dataflow_payload["executorState"]["nodeResults"][3]["rowCount"] == 3
     @test JuliaFlowApiGateway.node_runtime_status("node-sink", dataflow_executions[1]) == "executed"
 
     function complete_gpu_workflow_once(workflow; registry = "mock:nvidia0")

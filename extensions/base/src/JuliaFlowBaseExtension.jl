@@ -181,6 +181,22 @@ const NODE_REGISTRY = Dict(
     FEATURE_VECTOR_NODE_KEY => FeatureVectorNode,
 )
 
+const BASE_NODE_KEY_ALIAS_PAIRS = [
+    "JuliaFlow.Base.CSVReader" => ARROW_TABLE_SOURCE_NODE_KEY,
+    "JuliaFlow.Base.ArrowTableSource" => ARROW_TABLE_SOURCE_NODE_KEY,
+    "JuliaFlow.Base.ColumnSelect" => SELECT_COLUMNS_NODE_KEY,
+    "JuliaFlow.Base.Filter" => FILTER_ROWS_NODE_KEY,
+    "JuliaFlow.Base.FilterRows" => FILTER_ROWS_NODE_KEY,
+    "JuliaFlow.Base.AggregateRows" => AGGREGATE_ROWS_NODE_KEY,
+    "JuliaFlow.Base.ArrowSink" => ARROW_TABLE_SINK_NODE_KEY,
+    "JuliaFlow.Base.DataSink" => ARROW_TABLE_SINK_NODE_KEY,
+    "JuliaFlow.Base.ArrowTableSink" => ARROW_TABLE_SINK_NODE_KEY,
+    "JuliaFlow.Base.Passthrough" => DEFAULT_NODE_KEY,
+]
+const BASE_NODE_KEY_ALIASES = Dict{String,String}(
+    entry for (alias, node_key) in BASE_NODE_KEY_ALIAS_PAIRS for entry in ((alias => node_key), (lowercase(alias) => node_key))
+)
+
 export ArrowPassthroughNode,
     ArrowTableSourceNode,
     ArrowTableSinkNode,
@@ -515,9 +531,51 @@ function base_node_key(node)
     configured = get(node.config, "node_key", get(node.config, "nodeKey", node.type))
     key = String(configured)
     haskey(NODE_REGISTRY, key) && return key
+    alias_key = get(BASE_NODE_KEY_ALIASES, key, nothing)
+    alias_key === nothing || return alias_key
     lower_key = lowercase(key)
     haskey(NODE_REGISTRY, lower_key) && return lower_key
+    alias_key = get(BASE_NODE_KEY_ALIASES, lower_key, nothing)
+    alias_key === nothing || return alias_key
     error("base extension node type not registered: $(key)")
+end
+
+function first_node_port_id(node, direction::AbstractString)
+    hasproperty(node, :ports) || return nothing
+    requested = String(direction)
+    for port in getproperty(node, :ports)
+        hasproperty(port, :direction) || continue
+        String(getproperty(port, :direction)) == requested || continue
+        hasproperty(port, :id) || continue
+        return String(getproperty(port, :id))
+    end
+    return nothing
+end
+
+function set_config_default!(config::Dict{String,Any}, key::String, value)
+    haskey(config, key) && return
+    value === nothing && return
+    config[key] = value
+end
+
+function executor_dataflow_config(node, key::String)
+    config = Dict{String,Any}(String(config_key) => value for (config_key, value) in pairs(node.config))
+    input_port_id = first_node_port_id(node, "input")
+    output_port_id = first_node_port_id(node, "output")
+
+    if key == ARROW_TABLE_SOURCE_NODE_KEY
+        set_config_default!(config, "output_port_id", output_port_id)
+        set_config_default!(config, "ref", get(config, "path", nothing))
+    elseif key == ARROW_TABLE_SINK_NODE_KEY
+        set_config_default!(config, "input_port_id", input_port_id)
+        set_config_default!(config, "destination_uri", get(config, "destination", get(config, "path", nothing)))
+    else
+        set_config_default!(config, "input_port_id", input_port_id)
+        set_config_default!(config, "output_port_id", output_port_id)
+        key == FILTER_ROWS_NODE_KEY && set_config_default!(config, "predicate", get(config, "keep", nothing))
+    end
+
+    return config
 end
 
 function executor_dataflow_inputs(state::ExecutorDataflowState, workflow, node_id::AbstractString)
@@ -597,7 +655,7 @@ function execute_executor_dataflow_node!(state::ExecutorDataflowState, workflow,
     node = workflow_node_by_id(workflow, node_id)
     key = base_node_key(node)
     node_type = NODE_REGISTRY[key]
-    config = configure(node_type, node.config)
+    config = configure(node_type, executor_dataflow_config(node, key))
     context = NodeContext(
         workflow_id = executor_context_uuid(workflow.id),
         execution_id = executor_context_uuid(execution.execution_id),

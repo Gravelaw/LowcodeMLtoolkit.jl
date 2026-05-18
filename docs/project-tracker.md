@@ -1905,3 +1905,28 @@ After any meaningful job:
 - Complete full verification, clean code review, commit, push, and remote publication verification.
 - If provider/credential context appears, prioritize provider-specific deployment and object-store proof.
 - Otherwise continue runtime depth by broadening callback-bound dataflow coverage and production scheduling policy evidence, or switch to frontend/Hub polish if runtime scope should pause.
+
+---
+
+## Update: Runtime Executor Dataflow Authored-Alias Coverage Slice — 2026-05-18
+
+### Work Done Till Date
+
+- Completed the next unblocked `R-RUNTIME-001` slice after provider deployment, object-store, external registry, and GPU gates remained externally blocked.
+- Base extension executor callbacks now resolve approved UI/contract-style base node aliases to canonical registry keys.
+- Callback config normalization now derives source/sink/transform port defaults from authored workflow ports and maps source `path` / sink `destination` fallback fields to runtime config.
+- Julia runtime tests now prove an alias-authored source -> select -> aggregate -> sink chain completes through staged executor ticks with Arrow IPC payload propagation and executor node-result telemetry.
+- Extension tests now prove direct alias-authored source -> select -> sink helper execution.
+
+### Gaps Pending
+
+- Production scheduling policy evidence for callback-bound executor dataflow remains future runtime work.
+- Provider-specific deployment proof and remote object-store proof still require selected provider, cluster, and credentials.
+- External Hub registry/provider mirror proof still requires registry/provider context.
+- Final GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+
+### Next Items To Implement
+
+- Complete full verification, clean code review, commit, push, and remote publication verification.
+- If provider/credential context appears, prioritize provider-specific deployment and object-store proof.
+- Otherwise continue runtime depth with production scheduling policy evidence for callback-bound executor dataflow, or switch to frontend/Hub polish if runtime scope should pause.
