@@ -1930,3 +1930,27 @@ After any meaningful job:
 - Complete full verification, clean code review, commit, push, and remote publication verification.
 - If provider/credential context appears, prioritize provider-specific deployment and object-store proof.
 - Otherwise continue runtime depth with production scheduling policy evidence for callback-bound executor dataflow, or switch to frontend/Hub polish if runtime scope should pause.
+
+---
+
+## Update: Runtime Executor Dataflow Scheduling-Policy Evidence Slice — 2026-05-19
+
+### Work Done Till Date
+
+- Completed the next unblocked `R-RUNTIME-001` slice after provider deployment, object-store, external registry, and GPU gates remained externally blocked.
+- Executor schedule stages now include bounded callback-dataflow policy evidence with policy name, readiness barrier, eligible/source/sink node IDs, lanes, worker pools, max concurrency, and enabled flags.
+- Worker-service executor state now carries aggregated dataflow policy evidence while staged ticks progress and complete.
+- Gateway payload mapping, TypeScript contracts, OpenAPI schemas, Monitor UI, Julia tests, frontend tests, TODO, risk register, traceability, and plan were updated together.
+
+### Gaps Pending
+
+- Provider-specific deployment proof and remote object-store proof still require selected provider, cluster, and credentials.
+- External Hub registry/provider mirror proof still requires registry/provider context.
+- Final GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+- Frontend module depth remains available as the next unblocked local lane if provider context remains absent.
+
+### Next Items To Implement
+
+- Complete full verification, clean code review, commit, push, and remote publication verification.
+- If provider/credential context appears, prioritize provider-specific deployment and object-store proof.
+- Otherwise continue frontend module expansion, especially Monitor operational depth for executor policy/results or BI/Hub polish.

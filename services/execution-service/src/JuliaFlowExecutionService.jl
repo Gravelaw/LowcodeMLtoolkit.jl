@@ -44,6 +44,7 @@ const CONTROL_FLOW_KINDS = Set([:loop, :switch, :try_catch, :parallel_chunk])
 const LOOP_ITERATION_MODES = Set([:table_rows, :files, :parameter_range, :streaming_batches])
 const COMPONENT_FLOW_SCOPES = Set(["shared", "isolated"])
 const WORKFLOW_RESOURCE_CLASSES = Set([:cpu, :gpu])
+const EXECUTOR_DATAFLOW_POLICY_NAME = "callback_dataflow_stage_barrier"
 const EXECUTION_STATUS_TRANSITIONS = Dict(
     :accepted => Set([:queued, :failed]),
     :queued => Set([:running, :failed]),
@@ -1188,19 +1189,68 @@ function build_executor_schedule(workflow::WorkflowDefinition, stages::Vector{Ve
             push!(worker_pools, lane_worker_pool(workflow, lane))
         end
         lane_names = sort(unique(String(lane) for lane in lanes))
-        push!(schedule, Dict{String,Any}(
+        worker_pool_names = sort(unique(worker_pools))
+        entry = Dict{String,Any}(
             "stage_index" => Int(index),
             "node_ids" => copy(stage),
             "lanes" => lane_names,
-            "worker_pools" => sort(unique(worker_pools)),
+            "worker_pools" => worker_pool_names,
             "scheduler_policy" => "topological_stage_barrier",
             "ready_after_stage" => index == 1 ? 0 : Int(index - 1),
             "max_concurrency" => length(stage),
             "bounded" => true,
-        ))
+        )
+        dataflow_policy = executor_dataflow_stage_policy(
+            node_lookup,
+            stage,
+            lane_names,
+            worker_pool_names,
+            Int(index),
+        )
+        dataflow_policy === nothing || (entry["dataflow_policy"] = dataflow_policy)
+        push!(schedule, entry)
     end
 
     return schedule
+end
+
+function data_table_port_ids(node::WorkflowNode, direction::Symbol)
+    return [
+        String(port.id) for port in node.ports
+            if port.direction == direction && port.type == :data_table
+    ]
+end
+
+function executor_dataflow_stage_policy(node_lookup, stage, lanes, worker_pools, stage_index::Int)
+    eligible_node_ids = String[]
+    source_node_ids = String[]
+    sink_node_ids = String[]
+
+    for node_id in stage
+        node = node_lookup[String(node_id)]
+        input_ports = data_table_port_ids(node, :input)
+        output_ports = data_table_port_ids(node, :output)
+        isempty(input_ports) && isempty(output_ports) && continue
+        push!(eligible_node_ids, String(node_id))
+        isempty(input_ports) || !isempty(output_ports) || push!(sink_node_ids, String(node_id))
+        isempty(output_ports) || !isempty(input_ports) || push!(source_node_ids, String(node_id))
+    end
+
+    isempty(eligible_node_ids) && return nothing
+    return Dict{String,Any}(
+        "policy_name" => EXECUTOR_DATAFLOW_POLICY_NAME,
+        "callback_enabled" => true,
+        "dataflow_enabled" => true,
+        "stage_barrier" => "ready_after_previous_stage",
+        "stage_index" => stage_index,
+        "eligible_node_ids" => eligible_node_ids,
+        "source_node_ids" => source_node_ids,
+        "sink_node_ids" => sink_node_ids,
+        "lanes" => copy(lanes),
+        "worker_pools" => copy(worker_pools),
+        "max_concurrency" => length(eligible_node_ids),
+        "bounded" => true,
+    )
 end
 
 function execution_mode(workflow::WorkflowDefinition)

@@ -15,7 +15,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
 - P2 is closed for Kustomize-backed ArgoCD workload manifests and provider-neutral dependency seams.
 - Repo-local skill surfaces now exist for control-loop, Julia, frontend, and provider-deployment work.
 - First frontend module expansion slice is complete: published BI viewer row search filters visible chart rows and filtered CSV export without changing contracts.
-- Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, try/catch failure-recovery routing, catch-branch worker execution, DAG branch rescheduling, executor stage-schedule evidence, metadata-only multi-tick executor scheduling, executor node result/error binding, base-extension dataflow binding, and authored-node alias coverage slices: covered failed nodes queue catch work, worker-service schedules catch branch DAG stages, execution records carry bounded topological executor schedules, staged executor ticks persist node output/error telemetry, and base extension source/transform/sink/aggregate nodes can propagate Arrow IPC payloads through executor callbacks from UI/contract-style base node types.
+- Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, try/catch failure-recovery routing, catch-branch worker execution, DAG branch rescheduling, executor stage-schedule evidence, metadata-only multi-tick executor scheduling, executor node result/error binding, base-extension dataflow binding, authored-node alias coverage, and callback dataflow scheduling-policy evidence slices: covered failed nodes queue catch work, worker-service schedules catch branch DAG stages, execution records carry bounded topological executor schedules, staged executor ticks persist node output/error telemetry, base extension source/transform/sink/aggregate nodes can propagate Arrow IPC payloads through executor callbacks from UI/contract-style base node types, and executor schedule/state payloads expose bounded callback-dataflow policy evidence.
 - Governed Hub production-depth proof now records verification evidence, blocks unsafe sandbox/hash/mirror install paths, executes an env-gated allowlisted sandbox fixture, verifies downloaded artifact hashes from a local artifact-store registry, and resolves private/offline mirror refs through a local registry.
 - Final multi-GPU closure remains intentionally deferred until a runner with `>=2` visible CUDA devices exists.
 
@@ -47,7 +47,8 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
    - Executor node result/error binding is complete as of 2026-05-17.
    - Base-extension dataflow callback binding is complete as of 2026-05-18.
    - Executor dataflow authored-alias coverage is complete as of 2026-05-18.
-   - Next Julia runtime follow-up: add production scheduling policy evidence for callback-bound executor dataflow without rewriting stream/GPU ownership.
+   - Executor dataflow scheduling-policy evidence is complete as of 2026-05-19.
+   - Next Julia runtime follow-up: pause unless a narrower production-runtime gap is identified; otherwise return to provider proof or frontend module depth.
    - Use `juliaflow-julia-development`, `julia-coding`, and `julia-debugging`; verify with Julia tests and contract tests.
 
 5. **Governed Hub production depth**
@@ -133,6 +134,13 @@ Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl
 
 Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl`, `julia --project=. extensions/base/test/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:coverage`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
+
+
+## Latest Completed Slice — 2026-05-19 Runtime Executor Dataflow Policy
+
+**Julia runtime module expansion / executor dataflow scheduling-policy evidence slice** is complete. Executor schedule stages and staged executor state now expose a bounded `dataflowPolicy` / `dataflow_policy` evidence object for callback-bound dataflow, including policy name, callback/dataflow enabled flags, readiness barrier, eligible/source/sink node IDs, lanes, worker pools, max concurrency, and bounded status. Gateway payload mapping, TypeScript contracts, OpenAPI, Monitor UI, Julia tests, and frontend tests were updated without changing stream/GPU ownership.
+
+Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl`, `julia --project=. extensions/base/test/runtests.jl`, `npm --workspace @juliaflow/frontend run test -- App.test.tsx`, `npm run test`, `npm run build`, `npm run validate:coverage`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
 ## Latest Completed Slice — 2026-05-18 Runtime Executor Dataflow Aliases
 

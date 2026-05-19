@@ -1981,3 +1981,26 @@ Each checkpoint entry must contain:
 - Run full verification and code review for this slice.
 - Commit and push after gates pass.
 - Continue production scheduling policy evidence unless provider context becomes available first.
+
+---
+
+## Checkpoint: Julia Runtime Module Expansion / Executor Dataflow Scheduling-Policy Evidence Slice — 2026-05-19
+
+### Work Done Till Date
+
+- Added production-oriented scheduling-policy evidence for callback-bound executor dataflow.
+- Schedule-stage and executor-state payloads now expose `dataflowPolicy` / `dataflow_policy` details across Julia, gateway, contracts, OpenAPI, and Monitor UI.
+- Regression tests cover policy evidence on normal scheduler payloads and alias-authored source -> select -> aggregate -> sink dataflow execution.
+
+### Gaps Pending
+
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
+- External Hub registry/provider mirror proof remains gated on external registry/provider context.
+- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+- Frontend module depth remains the next unblocked local lane if provider context is still unavailable.
+
+### Next Items To Implement
+
+- Run full verification and code review for this slice.
+- Commit and push after gates pass.
+- Continue frontend module expansion unless provider context becomes available first.

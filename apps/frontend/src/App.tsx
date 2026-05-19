@@ -4552,6 +4552,16 @@ function App() {
                               </span>
                             </div>
                           ) : null}
+                          {item.executorState?.dataflowPolicy ? (
+                            <div className="inspector-row">
+                              <strong>Executor dataflow</strong>
+                              <span>
+                                {item.executorState.dataflowPolicy.policyName} · eligible{" "}
+                                {item.executorState.dataflowPolicy.eligibleNodeIds.length} · max concurrency{" "}
+                                {item.executorState.dataflowPolicy.maxConcurrency}
+                              </span>
+                            </div>
+                          ) : null}
                           {item.executorState?.nodeResults?.length ? (
                             <div className="inspector-row">
                               <strong>Executor nodes</strong>

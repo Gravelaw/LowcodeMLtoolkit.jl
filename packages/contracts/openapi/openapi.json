@@ -1967,6 +1967,73 @@
                 },
                 "bounded": {
                   "type": "boolean"
+                },
+                "dataflowPolicy": {
+                  "type": "object",
+                  "required": [
+                    "policyName",
+                    "callbackEnabled",
+                    "dataflowEnabled",
+                    "stageBarrier",
+                    "eligibleNodeIds",
+                    "sourceNodeIds",
+                    "sinkNodeIds",
+                    "lanes",
+                    "workerPools",
+                    "maxConcurrency",
+                    "bounded"
+                  ],
+                  "properties": {
+                    "policyName": {
+                      "type": "string"
+                    },
+                    "callbackEnabled": {
+                      "type": "boolean"
+                    },
+                    "dataflowEnabled": {
+                      "type": "boolean"
+                    },
+                    "stageBarrier": {
+                      "type": "string"
+                    },
+                    "eligibleNodeIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "sourceNodeIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "sinkNodeIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "lanes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "workerPools": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "maxConcurrency": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "bounded": {
+                      "type": "boolean"
+                    }
+                  }
                 }
               }
             }
@@ -2134,6 +2201,73 @@
               },
               "errorMessage": {
                 "type": "string"
+              },
+              "dataflowPolicy": {
+                "type": "object",
+                "required": [
+                  "policyName",
+                  "callbackEnabled",
+                  "dataflowEnabled",
+                  "stageBarrier",
+                  "eligibleNodeIds",
+                  "sourceNodeIds",
+                  "sinkNodeIds",
+                  "lanes",
+                  "workerPools",
+                  "maxConcurrency",
+                  "bounded"
+                ],
+                "properties": {
+                  "policyName": {
+                    "type": "string"
+                  },
+                  "callbackEnabled": {
+                    "type": "boolean"
+                  },
+                  "dataflowEnabled": {
+                    "type": "boolean"
+                  },
+                  "stageBarrier": {
+                    "type": "string"
+                  },
+                  "eligibleNodeIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "sourceNodeIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "sinkNodeIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "lanes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "workerPools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "maxConcurrency": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "bounded": {
+                    "type": "boolean"
+                  }
+                }
               }
             }
           }

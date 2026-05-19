@@ -68,6 +68,55 @@ function executor_stage_node_ids(stage)
     return [String(node_id) for node_id in get(stage, "node_ids", Any[])]
 end
 
+function unique_executor_strings(values)
+    seen = Set{String}()
+    result = String[]
+    for value in values
+        item = String(value)
+        item in seen && continue
+        push!(seen, item)
+        push!(result, item)
+    end
+    return result
+end
+
+function executor_schedule_dataflow_policy(schedule)
+    policies = Dict{String,Any}[]
+    for stage in schedule
+        policy = get(stage, "dataflow_policy", nothing)
+        policy isa AbstractDict || continue
+        push!(policies, Dict{String,Any}(String(key) => value for (key, value) in pairs(policy)))
+    end
+    isempty(policies) && return nothing
+
+    eligible_node_ids = String[]
+    source_node_ids = String[]
+    sink_node_ids = String[]
+    lanes = String[]
+    worker_pools = String[]
+    for policy in policies
+        append!(eligible_node_ids, [String(node_id) for node_id in get(policy, "eligible_node_ids", Any[])])
+        append!(source_node_ids, [String(node_id) for node_id in get(policy, "source_node_ids", Any[])])
+        append!(sink_node_ids, [String(node_id) for node_id in get(policy, "sink_node_ids", Any[])])
+        append!(lanes, [String(lane) for lane in get(policy, "lanes", Any[])])
+        append!(worker_pools, [String(pool) for pool in get(policy, "worker_pools", Any[])])
+    end
+
+    return Dict{String,Any}(
+        "policy_name" => String(get(policies[1], "policy_name", "callback_dataflow_stage_barrier")),
+        "callback_enabled" => all(Bool(get(policy, "callback_enabled", false)) for policy in policies),
+        "dataflow_enabled" => all(Bool(get(policy, "dataflow_enabled", false)) for policy in policies),
+        "stage_barrier" => String(get(policies[1], "stage_barrier", "ready_after_previous_stage")),
+        "eligible_node_ids" => unique_executor_strings(eligible_node_ids),
+        "source_node_ids" => unique_executor_strings(source_node_ids),
+        "sink_node_ids" => unique_executor_strings(sink_node_ids),
+        "lanes" => unique_executor_strings(lanes),
+        "worker_pools" => unique_executor_strings(worker_pools),
+        "max_concurrency" => maximum(Int(get(policy, "max_concurrency", 1)) for policy in policies),
+        "bounded" => all(Bool(get(policy, "bounded", false)) for policy in policies),
+    )
+end
+
 function executor_default_node_result(workflow, execution, node_id::AbstractString)
     node_type = workflow_node_type(workflow, node_id)
     row_count = bi_outlet_row_count(workflow, node_id)
@@ -205,6 +254,8 @@ function executor_state_metadata(
         "bounded" => true,
         "stage_results" => stage_results === nothing ? executor_stage_results(schedule, completed_stage_count) : stage_results,
     )
+    dataflow_policy = executor_schedule_dataflow_policy(schedule)
+    dataflow_policy === nothing || (state["dataflow_policy"] = dataflow_policy)
     node_results === nothing || (state["node_results"] = node_results)
     failed_node_id === nothing || (state["failed_node_id"] = String(failed_node_id))
     error_message === nothing || (state["error_message"] = String(error_message))

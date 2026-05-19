@@ -437,6 +437,40 @@ function hub_extension_payload(extension::HubExtensionRecord)
     return payload
 end
 
+function executor_dataflow_policy_payload(value)
+    policy = Dict{String,Any}(String(key) => item for (key, item) in pairs(value))
+    return Dict{String,Any}(
+        "policyName" => String(get(policy, "policy_name", "")),
+        "callbackEnabled" => Bool(get(policy, "callback_enabled", false)),
+        "dataflowEnabled" => Bool(get(policy, "dataflow_enabled", false)),
+        "stageBarrier" => String(get(policy, "stage_barrier", "")),
+        "eligibleNodeIds" => [String(node_id) for node_id in get(policy, "eligible_node_ids", Any[])],
+        "sourceNodeIds" => [String(node_id) for node_id in get(policy, "source_node_ids", Any[])],
+        "sinkNodeIds" => [String(node_id) for node_id in get(policy, "sink_node_ids", Any[])],
+        "lanes" => [String(lane) for lane in get(policy, "lanes", Any[])],
+        "workerPools" => [String(pool) for pool in get(policy, "worker_pools", Any[])],
+        "maxConcurrency" => Int(get(policy, "max_concurrency", 0)),
+        "bounded" => Bool(get(policy, "bounded", false)),
+    )
+end
+
+function executor_dataflow_policy_metadata(value)
+    policy = Dict{String,Any}(String(key) => item for (key, item) in pairs(value))
+    return Dict{String,Any}(
+        "policy_name" => String(get(policy, "policyName", "")),
+        "callback_enabled" => Bool(get(policy, "callbackEnabled", false)),
+        "dataflow_enabled" => Bool(get(policy, "dataflowEnabled", false)),
+        "stage_barrier" => String(get(policy, "stageBarrier", "")),
+        "eligible_node_ids" => [String(node_id) for node_id in get(policy, "eligibleNodeIds", Any[])],
+        "source_node_ids" => [String(node_id) for node_id in get(policy, "sourceNodeIds", Any[])],
+        "sink_node_ids" => [String(node_id) for node_id in get(policy, "sinkNodeIds", Any[])],
+        "lanes" => [String(lane) for lane in get(policy, "lanes", Any[])],
+        "worker_pools" => [String(pool) for pool in get(policy, "workerPools", Any[])],
+        "max_concurrency" => Int(get(policy, "maxConcurrency", 0)),
+        "bounded" => Bool(get(policy, "bounded", false)),
+    )
+end
+
 function execution_payload(execution::GatewayExecution)
     payload = Dict(
         "executionId" => execution.execution_id,
@@ -551,16 +585,20 @@ function execution_payload(execution::GatewayExecution)
                 end
             elseif string_key == "executor_schedule"
                 payload["executorSchedule"] = [
-                    Dict{String,Any}(
-                        "stageIndex" => Int(get(item, "stage_index", 0)),
-                        "nodeIds" => [String(node_id) for node_id in get(item, "node_ids", Any[])],
-                        "lanes" => [String(lane) for lane in get(item, "lanes", Any[])],
-                        "workerPools" => [String(pool) for pool in get(item, "worker_pools", Any[])],
-                        "schedulerPolicy" => String(get(item, "scheduler_policy", "")),
-                        "readyAfterStage" => Int(get(item, "ready_after_stage", 0)),
-                        "maxConcurrency" => Int(get(item, "max_concurrency", 0)),
-                        "bounded" => Bool(get(item, "bounded", false)),
-                    ) for item in value
+                    let
+                        entry = Dict{String,Any}(
+                            "stageIndex" => Int(get(item, "stage_index", 0)),
+                            "nodeIds" => [String(node_id) for node_id in get(item, "node_ids", Any[])],
+                            "lanes" => [String(lane) for lane in get(item, "lanes", Any[])],
+                            "workerPools" => [String(pool) for pool in get(item, "worker_pools", Any[])],
+                            "schedulerPolicy" => String(get(item, "scheduler_policy", "")),
+                            "readyAfterStage" => Int(get(item, "ready_after_stage", 0)),
+                            "maxConcurrency" => Int(get(item, "max_concurrency", 0)),
+                            "bounded" => Bool(get(item, "bounded", false)),
+                        )
+                        haskey(item, "dataflow_policy") && (entry["dataflowPolicy"] = executor_dataflow_policy_payload(item["dataflow_policy"]))
+                        entry
+                    end for item in value
                 ]
             elseif string_key == "executor_state"
                 payload["executorState"] = Dict{String,Any}(
@@ -594,6 +632,8 @@ function execution_payload(execution::GatewayExecution)
                         ) for item in get(value, "stage_results", Any[])
                     ],
                 )
+                haskey(value, "dataflow_policy") &&
+                    (payload["executorState"]["dataflowPolicy"] = executor_dataflow_policy_payload(value["dataflow_policy"]))
                 payload["executorState"]["nodeResults"] = [
                     let
                         node_result = Dict{String,Any}(
@@ -923,16 +963,20 @@ function gateway_execution(item)
             ]
         elseif string_key == "executorSchedule"
             metadata["executor_schedule"] = [
-                Dict{String,Any}(
-                    "stage_index" => Int(get(item, "stageIndex", 0)),
-                    "node_ids" => [String(node_id) for node_id in get(item, "nodeIds", Any[])],
-                    "lanes" => [String(lane) for lane in get(item, "lanes", Any[])],
-                    "worker_pools" => [String(pool) for pool in get(item, "workerPools", Any[])],
-                    "scheduler_policy" => String(get(item, "schedulerPolicy", "")),
-                    "ready_after_stage" => Int(get(item, "readyAfterStage", 0)),
-                    "max_concurrency" => Int(get(item, "maxConcurrency", 0)),
-                    "bounded" => Bool(get(item, "bounded", false)),
-                ) for item in value
+                let
+                    entry = Dict{String,Any}(
+                        "stage_index" => Int(get(item, "stageIndex", 0)),
+                        "node_ids" => [String(node_id) for node_id in get(item, "nodeIds", Any[])],
+                        "lanes" => [String(lane) for lane in get(item, "lanes", Any[])],
+                        "worker_pools" => [String(pool) for pool in get(item, "workerPools", Any[])],
+                        "scheduler_policy" => String(get(item, "schedulerPolicy", "")),
+                        "ready_after_stage" => Int(get(item, "readyAfterStage", 0)),
+                        "max_concurrency" => Int(get(item, "maxConcurrency", 0)),
+                        "bounded" => Bool(get(item, "bounded", false)),
+                    )
+                    haskey(item, "dataflowPolicy") && (entry["dataflow_policy"] = executor_dataflow_policy_metadata(item["dataflowPolicy"]))
+                    entry
+                end for item in value
             ]
         elseif string_key == "executorState"
             metadata["executor_state"] = Dict{String,Any}(
@@ -980,6 +1024,8 @@ function gateway_execution(item)
                     node_result
                 end for item in get(value, "nodeResults", Any[])
             ]
+            haskey(value, "dataflowPolicy") &&
+                (metadata["executor_state"]["dataflow_policy"] = executor_dataflow_policy_metadata(value["dataflowPolicy"]))
             haskey(value, "failedNodeId") && (metadata["executor_state"]["failed_node_id"] = String(value["failedNodeId"]))
             haskey(value, "errorMessage") && (metadata["executor_state"]["error_message"] = String(value["errorMessage"]))
         elseif string_key == "streamLifecycleStatus"

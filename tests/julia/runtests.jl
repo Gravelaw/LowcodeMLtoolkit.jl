@@ -270,6 +270,9 @@ end
     @test spec["executor_schedule"][2]["max_concurrency"] == 2
     @test spec["executor_schedule"][3]["ready_after_stage"] == 2
     @test spec["executor_schedule"][3]["scheduler_policy"] == "topological_stage_barrier"
+    @test spec["executor_schedule"][1]["dataflow_policy"]["policy_name"] == "callback_dataflow_stage_barrier"
+    @test spec["executor_schedule"][1]["dataflow_policy"]["callback_enabled"] == true
+    @test spec["executor_schedule"][1]["dataflow_policy"]["source_node_ids"] == ["node-source"]
     @test spec["observability_trace"]["spans"][1]["attributes"]["dispatch.lane_count"] == length(spec["dispatch_plan"])
     @test spec["stream_lifecycle_status"] == "starting"
     appended = append_execution_event(spec; message = "heartbeat", metadata = Dict("stream_lifecycle_status" => "active"))
@@ -727,6 +730,14 @@ end
     end
     dataflow_executor_state = dataflow_executions[1].metadata["executor_state"]
     @test dataflow_executions[1].status == "completed"
+    @test dataflow_executor_state["dataflow_policy"]["policy_name"] == "callback_dataflow_stage_barrier"
+    @test dataflow_executor_state["dataflow_policy"]["callback_enabled"] == true
+    @test dataflow_executor_state["dataflow_policy"]["dataflow_enabled"] == true
+    @test dataflow_executor_state["dataflow_policy"]["eligible_node_ids"] ==
+        ["node-source", "node-select", "node-aggregate", "node-sink"]
+    @test dataflow_executor_state["dataflow_policy"]["source_node_ids"] == ["node-source"]
+    @test dataflow_executor_state["dataflow_policy"]["sink_node_ids"] == ["node-sink"]
+    @test dataflow_executor_state["dataflow_policy"]["max_concurrency"] == 1
     @test length(dataflow_executor_state["node_results"]) == 4
     @test dataflow_executor_state["node_results"][1]["node_key"] == ARROW_TABLE_SOURCE_NODE_KEY
     @test dataflow_executor_state["node_results"][1]["row_count"] == 3
@@ -741,6 +752,11 @@ end
     @test dataflow_writer[].rows[1]["region"] == "east"
     @test haskey(dataflow_state.outputs["node-aggregate"], "table_out")
     dataflow_payload = JuliaFlowApiGateway.execution_payload(dataflow_executions[1])
+    @test dataflow_payload["executorSchedule"][1]["dataflowPolicy"]["policyName"] == "callback_dataflow_stage_barrier"
+    @test dataflow_payload["executorSchedule"][1]["dataflowPolicy"]["sourceNodeIds"] == ["node-source"]
+    @test dataflow_payload["executorSchedule"][4]["dataflowPolicy"]["sinkNodeIds"] == ["node-sink"]
+    @test dataflow_payload["executorState"]["dataflowPolicy"]["eligibleNodeIds"] ==
+        ["node-source", "node-select", "node-aggregate", "node-sink"]
     @test dataflow_payload["executorState"]["nodeResults"][3]["rowCount"] == 3
     @test JuliaFlowApiGateway.node_runtime_status("node-sink", dataflow_executions[1]) == "executed"
 
@@ -1401,6 +1417,7 @@ end
         scheduler_execution = JSON3.read(execution_accept_response(state, "wf-foundation"), Dict{String,Any})
         @test scheduler_execution["executorSchedule"][1]["stageIndex"] == 1
         @test scheduler_execution["executorSchedule"][1]["schedulerPolicy"] == "topological_stage_barrier"
+        @test scheduler_execution["executorSchedule"][1]["dataflowPolicy"]["policyName"] == "callback_dataflow_stage_barrier"
         @test scheduler_execution["executorSchedule"][2]["readyAfterStage"] == 1
         queued_execution_json = transition_execution_response!(
             state,

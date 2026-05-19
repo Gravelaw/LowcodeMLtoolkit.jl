@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
 Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.omx/plans/repo-brd-endgame-2026-04-25.md`, `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
 
@@ -52,7 +52,8 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 15. [x] Governed Hub production depth follow-up: execute allowlisted sandbox commands in an isolated fixture runner, verify downloaded artifacts against declared hashes from an artifact-store registry, and prove private/offline mirror refs through a mirror registry.
 16. [ ] Governed Hub external registry/provider proof: bind sandbox/artifact/mirror verification to a selected external Hub registry or provider mirror when credentials and provider context exist.
 17. [x] Control-doc sync automation: `AGENTS.md` now requires Plan/TODO/risk/tracker/checkpoint updates for every completed slice/phase/review, and `npm run validate:control-doc-sync` enforces the guard when non-control changes.
-18. [ ] Julia runtime module expansion follow-up: add production scheduling policy evidence for callback-bound executor dataflow without rewriting stream/GPU ownership.
+18. [x] Julia runtime module expansion follow-up / executor dataflow scheduling-policy evidence slice: executor schedule/state payloads now expose bounded callback-dataflow policy evidence without rewriting stream/GPU ownership.
+19. [ ] Frontend module expansion follow-up: deepen Monitor operational views for executor dataflow policy/results or continue BI/Hub polish when frontend depth is selected again.
 
 ## Final Hardware-Gated Phase
 
@@ -92,7 +93,7 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 - 2026-05-17: Julia runtime executor stage-schedule slice adds bounded topological `executorSchedule` evidence with stage indexes, node IDs, lanes, worker pools, readiness barriers, max concurrency, and Monitor rendering.
 - 2026-05-17: Julia runtime metadata-only multi-tick executor slice advances CPU batch executions through queued/running/completed stage ticks over `executorSchedule` and exposes `executorState`.
 - 2026-05-17: Julia runtime executor node result-error binding slice records callback-bound per-stage node output telemetry, flattened node results, and failed-node/error details through `executorState`.
-- 2026-05-18: Julia runtime base-extension dataflow binding slice runs registered base source/transform/sink nodes through executor callbacks, propagates Arrow IPC payloads between staged ticks, and records row/output/persisted-ref telemetry; the follow-up authored-alias slice resolves UI/contract-style base node types and proves source -> select -> aggregate -> sink staged execution; production scheduling policy evidence remains future work.
+- 2026-05-18/2026-05-19: Julia runtime base-extension dataflow binding runs registered base source/transform/sink nodes through executor callbacks, propagates Arrow IPC payloads between staged ticks, records row/output/persisted-ref telemetry, resolves UI/contract-style base node types, proves source -> select -> aggregate -> sink staged execution, and exposes bounded callback-dataflow scheduling-policy evidence through schedule/state payloads.
 - 2026-05-17: Governed Hub isolated sandbox/artifact/mirror proof executes only allowlisted Julia extension test fixtures under `JULIAFLOW_HUB_SANDBOX_EXECUTE=1`, verifies downloaded artifact bytes through `JULIAFLOW_HUB_ARTIFACT_STORE`, resolves private/offline mirror refs through `JULIAFLOW_HUB_MIRROR_REGISTRY`, blocks missing artifacts/mirrors, and renders verification details in Hub cards.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 

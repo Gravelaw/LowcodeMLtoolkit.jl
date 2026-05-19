@@ -333,7 +333,20 @@ describe("App", () => {
                     schedulerPolicy: "topological_stage_barrier",
                     readyAfterStage: 0,
                     maxConcurrency: 1,
-                    bounded: true
+                    bounded: true,
+                    dataflowPolicy: {
+                      policyName: "callback_dataflow_stage_barrier",
+                      callbackEnabled: true,
+                      dataflowEnabled: true,
+                      stageBarrier: "ready_after_previous_stage",
+                      eligibleNodeIds: ["node-source"],
+                      sourceNodeIds: ["node-source"],
+                      sinkNodeIds: [],
+                      lanes: ["cpu"],
+                      workerPools: ["alpha-cpu"],
+                      maxConcurrency: 1,
+                      bounded: true
+                    }
                   },
                   {
                     stageIndex: 2,
@@ -343,7 +356,20 @@ describe("App", () => {
                     schedulerPolicy: "topological_stage_barrier",
                     readyAfterStage: 1,
                     maxConcurrency: 2,
-                    bounded: true
+                    bounded: true,
+                    dataflowPolicy: {
+                      policyName: "callback_dataflow_stage_barrier",
+                      callbackEnabled: true,
+                      dataflowEnabled: true,
+                      stageBarrier: "ready_after_previous_stage",
+                      eligibleNodeIds: ["node-transform", "node-bi-outlet"],
+                      sourceNodeIds: [],
+                      sinkNodeIds: ["node-bi-outlet"],
+                      lanes: ["cpu"],
+                      workerPools: ["alpha-cpu"],
+                      maxConcurrency: 2,
+                      bounded: true
+                    }
                   }
                 ],
                 executorState: {
@@ -355,6 +381,19 @@ describe("App", () => {
                   completedStageIndexes: [1],
                   workerId: "executor-worker-test",
                   bounded: true,
+                  dataflowPolicy: {
+                    policyName: "callback_dataflow_stage_barrier",
+                    callbackEnabled: true,
+                    dataflowEnabled: true,
+                    stageBarrier: "ready_after_previous_stage",
+                    eligibleNodeIds: ["node-source", "node-transform", "node-bi-outlet"],
+                    sourceNodeIds: ["node-source"],
+                    sinkNodeIds: ["node-bi-outlet"],
+                    lanes: ["cpu"],
+                    workerPools: ["alpha-cpu"],
+                    maxConcurrency: 2,
+                    bounded: true
+                  },
                   stageResults: [
                     {
                       stageIndex: 1,
@@ -705,6 +744,7 @@ describe("App", () => {
     expect(screen.getByText(/stage 1\/1 · active 0/i)).toBeInTheDocument();
     expect(screen.getByText(/2 stages · max concurrency 2 · topological_stage_barrier/i)).toBeInTheDocument();
     expect(screen.getByText(/executor running · stage 2\/2 · active 2 · completed 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/callback_dataflow_stage_barrier · eligible 3 · max concurrency 2/i)).toBeInTheDocument();
     expect(screen.getByText(/1 results · failed node-transform · fixture executor failure/i)).toBeInTheDocument();
     expect(screen.getAllByText("12").length).toBeGreaterThan(0);
     expect(screen.getByText("10")).toBeInTheDocument();

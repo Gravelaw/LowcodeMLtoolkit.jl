@@ -699,6 +699,20 @@ export interface GatewayControlFlowBranchState {
   nodeResults: GatewayControlFlowBranchNodeResult[];
 }
 
+export interface GatewayExecutorDataflowPolicy {
+  policyName: "callback_dataflow_stage_barrier" | string;
+  callbackEnabled: boolean;
+  dataflowEnabled: boolean;
+  stageBarrier: "ready_after_previous_stage" | string;
+  eligibleNodeIds: string[];
+  sourceNodeIds: string[];
+  sinkNodeIds: string[];
+  lanes: WorkflowResourceClass[];
+  workerPools: string[];
+  maxConcurrency: number;
+  bounded: boolean;
+}
+
 export interface GatewayExecutorScheduleStage {
   stageIndex: number;
   nodeIds: string[];
@@ -708,6 +722,7 @@ export interface GatewayExecutorScheduleStage {
   readyAfterStage: number;
   maxConcurrency: number;
   bounded: boolean;
+  dataflowPolicy?: GatewayExecutorDataflowPolicy;
 }
 
 
@@ -738,6 +753,7 @@ export interface GatewayExecutorState {
   workerId: string;
   bounded: boolean;
   stageResults: GatewayExecutorStageResult[];
+  dataflowPolicy?: GatewayExecutorDataflowPolicy;
   nodeResults?: GatewayExecutorNodeResult[];
   failedNodeId?: string;
   errorMessage?: string;
