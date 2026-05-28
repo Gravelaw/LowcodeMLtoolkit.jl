@@ -2028,3 +2028,29 @@ Each checkpoint entry must contain:
 
 - Run focused frontend and control-doc verification for this slice.
 - Continue provider-specific GA proof when provider context exists; otherwise continue local frontend/Hub polish slices.
+
+---
+
+## Checkpoint: BRD Local-First Strategy Refresh — 2026-05-28
+
+### Work Done Till Date
+
+- Promoted `business-requirements-v0.3.0.md` to the v0.4.0 local-first BRD baseline.
+- Reframed JuliaFlow as a self-contained local appliance for academia, labs, students, researchers, small teams, and low-resource users.
+- Added core requirements for local appliance bootstrap, local data estate, DuckDB analytics, PostgreSQL lab/team metadata mode, optional MinIO local S3 profile, local CPU/GPU hardware validation, AI explainability/model transparency, offline Hub, academic reproducibility bundles, and backup/restore.
+- Downgraded provider-specific deployment, cloud object stores, external Hub registries, enterprise identity, Kubernetes/ArgoCD production overlays, and cloud multi-GPU closure to optional compatibility paths.
+- Updated Plan, TODO, risk register, tracker, checkpoint, and BRD traceability docs to point future implementation at local-first GA proof.
+
+### Gaps Pending
+
+- Local appliance bootstrap proof remains open.
+- Local data estate and DuckDB query path proof remain open.
+- Local PostgreSQL lab/team metadata mode proof remains open.
+- Local hardware profiler, GPU smoke, and CPU fallback proof remain open.
+- Explainability/model evidence and academic reproducibility bundle proof remain open.
+- Offline Hub proof and backup/restore proof remain open.
+
+### Next Items To Implement
+
+- Build the local appliance bootstrap proof first.
+- Then implement local data estate and metadata/database proof before deeper explainability and offline Hub work.

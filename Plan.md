@@ -4,9 +4,9 @@ Last updated: 2026-05-28
 
 ## Current Phase
 
-JuliaFlow is past local-platform P0, P1, and P2 thin-slice closure. The active development phase is **Provider-Specific GA Proof + Future Module Expansion**.
+JuliaFlow is past local-platform P0, P1, and P2 thin-slice closure. The active development phase is **Local-First GA Proof + Explainable Local Appliance Expansion**.
 
-P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is not another local scaffold pass; it is provider/live-cluster proof, frontend/runtime module depth, and final hardware-gated GPU closure.
+P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD direction now prioritizes a self-contained local appliance for academia and low-resource teams: local install/bootstrap, local data estate, local metadata/database modes, local CPU/GPU hardware use, AI explainability, offline Hub, academic reproducibility, and backup/restore. Provider/cloud paths are optional compatibility work, not the core GA gate.
 
 ## Current Baseline
 
@@ -18,27 +18,49 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
 - Frontend module expansion follow-up is complete: Monitor now expands executor dataflow stage-policy evidence and per-node executor/branch result details for operator review.
 - Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, try/catch failure-recovery routing, catch-branch worker execution, DAG branch rescheduling, executor stage-schedule evidence, metadata-only multi-tick executor scheduling, executor node result/error binding, base-extension dataflow binding, authored-node alias coverage, and callback dataflow scheduling-policy evidence slices: covered failed nodes queue catch work, worker-service schedules catch branch DAG stages, execution records carry bounded topological executor schedules, staged executor ticks persist node output/error telemetry, base extension source/transform/sink/aggregate nodes can propagate Arrow IPC payloads through executor callbacks from UI/contract-style base node types, and executor schedule/state payloads expose bounded callback-dataflow policy evidence.
 - Governed Hub production-depth proof now records verification evidence, blocks unsafe sandbox/hash/mirror install paths, executes an env-gated allowlisted sandbox fixture, verifies downloaded artifact hashes from a local artifact-store registry, and resolves private/offline mirror refs through a local registry.
-- Final multi-GPU closure remains intentionally deferred until a runner with `>=2` visible CUDA devices exists.
+- `business-requirements-v0.3.0.md` is now the v0.4.0 local-first BRD baseline: no cloud account required, local filesystem/DuckDB first, PostgreSQL for lab/team metadata, optional MinIO only for local S3 compatibility, explainability as core scope, and multi-GPU validation conditional on local hardware.
 
 ## Active Development Order
 
-1. **Provider-specific deployment proof**
-   - Add staging/prod overlays for chosen providers.
-   - Bind secret delivery without committing real secrets.
-   - Run `kubectl apply --dry-run=server -k ...` against a configured cluster.
-   - Repeat auth, PostgreSQL, Kafka/NATS, object-store, gateway health, and metrics smokes.
+1. **Local appliance bootstrap proof**
+   - Add a one-command local bootstrap path that starts the frontend, gateway, execution service, worker service, data estate, local metadata, Hub cache, and health checks.
+   - Support explicit `single-user`, `lab-team`, `s3-compatible-local`, and `developer` install profiles.
+   - Verify fresh local install to sample workflow without cloud credentials.
 
-2. **Provider-specific object-store proof**
-   - Prove S3/GCS/Azure-compatible Arrow IPC materialization with real credentials supplied externally.
-   - Keep provider-neutral adapter seam and local fallbacks intact.
+2. **Local data estate proof**
+   - Initialize managed local zones for raw, processed, features, models, runs, checkpoints, dashboards, logs, and extensions.
+   - Prove Parquet/Arrow durable local artifacts plus Arrow IPC runtime payloads.
+   - Bind DuckDB query acceleration over local files/tables.
 
-3. **Frontend module expansion**
+3. **Local metadata/database proof**
+   - Keep single-user metadata lightweight and local.
+   - Add/verify local PostgreSQL lab-team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
+   - Add backup/restore and migration evidence for local metadata.
+
+4. **Local hardware runtime proof**
+   - Detect CPU cores, RAM, disk, GPU vendor/runtime, VRAM, CUDA readiness, and selected backend.
+   - Verify CPU scheduling, memory-aware worker limits, GPU smoke when available, and explicit CPU fallback when unavailable.
+   - Treat multi-GPU as conditional local hardware validation only.
+
+5. **Explainability and model evidence**
+   - Add dataset cards, model cards, global feature importance, local prediction explanations, permutation importance, partial-dependence/ICE-style summaries where practical, and limitations/warnings.
+   - Include explainability outputs in checkpoints and reproducibility bundles.
+
+6. **Offline Hub proof**
+   - Make bundled/local extensions install without external registry dependency.
+   - Keep checksum verification, sandbox compatibility tests, local artifact cache, and unsafe-extension blocking.
+
+7. **Academic reproducibility workflow**
+   - Prove offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport path.
+   - Capture workflow definition, data checksums, package metadata, seeds, metrics, model artifacts, explainability outputs, dashboard snapshots, and notes.
+
+8. **Frontend module expansion**
    - First BI published-viewer row-search slice is complete as of 2026-05-15.
    - Monitor dataflow policy/result detail slice is complete as of 2026-05-28.
    - Continue canvas/BI/Hub/settings improvements with `juliaflow-frontend-development` plus React/design/visual-test skills when frontend depth is selected again.
    - Preserve route shell, demo fallback, runtime `juliaflow-config.js`, accessibility selectors, and coverage gates.
 
-4. **Julia runtime module expansion**
+9. **Julia runtime module expansion**
    - Loop runtime-plan slice is complete as of 2026-05-15.
    - Try/catch runtime-plan slice is complete as of 2026-05-16.
    - Try/catch failure-recovery route slice is complete as of 2026-05-16.
@@ -53,14 +75,14 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. Remaining work is no
    - Next Julia runtime follow-up: pause unless a narrower production-runtime gap is identified; otherwise return to provider proof or frontend module depth.
    - Use `juliaflow-julia-development`, `julia-coding`, and `julia-debugging`; verify with Julia tests and contract tests.
 
-5. **Governed Hub production depth**
+10. **Provider/cloud compatibility backlog**
+   - Kustomize/Kubernetes, S3/GCS/Azure object stores, external Hub registries, enterprise OIDC, and provider dry-runs are optional future paths.
+   - Do not treat provider proof as a core GA blocker unless the BRD changes again.
+
+11. **Governed Hub production depth**
    - Deterministic sandbox/hash/mirror verification slice is complete as of 2026-05-16.
    - Isolated fixture execution / downloaded artifact hash / private-offline mirror registry proof slice is complete as of 2026-05-17.
-   - Next Hub follow-up: bind the same sandbox/artifact/mirror proof to a selected external registry or provider mirror when credentials and provider context exist.
-
-6. **Final hardware-gated GPU closure**
-   - Only when `>=2` visible CUDA devices exist, run `JULIAFLOW_CUDA_SMOKE=1 JULIAFLOW_REQUIRE_MULTI_GPU=1 julia --project=. scripts/smoke-cuda-kernel.jl`.
-   - Link hardware-backed worker isolation and multi-GPU scheduling evidence before checking final GPU item.
+   - External registry/provider mirror work is now optional future compatibility; the next core Hub proof is offline/local install.
 
 
 ## Latest Completed Slice — 2026-05-15
@@ -149,6 +171,12 @@ Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl
 **Frontend module expansion follow-up / Monitor executor dataflow detail slice** is complete. The Monitor execution rail now expands executor schedule dataflow policies by stage and renders per-node executor and catch-branch result details, including node IDs, output kind, row counts, output-ref counts, callback/dataflow flags, and readiness barrier evidence. Repo garbage sanity also removed tracked `.staging/` skill residue and ignored future staging folders; dependency hygiene resolved the moderate `ws` audit advisory through `npm audit fix`.
 
 Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- App.test.tsx`, `npm audit --audit-level=moderate`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+
+## Latest Completed Slice — 2026-05-28 BRD Local-First Baseline
+
+**BRD local-first strategy refresh** is complete. The core Markdown BRD now makes local appliance operation the GA direction: filesystem/DuckDB local data estate, PostgreSQL lab/team mode, optional MinIO profile, local CPU/GPU hardware validation, offline Hub, explainability/model evidence, academic reproducibility bundles, and backup/restore. Provider-specific cloud deployment, cloud object stores, external Hub registries, enterprise identity, and cloud multi-GPU closure are downgraded to optional compatibility paths.
+
+Verification evidence for this slice: `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
 ## Latest Completed Slice — 2026-05-18 Runtime Executor Dataflow Aliases
 

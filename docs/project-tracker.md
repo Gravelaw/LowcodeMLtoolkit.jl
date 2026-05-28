@@ -16,7 +16,7 @@ Tracker always records 3 things:
 
 - Name: `JuliaFlow`
 - BRD: `JuliaFlow_BRD_v1.0.docx`
-- Current target phase: `Provider-Specific GA Proof / Module Expansion`
+- Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
 - Last updated: `2026-05-28`
 
@@ -201,6 +201,7 @@ Tracker always records 3 things:
 - Frontend Monitor module expansion now renders executor dataflow stage-policy detail rows and per-node executor/branch result evidence, including callback/dataflow state, readiness barrier, source/sink counts, row counts, output kind, and output-ref counts.
 - Repository sanity pass removed tracked `.staging/` skill residue and added `.staging/` to `.gitignore`; tracked BRD/persona binary artifacts remain intentional control/product artifacts.
 - Dependency hygiene pass resolved the moderate `ws` audit advisory via lockfile update.
+- Core BRD now uses the v0.4.0 local-first baseline in `business-requirements-v0.3.0.md`: local appliance install, local data estate, DuckDB analytics, PostgreSQL lab/team metadata, optional MinIO, local CPU/GPU hardware validation, AI explainability, offline Hub, academic reproducibility bundles, and backup/restore are active direction.
 
 ### Alpha Core Contract Deepening
 
