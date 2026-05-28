@@ -748,8 +748,8 @@ Each checkpoint entry must contain:
 
 ### Work Done Till Date
 
-- Added `docs/next-steps-plan-2026-04-29.md` for future-session handoff.
-- Plan records sanity/repo cleanup, GitHub integration checks, production Arrow/DataFrames adapter work, node scale 50 -> 75, BI polish, and production hardening lanes.
+- Added a future-session handoff for the post-50-node baseline; the standalone handoff file was later removed during documentation cleanup.
+- The handoff recorded sanity/repo cleanup, GitHub integration checks, production Arrow/DataFrames adapter work, node scale 50 -> 75, BI polish, and production hardening lanes.
 - Verified GitHub target with `gh repo view Gravelaw/LowcodeMLtoolkit.jl`; authenticated account has admin permission.
 - Merged existing remote BRD/license documents into local `main` instead of force-pushing over GitHub history.
 
@@ -762,7 +762,7 @@ Each checkpoint entry must contain:
 
 ### Next Items To Implement
 
-- Start next session with `docs/next-steps-plan-2026-04-29.md`.
+- Start next session from the active tracker/TODO/checkpoint set.
 - Run sanity checks after GitHub push and inspect remote CI/status if configured.
 - Execute cleanup first, then production Arrow/DataFrames adapter or node scale 50 -> 75 depending dependency decision.
 
@@ -922,7 +922,7 @@ Each checkpoint entry must contain:
 ### Work Done Till Date
 
 - Confirmed BI drilldown/export polish is the latest completed P0 slice and production OIDC/RBAC is the next planned P0 lane.
-- Added `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md` with risk-aware execution plan and acceptance criteria.
+- Added a risk-aware production OIDC/RBAC execution plan and acceptance criteria; the standalone plan file was later removed during documentation cleanup after its history was preserved here and in the tracker.
 - Added `docs/risk-register.md` with active security, streaming, GPU, object-store, and Hub risks.
 - Updated TODO and BRD traceability wording to point at the current plan and risk register without marking new implementation complete.
 
@@ -2054,3 +2054,22 @@ Each checkpoint entry must contain:
 
 - Build the local appliance bootstrap proof first.
 - Then implement local data estate and metadata/database proof before deeper explainability and offline Hub work.
+
+---
+
+## Checkpoint: Documentation Cleanup — 2026-05-28
+
+### Work Done Till Date
+
+- Removed only the user-approved obsolete documentation artifacts: one superseded BRD draft, the old persona archive, legacy handoff/parallel-lane planning files, one old OIDC/RBAC planning file, and two empty release-note stubs.
+- Repointed active README/TODO/tracker/checkpoint references away from removed files and into the active control-doc set.
+- Recorded documentation-sprawl risk mitigation while keeping the active local-first BRD baseline intact.
+
+### Gaps Pending
+
+- Historical tracker/checkpoint narratives still preserve prior work context by design.
+- Active implementation remains local appliance bootstrap, local data estate, local metadata/database, local hardware runtime, explainability/model evidence, offline Hub, reproducibility, and backup/restore.
+
+### Next Items To Implement
+
+- Start the local appliance bootstrap proof.

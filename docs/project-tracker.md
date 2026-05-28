@@ -58,9 +58,7 @@ Tracker always records 3 things:
   - checkpoint create/list
   - realtime JSON-RPC websocket endpoint
 - File-backed repository and PostgreSQL-ready repository path present
-- Checkpoint docs started:
-  - [cp-00-foundation](/home/akshayrj00/my_project/docs/releases/cp-00-foundation.md)
-  - [cp-01-contracts-frozen](/home/akshayrj00/my_project/docs/releases/cp-01-contracts-frozen.md)
+- Checkpoint docs started; the old empty release-note stubs were later removed during documentation cleanup, and current checkpoint evidence lives in `docs/checkpoint-log.md`.
 
 ### Frontend / Alpha Workspace
 
@@ -604,8 +602,8 @@ Tracker always records 3 things:
 
 ### GitHub Push Prep And Next-Step Plan (2026-04-29)
 
-- Added `docs/next-steps-plan-2026-04-29.md` so future sessions can resume from the post-50-node baseline.
-- Plan includes sanity/repo cleanup, GitHub integration checks, production Arrow/DataFrames adapter work, node scale 50 -> 75, BI polish, and production hardening lanes; generated `*.tsbuildinfo` files are ignored and the UI/UX archive is kept under `docs/assets/`.
+- Added a post-50-node next-step handoff so future sessions could resume from the baseline; the standalone handoff file was later removed during documentation cleanup.
+- Plan included sanity/repo cleanup, GitHub integration checks, production Arrow/DataFrames adapter work, node scale 50 -> 75, BI polish, and production hardening lanes; generated `*.tsbuildinfo` files are ignored and the old UI/UX archive was removed during documentation cleanup.
 - GitHub target repository verified with `gh repo view Gravelaw/LowcodeMLtoolkit.jl`; authenticated account has admin permission.
 - Existing remote BRD/license documents were merged into local `main` without force-pushing over GitHub history.
 
@@ -633,7 +631,7 @@ Tracker always records 3 things:
 
 ### Next Priority
 
-1. Complete sanity/repo cleanup from `docs/next-steps-plan-2026-04-29.md`, then implement package-backed Arrow/DataFrames object-storage adapters on top of the new reader/writer seam and continue node scale 50 -> 75 -> 150
+1. Continue sanity/repo cleanup through the active control docs, then implement package-backed Arrow/DataFrames object-storage adapters on top of the new reader/writer seam and continue node scale 50 -> 75 -> 150
 2. Implement deeper BI drilldown and richer viewer/export polish
 3. Harden Auth/RBAC with production OIDC/JWT, persisted policy, and audit events
 4. Implement production streaming adapters/replay/exactly-once hardening
@@ -894,7 +892,7 @@ After any meaningful job:
 
 - Reviewed the post-BI-polish control docs and confirmed the remaining unchecked P0 lanes are production OIDC/RBAC, production streaming, and production GPU hardening.
 - Selected production OIDC/JWT/RBAC hardening as the next P0 lane because it reduces the highest cross-cutting security risk before expanding production streaming/GPU surfaces.
-- Created `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md` with decision drivers, alternatives, acceptance criteria, implementation steps, and verification plan.
+- Created a next-P0 OIDC/RBAC hardening plan with decision drivers, alternatives, acceptance criteria, implementation steps, and verification plan; the standalone plan file was later removed during documentation cleanup after its history was preserved here and in the checkpoint log.
 - Added `docs/risk-register.md` to make active BRD delivery risks and mitigations explicit.
 
 ### Gaps Pending

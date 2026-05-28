@@ -159,20 +159,22 @@ Important repo constraints:
 
 ## JuliaFlow End-Goal Delivery Rules
 
-JuliaFlow end goal is the BRD-defined visual low-code analytics platform: Julia-native workflow canvas, Arrow IPC node boundary, CPU/GPU execution, batch/stream processing, integrated BI, governed Hub, and production security/deployment hardening. Treat `JuliaFlow_BRD_v1.0.docx`, `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md` as the end-goal control set.
+JuliaFlow end goal is the BRD-defined local-first visual low-code analytics platform: Julia-native workflow canvas, Arrow IPC node boundary, CPU/GPU execution on local hardware, local data estate, local metadata/database modes, integrated BI, AI explainability, governed offline Hub, academic reproducibility, backup/restore, and local trust boundaries. Treat `business-requirements-v0.3.0.md`, `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md` as the end-goal control set.
 
 Before any meaningful implementation:
 
 1. Read `docs/project-tracker.md`, latest `docs/checkpoint-log.md`, `docs/TODO.md`, and `docs/brd-traceability.md`.
 2. Identify the active BRD gap and target stage before editing.
-3. Prefer the current P0 order unless the user says otherwise:
-   - production Arrow/DataFrames object-storage materialization and node scale-up
-   - deeper BI drilldown/viewer/export polish
-   - production OIDC/JWT/RBAC and persisted policy/audit query surfaces
-   - production streaming adapters/replay/exactly-once hardening
-   - defer production CUDA/KernelAbstractions and multi-GPU closure to the final hardware-gated phase when GPU count is the constraint; full closure requires >=2 visible CUDA devices
+3. Prefer the current local-first order unless the user says otherwise:
+   - local appliance bootstrap
+   - managed local data estate with Arrow/Parquet artifacts and DuckDB acceleration
+   - local metadata/database modes, including PostgreSQL lab/team mode
+   - local hardware runtime proof with CPU/GPU profiling and explicit CPU fallback
+   - explainability/model evidence and academic reproducibility bundle
+   - offline Hub proof
+   - backup/restore and migration evidence
 4. For broad BRD/P0 work, use the configured frontier model where available (currently GPT-5.5) for planning, architecture review, and validation.
-5. Preserve the thin-slice strategy: keep existing dev/demo fallbacks while adding production-depth paths behind explicit seams and tests.
+5. Preserve the thin-slice strategy: keep existing dev/demo fallbacks while adding local-first production-depth paths behind explicit seams and tests.
 
 Completion rules for any slice, phase, review, or milestone claim:
 

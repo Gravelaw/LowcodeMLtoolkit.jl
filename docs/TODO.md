@@ -1,8 +1,8 @@
 # JuliaFlow TODO
 
 Last updated: 2026-05-28
-Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
-Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.omx/plans/repo-brd-endgame-2026-04-25.md`, `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
+Source: BRD gap review against `business-requirements-v0.3.0.md` and current code.
+Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning context is preserved in `docs/project-tracker.md` and `docs/checkpoint-log.md`.
 
 ## P0 — Required Before Phase 1 / Alpha Complete
 
@@ -107,7 +107,7 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 
 - 2026-05-01: provider-neutral remote object-store service adapter now transfers Arrow IPC base64 envelopes for remote refs, and base pack reached 150 stable nodes with quality/governance/streaming/GPU-helper additions plus output-inspecting tests.
 - 2026-05-03: BI published viewer now adds filter-aware chart/row drilldown, selected-row detail inspection, filtered/full CSV export controls, and selected-row JSON export.
-- 2026-05-03: planning update selects production OIDC/JWT/RBAC hardening as the next P0 lane, with streaming and GPU production hardening queued after; see `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md` and `docs/risk-register.md`.
+- 2026-05-03: planning update selected production OIDC/JWT/RBAC hardening as the next P0 lane, with streaming and GPU production hardening queued after; historical planning context is now preserved in tracker/checkpoint history, while active risks remain in `docs/risk-register.md`.
 - 2026-05-03: production OIDC/RBAC first slice adds HS256 OIDC-style JWT validation seam, persisted role/resource policies, bounded/redacted audit action query API, OpenAPI/TS contracts, and Julia/contract tests; live IdP JWKS/RSA and admin UI hardening remain before P0 item 11 can be checked.
 - 2026-05-03: OIDC/JWT hardening now supports discovery/JWKS key resolution with `kid` lookup and rotation tests for HS256 JWKS fixtures; RSA/live IdP validation and admin UI remain before P0 item 11 can be checked.
 
