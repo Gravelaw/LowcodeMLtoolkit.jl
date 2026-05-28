@@ -15,7 +15,7 @@ Tracker always records 3 things:
 ## Project
 
 - Name: `JuliaFlow`
-- BRD: `JuliaFlow_BRD_v1.0.docx`
+- BRD: `business-requirements-v0.3.0.md` v0.4.0 local-first baseline
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
 - Last updated: `2026-05-28`
@@ -43,6 +43,7 @@ Tracker always records 3 things:
 - Added onboarding map:
   - [docs/repo-onboarding.md](/home/akshayrj00/my_project/docs/repo-onboarding.md)
 - Reconciled `AGENTS.md` with actual monorepo structure, commands, and language/tooling conventions
+- Reconciled `AGENTS.md` and repo-local skills again on `2026-05-28` so local-first appliance work routes through current installed skills/plugins instead of stale skill names or hard-coded model prompts.
 - Reconciled `AGENTS.md` again on `2026-04-19` to make `caveman:caveman` the default session communication mode for this repo
 
 ### Foundation / Contracts
@@ -1956,3 +1957,24 @@ After any meaningful job:
 - Complete full verification, clean code review, commit, push, and remote publication verification.
 - If provider/credential context appears, prioritize provider-specific deployment and object-store proof.
 - Otherwise continue frontend module expansion, especially Monitor operational depth for executor policy/results or BI/Hub polish.
+
+---
+
+## Agent Prompt Hygiene And Skill Routing Cleanup (2026-05-28)
+
+### Work Done Till Date
+
+- Compared project-level `AGENTS.md` against repo-local skills and currently installed plugin skills.
+- Found stale references to unavailable skill names (`build-web-apps:*`, `visual-ralph`, `visual-verdict`, `code-review`, `security-review`, `$ralplan`, `$autopilot`) plus hard-coded model guidance.
+- Added `.codex/skills/juliaflow-local-first-appliance/SKILL.md` for the revised local-first BRD implementation lane.
+- Updated repo-local control-loop, frontend, and provider-deployment skills to route through installed plugin skill names and the local-first BRD priority order.
+- Simplified `AGENTS.md` so it delegates procedural detail to repo-local and installed skills instead of duplicating stale prompts.
+
+### Gaps Pending
+
+- Local appliance bootstrap and other local-first product proofs remain implementation work.
+- Future plugin/skill inventory changes may require another prompt hygiene sweep.
+
+### Next Items To Implement
+
+- Start local appliance bootstrap proof using `juliaflow-control-loop` plus `juliaflow-local-first-appliance`.

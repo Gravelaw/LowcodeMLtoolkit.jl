@@ -36,16 +36,17 @@ Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning
 ## Current Development Phase — Local-First GA Proof / Explainable Local Appliance
 
 1. [x] BRD local-first strategy refresh: `business-requirements-v0.3.0.md` now sets v0.4.0 local-first baseline requirements for local appliance bootstrap, local data estate, local database modes, hardware-aware execution, AI explainability, offline Hub, academic reproducibility, and backup/restore.
-2. [ ] Local appliance bootstrap proof: one-command local stack, installation profiles, service health checks, local folder initialization, and sample workflow with no cloud credentials.
-3. [ ] Local data estate proof: managed filesystem zones, Parquet/Arrow durable artifacts, Arrow IPC runtime payloads, DuckDB query acceleration, quotas, cleanup, and backup hooks.
-4. [ ] Local metadata/database proof: single-user metadata mode plus local PostgreSQL lab/team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
-5. [ ] Local hardware runtime proof: CPU/RAM/disk/GPU profiler, CPU scheduling, memory-aware limits, CUDA smoke when available, and explicit CPU fallback when unavailable.
-6. [ ] Explainability/model evidence proof: dataset cards, model cards, feature importance, local/global explanations, limitations/warnings, and checkpoint/reproducibility-bundle export.
-7. [ ] Offline Hub proof: bundled/local extensions install without external registry dependency, with checksum verification, sandbox tests, local artifact cache, and unsafe-extension blocking.
-8. [ ] Academic reproducibility workflow: offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport path.
-9. [ ] Backup/restore and migration proof: local data estate backup, metadata backup, checkpoint import/export, workflow bundle import/export, and integrity checks.
-10. [x] Frontend module expansion / BI viewer row-search slice: published dashboard viewer row search now filters visible chart rows and filtered CSV exports while preserving route shell, demo fallback, runtime config, and coverage gates.
-11. [x] Frontend module expansion follow-up: Monitor now expands executor dataflow stage-policy evidence and per-node executor/branch result details for operator review.
+2. [x] Agent prompt hygiene: repo-local skills and `AGENTS.md` now route local-first appliance work through installed/current skills, remove stale skill/plugin/model references, and keep project guidance from duplicating obsolete plugin prompts.
+3. [ ] Local appliance bootstrap proof: one-command local stack, installation profiles, service health checks, local folder initialization, and sample workflow with no cloud credentials.
+4. [ ] Local data estate proof: managed filesystem zones, Parquet/Arrow durable artifacts, Arrow IPC runtime payloads, DuckDB query acceleration, quotas, cleanup, and backup hooks.
+5. [ ] Local metadata/database proof: single-user metadata mode plus local PostgreSQL lab/team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
+6. [ ] Local hardware runtime proof: CPU/RAM/disk/GPU profiler, CPU scheduling, memory-aware limits, CUDA smoke when available, and explicit CPU fallback when unavailable.
+7. [ ] Explainability/model evidence proof: dataset cards, model cards, feature importance, local/global explanations, limitations/warnings, and checkpoint/reproducibility-bundle export.
+8. [ ] Offline Hub proof: bundled/local extensions install without external registry dependency, with checksum verification, sandbox tests, local artifact cache, and unsafe-extension blocking.
+9. [ ] Academic reproducibility workflow: offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport path.
+10. [ ] Backup/restore and migration proof: local data estate backup, metadata backup, checkpoint import/export, workflow bundle import/export, and integrity checks.
+11. [x] Frontend module expansion / BI viewer row-search slice: published dashboard viewer row search now filters visible chart rows and filtered CSV exports while preserving route shell, demo fallback, runtime config, and coverage gates.
+12. [x] Frontend module expansion follow-up: Monitor now expands executor dataflow stage-policy evidence and per-node executor/branch result details for operator review.
 
 ## Optional Compatibility Backlog
 

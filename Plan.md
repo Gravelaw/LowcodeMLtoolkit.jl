@@ -20,6 +20,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Governed Hub production-depth proof now records verification evidence, blocks unsafe sandbox/hash/mirror install paths, executes an env-gated allowlisted sandbox fixture, verifies downloaded artifact hashes from a local artifact-store registry, and resolves private/offline mirror refs through a local registry.
 - `business-requirements-v0.3.0.md` is now the v0.4.0 local-first BRD baseline: no cloud account required, local filesystem/DuckDB first, PostgreSQL for lab/team metadata, optional MinIO only for local S3 compatibility, explainability as core scope, and multi-GPU validation conditional on local hardware.
 - Documentation cleanup removed the user-approved obsolete BRD/planning/checkpoint artifacts, while the active control set remains `business-requirements-v0.3.0.md`, `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/project-tracker.md`, `docs/checkpoint-log.md`, and `docs/brd-traceability.md`.
+- Agent prompt hygiene now routes local-first appliance work through a dedicated repo-local skill, replaces stale skill/plugin names with installed plugin skill names, and removes hard-coded model/subagent assumptions from project guidance.
 
 ## Active Development Order
 
@@ -193,13 +194,14 @@ Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl
 
 ## Required Skills By Lane
 
-- BRD/control docs: `juliaflow-control-loop`
-- Julia services/runtime/nodes: `juliaflow-julia-development`, `julia-coding`, `julia-debugging`
-- Frontend/UI: `juliaflow-frontend-development`, `build-web-apps:react-best-practices`, `build-web-apps:frontend-testing-debugging`, `design`, `visual-ralph`, `visual-verdict`
-- Deployment/provider proof: `juliaflow-provider-deployment`
-- Review: `code-review`; use `security-review` for auth/secrets/RBAC/deployment/Hub trust
+- BRD/control docs: `juliaflow-control-loop`, `analysis-engineering-workflow:plan-work`, `analysis-engineering-workflow:implement-work`, `analysis-engineering-workflow:execute-verify`
+- Local-first appliance: `juliaflow-local-first-appliance`, `analysis-engineering-workflow:architect-work`, `analysis-engineering-workflow:review-architecture`
+- Julia services/runtime/nodes: `juliaflow-julia-development`, `julia-engineering-toolkit:julia-coding`, `julia-engineering-toolkit:julia-data-science`, `julia-engineering-toolkit:julia-debugging`
+- Frontend/UI: `juliaflow-frontend-development`, `frontend-design-workflow:frontend-implementation`, `frontend-design-workflow:frontend-architecture`, `frontend-design-workflow:frontend-visual-qa`, `frontend-design-workflow:frontend-accessibility-review`, `lowcode-ml-ui-patterns`
+- Deployment/provider proof: `juliaflow-provider-deployment` only for explicit optional provider/cloud compatibility
+- Review/security: `analysis-engineering-workflow:framework-compliance-review`, `analysis-engineering-workflow:post-execution-review`, `codex-security:security-scan`
 
-Use native subagents for independent bounded lanes only: `explore`, `researcher`, `dependency-expert`, `executor`, `test-engineer`, `architect`, `critic`, and `code-reviewer`.
+Use multi-agent tools for independent bounded lanes only when available and ownership is clear; otherwise keep work integrated in the current agent session.
 
 ## Verification Matrix
 

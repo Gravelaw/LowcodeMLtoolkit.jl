@@ -2073,3 +2073,23 @@ Each checkpoint entry must contain:
 ### Next Items To Implement
 
 - Start the local appliance bootstrap proof.
+
+---
+
+## Checkpoint: Agent Prompt Hygiene And Skill Routing Cleanup — 2026-05-28
+
+### Work Done Till Date
+
+- Compared `AGENTS.md` with repo-local skills and installed plugin skill names.
+- Added `juliaflow-local-first-appliance` for one-command local bootstrap, local data estate, DuckDB/PostgreSQL modes, hardware proof, explainability, offline Hub, reproducibility, and backup/restore work.
+- Updated repo-local skills to use installed `analysis-engineering-workflow`, `julia-engineering-toolkit`, `frontend-design-workflow`, `lowcode-ml-ui-patterns`, and `codex-security` skill names.
+- Reworked `AGENTS.md` to remove unavailable skill names, hard-coded model guidance, and stale provider-first routing.
+
+### Gaps Pending
+
+- Product implementation still needs local appliance bootstrap, data estate, metadata/database, hardware, explainability, offline Hub, reproducibility, and backup/restore proofs.
+- Prompt routing should be checked again when installed plugin inventory changes.
+
+### Next Items To Implement
+
+- Use the new local-first appliance skill for the next local bootstrap implementation slice.

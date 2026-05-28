@@ -94,28 +94,27 @@ Do not assume missing tooling exists. Read current architecture and onboarding d
 
 ### Default Session Communication Mode
 
-For every session in this repository, agent must use the `caveman:caveman` skill by default.
-Treat this as the repo-wide communication baseline unless the user explicitly asks for a different style.
+Keep repository communication concise and high-signal by default. Use the `caveman` skill only when the user explicitly asks for caveman mode and that skill is available.
 
 Requirements:
-- activate `caveman:caveman` at session start when available
 - prefer brief, compressed, high-signal responses in all commentary and final messages
 - keep technical accuracy intact while reducing filler
-- if the caveman skill is unavailable in a session, fall back to the closest concise style possible and note that briefly only when needed
 
 ### Required Skill Routing For Future Modules
 
 Use the repo-local skills under `.codex/skills/` plus global skills when available. Invoke only the relevant subset; keep context lean.
 
 - `juliaflow-control-loop`: default for BRD/TODO/checkpoint-driven work, milestone closure, traceability, and cross-layer module delivery.
+- `juliaflow-local-first-appliance`: local appliance bootstrap, local data estate, DuckDB/PostgreSQL local modes, CPU/GPU hardware proof, explainability/model evidence, offline Hub, academic reproducibility, and backup/restore.
 - `juliaflow-julia-development`: Julia services, node SDK, worker runtime, base extensions, Julia syntax/package questions, `Project.toml` / `Manifest.toml`, and performance/debugging work.
 - `juliaflow-frontend-development`: React/Vite canvas, BI viewer, Hub, monitor, settings, route shell, runtime config, frontend tests, visual QA, and frontend performance.
-- `juliaflow-provider-deployment`: provider overlays, Kustomize/ArgoCD, secret delivery, live cluster dry-runs, object-store/auth/broker deployment binding.
-- Global `julia-coding` and `julia-debugging`: use with `juliaflow-julia-development`; prefer official Julia docs for syntax/API/Pkg behavior and use community sources only for troubleshooting/package discovery.
-- Global frontend skills: use `build-web-apps:react-best-practices`, `build-web-apps:frontend-testing-debugging`, `design`, `visual-ralph`, and `visual-verdict` for major frontend/UI work.
-- Review skills: use `code-review` after non-trivial changes; use `security-review` for auth, secrets, RBAC, OIDC/JWT, Hub trust, deployment, or supply-chain surfaces.
+- `juliaflow-provider-deployment`: optional provider/cloud compatibility only, including Kustomize/ArgoCD overlays, secret delivery, live cluster dry-runs, and provider-specific object-store/auth/broker bindings.
+- `analysis-engineering-workflow:plan-work`, `analysis-engineering-workflow:architect-work`, `analysis-engineering-workflow:review-architecture`, `analysis-engineering-workflow:implement-work`, `analysis-engineering-workflow:execute-verify`, and `analysis-engineering-workflow:post-execution-review`: use for broad planning, architecture, implementation, verification, and review gates.
+- `julia-engineering-toolkit:julia-coding`, `julia-engineering-toolkit:julia-data-science`, and `julia-engineering-toolkit:julia-debugging`: use with `juliaflow-julia-development`; prefer official Julia docs for syntax/API/Pkg behavior and use community sources only for troubleshooting/package discovery.
+- `frontend-design-workflow:frontend-implementation`, `frontend-design-workflow:frontend-architecture`, `frontend-design-workflow:frontend-visual-qa`, `frontend-design-workflow:frontend-accessibility-review`, and `lowcode-ml-ui-patterns`: use with `juliaflow-frontend-development` for major frontend/UI work.
+- `codex-security:security-scan`: use for auth, secrets, RBAC, OIDC/JWT, Hub trust, deployment, extension sandbox, or supply-chain surfaces.
 
-For large module work, prefer `$ralplan` or `$autopilot` before edits. Use native subagents for independent bounded lanes with explicit ownership:
+For large module work, plan before edits and use multi-agent tools only when they are available and the lanes are independent with explicit ownership:
 
 - `explore`: fast repo map and symbol lookup
 - `researcher`: official docs/version-aware external facts
@@ -123,7 +122,7 @@ For large module work, prefer `$ralplan` or `$autopilot` before edits. Use nativ
 - `executor`: implementation in scoped files
 - `test-engineer`: regression and test design
 - `architect` / `critic`: boundary, risk, and tradeoff review
-- `code-reviewer`: merge-readiness review
+- `code-reviewer` or framework/security review skill: merge-readiness review
 
 Parallelize only independent lanes. Do not delegate shared-file edits without clear ownership. Integrate results locally and own final verification.
 
@@ -139,8 +138,8 @@ Parallelize only independent lanes. Do not delegate shared-file edits without cl
 
 ### Session Learnings To Keep
 
-- For scoped repo-local implementation slices, prefer medium reasoning by default; reserve high/frontier reasoning for security-sensitive work, distributed guarantees (for example exactly-once/Kafka/OIDC), or multi-system architecture tradeoffs.
-- For general code generation, test updates, and contract plumbing in this repo, `gpt-5.4-mini` is usually sufficient unless the slice is architecture-heavy or unusually ambiguous.
+- For scoped repo-local implementation slices, prefer enough reasoning to cover the touched risk; reserve deeper architecture/security review for security-sensitive work, distributed guarantees, local data durability, reproducibility, extension sandboxing, or multi-system tradeoffs.
+- For general code generation, test updates, and contract plumbing, use the active configured model/tooling; avoid hard-coding model names in repo guidance.
 - When smoke-testing long-running worker scripts such as `scripts/run-gpu-worker.jl` or `scripts/run-stream-worker.jl`, set `JULIAFLOW_WORKER_ONCE=1` (or equivalent bounded mode) so verification does not hang the session.
 
 Useful docs:
@@ -173,7 +172,7 @@ Before any meaningful implementation:
    - explainability/model evidence and academic reproducibility bundle
    - offline Hub proof
    - backup/restore and migration evidence
-4. For broad BRD/P0 work, use the configured frontier model where available (currently GPT-5.5) for planning, architecture review, and validation.
+4. For broad BRD/P0 work, use the strongest available planning, architecture review, and validation workflow rather than a hard-coded model name.
 5. Preserve the thin-slice strategy: keep existing dev/demo fallbacks while adding local-first production-depth paths behind explicit seams and tests.
 
 Completion rules for any slice, phase, review, or milestone claim:
