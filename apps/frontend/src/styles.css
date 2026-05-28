@@ -795,6 +795,32 @@ button {
   font-family: "IBM Plex Mono", monospace;
 }
 
+.execution-detail-grid,
+.execution-result-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.execution-detail-row {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(118px, 0.35fr) minmax(0, 1fr);
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.execution-detail-row strong,
+.execution-detail-row span {
+  overflow-wrap: anywhere;
+}
+
+.execution-detail-row span {
+  color: var(--muted);
+}
+
 .checkpoint-state.is-ready {
   color: var(--accent);
 }

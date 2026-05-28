@@ -17,6 +17,8 @@ import {
   type GatewayAuditActionEvent,
   type GatewayAuthDirectory,
   type GatewayAuthPolicy,
+  type GatewayExecutorDataflowPolicy,
+  type GatewayExecutorNodeResult,
   type GatewayExecutionStateChangedEvent,
   type GatewayHealthcheck,
   type GatewayHubExtensionRecord,
@@ -894,6 +896,18 @@ function buildStatusCounts(items: ExecutionRailItem[]): Array<{ count: number; l
     count: items.filter((item) => item.status === status).length,
     label: status
   }));
+}
+
+function dataflowPolicyDetail(policy: GatewayExecutorDataflowPolicy): string {
+  const callbackState = policy.callbackEnabled ? "callback on" : "callback off";
+  const dataflowState = policy.dataflowEnabled ? "dataflow on" : "dataflow off";
+  return `${callbackState} · ${dataflowState} · ${policy.stageBarrier}`;
+}
+
+function executorNodeResultDetail(result: GatewayExecutorNodeResult): string {
+  const refs = result.outputRefs.length === 1 ? "1 ref" : `${result.outputRefs.length} refs`;
+  const error = result.errorMessage ? ` · ${result.errorMessage}` : "";
+  return `${result.status} · ${result.outputKind} · ${result.rowCount} rows · ${refs}${error}`;
 }
 
 function buildDashboardId(workflow: WorkflowDefinition): string {
@@ -4542,6 +4556,23 @@ function App() {
                               </span>
                             </div>
                           ) : null}
+                          {item.executorSchedule?.some((stage) => stage.dataflowPolicy) ? (
+                            <div className="execution-detail-grid" aria-label={`Executor dataflow stage policies ${item.id}`}>
+                              {item.executorSchedule
+                                .filter((stage) => stage.dataflowPolicy)
+                                .map((stage) => (
+                                  <div className="execution-detail-row" key={`executor-policy-${stage.stageIndex}`}>
+                                    <strong>Stage {stage.stageIndex}</strong>
+                                    <span>
+                                      {stage.dataflowPolicy?.policyName} · eligible{" "}
+                                      {stage.dataflowPolicy?.eligibleNodeIds.length ?? 0} · sources{" "}
+                                      {stage.dataflowPolicy?.sourceNodeIds.length ?? 0} · sinks{" "}
+                                      {stage.dataflowPolicy?.sinkNodeIds.length ?? 0}
+                                    </span>
+                                  </div>
+                                ))}
+                            </div>
+                          ) : null}
                           {item.executorState ? (
                             <div className="inspector-row">
                               <strong>Executor state</strong>
@@ -4558,23 +4589,32 @@ function App() {
                               <span>
                                 {item.executorState.dataflowPolicy.policyName} · eligible{" "}
                                 {item.executorState.dataflowPolicy.eligibleNodeIds.length} · max concurrency{" "}
-                                {item.executorState.dataflowPolicy.maxConcurrency}
+                                {item.executorState.dataflowPolicy.maxConcurrency} ·{" "}
+                                {dataflowPolicyDetail(item.executorState.dataflowPolicy)}
                               </span>
                             </div>
                           ) : null}
                           {item.executorState?.nodeResults?.length ? (
-                            <div className="inspector-row">
-                              <strong>Executor nodes</strong>
-                              <span>
-                                {item.executorState.nodeResults.length} results
-                                {item.executorState.failedNodeId ? (
-                                  <>
-                                    {" "}
-                                    · failed {item.executorState.failedNodeId}
-                                    {item.executorState.errorMessage ? ` · ${item.executorState.errorMessage}` : ""}
-                                  </>
-                                ) : null}
-                              </span>
+                            <div className="execution-result-list" aria-label={`Executor node results ${item.id}`}>
+                              <div className="inspector-row">
+                                <strong>Executor nodes</strong>
+                                <span>
+                                  {item.executorState.nodeResults.length} results
+                                  {item.executorState.failedNodeId ? (
+                                    <>
+                                      {" "}
+                                      · failed {item.executorState.failedNodeId}
+                                      {item.executorState.errorMessage ? ` · ${item.executorState.errorMessage}` : ""}
+                                    </>
+                                  ) : null}
+                                </span>
+                              </div>
+                              {item.executorState.nodeResults.map((result) => (
+                                <div className="execution-detail-row" key={`executor-result-${result.nodeId}`}>
+                                  <strong>{result.nodeId}</strong>
+                                  <span>{executorNodeResultDetail(result)}</span>
+                                </div>
+                              ))}
                             </div>
                           ) : null}
                           {item.controlFlowBranchState ? (
@@ -4593,6 +4633,18 @@ function App() {
                                   </>
                                 ) : null}
                               </span>
+                            </div>
+                          ) : null}
+                          {item.controlFlowBranchState?.nodeResults.length ? (
+                            <div className="execution-result-list" aria-label={`Branch node results ${item.id}`}>
+                              {item.controlFlowBranchState.nodeResults.map((result) => (
+                                <div className="execution-detail-row" key={`branch-result-${result.nodeId}`}>
+                                  <strong>{result.nodeId}</strong>
+                                  <span>
+                                    {result.status} · {result.outputKind} · {result.rowCount} rows
+                                  </span>
+                                </div>
+                              ))}
                             </div>
                           ) : null}
                         </article>

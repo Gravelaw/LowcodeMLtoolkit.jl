@@ -2004,3 +2004,27 @@ Each checkpoint entry must contain:
 - Run full verification and code review for this slice.
 - Commit and push after gates pass.
 - Continue frontend module expansion unless provider context becomes available first.
+
+---
+
+## Checkpoint: Frontend Module Expansion / Monitor Executor Detail Slice — 2026-05-28
+
+### Work Done Till Date
+
+- Pulled `Gravelaw/LowcodeMLtoolkit.jl` into the local Git workspace on `main`.
+- Reviewed BRD, plan, TODO, traceability, risk, tracker, and checkpoint state for the current Provider-Specific GA Proof / Module Expansion phase.
+- Added Monitor execution-rail detail for executor dataflow stage policies and per-node executor/branch results.
+- Removed tracked `.staging/` skill residue and ignored future `.staging/` folders.
+- Resolved the moderate `ws` audit advisory with `npm audit fix`.
+
+### Gaps Pending
+
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
+- External Hub registry/provider mirror proof remains gated on external registry/provider context.
+- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+- Further BI/Hub/settings polish remains available as local frontend module depth.
+
+### Next Items To Implement
+
+- Run focused frontend and control-doc verification for this slice.
+- Continue provider-specific GA proof when provider context exists; otherwise continue local frontend/Hub polish slices.

@@ -744,8 +744,12 @@ describe("App", () => {
     expect(screen.getByText(/stage 1\/1 · active 0/i)).toBeInTheDocument();
     expect(screen.getByText(/2 stages · max concurrency 2 · topological_stage_barrier/i)).toBeInTheDocument();
     expect(screen.getByText(/executor running · stage 2\/2 · active 2 · completed 1/i)).toBeInTheDocument();
-    expect(screen.getByText(/callback_dataflow_stage_barrier · eligible 3 · max concurrency 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/callback_dataflow_stage_barrier · eligible 3 · max concurrency 2 · callback on · dataflow on/i)).toBeInTheDocument();
+    expect(screen.getByText(/callback_dataflow_stage_barrier · eligible 1 · sources 1 · sinks 0/i)).toBeInTheDocument();
+    expect(screen.getByText(/callback_dataflow_stage_barrier · eligible 2 · sources 0 · sinks 1/i)).toBeInTheDocument();
     expect(screen.getByText(/1 results · failed node-transform · fixture executor failure/i)).toBeInTheDocument();
+    expect(screen.getByText(/executed · node · 12 rows · 1 ref/i)).toBeInTheDocument();
+    expect(screen.getByText(/executed · bi_outlet · 3 rows/i)).toBeInTheDocument();
     expect(screen.getAllByText("12").length).toBeGreaterThan(0);
     expect(screen.getByText("10")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();

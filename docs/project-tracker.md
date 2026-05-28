@@ -18,7 +18,7 @@ Tracker always records 3 things:
 - BRD: `JuliaFlow_BRD_v1.0.docx`
 - Current target phase: `Provider-Specific GA Proof / Module Expansion`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-05-17`
+- Last updated: `2026-05-28`
 
 ## Work Done Till Date
 
@@ -198,6 +198,9 @@ Tracker always records 3 things:
   - Hub install action now supports `upgrade`
   - gateway trust policy now blocks enabling unsigned partner extensions
 - Frontend node library UX now groups starter nodes by family for denser scanning in canvas sidebar
+- Frontend Monitor module expansion now renders executor dataflow stage-policy detail rows and per-node executor/branch result evidence, including callback/dataflow state, readiness barrier, source/sink counts, row counts, output kind, and output-ref counts.
+- Repository sanity pass removed tracked `.staging/` skill residue and added `.staging/` to `.gitignore`; tracked BRD/persona binary artifacts remain intentional control/product artifacts.
+- Dependency hygiene pass resolved the moderate `ws` audit advisory via lockfile update.
 
 ### Alpha Core Contract Deepening
 

@@ -13,4 +13,5 @@ tmp/
 artifacts/
 
 .omx/
+.staging/
 *.tsbuildinfo

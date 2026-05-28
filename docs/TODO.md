@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-19
+Last updated: 2026-05-28
 Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
 Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.omx/plans/repo-brd-endgame-2026-04-25.md`, `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
 
@@ -53,7 +53,7 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 16. [ ] Governed Hub external registry/provider proof: bind sandbox/artifact/mirror verification to a selected external Hub registry or provider mirror when credentials and provider context exist.
 17. [x] Control-doc sync automation: `AGENTS.md` now requires Plan/TODO/risk/tracker/checkpoint updates for every completed slice/phase/review, and `npm run validate:control-doc-sync` enforces the guard when non-control changes.
 18. [x] Julia runtime module expansion follow-up / executor dataflow scheduling-policy evidence slice: executor schedule/state payloads now expose bounded callback-dataflow policy evidence without rewriting stream/GPU ownership.
-19. [ ] Frontend module expansion follow-up: deepen Monitor operational views for executor dataflow policy/results or continue BI/Hub polish when frontend depth is selected again.
+19. [x] Frontend module expansion follow-up: Monitor now expands executor dataflow stage-policy evidence and per-node executor/branch result details for operator review.
 
 ## Final Hardware-Gated Phase
 
@@ -95,6 +95,7 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 - 2026-05-17: Julia runtime executor node result-error binding slice records callback-bound per-stage node output telemetry, flattened node results, and failed-node/error details through `executorState`.
 - 2026-05-18/2026-05-19: Julia runtime base-extension dataflow binding runs registered base source/transform/sink nodes through executor callbacks, propagates Arrow IPC payloads between staged ticks, records row/output/persisted-ref telemetry, resolves UI/contract-style base node types, proves source -> select -> aggregate -> sink staged execution, and exposes bounded callback-dataflow scheduling-policy evidence through schedule/state payloads.
 - 2026-05-17: Governed Hub isolated sandbox/artifact/mirror proof executes only allowlisted Julia extension test fixtures under `JULIAFLOW_HUB_SANDBOX_EXECUTE=1`, verifies downloaded artifact bytes through `JULIAFLOW_HUB_ARTIFACT_STORE`, resolves private/offline mirror refs through `JULIAFLOW_HUB_MIRROR_REGISTRY`, blocks missing artifacts/mirrors, and renders verification details in Hub cards.
+- 2026-05-28: Frontend Monitor expansion now renders executor dataflow stage-policy rows and per-node executor/branch result evidence, so operators can inspect callback/dataflow flags, readiness barriers, source/sink counts, row counts, output kind, and output-ref counts directly in Monitor; tracked `.staging/` skill residue was removed, future staging folders are ignored, and the moderate `ws` audit advisory was resolved.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
 - 2026-04-25: BRD traceability automation now validates every checked P0/P1/P2 TODO item against `docs/brd-traceability.md` code/test evidence links.
