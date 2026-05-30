@@ -1346,7 +1346,14 @@ end
             ),
         )
 
+        ENV["JULIAFLOW_LOCAL_PROFILE"] = "single-user"
+        ENV["JULIAFLOW_HOME"] = store_root
+        ENV["JULIAFLOW_DATA_ESTATE_ROOT"] = joinpath(store_root, "data-estate")
+        ENV["JULIAFLOW_APPLIANCE_BOOTSTRAP"] = "1"
         @test occursin("\"status\":\"ok\"", healthcheck(state))
+        @test occursin("\"localProfile\":\"single-user\"", healthcheck(state))
+        @test occursin("\"dataEstateReady\":true", healthcheck(state))
+        @test occursin("\"cloudCredentialsRequired\":false", healthcheck(state))
         @test occursin("wf-foundation", list_workflows_response(state))
         @test occursin("\"nodeCount\":3", get_workflow_response(state, "wf-foundation"))
         @test occursin("\"nodes\":[", get_workflow_response(state, "wf-foundation"))
@@ -2423,6 +2430,16 @@ end
         @test occursin("\"gpuWorkerOwnedExecutions\":", String(health_response.body))
         @test occursin("\"queuedExecutionsTotal\":", String(health_response.body))
         @test occursin("\"runningExecutionsTotal\":", String(health_response.body))
+        @test occursin("\"localProfile\":\"single-user\"", String(health_response.body))
+        @test occursin("\"dataEstateZones\":", String(health_response.body))
+        @test occursin("\"dataEstateReady\":", String(health_response.body))
+        @test occursin("\"freeDiskStatus\":", String(health_response.body))
+        @test occursin("\"localServiceUrls\":", String(health_response.body))
+        @test occursin("\"postgresProfileStatus\":", String(health_response.body))
+        @test occursin("\"minioProfileStatus\":", String(health_response.body))
+        @test occursin("\"cloudCredentialsRequired\":false", String(health_response.body))
+        @test occursin("\"cpuThreadCount\":", String(health_response.body))
+        @test occursin("\"gpuReadinessStatus\":", String(health_response.body))
         @test occursin("\"otelTraceSeamEnabled\":true", String(health_response.body))
         @test metrics_route_response.status == 200
         @test occursin("juliaflow_workflows_total", String(metrics_route_response.body))

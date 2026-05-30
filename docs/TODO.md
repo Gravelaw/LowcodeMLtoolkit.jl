@@ -1,8 +1,8 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-19
-Source: BRD gap review against `JuliaFlow_BRD_v1.0.docx` and current code.
-Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.omx/plans/repo-brd-endgame-2026-04-25.md`, `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md`; active lane/risks: `docs/risk-register.md`
+Last updated: 2026-05-30
+Source: BRD gap review against `business-requirements-v0.3.0.md` and current code.
+Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning context is preserved in `docs/project-tracker.md` and `docs/checkpoint-log.md`.
 
 ## P0 — Required Before Phase 1 / Alpha Complete
 
@@ -33,31 +33,27 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 2. [x] BRD traceability automation: maintain `docs/brd-traceability.md`; fail milestone claim if TODO item lacks test/evidence links.
 3. [x] Node-library scale roadmap: staged taxonomy reached 150 stable nodes with quality tiers and compatibility tests; 300+ ecosystem breadth remains Beta/GA roadmap work.
 
-## Current Development Phase — Provider-Specific GA Proof / Module Expansion
+## Current Development Phase — Local-First GA Proof / Explainable Local Appliance
 
-1. [ ] Provider-specific deployment proof: add selected staging/prod overlays, secret delivery integration, server-side dry-run evidence, and auth/PostgreSQL/Kafka-or-NATS/object-store/gateway smokes.
-2. [ ] Provider-specific object-store proof: run remote Arrow IPC materialization against selected S3/GCS/Azure-compatible target with externally supplied credentials and linked evidence.
-3. [x] Frontend module expansion / BI viewer row-search slice: published dashboard viewer row search now filters visible chart rows and filtered CSV exports while preserving route shell, demo fallback, runtime config, and coverage gates.
-4. [x] Julia runtime module expansion / loop runtime-plan slice: loop control-flow metadata now validates reachable bounded loop bodies and emits additive execution `controlFlowPlan` evidence across Julia, gateway, contracts, and Monitor UI.
-5. [x] Julia runtime module expansion / try-catch runtime-plan slice: try/catch control-flow metadata now emits additive execution `controlFlowPlan` evidence with try/catch body node ids across Julia, gateway, contracts, and Monitor UI.
-6. [x] Julia runtime module expansion follow-up / try-catch failure-recovery slice: failed-node telemetry for a try node now records bounded `controlFlowRecovery` catch-route evidence without terminal-failing, while uncaught failed-node telemetry still transitions to failed.
-7. [x] Julia runtime module expansion follow-up / catch-node branch-state slice: worker-service now executes bounded catch branches after recovery, records `controlFlowBranchState`, surfaces deterministic catch-node BI outlet row-count results, and completes recovered executions.
-8. [x] Julia runtime module expansion follow-up / DAG branch rescheduling slice: worker-service now derives bounded catch-branch DAG stages, executes independent catch nodes before dependent BI outlet nodes, persists `branchStages` / `stageResults`, and surfaces branch-stage progress in Monitor.
-9. [x] Julia runtime module expansion follow-up / executor stage-schedule slice: execution records now expose bounded topological `executorSchedule` evidence with stages, lanes, worker pools, readiness barriers, max concurrency, and Monitor rendering.
-10. [x] Julia runtime module expansion follow-up / metadata-only multi-tick executor slice: worker-service now advances CPU batch executions one `executorSchedule` stage per tick and exposes `executorState` through gateway, contracts, OpenAPI, Monitor UI, and tests.
-11. [x] Julia runtime module expansion follow-up / executor node result-error binding slice: staged executor ticks now persist callback-bound node output telemetry, flattened node results, and failed-node/error details through gateway, contracts, OpenAPI, Monitor UI, and tests.
-12. [x] Julia runtime module expansion follow-up / base-extension dataflow binding slice: executor callbacks can now run registered base source/transform/sink nodes, propagate Arrow IPC payloads across staged ticks, and record row/output/persisted-ref telemetry.
-13. [x] Julia runtime module expansion follow-up / executor dataflow authored-alias coverage slice: callback-bound base dataflow now resolves UI/contract-style node aliases, normalizes authored port/config defaults, and proves source -> select -> aggregate -> sink execution through staged executor ticks.
-14. [x] Governed Hub production depth / deterministic sandbox-hash-mirror proof slice: Hub records now include install-time verification evidence; install/enable/upgrade block unsafe sandbox command shapes, artifact hash mismatches, and unsupported mirrors while disable remains a remediation path.
-15. [x] Governed Hub production depth follow-up: execute allowlisted sandbox commands in an isolated fixture runner, verify downloaded artifacts against declared hashes from an artifact-store registry, and prove private/offline mirror refs through a mirror registry.
-16. [ ] Governed Hub external registry/provider proof: bind sandbox/artifact/mirror verification to a selected external Hub registry or provider mirror when credentials and provider context exist.
-17. [x] Control-doc sync automation: `AGENTS.md` now requires Plan/TODO/risk/tracker/checkpoint updates for every completed slice/phase/review, and `npm run validate:control-doc-sync` enforces the guard when non-control changes.
-18. [x] Julia runtime module expansion follow-up / executor dataflow scheduling-policy evidence slice: executor schedule/state payloads now expose bounded callback-dataflow policy evidence without rewriting stream/GPU ownership.
-19. [ ] Frontend module expansion follow-up: deepen Monitor operational views for executor dataflow policy/results or continue BI/Hub polish when frontend depth is selected again.
+1. [x] BRD local-first strategy refresh: `business-requirements-v0.3.0.md` now sets v0.4.0 local-first baseline requirements for local appliance bootstrap, local data estate, local database modes, hardware-aware execution, AI explainability, offline Hub, academic reproducibility, and backup/restore.
+2. [x] Agent prompt hygiene: repo-local skills and `AGENTS.md` now route local-first appliance work through installed/current skills, remove stale skill/plugin/model references, and keep project guidance from duplicating obsolete plugin prompts.
+3. [x] Local appliance bootstrap proof: one-command local stack, installation profiles, service health checks, local folder initialization, and sample workflow with no cloud credentials.
+4. [ ] Local data estate proof: managed filesystem zones, Parquet/Arrow durable artifacts, Arrow IPC runtime payloads, DuckDB query acceleration, quotas, cleanup, and backup hooks.
+5. [ ] Local metadata/database proof: single-user metadata mode plus local PostgreSQL lab/team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
+6. [ ] Local hardware runtime proof: CPU/RAM/disk/GPU profiler, CPU scheduling, memory-aware limits, CUDA smoke when available, and explicit CPU fallback when unavailable.
+7. [ ] Explainability/model evidence proof: dataset cards, model cards, feature importance, local/global explanations, limitations/warnings, and checkpoint/reproducibility-bundle export.
+8. [ ] Offline Hub proof: bundled/local extensions install without external registry dependency, with checksum verification, sandbox tests, local artifact cache, and unsafe-extension blocking.
+9. [ ] Academic reproducibility workflow: offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport path.
+10. [ ] Backup/restore and migration proof: local data estate backup, metadata backup, checkpoint import/export, workflow bundle import/export, and integrity checks.
+11. [x] Frontend module expansion / BI viewer row-search slice: published dashboard viewer row search now filters visible chart rows and filtered CSV exports while preserving route shell, demo fallback, runtime config, and coverage gates.
+12. [x] Frontend module expansion follow-up: Monitor now expands executor dataflow stage-policy evidence and per-node executor/branch result details for operator review.
 
-## Final Hardware-Gated Phase
+## Optional Compatibility Backlog
 
-1. [ ] GPU production hardening / multi-GPU closure: deterministic multi-device placement metadata, requested/selected device reporting, explicit fallback reasons, scheduler policy, worker isolation/capacity metadata, and one-device CUDA/KernelAbstractions smoke evidence exist; final closure is intentionally last because full hardware-backed worker isolation and multi-GPU scheduling proof requires a host/CI runner with >=2 visible CUDA devices.
+1. [ ] Provider-specific deployment proof: optional future path only, not a local-first GA blocker.
+2. [ ] Provider-specific object-store proof: optional future path only; local data estate proof is now the core storage gate.
+3. [ ] Governed Hub external registry/provider proof: optional future path only; offline/local Hub proof is now the core Hub gate.
+4. [ ] Hardware-conditional multi-GPU closure: run multi-GPU CUDA/KernelAbstractions proof only when the local machine/runner has >=2 visible CUDA devices.
 
 ## Review Notes
 
@@ -95,6 +91,10 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 - 2026-05-17: Julia runtime executor node result-error binding slice records callback-bound per-stage node output telemetry, flattened node results, and failed-node/error details through `executorState`.
 - 2026-05-18/2026-05-19: Julia runtime base-extension dataflow binding runs registered base source/transform/sink nodes through executor callbacks, propagates Arrow IPC payloads between staged ticks, records row/output/persisted-ref telemetry, resolves UI/contract-style base node types, proves source -> select -> aggregate -> sink staged execution, and exposes bounded callback-dataflow scheduling-policy evidence through schedule/state payloads.
 - 2026-05-17: Governed Hub isolated sandbox/artifact/mirror proof executes only allowlisted Julia extension test fixtures under `JULIAFLOW_HUB_SANDBOX_EXECUTE=1`, verifies downloaded artifact bytes through `JULIAFLOW_HUB_ARTIFACT_STORE`, resolves private/offline mirror refs through `JULIAFLOW_HUB_MIRROR_REGISTRY`, blocks missing artifacts/mirrors, and renders verification details in Hub cards.
+- 2026-05-28: Frontend Monitor expansion now renders executor dataflow stage-policy rows and per-node executor/branch result evidence, so operators can inspect callback/dataflow flags, readiness barriers, source/sink counts, row counts, output kind, and output-ref counts directly in Monitor; tracked `.staging/` skill residue was removed, future staging folders are ignored, and the moderate `ws` audit advisory was resolved.
+- 2026-05-28: Core BRD updated to v0.4.0 local-first baseline. Provider/cloud proof, cloud object stores, external registry proof, enterprise identity, and cloud multi-GPU closure are no longer core GA gates; local appliance bootstrap, local data estate, local metadata/database modes, local hardware runtime, explainability/model evidence, offline Hub, academic reproducibility, and backup/restore are the active implementation lanes.
+- 2026-05-30: Local appliance bootstrap proof is closed for the current local-first slice: `npm run smoke:local-bootstrap` reaches gateway health and the sample `wf-foundation` workflow with `single-user` and no cloud credentials; `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run validate:contracts`, direct frontend TypeScript checks, direct Vite production build, `npm run validate:control-doc-sync`, and `npm run validate:brd-traceability` passed. Residual environment note: `npm run build` reaches Vite transform but the Windows npm/WSL interop wrapper can hang after Vite finishes; direct Node/Vite build evidence is recorded until native WSL Node/npm is available.
+- 2026-05-29 (runtime follow-up): Windows Node/Julia installs are now verified (`node.exe v26.2.0`, `julia.exe 1.12.6`). Remaining local-bootstrap closure work is to rerun npm/JS/smoke gates in a fresh shell session so nested npm workspace commands resolve consistently.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
 - 2026-04-25: BRD traceability automation now validates every checked P0/P1/P2 TODO item against `docs/brd-traceability.md` code/test evidence links.
@@ -110,7 +110,7 @@ Plan: `Plan.md`; historical plans: `.omx/plans/brd-gap-review-2026-04-24.md`, `.
 
 - 2026-05-01: provider-neutral remote object-store service adapter now transfers Arrow IPC base64 envelopes for remote refs, and base pack reached 150 stable nodes with quality/governance/streaming/GPU-helper additions plus output-inspecting tests.
 - 2026-05-03: BI published viewer now adds filter-aware chart/row drilldown, selected-row detail inspection, filtered/full CSV export controls, and selected-row JSON export.
-- 2026-05-03: planning update selects production OIDC/JWT/RBAC hardening as the next P0 lane, with streaming and GPU production hardening queued after; see `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md` and `docs/risk-register.md`.
+- 2026-05-03: planning update selected production OIDC/JWT/RBAC hardening as the next P0 lane, with streaming and GPU production hardening queued after; historical planning context is now preserved in tracker/checkpoint history, while active risks remain in `docs/risk-register.md`.
 - 2026-05-03: production OIDC/RBAC first slice adds HS256 OIDC-style JWT validation seam, persisted role/resource policies, bounded/redacted audit action query API, OpenAPI/TS contracts, and Julia/contract tests; live IdP JWKS/RSA and admin UI hardening remain before P0 item 11 can be checked.
 - 2026-05-03: OIDC/JWT hardening now supports discovery/JWKS key resolution with `kid` lookup and rotation tests for HS256 JWKS fixtures; RSA/live IdP validation and admin UI remain before P0 item 11 can be checked.
 

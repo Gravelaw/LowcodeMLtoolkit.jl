@@ -20,6 +20,46 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Local Appliance Bootstrap Proof Complete — 2026-05-30
+
+### Work Done Till Date
+
+- Implemented and verified the local-first bootstrap slice:
+  - `scripts/dev-local.mjs` one-command runner with default `single-user` profile and support for `lab-team`, `s3-compatible-local`, and `developer`.
+  - `scripts/smoke-local-bootstrap.mjs` bounded temporary-home smoke wrapper.
+  - `package.json` scripts `dev:local` and `smoke:local-bootstrap`.
+- Local appliance home/data-estate initialization creates `raw`, `processed`, `features`, `models`, `runs`, `checkpoints`, `dashboards`, `logs`, and `extensions`.
+- Gateway `/health` exposes local appliance evidence across Julia + contracts/OpenAPI + frontend Monitor:
+  - profile/home/data-estate and zone readiness
+  - writable/disk status
+  - local service URLs
+  - Postgres/MinIO profile status
+  - CPU/GPU readiness and fallback reason
+  - cloud credentials not required for local bootstrap mode
+- Updated focused tests for Julia gateway health fields, contract schema expectations, frontend Monitor rendering, and Windows/WSL-safe Node tool invocation.
+- Verified this session:
+  - `npm run smoke:local-bootstrap` passed with `single-user`, gateway health, and `wf-foundation` sample workflow availability.
+  - `julia --project=. tests/julia/runtests.jl` passed.
+  - `npm run test` passed.
+  - `npm run validate:contracts` passed.
+  - Direct frontend TypeScript checks passed: `node ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json` and `node ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.node.json`.
+  - Direct Vite production build passed: `node ../../node_modules/vite/bin/vite.js build --configLoader runner`.
+  - `npm run validate:control-doc-sync` and `npm run validate:brd-traceability` passed after final control-doc updates.
+
+### Gaps Pending
+
+- Local appliance bootstrap product proof is closed for the current slice.
+- Residual toolchain caveat: `npm run build` reaches Vite transform in this Windows npm/WSL interop shell, then the npm wrapper can hang after Vite exits; direct Node/TypeScript/Vite build commands pass. Native WSL Node/npm should be preferred for future repeatable build-wrapper evidence.
+- Lab-team PostgreSQL and S3-compatible local dependency startup profiles are wired but not yet smoke-closed with live Postgres/MinIO dependencies; those belong with local metadata/database and optional S3-compatible-local follow-up evidence.
+
+### Next Items To Implement
+
+- Start local data estate proof: managed filesystem manifests, durable Arrow/Parquet artifacts, DuckDB query acceleration, quotas, cleanup, and backup/restore hooks.
+- Keep `single-user` bootstrap smoke in the gate set for every local-first follow-up.
+- Revisit native `npm run build` wrapper behavior after native WSL Node/npm is available or CI provides a single-runtime shell.
+
+---
+
 ## Checkpoint: `cp/00-foundation`
 
 ### Work Done Till Date
@@ -748,8 +788,8 @@ Each checkpoint entry must contain:
 
 ### Work Done Till Date
 
-- Added `docs/next-steps-plan-2026-04-29.md` for future-session handoff.
-- Plan records sanity/repo cleanup, GitHub integration checks, production Arrow/DataFrames adapter work, node scale 50 -> 75, BI polish, and production hardening lanes.
+- Added a future-session handoff for the post-50-node baseline; the standalone handoff file was later removed during documentation cleanup.
+- The handoff recorded sanity/repo cleanup, GitHub integration checks, production Arrow/DataFrames adapter work, node scale 50 -> 75, BI polish, and production hardening lanes.
 - Verified GitHub target with `gh repo view Gravelaw/LowcodeMLtoolkit.jl`; authenticated account has admin permission.
 - Merged existing remote BRD/license documents into local `main` instead of force-pushing over GitHub history.
 
@@ -762,7 +802,7 @@ Each checkpoint entry must contain:
 
 ### Next Items To Implement
 
-- Start next session with `docs/next-steps-plan-2026-04-29.md`.
+- Start next session from the active tracker/TODO/checkpoint set.
 - Run sanity checks after GitHub push and inspect remote CI/status if configured.
 - Execute cleanup first, then production Arrow/DataFrames adapter or node scale 50 -> 75 depending dependency decision.
 
@@ -922,7 +962,7 @@ Each checkpoint entry must contain:
 ### Work Done Till Date
 
 - Confirmed BI drilldown/export polish is the latest completed P0 slice and production OIDC/RBAC is the next planned P0 lane.
-- Added `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md` with risk-aware execution plan and acceptance criteria.
+- Added a risk-aware production OIDC/RBAC execution plan and acceptance criteria; the standalone plan file was later removed during documentation cleanup after its history was preserved here and in the tracker.
 - Added `docs/risk-register.md` with active security, streaming, GPU, object-store, and Hub risks.
 - Updated TODO and BRD traceability wording to point at the current plan and risk register without marking new implementation complete.
 
@@ -2004,3 +2044,92 @@ Each checkpoint entry must contain:
 - Run full verification and code review for this slice.
 - Commit and push after gates pass.
 - Continue frontend module expansion unless provider context becomes available first.
+
+---
+
+## Checkpoint: Frontend Module Expansion / Monitor Executor Detail Slice — 2026-05-28
+
+### Work Done Till Date
+
+- Pulled `Gravelaw/LowcodeMLtoolkit.jl` into the local Git workspace on `main`.
+- Reviewed BRD, plan, TODO, traceability, risk, tracker, and checkpoint state for the current Provider-Specific GA Proof / Module Expansion phase.
+- Added Monitor execution-rail detail for executor dataflow stage policies and per-node executor/branch results.
+- Removed tracked `.staging/` skill residue and ignored future `.staging/` folders.
+- Resolved the moderate `ws` audit advisory with `npm audit fix`.
+
+### Gaps Pending
+
+- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
+- External Hub registry/provider mirror proof remains gated on external registry/provider context.
+- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
+- Further BI/Hub/settings polish remains available as local frontend module depth.
+
+### Next Items To Implement
+
+- Run focused frontend and control-doc verification for this slice.
+- Continue provider-specific GA proof when provider context exists; otherwise continue local frontend/Hub polish slices.
+
+---
+
+## Checkpoint: BRD Local-First Strategy Refresh — 2026-05-28
+
+### Work Done Till Date
+
+- Promoted `business-requirements-v0.3.0.md` to the v0.4.0 local-first BRD baseline.
+- Reframed JuliaFlow as a self-contained local appliance for academia, labs, students, researchers, small teams, and low-resource users.
+- Added core requirements for local appliance bootstrap, local data estate, DuckDB analytics, PostgreSQL lab/team metadata mode, optional MinIO local S3 profile, local CPU/GPU hardware validation, AI explainability/model transparency, offline Hub, academic reproducibility bundles, and backup/restore.
+- Downgraded provider-specific deployment, cloud object stores, external Hub registries, enterprise identity, Kubernetes/ArgoCD production overlays, and cloud multi-GPU closure to optional compatibility paths.
+- Updated Plan, TODO, risk register, tracker, checkpoint, and BRD traceability docs to point future implementation at local-first GA proof.
+
+### Gaps Pending
+
+- Local appliance bootstrap proof remains open.
+- Local data estate and DuckDB query path proof remain open.
+- Local PostgreSQL lab/team metadata mode proof remains open.
+- Local hardware profiler, GPU smoke, and CPU fallback proof remain open.
+- Explainability/model evidence and academic reproducibility bundle proof remain open.
+- Offline Hub proof and backup/restore proof remain open.
+
+### Next Items To Implement
+
+- Build the local appliance bootstrap proof first.
+- Then implement local data estate and metadata/database proof before deeper explainability and offline Hub work.
+
+---
+
+## Checkpoint: Documentation Cleanup — 2026-05-28
+
+### Work Done Till Date
+
+- Removed only the user-approved obsolete documentation artifacts: one superseded BRD draft, the old persona archive, legacy handoff/parallel-lane planning files, one old OIDC/RBAC planning file, and two empty release-note stubs.
+- Repointed active README/TODO/tracker/checkpoint references away from removed files and into the active control-doc set.
+- Recorded documentation-sprawl risk mitigation while keeping the active local-first BRD baseline intact.
+
+### Gaps Pending
+
+- Historical tracker/checkpoint narratives still preserve prior work context by design.
+- Active implementation remains local appliance bootstrap, local data estate, local metadata/database, local hardware runtime, explainability/model evidence, offline Hub, reproducibility, and backup/restore.
+
+### Next Items To Implement
+
+- Start the local appliance bootstrap proof.
+
+---
+
+## Checkpoint: Agent Prompt Hygiene And Skill Routing Cleanup — 2026-05-28
+
+### Work Done Till Date
+
+- Compared `AGENTS.md` with repo-local skills and installed plugin skill names.
+- Added `juliaflow-local-first-appliance` for one-command local bootstrap, local data estate, DuckDB/PostgreSQL modes, hardware proof, explainability, offline Hub, reproducibility, and backup/restore work.
+- Updated repo-local skills to use installed `analysis-engineering-workflow`, `julia-engineering-toolkit`, `frontend-design-workflow`, `lowcode-ml-ui-patterns`, and `codex-security` skill names.
+- Reworked `AGENTS.md` to remove unavailable skill names, hard-coded model guidance, and stale provider-first routing.
+
+### Gaps Pending
+
+- Product implementation still needs local appliance bootstrap, data estate, metadata/database, hardware, explainability, offline Hub, reproducibility, and backup/restore proofs.
+- Prompt routing should be checked again when installed plugin inventory changes.
+
+### Next Items To Implement
+
+- Use the new local-first appliance skill for the next local bootstrap implementation slice.

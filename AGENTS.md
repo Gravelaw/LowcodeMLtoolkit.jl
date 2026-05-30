@@ -1,233 +1,130 @@
-# Repository Guidelines
+# JuliaFlow Repository Guidance
 
-## Project Structure & Module Organization
-This repository is an active monorepo for `JuliaFlow`, a visual low-code analytics platform. Keep top-level files limited to repo-wide coordination, tooling, and manifests. Add new code in the existing product-area directories and preserve contract-first boundaries between frontend, shared contracts, Julia services, extensions, and infra.
+This file is the project-local overlay for `/mnt/c/Users/aksha/OneDrive/Documents/LowCodeJulia`.
+Global Codex guidance still applies for general engineering discipline, deterministic local operations, skill routing hygiene, verification posture, and git safety. Keep this file focused on JuliaFlow-specific rules.
 
-Current layout:
-- `apps/frontend/` React + Vite authoring workspace
-- `packages/contracts/` shared workflow schema, OpenAPI, JSON-RPC protocol, and TS client/types
-- `packages/ui/` shared React UI primitives
-- `services/api-gateway/` Julia HTTP gateway and repository adapters
-- `services/execution-service/` Julia workflow parser, planner, validation, and execution lifecycle logic
-- `services/node-sdk/` Julia node runtime contract and helpers
-- `extensions/base/` starter Julia node pack
-- `infra/` Docker Compose, Kubernetes, ArgoCD, CI-related infra assets
-- `docs/` architecture notes, ADRs, releases, tracker/checkpoints, onboarding docs
-- `tests/` Julia tests, contract tests, frontend tests, and workflow fixtures
-- `src/` repo-level Julia module entrypoint
-- `scripts/` runnable helper scripts such as gateway bootstrap
+## Project Shape
 
-Keep modules small and cohesive. Prefer feature-oriented paths inside each product area, for example `services/api-gateway/src/` or `apps/frontend/src/`, over unrelated new root files.
+JuliaFlow is a monorepo for a local-first visual low-code analytics platform. Keep top-level files limited to repo-wide coordination, tooling, and manifests. Add code inside the existing product-area directories:
 
-## Build, Test, and Development Commands
-Tooling already exists. Prefer these repo-standard commands and keep new commands scriptable and predictable.
+- `apps/frontend/`: React + Vite authoring workspace.
+- `packages/contracts/`: source of truth for workflow schema, OpenAPI, JSON-RPC, TS client/types.
+- `packages/ui/`: shared React UI primitives.
+- `services/api-gateway/`: Julia HTTP gateway and repositories.
+- `services/execution-service/`: Julia workflow parsing, planning, validation, execution lifecycle.
+- `services/worker-service/`: Julia worker runtime lanes.
+- `services/node-sdk/`: Julia node runtime contract and helpers.
+- `extensions/base/`: starter Julia node pack.
+- `infra/`: Docker Compose, Kubernetes, ArgoCD, CI-related assets.
+- `docs/`: architecture, ADRs, releases, tracker/checkpoints, onboarding.
+- `tests/`: Julia tests, contract tests, frontend tests, workflow fixtures.
+- `src/`: repo-level Julia module entrypoint.
+- `scripts/`: runnable helper scripts.
 
-Repo-level commands:
-- `npm install` to install JS workspace dependencies
-- `npm run dev:frontend` to start frontend dev server
-- `npm run build` to build JS workspaces that expose build scripts
-- `npm run test` to run JS workspace tests plus contract tests
-- `julia --project=. tests/julia/runtests.jl` to run Julia test suite
-- `julia --project=. scripts/run-api-gateway.jl` to start local Julia API gateway
-- `VITE_JULIAFLOW_GATEWAY_BASE_URL=http://127.0.0.1:8088 npm run dev:frontend` to run frontend against live gateway
+Prefer feature-oriented paths inside these areas over unrelated new root files.
 
-Infra helpers:
-- `docker compose -f infra/docker/compose.dev.yml up -d` to start local platform dependencies
+## Standard Commands
 
-Keep command names consistent and scriptable.
+Run these commands from native WSL/Linux. For JS tooling, `npm run doctor:wsl-node` must pass before dependency installation, build, test, or frontend development if the environment is uncertain.
 
-## Coding Style & Naming Conventions
-Use consistent formatting and keep files ASCII unless the project already requires Unicode.
+- `npm install`: install JS workspace dependencies.
+- `npm run dev:frontend`: start frontend dev server.
+- `npm run build`: build JS workspaces with build scripts.
+- `npm run test`: run JS workspace tests plus contract tests.
+- `julia --project=. tests/julia/runtests.jl`: run Julia tests.
+- `julia --project=. scripts/run-api-gateway.jl`: start local API gateway.
+- `VITE_JULIAFLOW_GATEWAY_BASE_URL=http://127.0.0.1:8088 npm run dev:frontend`: run frontend against live gateway.
+- `docker compose -f infra/docker/compose.dev.yml up -d`: start local platform dependencies.
 
-Indentation guidance:
-- TypeScript/React/CSS/JSON/YAML/Markdown: 2 spaces
-- Julia: 4 spaces, matching current codebase style
+Keep new commands scriptable and consistent with these names.
 
-Language guidance:
-- React code lives under `apps/frontend/` and shared TS code under `packages/`
-- Julia service and SDK code lives under `services/`, `extensions/`, and `src/`
-- Keep workflow/API/shared schema changes aligned across frontend contracts and Julia implementations
+## Git And PR Workflow
 
-Naming guidance:
-- Directories and modules: lowercase with hyphens or underscores
-- Classes and components: `PascalCase`
-- Functions and variables: `camelCase` in TS/React, `snake_case` or idiomatic Julia naming in Julia code
-- Markdown docs: descriptive uppercase names when conventional, for example `README.md`
+Before starting new implementation work, create a dev branch, push it, and open a draft PR against `main`. Keep new work on the dev branch and update the PR as the work progresses.
 
-Prefer existing repo conventions over introducing a new style in touched files.
+## Style And Boundaries
 
-## Safety-Critical Coding Rules
-NASA/JPL Power of 10 discipline is mandatory for all core JuliaFlow logic. Do not remove or weaken these rules. When adding core logic, follow the Power of 10 discipline in a repository-friendly form:
-- Use simple control flow only. Avoid `goto`, recursion, and similar hard-to-review jumps.
-- Give every loop a clear static upper bound.
-- Do not add dynamic allocation in steady-state runtime paths after startup or initialization.
-- Keep functions short; target roughly one screen or about 60 lines.
-- Use assertions for impossible states, and keep them side-effect free.
-- Declare data in the narrowest practical scope.
-- Always validate inputs and always check non-void return values.
-- Keep preprocessor use minimal; prefer simple includes and simple macros only.
-- Restrict pointer complexity; avoid hidden indirection and function pointers unless the project explicitly requires them.
-- Build with the strictest warning settings available and treat warnings as defects. Run static analysis regularly.
+- Use 2-space indentation for TypeScript/React/CSS/JSON/YAML/Markdown; use 4 spaces for Julia.
+- Keep files ASCII unless the file already requires Unicode.
+- Use `PascalCase` for React components/classes, `camelCase` for TS variables/functions, and idiomatic `snake_case` or Julia naming in Julia.
+- Keep shared payload shape changes contract-first in `packages/contracts/`, then align Julia and frontend.
+- Preserve Arrow IPC as the inter-node payload boundary.
+- Workflow definitions are TOML-backed and validated across frontend/backend boundaries.
+- Keep the route shell, demo fallback, runtime `juliaflow-config.js`, accessible selectors, and coverage gates unless intentionally replacing them.
 
-## Testing Guidelines
-Place tests under `tests/` or next to source when the local toolchain already does that.
+## Core Safety Rules
 
-Current patterns:
-- Frontend tests under `apps/frontend/src/*.test.tsx`
-- Julia tests under `tests/julia/`
-- Contract tests under `tests/contracts/`
-- Extension tests under `extensions/base/test/`
+NASA/JPL Power of 10 discipline is mandatory for core JuliaFlow logic. Apply the global engineering discipline with these repo-specific constraints:
 
-New features should include tests for primary behavior and key edge cases. If a change is not testable yet, explain the gap in the pull request.
+- Use simple, bounded control flow for runtime/service logic.
+- Avoid recursion and hidden dynamic allocation in steady-state runtime paths.
+- Keep functions short, validated at boundaries, and covered by focused tests.
+- Treat warnings, static-analysis findings, lint errors, and failing tests as defects.
+- Never commit real secrets or fake production managed services.
 
-## Commit & Pull Request Guidelines
-Git history is not available in this workspace, so no repository-specific commit pattern can be inferred. Use short, imperative commit messages such as `Add API client skeleton` or `Set up test harness`.
+## Active End Goal
 
-Pull requests should include:
-- a clear summary of the change
-- any setup or verification steps
-- linked issue numbers when relevant
-- screenshots or sample output for UI or CLI changes
+The active BRD direction is local-first GA: a Julia-native workflow canvas, Arrow IPC node boundary, CPU/GPU execution on local hardware, local data estate, local metadata/database modes, integrated BI, AI explainability, governed offline Hub, academic reproducibility, backup/restore, and local trust boundaries.
 
-## Agent-Specific Notes
-Do not assume missing tooling exists. Read current architecture and onboarding docs before making broad repo changes.
+The active control set is:
 
-### Default Session Communication Mode
+- `business-requirements-v0.3.0.md`
+- `Plan.md`
+- `docs/TODO.md`
+- `docs/risk-register.md`
+- `docs/brd-traceability.md`
+- `docs/project-tracker.md`
+- `docs/checkpoint-log.md`
 
-For every session in this repository, agent must use the `caveman:caveman` skill by default.
-Treat this as the repo-wide communication baseline unless the user explicitly asks for a different style.
+Before meaningful implementation, read the latest tracker/checkpoint/TODO/traceability state and identify the active BRD gap. Prefer this local-first order unless the user says otherwise:
 
-Requirements:
-- activate `caveman:caveman` at session start when available
-- prefer brief, compressed, high-signal responses in all commentary and final messages
-- keep technical accuracy intact while reducing filler
-- if the caveman skill is unavailable in a session, fall back to the closest concise style possible and note that briefly only when needed
+1. Local appliance bootstrap.
+2. Managed local data estate with Arrow/Parquet artifacts and DuckDB acceleration.
+3. Local metadata/database modes, including PostgreSQL lab/team mode.
+4. Local hardware runtime proof with CPU/GPU profiling and explicit CPU fallback.
+5. Explainability/model evidence and academic reproducibility bundle.
+6. Offline Hub proof.
+7. Backup/restore and migration evidence.
 
-### Required Skill Routing For Future Modules
+Preserve the thin-slice strategy: keep existing dev/demo fallbacks while adding production-depth local-first paths behind explicit seams and tests.
 
-Use the repo-local skills under `.codex/skills/` plus global skills when available. Invoke only the relevant subset; keep context lean.
+## Completion Rules
 
-- `juliaflow-control-loop`: default for BRD/TODO/checkpoint-driven work, milestone closure, traceability, and cross-layer module delivery.
-- `juliaflow-julia-development`: Julia services, node SDK, worker runtime, base extensions, Julia syntax/package questions, `Project.toml` / `Manifest.toml`, and performance/debugging work.
-- `juliaflow-frontend-development`: React/Vite canvas, BI viewer, Hub, monitor, settings, route shell, runtime config, frontend tests, visual QA, and frontend performance.
-- `juliaflow-provider-deployment`: provider overlays, Kustomize/ArgoCD, secret delivery, live cluster dry-runs, object-store/auth/broker deployment binding.
-- Global `julia-coding` and `julia-debugging`: use with `juliaflow-julia-development`; prefer official Julia docs for syntax/API/Pkg behavior and use community sources only for troubleshooting/package discovery.
-- Global frontend skills: use `build-web-apps:react-best-practices`, `build-web-apps:frontend-testing-debugging`, `design`, `visual-ralph`, and `visual-verdict` for major frontend/UI work.
-- Review skills: use `code-review` after non-trivial changes; use `security-review` for auth, secrets, RBAC, OIDC/JWT, Hub trust, deployment, or supply-chain surfaces.
+- Do not mark `docs/TODO.md` P0/P1/P2 items complete unless `docs/brd-traceability.md` links code/doc evidence plus test/verification evidence.
+- For completed slices, phases, milestone claims, or substantive reviews, update `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md`.
+- Tracker and checkpoint updates must include: work done till date, gaps pending, and next items to implement.
+- Run `npm run validate:control-doc-sync` before claiming completion when non-control files changed.
+- Run `npm run validate:brd-traceability` after TODO or traceability changes.
+- Keep README/onboarding docs, contracts, OpenAPI, Julia code, frontend code, tests, tracker, checkpoint, risk register, and traceability synchronized for the touched scope.
 
-For large module work, prefer `$ralplan` or `$autopilot` before edits. Use native subagents for independent bounded lanes with explicit ownership:
+## Skill Routing
 
-- `explore`: fast repo map and symbol lookup
-- `researcher`: official docs/version-aware external facts
-- `dependency-expert`: dependency/package/SDK selection
-- `executor`: implementation in scoped files
-- `test-engineer`: regression and test design
-- `architect` / `critic`: boundary, risk, and tradeoff review
-- `code-reviewer`: merge-readiness review
+Use only available skills. Prefer the repo-local skills under `.codex/skills/` plus installed global/plugin skills, and keep context lean.
 
-Parallelize only independent lanes. Do not delegate shared-file edits without clear ownership. Integrate results locally and own final verification.
+- `juliaflow-control-loop`: BRD/TODO/checkpoint work, milestone closure, traceability, cross-layer delivery.
+- `juliaflow-local-first-appliance`: local bootstrap, data estate, DuckDB/PostgreSQL modes, hardware proof, explainability, offline Hub, reproducibility, backup/restore.
+- `juliaflow-julia-development`: Julia services, node SDK, worker runtime, base extensions, Julia package/API/debugging work.
+- `juliaflow-frontend-development`: React/Vite canvas, BI, Hub, monitor, settings, runtime config, frontend tests, visual QA.
+- `juliaflow-provider-deployment`: optional provider/cloud compatibility only; do not prioritize unless explicitly requested.
+- `analysis-engineering-workflow:*`: planning, architecture, implementation, verification, review, and debugging gates.
+- `julia-engineering-toolkit:*`: Julia coding, data science, and debugging support.
+- `frontend-design-workflow:*` and `lowcode-ml-ui-patterns`: major frontend/UI work.
+- `codex-security:security-scan`: auth, secrets, RBAC, OIDC/JWT, Hub trust, deployment, extension sandbox, or supply-chain surfaces.
 
-### Future Module Development Rules
+Use multi-agent tools only when available, independent, and clearly owned. Do not delegate shared-file edits without explicit ownership.
 
-- Start with the current tracker/checkpoint/TODO/traceability state; do not rely on stale memory.
-- Keep `packages/contracts/` as source of truth before changing Julia or frontend payloads.
-- For Julia work, keep functions short, typed enough for clarity, validated at boundaries, and covered by `julia --project=. tests/julia/runtests.jl`.
-- For frontend work, keep route shell/demo fallback unless intentionally replaced, prefer accessible role/label selectors, and run `npm run test` plus `npm run build`.
-- For deployment work, never commit real secrets, never fake production managed services, and run `npm run validate:k8s`.
-- For milestone claims, update TODO/traceability/tracker/checkpoint together and run `npm run validate:brd-traceability`.
-- For every completed slice, phase, or review, update `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md`; then run `npm run validate:control-doc-sync`.
+## Verification Defaults
 
-### Session Learnings To Keep
+- Frontend: `npm run test`, `npm run build`, plus coverage/audit/visual evidence when relevant.
+- Julia runtime/services: `julia --project=. tests/julia/runtests.jl`; include extension tests when touched.
+- Contracts/OpenAPI: `npm run test` or `npm run validate:contracts`.
+- Deployment: `npm run validate:k8s`.
+- Control docs: `npm run validate:control-doc-sync` and, when applicable, `npm run validate:brd-traceability`.
+- Long-running workers: use bounded mode such as `JULIAFLOW_WORKER_ONCE=1`.
 
-- For scoped repo-local implementation slices, prefer medium reasoning by default; reserve high/frontier reasoning for security-sensitive work, distributed guarantees (for example exactly-once/Kafka/OIDC), or multi-system architecture tradeoffs.
-- For general code generation, test updates, and contract plumbing in this repo, `gpt-5.4-mini` is usually sufficient unless the slice is architecture-heavy or unusually ambiguous.
-- When smoke-testing long-running worker scripts such as `scripts/run-gpu-worker.jl` or `scripts/run-stream-worker.jl`, set `JULIAFLOW_WORKER_ONCE=1` (or equivalent bounded mode) so verification does not hang the session.
+## Useful Docs
 
-Useful docs:
 - `README.md`
 - `docs/architecture.md`
 - `docs/architecture-overview.md`
 - `docs/repo-onboarding.md`
-
-Important repo constraints:
-- Shared contracts in `packages/contracts/` are source of truth for cross-layer payload shapes
-- Workflow definitions are TOML-backed and validated across frontend/backend boundaries
-- Inter-node payload boundary is Arrow IPC only
-- API gateway currently offers working file-backed persistence and PostgreSQL-ready repository path
-- Realtime/frontend sync and richer graph editing are still in-progress alpha areas
-
-
-## JuliaFlow End-Goal Delivery Rules
-
-JuliaFlow end goal is the BRD-defined visual low-code analytics platform: Julia-native workflow canvas, Arrow IPC node boundary, CPU/GPU execution, batch/stream processing, integrated BI, governed Hub, and production security/deployment hardening. Treat `JuliaFlow_BRD_v1.0.docx`, `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md` as the end-goal control set.
-
-Before any meaningful implementation:
-
-1. Read `docs/project-tracker.md`, latest `docs/checkpoint-log.md`, `docs/TODO.md`, and `docs/brd-traceability.md`.
-2. Identify the active BRD gap and target stage before editing.
-3. Prefer the current P0 order unless the user says otherwise:
-   - production Arrow/DataFrames object-storage materialization and node scale-up
-   - deeper BI drilldown/viewer/export polish
-   - production OIDC/JWT/RBAC and persisted policy/audit query surfaces
-   - production streaming adapters/replay/exactly-once hardening
-   - defer production CUDA/KernelAbstractions and multi-GPU closure to the final hardware-gated phase when GPU count is the constraint; full closure requires >=2 visible CUDA devices
-4. For broad BRD/P0 work, use the configured frontier model where available (currently GPT-5.5) for planning, architecture review, and validation.
-5. Preserve the thin-slice strategy: keep existing dev/demo fallbacks while adding production-depth paths behind explicit seams and tests.
-
-Completion rules for any slice, phase, review, or milestone claim:
-
-- Do not mark `docs/TODO.md` P0/P1/P2 items complete unless `docs/brd-traceability.md` links code/doc evidence and test/verification evidence.
-- Update `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md` whenever a new slice, phase, or review is completed. This is mandatory even for instruction-only or review-only work.
-- Run `npm run validate:control-doc-sync` before claiming completion; it must pass when non-control files changed.
-- Run `npm run validate:brd-traceability` after changing TODO or BRD traceability state.
-- Keep `Plan.md`, `docs/TODO.md`, `docs/brd-traceability.md`, `docs/risk-register.md`, `docs/project-tracker.md`, `docs/checkpoint-log.md`, README/onboarding docs, contracts, OpenAPI, Julia code, frontend code, and tests synchronized for the touched scope.
-- After a meaningful work block, update tracker and checkpoint with the three mandatory fields: work done till date, gaps pending, next items to implement.
-
-## Tracker And Checkpoint Rule
-
-Every project must create and maintain both:
-
-- `docs/project-tracker.md`
-- `docs/checkpoint-log.md`
-
-These are mandatory project-control files, not optional docs.
-
-### Required Contents
-
-Both files must always record these 3 things:
-
-1. work done till date
-2. gaps pending
-3. next items to implement
-
-### Startup Rule For New Projects
-
-Before starting meaningful implementation on any new project, agent must:
-
-1. create `docs/project-tracker.md` if missing
-2. create `docs/checkpoint-log.md` if missing
-3. write initial entries for:
-   - work done till date
-   - gaps pending
-   - next items to implement
-4. read both files before starting job execution
-
-### Ongoing Rule
-
-Before each new job, agent must:
-
-1. read latest tracker
-2. read latest checkpoint entry
-3. confirm target gap or target milestone being worked on
-
-After each meaningful work block, agent must update both files with:
-
-1. what changed / work done till date
-2. what gaps still remain
-3. what should be implemented next
-
-### Checkpoint Rule
-
-Use checkpoint log to capture major milestones or major state changes.
-Each checkpoint entry should align with release/checkpoint docs when those exist.
-If tracker and checkpoint disagree, agent must reconcile them before continuing.

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
 import { parse } from "smol-toml";
@@ -10,6 +11,7 @@ const fixturePath = new URL("./fixtures/foundation.workflow.toml", import.meta.u
 const openApiPath = new URL("../../packages/contracts/openapi/openapi.json", import.meta.url);
 const jsonRpcPath = new URL("../../packages/contracts/protocol/jsonrpc.json", import.meta.url);
 const eventsSchemaPath = new URL("../../packages/contracts/schemas/events.schema.json", import.meta.url);
+const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 test("workflow fixture matches foundation contract expectations", async () => {
   const raw = await readFile(fixturePath, "utf8");
@@ -119,6 +121,22 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.ExecuteWorkflowRequest.properties.executionMode);
   assert.ok(schemas.ExecuteWorkflowRequest.properties.flowVariables);
   assert.ok(schemas.GatewayHealthcheck.properties.realtimeTransport);
+  assert.ok(schemas.GatewayHealthcheck.properties.localProfile);
+  assert.ok(schemas.GatewayHealthcheck.properties.localHome);
+  assert.ok(schemas.GatewayHealthcheck.properties.dataEstateRoot);
+  assert.ok(schemas.GatewayHealthcheck.properties.dataEstateZones);
+  assert.ok(schemas.GatewayHealthcheck.properties.dataEstateReady);
+  assert.ok(schemas.GatewayHealthcheck.properties.freeDiskStatus);
+  assert.ok(schemas.GatewayHealthcheck.properties.freeDiskBytes);
+  assert.ok(schemas.GatewayHealthcheck.properties.localServiceUrls);
+  assert.ok(schemas.GatewayHealthcheck.properties.postgresProfileStatus);
+  assert.ok(schemas.GatewayHealthcheck.properties.minioProfileStatus);
+  assert.ok(schemas.GatewayHealthcheck.properties.cloudCredentialsRequired);
+  assert.ok(schemas.GatewayHealthcheck.properties.cpuThreadCount);
+  assert.ok(schemas.GatewayHealthcheck.properties.totalMemoryBytes);
+  assert.ok(schemas.GatewayHealthcheck.properties.freeMemoryBytes);
+  assert.ok(schemas.GatewayHealthcheck.properties.gpuReadinessStatus);
+  assert.ok(schemas.GatewayHealthcheck.properties.gpuFallbackReason);
   assert.ok(schemas.GatewayHealthcheck.properties.eventBackboneMode);
   assert.ok(schemas.GatewayHealthcheck.properties.eventConsumerPollMs);
   assert.ok(schemas.GatewayHealthcheck.properties.streamWorkerMode);
@@ -145,6 +163,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayHealthcheck.properties.oidcDiscoveryConfigured);
   assert.ok(schemas.GatewayHealthcheck.properties.oidcJwksConfigured);
   assert.ok(schemas.GatewayHealthcheck.properties.oidcAllowedAlgorithms);
+  assert.ok(schemas.GatewayDataEstateZoneStatus);
+  assert.ok(schemas.GatewayLocalServiceUrls);
   assert.ok(schemas.GatewayAuthContext);
   assert.deepEqual(schemas.GatewayAuthContext.properties.role.enum, ["owner", "editor", "viewer"]);
   assert.ok(schemas.GatewayAuthContext.properties.mode.enum.includes("oidc"));
@@ -289,10 +309,10 @@ test("event schema exposes durable envelope and backbone event types", async () 
 
 test("contracts package typechecks typed gateway client surface", async () => {
   await execFileAsync(
-    "npx",
-    ["tsc", "--noEmit", "-p", "packages/contracts/tsconfig.json"],
+    process.execPath,
+    ["node_modules/typescript/bin/tsc", "--noEmit", "-p", "packages/contracts/tsconfig.json"],
     {
-      cwd: new URL("../..", import.meta.url).pathname
+      cwd: repoRoot
     }
   );
 });

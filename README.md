@@ -68,7 +68,7 @@ Use checkpoint script to capture tagged milestones with release note stubs:
 ./scripts/create-checkpoint.sh cp/00-foundation
 ```
 
-See [docs/checkpoints.md](/home/akshayrj00/my_project/docs/checkpoints.md) for required evidence before tagging.
+See [docs/checkpoint-log.md](docs/checkpoint-log.md) for current checkpoint evidence and next implementation items.
 
 ## Gateway
 

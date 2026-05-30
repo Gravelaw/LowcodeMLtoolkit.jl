@@ -15,12 +15,25 @@ Tracker always records 3 things:
 ## Project
 
 - Name: `JuliaFlow`
-- BRD: `JuliaFlow_BRD_v1.0.docx`
-- Current target phase: `Provider-Specific GA Proof / Module Expansion`
+- BRD: `business-requirements-v0.3.0.md` v0.4.0 local-first baseline
+- Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-05-17`
+- Last updated: `2026-05-30`
 
 ## Work Done Till Date
+
+### Local Appliance Bootstrap Proof Slice (2026-05-29 to 2026-05-30)
+
+- Continued from partial local-first bootstrap implementation already in the worktree.
+- Added `scripts/dev-local.mjs` and `scripts/smoke-local-bootstrap.mjs` for one-command local bootstrap and bounded smoke execution.
+- Added `npm` scripts `dev:local` and `smoke:local-bootstrap` in `package.json`.
+- Implemented profile-aware local appliance bootstrap (`single-user`, `lab-team`, `s3-compatible-local`, `developer`) with default `single-user`.
+- Local bootstrap now initializes appliance home/data-estate zones (`raw`, `processed`, `features`, `models`, `runs`, `checkpoints`, `dashboards`, `logs`, `extensions`) and wires local env defaults with cloud credentials not required.
+- Extended gateway `/health` and cross-layer contracts/OpenAPI for local appliance evidence: profile/home/paths, zone readiness, disk status, local service URLs, Postgres/MinIO profile status, and CPU/GPU readiness/fallback.
+- Frontend Monitor now renders the new local appliance health evidence.
+- Focused tests were updated in Julia (`tests/julia/runtests.jl`), contracts (`tests/contracts/workflow-schema.test.mjs`), and frontend (`apps/frontend/src/App.test.tsx`) for the expanded health surface.
+- Verified in this environment: Julia test suite passed and both new runner scripts passed syntax checks.
+- Runtime verification update (2026-05-29, later pass): Windows Node and Julia installs are now present and executable (`C:\\Program Files\\nodejs\\node.exe` -> `v26.2.0`; Windows `julia.exe` reports `1.12.6`). npm workspace gates still require a fresh shell/session PATH propagation before reliable re-run.
 
 ### Repository Canvas / Understanding
 
@@ -43,6 +56,7 @@ Tracker always records 3 things:
 - Added onboarding map:
   - [docs/repo-onboarding.md](/home/akshayrj00/my_project/docs/repo-onboarding.md)
 - Reconciled `AGENTS.md` with actual monorepo structure, commands, and language/tooling conventions
+- Reconciled `AGENTS.md` and repo-local skills again on `2026-05-28` so local-first appliance work routes through current installed skills/plugins instead of stale skill names or hard-coded model prompts.
 - Reconciled `AGENTS.md` again on `2026-04-19` to make `caveman:caveman` the default session communication mode for this repo
 
 ### Foundation / Contracts
@@ -58,9 +72,7 @@ Tracker always records 3 things:
   - checkpoint create/list
   - realtime JSON-RPC websocket endpoint
 - File-backed repository and PostgreSQL-ready repository path present
-- Checkpoint docs started:
-  - [cp-00-foundation](/home/akshayrj00/my_project/docs/releases/cp-00-foundation.md)
-  - [cp-01-contracts-frozen](/home/akshayrj00/my_project/docs/releases/cp-01-contracts-frozen.md)
+- Checkpoint docs started; the old empty release-note stubs were later removed during documentation cleanup, and current checkpoint evidence lives in `docs/checkpoint-log.md`.
 
 ### Frontend / Alpha Workspace
 
@@ -198,6 +210,10 @@ Tracker always records 3 things:
   - Hub install action now supports `upgrade`
   - gateway trust policy now blocks enabling unsigned partner extensions
 - Frontend node library UX now groups starter nodes by family for denser scanning in canvas sidebar
+- Frontend Monitor module expansion now renders executor dataflow stage-policy detail rows and per-node executor/branch result evidence, including callback/dataflow state, readiness barrier, source/sink counts, row counts, output kind, and output-ref counts.
+- Repository sanity pass removed tracked `.staging/` skill residue and added `.staging/` to `.gitignore`; tracked BRD/persona binary artifacts remain intentional control/product artifacts.
+- Dependency hygiene pass resolved the moderate `ws` audit advisory via lockfile update.
+- Core BRD now uses the v0.4.0 local-first baseline in `business-requirements-v0.3.0.md`: local appliance install, local data estate, DuckDB analytics, PostgreSQL lab/team metadata, optional MinIO, local CPU/GPU hardware validation, AI explainability, offline Hub, academic reproducibility bundles, and backup/restore are active direction.
 
 ### Alpha Core Contract Deepening
 
@@ -600,12 +616,18 @@ Tracker always records 3 things:
 
 ### GitHub Push Prep And Next-Step Plan (2026-04-29)
 
-- Added `docs/next-steps-plan-2026-04-29.md` so future sessions can resume from the post-50-node baseline.
-- Plan includes sanity/repo cleanup, GitHub integration checks, production Arrow/DataFrames adapter work, node scale 50 -> 75, BI polish, and production hardening lanes; generated `*.tsbuildinfo` files are ignored and the UI/UX archive is kept under `docs/assets/`.
+- Added a post-50-node next-step handoff so future sessions could resume from the baseline; the standalone handoff file was later removed during documentation cleanup.
+- Plan included sanity/repo cleanup, GitHub integration checks, production Arrow/DataFrames adapter work, node scale 50 -> 75, BI polish, and production hardening lanes; generated `*.tsbuildinfo` files are ignored and the old UI/UX archive was removed during documentation cleanup.
 - GitHub target repository verified with `gh repo view Gravelaw/LowcodeMLtoolkit.jl`; authenticated account has admin permission.
 - Existing remote BRD/license documents were merged into local `main` without force-pushing over GitHub history.
 
 ## Gaps Pending
+
+### Local-First Active Gap (2026-05-30)
+
+- `R-LOCAL-001` is mitigated for the bootstrap slice: smoke, health evidence, profile wiring, sample workflow availability, contracts, frontend Monitor rendering, and Julia tests are verified.
+- Active local-first product gap moves to local data estate proof: manifests, durable Arrow/Parquet artifacts, DuckDB acceleration, quotas, cleanup, and backup/restore hooks.
+- Toolchain hygiene remains: native `npm run build` can hang in this Windows npm/WSL interop shell after Vite transform, although direct Node/TypeScript/Vite build commands pass.
 
 ### Phase 1 / Alpha Critical Gaps
 
@@ -627,9 +649,15 @@ Tracker always records 3 things:
 
 ## Next Items To Implement
 
+### Immediate Next Steps (Post 2026-05-30 Slice)
+
+1. Start local data estate proof with managed zone manifests, checksums, Arrow/Parquet durability, DuckDB queries, quotas, cleanup, and backup hooks.
+2. Preserve `npm run smoke:local-bootstrap` as a regression gate for the local appliance path.
+3. Re-test `npm run build` in native WSL Node/npm or CI; continue using direct Node/TypeScript/Vite build commands as local evidence in the mixed Windows npm/WSL shell.
+
 ### Next Priority
 
-1. Complete sanity/repo cleanup from `docs/next-steps-plan-2026-04-29.md`, then implement package-backed Arrow/DataFrames object-storage adapters on top of the new reader/writer seam and continue node scale 50 -> 75 -> 150
+1. Continue sanity/repo cleanup through the active control docs, then implement package-backed Arrow/DataFrames object-storage adapters on top of the new reader/writer seam and continue node scale 50 -> 75 -> 150
 2. Implement deeper BI drilldown and richer viewer/export polish
 3. Harden Auth/RBAC with production OIDC/JWT, persisted policy, and audit events
 4. Implement production streaming adapters/replay/exactly-once hardening
@@ -890,7 +918,7 @@ After any meaningful job:
 
 - Reviewed the post-BI-polish control docs and confirmed the remaining unchecked P0 lanes are production OIDC/RBAC, production streaming, and production GPU hardening.
 - Selected production OIDC/JWT/RBAC hardening as the next P0 lane because it reduces the highest cross-cutting security risk before expanding production streaming/GPU surfaces.
-- Created `docs/plans/next-p0-oidc-rbac-hardening-2026-05-03.md` with decision drivers, alternatives, acceptance criteria, implementation steps, and verification plan.
+- Created a next-P0 OIDC/RBAC hardening plan with decision drivers, alternatives, acceptance criteria, implementation steps, and verification plan; the standalone plan file was later removed during documentation cleanup after its history was preserved here and in the checkpoint log.
 - Added `docs/risk-register.md` to make active BRD delivery risks and mitigations explicit.
 
 ### Gaps Pending
@@ -1954,3 +1982,24 @@ After any meaningful job:
 - Complete full verification, clean code review, commit, push, and remote publication verification.
 - If provider/credential context appears, prioritize provider-specific deployment and object-store proof.
 - Otherwise continue frontend module expansion, especially Monitor operational depth for executor policy/results or BI/Hub polish.
+
+---
+
+## Agent Prompt Hygiene And Skill Routing Cleanup (2026-05-28)
+
+### Work Done Till Date
+
+- Compared project-level `AGENTS.md` against repo-local skills and currently installed plugin skills.
+- Found stale references to unavailable skill names (`build-web-apps:*`, `visual-ralph`, `visual-verdict`, `code-review`, `security-review`, `$ralplan`, `$autopilot`) plus hard-coded model guidance.
+- Added `.codex/skills/juliaflow-local-first-appliance/SKILL.md` for the revised local-first BRD implementation lane.
+- Updated repo-local control-loop, frontend, and provider-deployment skills to route through installed plugin skill names and the local-first BRD priority order.
+- Simplified `AGENTS.md` so it delegates procedural detail to repo-local and installed skills instead of duplicating stale prompts.
+
+### Gaps Pending
+
+- Local appliance bootstrap and other local-first product proofs remain implementation work.
+- Future plugin/skill inventory changes may require another prompt hygiene sweep.
+
+### Next Items To Implement
+
+- Start local appliance bootstrap proof using `juliaflow-control-loop` plus `juliaflow-local-first-appliance`.

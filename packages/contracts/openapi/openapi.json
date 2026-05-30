@@ -957,6 +957,22 @@
         "required": [
           "service",
           "status",
+          "localProfile",
+          "localHome",
+          "dataEstateRoot",
+          "dataEstateZones",
+          "dataEstateReady",
+          "freeDiskStatus",
+          "freeDiskBytes",
+          "localServiceUrls",
+          "postgresProfileStatus",
+          "minioProfileStatus",
+          "cloudCredentialsRequired",
+          "cpuThreadCount",
+          "totalMemoryBytes",
+          "freeMemoryBytes",
+          "gpuReadinessStatus",
+          "gpuFallbackReason",
           "repositoryBackend",
           "storeRoot",
           "workflowCount",
@@ -990,6 +1006,82 @@
           "status": {
             "type": "string",
             "const": "ok"
+          },
+          "localProfile": {
+            "type": "string",
+            "enum": [
+              "single-user",
+              "lab-team",
+              "s3-compatible-local",
+              "developer"
+            ]
+          },
+          "localHome": {
+            "type": "string"
+          },
+          "dataEstateRoot": {
+            "type": "string"
+          },
+          "dataEstateZones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayDataEstateZoneStatus"
+            }
+          },
+          "dataEstateReady": {
+            "type": "boolean"
+          },
+          "freeDiskStatus": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable",
+              "unknown"
+            ]
+          },
+          "freeDiskBytes": {
+            "type": "integer"
+          },
+          "localServiceUrls": {
+            "$ref": "#/components/schemas/GatewayLocalServiceUrls"
+          },
+          "postgresProfileStatus": {
+            "type": "string",
+            "enum": [
+              "not_required",
+              "configured",
+              "missing"
+            ]
+          },
+          "minioProfileStatus": {
+            "type": "string",
+            "enum": [
+              "not_required",
+              "configured",
+              "missing"
+            ]
+          },
+          "cloudCredentialsRequired": {
+            "type": "boolean"
+          },
+          "cpuThreadCount": {
+            "type": "integer"
+          },
+          "totalMemoryBytes": {
+            "type": "integer"
+          },
+          "freeMemoryBytes": {
+            "type": "integer"
+          },
+          "gpuReadinessStatus": {
+            "type": "string",
+            "enum": [
+              "available",
+              "cpu_fallback"
+            ]
+          },
+          "gpuFallbackReason": {
+            "type": "string"
           },
           "repositoryBackend": {
             "type": "string"
@@ -1121,6 +1213,56 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "GatewayDataEstateZoneStatus": {
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "exists",
+          "writable"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "exists": {
+            "type": "boolean"
+          },
+          "writable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GatewayLocalServiceUrls": {
+        "type": "object",
+        "required": [
+          "gateway",
+          "execution",
+          "frontend",
+          "streamWorker",
+          "gpuWorker"
+        ],
+        "properties": {
+          "gateway": {
+            "type": "string"
+          },
+          "execution": {
+            "type": "string"
+          },
+          "frontend": {
+            "type": "string"
+          },
+          "streamWorker": {
+            "type": "string"
+          },
+          "gpuWorker": {
+            "type": "string"
           }
         }
       },
