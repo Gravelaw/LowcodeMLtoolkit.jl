@@ -19,6 +19,7 @@ description: Use when implementing or reviewing JuliaFlow frontend canvas, BI/da
 
 ## Rules
 - Contracts first for payload shapes; frontend must consume shared types/client where practical.
+- Run frontend install, dev, test, build, coverage, and visual QA commands from native WSL/Linux; if uncertain, run `npm run doctor:wsl-node` before `npm install`, `npm run test`, `npm run build`, or dev server work.
 - Preserve route shell and demo fallback unless scope explicitly removes it.
 - Keep runtime gateway config path working: `juliaflow-config.js` overrides Vite env fallback.
 - Avoid brittle tests: prefer role/label/view-specific selectors over broad duplicate text.

@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-28
+Last updated: 2026-05-30
 Source: BRD gap review against `business-requirements-v0.3.0.md` and current code.
 Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning context is preserved in `docs/project-tracker.md` and `docs/checkpoint-log.md`.
 
@@ -37,7 +37,7 @@ Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning
 
 1. [x] BRD local-first strategy refresh: `business-requirements-v0.3.0.md` now sets v0.4.0 local-first baseline requirements for local appliance bootstrap, local data estate, local database modes, hardware-aware execution, AI explainability, offline Hub, academic reproducibility, and backup/restore.
 2. [x] Agent prompt hygiene: repo-local skills and `AGENTS.md` now route local-first appliance work through installed/current skills, remove stale skill/plugin/model references, and keep project guidance from duplicating obsolete plugin prompts.
-3. [ ] Local appliance bootstrap proof: one-command local stack, installation profiles, service health checks, local folder initialization, and sample workflow with no cloud credentials.
+3. [x] Local appliance bootstrap proof: one-command local stack, installation profiles, service health checks, local folder initialization, and sample workflow with no cloud credentials.
 4. [ ] Local data estate proof: managed filesystem zones, Parquet/Arrow durable artifacts, Arrow IPC runtime payloads, DuckDB query acceleration, quotas, cleanup, and backup hooks.
 5. [ ] Local metadata/database proof: single-user metadata mode plus local PostgreSQL lab/team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
 6. [ ] Local hardware runtime proof: CPU/RAM/disk/GPU profiler, CPU scheduling, memory-aware limits, CUDA smoke when available, and explicit CPU fallback when unavailable.
@@ -93,6 +93,8 @@ Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning
 - 2026-05-17: Governed Hub isolated sandbox/artifact/mirror proof executes only allowlisted Julia extension test fixtures under `JULIAFLOW_HUB_SANDBOX_EXECUTE=1`, verifies downloaded artifact bytes through `JULIAFLOW_HUB_ARTIFACT_STORE`, resolves private/offline mirror refs through `JULIAFLOW_HUB_MIRROR_REGISTRY`, blocks missing artifacts/mirrors, and renders verification details in Hub cards.
 - 2026-05-28: Frontend Monitor expansion now renders executor dataflow stage-policy rows and per-node executor/branch result evidence, so operators can inspect callback/dataflow flags, readiness barriers, source/sink counts, row counts, output kind, and output-ref counts directly in Monitor; tracked `.staging/` skill residue was removed, future staging folders are ignored, and the moderate `ws` audit advisory was resolved.
 - 2026-05-28: Core BRD updated to v0.4.0 local-first baseline. Provider/cloud proof, cloud object stores, external registry proof, enterprise identity, and cloud multi-GPU closure are no longer core GA gates; local appliance bootstrap, local data estate, local metadata/database modes, local hardware runtime, explainability/model evidence, offline Hub, academic reproducibility, and backup/restore are the active implementation lanes.
+- 2026-05-30: Local appliance bootstrap proof is closed for the current local-first slice: `npm run smoke:local-bootstrap` reaches gateway health and the sample `wf-foundation` workflow with `single-user` and no cloud credentials; `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run validate:contracts`, direct frontend TypeScript checks, direct Vite production build, `npm run validate:control-doc-sync`, and `npm run validate:brd-traceability` passed. Residual environment note: `npm run build` reaches Vite transform but the Windows npm/WSL interop wrapper can hang after Vite finishes; direct Node/Vite build evidence is recorded until native WSL Node/npm is available.
+- 2026-05-29 (runtime follow-up): Windows Node/Julia installs are now verified (`node.exe v26.2.0`, `julia.exe 1.12.6`). Remaining local-bootstrap closure work is to rerun npm/JS/smoke gates in a fresh shell session so nested npm workspace commands resolve consistently.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.
 
 - 2026-04-25: BRD traceability automation now validates every checked P0/P1/P2 TODO item against `docs/brd-traceability.md` code/test evidence links.

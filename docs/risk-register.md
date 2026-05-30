@@ -1,6 +1,6 @@
 # JuliaFlow Risk Register
 
-Last updated: 2026-05-28
+Last updated: 2026-05-30
 
 This register tracks active BRD delivery risks that should be burned down through thin, verified slices. It complements `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md`.
 
@@ -10,7 +10,7 @@ Next implementation lane: local-first GA proof after the BRD v0.4.0 strategy ref
 
 | ID | Area | Risk | Impact | Likelihood | Mitigation | Next Evidence | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| R-LOCAL-001 | Bootstrap | Local install remains multi-step or brittle across machines. | Target academic/small-team users cannot get to first workflow quickly. | High | Define one-command local bootstrap, explicit profiles, health checks, and starter workflow. | Fresh-machine local bootstrap smoke with no cloud credentials. | Open |
+| R-LOCAL-001 | Bootstrap | Local install remains multi-step or brittle across machines. | Target academic/small-team users cannot get to first workflow quickly. | High | `dev:local`/`smoke:local-bootstrap`, profile wiring, local zone initialization, gateway health evidence, Monitor rendering, and sample workflow availability are implemented and smoke-tested with no cloud credentials. | Carry residual Windows npm/WSL `npm run build` wrapper caveat into toolchain hygiene; proceed to managed local data estate proof. | Mitigated for bootstrap slice |
 | R-DATA-001 | Local data estate | Filesystem zones, Parquet/Arrow artifacts, DuckDB query path, quotas, cleanup, and backup are not yet proven as a managed product surface. | Runs can sprawl across disk and become hard to reproduce or migrate. | High | Implement managed data estate initialization, artifact manifests, checksums, quotas, and cleanup/backup commands. | Local data estate roundtrip and restore evidence. | Open |
 | R-DB-001 | Local metadata | DuckDB is overused for concurrent service metadata writes. | Metadata lock/contention or corruption risk in lab/team deployments. | Medium | Use DuckDB for analytics; use local PostgreSQL for lab/team metadata, RBAC, audit, and execution history. | Single-user metadata smoke plus PostgreSQL lab/team mode smoke. | Open |
 | R-HW-001 | Local hardware | CPU/GPU/RAM/disk variability causes confusing performance or failures. | Academic machines differ widely; GPU availability cannot be assumed. | High | Hardware profiler, conservative resource defaults, CUDA smoke when available, and explicit CPU fallback reason. | Local hardware profile and CPU/GPU fallback evidence. | Open |

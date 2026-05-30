@@ -1,5 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import * as matchers from "@testing-library/jest-dom/matchers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+expect.extend(matchers);
 import App from "./App";
 
 class MockWebSocket {
@@ -48,6 +51,70 @@ function hubVerification(verified = true, blockers: string[] = []) {
     mirrors: { status, details: "test mirror verification", blockers, checkedAt: "2026-05-08T00:00:00Z" },
     blockers,
     evaluatedAt: "2026-05-08T00:00:00Z"
+  };
+}
+
+function healthPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    service: "api-gateway",
+    status: "ok",
+    localProfile: "single-user",
+    localHome: "/tmp/juliaflow",
+    dataEstateRoot: "/tmp/juliaflow/data",
+    dataEstateZones: [
+      { name: "raw", path: "/tmp/juliaflow/data/raw", exists: true, writable: true },
+      { name: "processed", path: "/tmp/juliaflow/data/processed", exists: true, writable: true },
+      { name: "features", path: "/tmp/juliaflow/data/features", exists: true, writable: true },
+      { name: "models", path: "/tmp/juliaflow/data/models", exists: true, writable: true },
+      { name: "runs", path: "/tmp/juliaflow/data/runs", exists: true, writable: true },
+      { name: "checkpoints", path: "/tmp/juliaflow/data/checkpoints", exists: true, writable: true },
+      { name: "dashboards", path: "/tmp/juliaflow/data/dashboards", exists: true, writable: true },
+      { name: "logs", path: "/tmp/juliaflow/data/logs", exists: true, writable: true },
+      { name: "extensions", path: "/tmp/juliaflow/data/extensions", exists: true, writable: true }
+    ],
+    dataEstateReady: true,
+    freeDiskStatus: "available",
+    freeDiskBytes: 1024 * 1024 * 1024,
+    localServiceUrls: {
+      gateway: "http://127.0.0.1:8088",
+      execution: "http://127.0.0.1:8090",
+      frontend: "http://127.0.0.1:5173",
+      streamWorker: "process",
+      gpuWorker: "process"
+    },
+    postgresProfileStatus: "not_required",
+    minioProfileStatus: "not_required",
+    cloudCredentialsRequired: false,
+    cpuThreadCount: 8,
+    totalMemoryBytes: 16 * 1024 * 1024 * 1024,
+    freeMemoryBytes: 8 * 1024 * 1024 * 1024,
+    gpuReadinessStatus: "cpu_fallback",
+    gpuFallbackReason: "no_supported_gpu_required_for_local_bootstrap",
+    repositoryBackend: "file",
+    storeRoot: "/tmp/juliaflow",
+    workflowCount: 0,
+    checkpointCount: 0,
+    executionCount: 0,
+    realtimeTransport: "jsonrpc_websocket",
+    eventBackboneMode: "dual_write",
+    eventConsumerPollMs: 250,
+    streamWorkerMode: "inline",
+    gpuWorkerMode: "process",
+    gpuRegistryDeviceCount: 0,
+    gpuFallbackAvailable: true,
+    eventLogSize: 0,
+    latestEventSequence: 0,
+    gatewayConsumerCursor: 0,
+    gatewayConsumerLag: 0,
+    eventConsumerCatchupPercent: 100,
+    activeStreamExecutions: 0,
+    queuedGpuExecutions: 0,
+    queuedStreamExecutions: 0,
+    activeGpuExecutions: 0,
+    gpuWorkerOwnedExecutions: 0,
+    queuedExecutionsTotal: 0,
+    runningExecutionsTotal: 0,
+    ...overrides
   };
 }
 
@@ -204,39 +271,30 @@ describe("App", () => {
       const url = String(input);
 
       if (url.endsWith("/health")) {
-        return new Response(
-          JSON.stringify({
-            service: "api-gateway",
-            status: "ok",
-            repositoryBackend: "postgres",
-            storeRoot: "/tmp/juliaflow",
-            workflowCount: 1,
-            checkpointCount: 2,
-              executionCount: 1,
-              realtimeTransport: "jsonrpc_websocket",
-              eventBackboneMode: "dual_write",
-              eventConsumerPollMs: 250,
-              streamWorkerMode: "process",
-              gpuWorkerMode: "process",
-              eventLogSize: 12,
-              latestEventSequence: 12,
-              gatewayConsumerCursor: 10,
-              gatewayConsumerLag: 2,
-              eventConsumerCatchupPercent: 83,
-              activeStreamExecutions: 1,
-              queuedGpuExecutions: 1,
-              queuedStreamExecutions: 1,
-              activeGpuExecutions: 1,
-              gpuWorkerOwnedExecutions: 1,
-              queuedExecutionsTotal: 1,
-              runningExecutionsTotal: 1,
-              authMode: "oidc",
-              oidcDiscoveryConfigured: true,
-              oidcJwksConfigured: true,
-              oidcAllowedAlgorithms: ["HS256"]
-            })
-          );
-        }
+        return new Response(JSON.stringify(healthPayload({
+          repositoryBackend: "postgres",
+          workflowCount: 1,
+          checkpointCount: 2,
+          executionCount: 1,
+          streamWorkerMode: "process",
+          eventLogSize: 12,
+          latestEventSequence: 12,
+          gatewayConsumerCursor: 10,
+          gatewayConsumerLag: 2,
+          eventConsumerCatchupPercent: 83,
+          activeStreamExecutions: 1,
+          queuedGpuExecutions: 1,
+          queuedStreamExecutions: 1,
+          activeGpuExecutions: 1,
+          gpuWorkerOwnedExecutions: 1,
+          queuedExecutionsTotal: 1,
+          runningExecutionsTotal: 1,
+          authMode: "oidc",
+          oidcDiscoveryConfigured: true,
+          oidcJwksConfigured: true,
+          oidcAllowedAlgorithms: ["HS256"]
+        })));
+      }
 
       if (url.endsWith("/api/v1/workflows") && init?.method === "GET") {
         return new Response(
@@ -726,6 +784,13 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /MonitorExecutions, workers, backbone/i }));
     expect(await screen.findByText(/Transport \+ worker modes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Appliance profile/i)).toBeInTheDocument();
+    expect(screen.getByText(/Data estate/i)).toBeInTheDocument();
+    expect(screen.getByText(/Disk free/i)).toBeInTheDocument();
+    expect(screen.getByText(/Postgres profile/i)).toBeInTheDocument();
+    expect(screen.getByText(/MinIO profile/i)).toBeInTheDocument();
+    expect(screen.getByText(/CPU threads/i)).toBeInTheDocument();
+    expect(screen.getByText(/GPU readiness/i)).toBeInTheDocument();
     expect(screen.getByText(/dual_write/i)).toBeInTheDocument();
     expect(screen.getAllByText(/process/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Latest event sequence/i)).toBeInTheDocument();
@@ -922,34 +987,7 @@ describe("App", () => {
       const url = String(input);
 
       if (url.endsWith("/health")) {
-        return new Response(
-          JSON.stringify({
-            service: "api-gateway",
-            status: "ok",
-            repositoryBackend: "file",
-            storeRoot: "/tmp/juliaflow",
-            workflowCount: 0,
-            checkpointCount: 0,
-            executionCount: 0,
-            realtimeTransport: "jsonrpc_websocket",
-            eventBackboneMode: "dual_write",
-            eventConsumerPollMs: 250,
-            streamWorkerMode: "inline",
-            gpuWorkerMode: "process",
-            eventLogSize: 0,
-            latestEventSequence: 0,
-            gatewayConsumerCursor: 0,
-            gatewayConsumerLag: 0,
-            eventConsumerCatchupPercent: 100,
-            activeStreamExecutions: 0,
-            queuedGpuExecutions: 0,
-            queuedStreamExecutions: 0,
-            activeGpuExecutions: 0,
-            gpuWorkerOwnedExecutions: 0,
-            queuedExecutionsTotal: 0,
-            runningExecutionsTotal: 0
-          })
-        );
+        return new Response(JSON.stringify(healthPayload()));
       }
 
       if (url.endsWith("/api/v1/workflows") && init?.method === "GET") {
@@ -1107,34 +1145,7 @@ describe("App", () => {
       const url = String(input);
 
       if (url.endsWith("/health")) {
-        return new Response(
-          JSON.stringify({
-            service: "api-gateway",
-            status: "ok",
-            repositoryBackend: "file",
-            storeRoot: "/tmp/juliaflow",
-            workflowCount: 0,
-            checkpointCount: 0,
-            executionCount: 0,
-            realtimeTransport: "jsonrpc_websocket",
-            eventBackboneMode: "dual_write",
-            eventConsumerPollMs: 250,
-            streamWorkerMode: "inline",
-            gpuWorkerMode: "process",
-            eventLogSize: 0,
-            latestEventSequence: 0,
-            gatewayConsumerCursor: 0,
-            gatewayConsumerLag: 0,
-            eventConsumerCatchupPercent: 100,
-            activeStreamExecutions: 0,
-            queuedGpuExecutions: 0,
-            queuedStreamExecutions: 0,
-            activeGpuExecutions: 0,
-            gpuWorkerOwnedExecutions: 0,
-            queuedExecutionsTotal: 0,
-            runningExecutionsTotal: 0
-          })
-        );
+        return new Response(JSON.stringify(healthPayload()));
       }
 
       if (url.endsWith("/api/v1/workflows") && init?.method === "GET") {
@@ -1245,34 +1256,7 @@ describe("App", () => {
       const url = String(input);
 
       if (url.endsWith("/health")) {
-        return new Response(
-          JSON.stringify({
-            service: "api-gateway",
-            status: "ok",
-            repositoryBackend: "file",
-            storeRoot: "/tmp/juliaflow",
-            workflowCount: 0,
-            checkpointCount: 0,
-            executionCount: 0,
-            realtimeTransport: "jsonrpc_websocket",
-            eventBackboneMode: "dual_write",
-            eventConsumerPollMs: 250,
-            streamWorkerMode: "inline",
-            gpuWorkerMode: "process",
-            eventLogSize: 0,
-            latestEventSequence: 0,
-            gatewayConsumerCursor: 0,
-            gatewayConsumerLag: 0,
-            eventConsumerCatchupPercent: 100,
-            activeStreamExecutions: 0,
-            queuedGpuExecutions: 0,
-            queuedStreamExecutions: 0,
-            activeGpuExecutions: 0,
-            gpuWorkerOwnedExecutions: 0,
-            queuedExecutionsTotal: 0,
-            runningExecutionsTotal: 0
-          })
-        );
+        return new Response(JSON.stringify(healthPayload()));
       }
 
       if (url.endsWith("/api/v1/workflows") && init?.method === "GET") {

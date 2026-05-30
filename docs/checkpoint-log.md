@@ -20,6 +20,46 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Local Appliance Bootstrap Proof Complete — 2026-05-30
+
+### Work Done Till Date
+
+- Implemented and verified the local-first bootstrap slice:
+  - `scripts/dev-local.mjs` one-command runner with default `single-user` profile and support for `lab-team`, `s3-compatible-local`, and `developer`.
+  - `scripts/smoke-local-bootstrap.mjs` bounded temporary-home smoke wrapper.
+  - `package.json` scripts `dev:local` and `smoke:local-bootstrap`.
+- Local appliance home/data-estate initialization creates `raw`, `processed`, `features`, `models`, `runs`, `checkpoints`, `dashboards`, `logs`, and `extensions`.
+- Gateway `/health` exposes local appliance evidence across Julia + contracts/OpenAPI + frontend Monitor:
+  - profile/home/data-estate and zone readiness
+  - writable/disk status
+  - local service URLs
+  - Postgres/MinIO profile status
+  - CPU/GPU readiness and fallback reason
+  - cloud credentials not required for local bootstrap mode
+- Updated focused tests for Julia gateway health fields, contract schema expectations, frontend Monitor rendering, and Windows/WSL-safe Node tool invocation.
+- Verified this session:
+  - `npm run smoke:local-bootstrap` passed with `single-user`, gateway health, and `wf-foundation` sample workflow availability.
+  - `julia --project=. tests/julia/runtests.jl` passed.
+  - `npm run test` passed.
+  - `npm run validate:contracts` passed.
+  - Direct frontend TypeScript checks passed: `node ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json` and `node ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.node.json`.
+  - Direct Vite production build passed: `node ../../node_modules/vite/bin/vite.js build --configLoader runner`.
+  - `npm run validate:control-doc-sync` and `npm run validate:brd-traceability` passed after final control-doc updates.
+
+### Gaps Pending
+
+- Local appliance bootstrap product proof is closed for the current slice.
+- Residual toolchain caveat: `npm run build` reaches Vite transform in this Windows npm/WSL interop shell, then the npm wrapper can hang after Vite exits; direct Node/TypeScript/Vite build commands pass. Native WSL Node/npm should be preferred for future repeatable build-wrapper evidence.
+- Lab-team PostgreSQL and S3-compatible local dependency startup profiles are wired but not yet smoke-closed with live Postgres/MinIO dependencies; those belong with local metadata/database and optional S3-compatible-local follow-up evidence.
+
+### Next Items To Implement
+
+- Start local data estate proof: managed filesystem manifests, durable Arrow/Parquet artifacts, DuckDB query acceleration, quotas, cleanup, and backup/restore hooks.
+- Keep `single-user` bootstrap smoke in the gate set for every local-first follow-up.
+- Revisit native `npm run build` wrapper behavior after native WSL Node/npm is available or CI provides a single-runtime shell.
+
+---
+
 ## Checkpoint: `cp/00-foundation`
 
 ### Work Done Till Date

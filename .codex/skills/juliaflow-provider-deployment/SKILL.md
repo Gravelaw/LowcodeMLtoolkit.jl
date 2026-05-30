@@ -10,6 +10,7 @@ Provider-specific deployment work after P2 thin manifests. Under the v0.4.0 loca
 
 ## Rules
 - Keep `infra/argocd/apps/*` child app paths stable unless a migration doc and rollback plan exist.
+- Run manifest validation, local dry-runs, and helper scripts from native WSL/Linux unless the target deployment tooling explicitly requires another environment.
 - Do not commit real secrets.
 - Do not add fake production StatefulSets for managed dependencies; bind provider-neutral service/secret contracts through overlays.
 - API Gateway file backend stays single-replica; multi-replica requires shared repository backend.

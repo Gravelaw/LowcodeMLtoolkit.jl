@@ -417,6 +417,22 @@ export const phaseSummaries = [
 export interface GatewayHealthcheck {
   service: "api-gateway";
   status: "ok";
+  localProfile: "single-user" | "lab-team" | "s3-compatible-local" | "developer";
+  localHome: string;
+  dataEstateRoot: string;
+  dataEstateZones: GatewayDataEstateZoneStatus[];
+  dataEstateReady: boolean;
+  freeDiskStatus: "available" | "unavailable" | "unknown";
+  freeDiskBytes: number;
+  localServiceUrls: GatewayLocalServiceUrls;
+  postgresProfileStatus: "not_required" | "configured" | "missing";
+  minioProfileStatus: "not_required" | "configured" | "missing";
+  cloudCredentialsRequired: boolean;
+  cpuThreadCount: number;
+  totalMemoryBytes: number;
+  freeMemoryBytes: number;
+  gpuReadinessStatus: "available" | "cpu_fallback";
+  gpuFallbackReason: string;
   repositoryBackend: string;
   storeRoot: string;
   workflowCount: number;
@@ -451,6 +467,21 @@ export interface GatewayHealthcheck {
   oidcDiscoveryConfigured?: boolean;
   oidcJwksConfigured?: boolean;
   oidcAllowedAlgorithms?: string[];
+}
+
+export interface GatewayDataEstateZoneStatus {
+  name: string;
+  path: string;
+  exists: boolean;
+  writable: boolean;
+}
+
+export interface GatewayLocalServiceUrls {
+  gateway: string;
+  execution: string;
+  frontend: string;
+  streamWorker: string;
+  gpuWorker: string;
 }
 
 export interface ObservabilitySpanRecord {

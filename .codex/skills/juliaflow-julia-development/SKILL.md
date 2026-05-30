@@ -20,6 +20,7 @@ description: Use when implementing, debugging, or reviewing JuliaFlow Julia serv
 ## Required checks
 - Keep TS/OpenAPI/JSON schema and Julia structs/mappers aligned.
 - Preserve Arrow IPC inter-node boundary.
+- Run Julia service tests and any npm-backed contract/typecheck steps from native WSL/Linux; avoid mixing Windows Julia/Node artifacts with WSL-generated manifests, lockfiles, or caches.
 - For long-running workers use bounded mode, e.g. `JULIAFLOW_WORKER_ONCE=1`.
 - Run `julia --project=. tests/julia/runtests.jl` for Julia service changes; add extension tests when touching `extensions/base/`.
 

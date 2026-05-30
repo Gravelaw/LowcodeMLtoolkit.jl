@@ -4400,6 +4400,44 @@ function App() {
                       <span>{workspaceData.health?.repositoryBackend ?? workspaceData.mode}</span>
                     </div>
                     <div className="inspector-row">
+                      <strong>Appliance profile</strong>
+                      <span>{workspaceData.health?.localProfile ?? "single-user"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Data estate</strong>
+                      <span>
+                        {workspaceData.health?.dataEstateReady ? "ready" : "pending"} ·{" "}
+                        {workspaceData.health?.dataEstateZones?.length ?? 0} zones
+                      </span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Disk free</strong>
+                      <span>
+                        {workspaceData.health?.freeDiskStatus ?? "unknown"} ·{" "}
+                        {workspaceData.health?.freeDiskBytes?.toLocaleString() ?? 0} bytes
+                      </span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Gateway URL</strong>
+                      <span>{workspaceData.health?.localServiceUrls?.gateway ?? "local demo"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Postgres profile</strong>
+                      <span>{workspaceData.health?.postgresProfileStatus ?? "not_required"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>MinIO profile</strong>
+                      <span>{workspaceData.health?.minioProfileStatus ?? "not_required"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>CPU threads</strong>
+                      <span>{workspaceData.health?.cpuThreadCount ?? 1}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>GPU readiness</strong>
+                      <span>{workspaceData.health?.gpuReadinessStatus ?? "cpu_fallback"}</span>
+                    </div>
+                    <div className="inspector-row">
                       <strong>Realtime transport</strong>
                       <span>{workspaceData.health?.realtimeTransport ?? "jsonrpc_websocket"}</span>
                     </div>

@@ -21,6 +21,7 @@ Treat `business-requirements-v0.3.0.md`, `Plan.md`, `docs/TODO.md`, `docs/risk-r
 
 ## Delivery rule
 - Sync docs, contracts, Julia, frontend, infra, and tests in same slice when boundary changes.
+- Run SDLC verification from native WSL/Linux; for JS-backed validation, run `npm run doctor:wsl-node` first if the environment is uncertain.
 - Update tracker and checkpoint after meaningful work with: work done, gaps pending, next items.
 - Run `npm run validate:control-doc-sync` before claiming any slice/phase/review complete.
 - Run `npm run validate:brd-traceability` after TODO/traceability changes.

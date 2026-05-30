@@ -1,6 +1,6 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-05-28
+Last updated: 2026-05-30
 
 ## Current Phase
 
@@ -21,10 +21,11 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - `business-requirements-v0.3.0.md` is now the v0.4.0 local-first BRD baseline: no cloud account required, local filesystem/DuckDB first, PostgreSQL for lab/team metadata, optional MinIO only for local S3 compatibility, explainability as core scope, and multi-GPU validation conditional on local hardware.
 - Documentation cleanup removed the user-approved obsolete BRD/planning/checkpoint artifacts, while the active control set remains `business-requirements-v0.3.0.md`, `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/project-tracker.md`, `docs/checkpoint-log.md`, and `docs/brd-traceability.md`.
 - Agent prompt hygiene now routes local-first appliance work through a dedicated repo-local skill, replaces stale skill/plugin names with installed plugin skill names, and removes hard-coded model/subagent assumptions from project guidance.
+- Local appliance bootstrap proof is complete for the current local-first slice: `dev:local`/`smoke:local-bootstrap` scripts, profile wiring (`single-user`, `lab-team`, `s3-compatible-local`, `developer`), local data-estate zone initialization, gateway health local-appliance evidence, Monitor rendering, sample workflow availability, and JS/Julia/contract smoke evidence are in place. Residual toolchain caveat: `npm run build` can hang after Vite transform in this Windows npm/WSL interop shell, while direct TypeScript and Vite build commands pass.
 
 ## Active Development Order
 
-1. **Local appliance bootstrap proof**
+1. **Local appliance bootstrap proof** - complete for current slice
    - Add a one-command local bootstrap path that starts the frontend, gateway, execution service, worker service, data estate, local metadata, Hub cache, and health checks.
    - Support explicit `single-user`, `lab-team`, `s3-compatible-local`, and `developer` install profiles.
    - Verify fresh local install to sample workflow without cloud credentials.

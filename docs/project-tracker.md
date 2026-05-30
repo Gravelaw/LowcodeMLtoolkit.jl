@@ -18,9 +18,22 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.0 local-first baseline
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-05-28`
+- Last updated: `2026-05-30`
 
 ## Work Done Till Date
+
+### Local Appliance Bootstrap Proof Slice (2026-05-29 to 2026-05-30)
+
+- Continued from partial local-first bootstrap implementation already in the worktree.
+- Added `scripts/dev-local.mjs` and `scripts/smoke-local-bootstrap.mjs` for one-command local bootstrap and bounded smoke execution.
+- Added `npm` scripts `dev:local` and `smoke:local-bootstrap` in `package.json`.
+- Implemented profile-aware local appliance bootstrap (`single-user`, `lab-team`, `s3-compatible-local`, `developer`) with default `single-user`.
+- Local bootstrap now initializes appliance home/data-estate zones (`raw`, `processed`, `features`, `models`, `runs`, `checkpoints`, `dashboards`, `logs`, `extensions`) and wires local env defaults with cloud credentials not required.
+- Extended gateway `/health` and cross-layer contracts/OpenAPI for local appliance evidence: profile/home/paths, zone readiness, disk status, local service URLs, Postgres/MinIO profile status, and CPU/GPU readiness/fallback.
+- Frontend Monitor now renders the new local appliance health evidence.
+- Focused tests were updated in Julia (`tests/julia/runtests.jl`), contracts (`tests/contracts/workflow-schema.test.mjs`), and frontend (`apps/frontend/src/App.test.tsx`) for the expanded health surface.
+- Verified in this environment: Julia test suite passed and both new runner scripts passed syntax checks.
+- Runtime verification update (2026-05-29, later pass): Windows Node and Julia installs are now present and executable (`C:\\Program Files\\nodejs\\node.exe` -> `v26.2.0`; Windows `julia.exe` reports `1.12.6`). npm workspace gates still require a fresh shell/session PATH propagation before reliable re-run.
 
 ### Repository Canvas / Understanding
 
@@ -610,6 +623,12 @@ Tracker always records 3 things:
 
 ## Gaps Pending
 
+### Local-First Active Gap (2026-05-30)
+
+- `R-LOCAL-001` is mitigated for the bootstrap slice: smoke, health evidence, profile wiring, sample workflow availability, contracts, frontend Monitor rendering, and Julia tests are verified.
+- Active local-first product gap moves to local data estate proof: manifests, durable Arrow/Parquet artifacts, DuckDB acceleration, quotas, cleanup, and backup/restore hooks.
+- Toolchain hygiene remains: native `npm run build` can hang in this Windows npm/WSL interop shell after Vite transform, although direct Node/TypeScript/Vite build commands pass.
+
 ### Phase 1 / Alpha Critical Gaps
 
 - Base node pack now has 50 tested Tier-1 nodes with inline, external-ref fixture, local object-store roundtrip materialization, and production reader/writer adapter callbacks, but remains below BRD Phase 1 target (`150 core nodes`) and still needs package-backed Arrow/DataFrames object-storage execution
@@ -629,6 +648,12 @@ Tracker always records 3 things:
 - `docs/TODO.md` and future `docs/brd-traceability.md` must stay in sync with every new requirement/change
 
 ## Next Items To Implement
+
+### Immediate Next Steps (Post 2026-05-30 Slice)
+
+1. Start local data estate proof with managed zone manifests, checksums, Arrow/Parquet durability, DuckDB queries, quotas, cleanup, and backup hooks.
+2. Preserve `npm run smoke:local-bootstrap` as a regression gate for the local appliance path.
+3. Re-test `npm run build` in native WSL Node/npm or CI; continue using direct Node/TypeScript/Vite build commands as local evidence in the mixed Windows npm/WSL shell.
 
 ### Next Priority
 

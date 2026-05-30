@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "composite": true,
     "types": [
       "vite/client"
     ]
@@ -13,10 +12,5 @@
   "exclude": [
     "src/**/*.test.tsx",
     "src/test-setup.ts"
-  ],
-  "references": [
-    {
-      "path": "./tsconfig.node.json"
-    }
   ]
 }

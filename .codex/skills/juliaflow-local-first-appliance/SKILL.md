@@ -25,6 +25,11 @@ Use after `juliaflow-control-loop` identifies a local-first BRD gap.
 5. Explainability/reproducibility: dataset cards, model cards, feature importance, local/global explanations, checkpoint bundle export/reimport.
 6. Offline Hub and backup/restore: bundled extension install, artifact cache, checksums, sandbox gates, migration evidence.
 
+## Environment Rule
+
+- Run bootstrap, install, service startup, smoke, build, and test commands from native WSL/Linux. If the shell or Node path is uncertain, run `npm run doctor:wsl-node` before JS tooling and keep generated artifacts/lockfiles from the same WSL toolchain.
+- Do not add Windows Node/npm/Vite fallbacks, `wsl.exe` bridge calls, or Windows-path cleanup workarounds unless the user explicitly requests Windows compatibility.
+
 ## Use With Installed Skills
 
 - `analysis-engineering-workflow:architect-work` or `analysis-engineering-workflow:review-architecture` for cross-service design.

@@ -430,6 +430,104 @@ function execution_payload(execution::GatewayExecution)
     return JuliaFlowGatewayRepository.execution_payload(execution)
 end
 
+const LOCAL_APPLIANCE_PROFILES = Set(["single-user", "lab-team", "s3-compatible-local", "developer"])
+const LOCAL_DATA_ESTATE_ZONES = ["raw", "processed", "features", "models", "runs", "checkpoints", "dashboards", "logs", "extensions"]
+
+function local_appliance_profile()
+    profile = lowercase(strip(get(ENV, "JULIAFLOW_LOCAL_PROFILE", "single-user")))
+    profile in LOCAL_APPLIANCE_PROFILES || return "single-user"
+    return profile
+end
+
+function default_local_appliance_home()
+    if Sys.iswindows()
+        base = get(ENV, "LOCALAPPDATA", get(ENV, "APPDATA", homedir()))
+        return joinpath(base, "JuliaFlow")
+    end
+    return joinpath(homedir(), ".juliaflow")
+end
+
+function local_appliance_home()
+    return normpath(get(ENV, "JULIAFLOW_HOME", default_local_appliance_home()))
+end
+
+function local_data_estate_root(home::AbstractString)
+    return normpath(get(ENV, "JULIAFLOW_DATA_ESTATE_ROOT", joinpath(home, "data")))
+end
+
+function local_service_urls()
+    host = get(ENV, "JULIAFLOW_LOCAL_HOST", get(ENV, "JULIAFLOW_GATEWAY_HOST", "127.0.0.1"))
+    gateway_port = get(ENV, "JULIAFLOW_GATEWAY_PORT", "8088")
+    execution_port = get(ENV, "JULIAFLOW_EXECUTION_PORT", "8090")
+    frontend_port = get(ENV, "JULIAFLOW_FRONTEND_PORT", "5173")
+    return Dict(
+        "gateway" => get(ENV, "JULIAFLOW_LOCAL_GATEWAY_URL", "http://$(host):$(gateway_port)"),
+        "execution" => get(ENV, "JULIAFLOW_LOCAL_EXECUTION_URL", "http://$(host):$(execution_port)"),
+        "frontend" => get(ENV, "JULIAFLOW_LOCAL_FRONTEND_URL", "http://$(host):$(frontend_port)"),
+        "streamWorker" => stream_worker_mode(),
+        "gpuWorker" => gpu_worker_mode(),
+    )
+end
+
+function local_profile_dependency_status(profile::AbstractString, dependency::Symbol)
+    if dependency == :postgres
+        profile == "lab-team" || return "not_required"
+        return optional_env_setting("JULIAFLOW_DATABASE_URL") === nothing ? "missing" : "configured"
+    elseif dependency == :minio
+        profile == "s3-compatible-local" || return "not_required"
+        return optional_env_setting("JULIAFLOW_MINIO_ENDPOINT") === nothing ? "missing" : "configured"
+    end
+    return "not_required"
+end
+
+function ensure_local_zone(path::AbstractString)
+    get(ENV, "JULIAFLOW_APPLIANCE_BOOTSTRAP", "0") == "1" || return
+    mkpath(path)
+end
+
+function local_zone_writable(path::AbstractString)
+    isdir(path) || return false
+    marker = joinpath(path, ".juliaflow-write-check")
+    try
+        open(marker, "w") do io
+            write(io, "ok")
+        end
+        rm(marker; force = true)
+        return true
+    catch
+        rm(marker; force = true)
+        return false
+    end
+end
+
+function local_data_estate_zones(root::AbstractString)
+    statuses = Vector{Dict{String,Any}}()
+    for zone in LOCAL_DATA_ESTATE_ZONES
+        path = joinpath(root, zone)
+        ensure_local_zone(path)
+        push!(
+            statuses,
+            Dict(
+                "name" => zone,
+                "path" => path,
+                "exists" => isdir(path),
+                "writable" => local_zone_writable(path),
+            ),
+        )
+    end
+    return statuses
+end
+
+function local_disk_status(root::AbstractString)
+    isdir(root) || return Dict("status" => "unavailable", "freeBytes" => 0)
+    try
+        stats = diskstat(root)
+        return Dict("status" => stats.bavail > 0 ? "available" : "unavailable", "freeBytes" => Int(stats.bavail) * Int(stats.bsize))
+    catch
+        return Dict("status" => "unknown", "freeBytes" => 0)
+    end
+end
+
 function healthcheck(state::GatewayState)
     store_id = state.repository isa FileGatewayRepository ? state.repository.root : "postgresql"
     event_stats = health_event_stats(state)
@@ -440,10 +538,31 @@ function healthcheck(state::GatewayState)
         state.executions,
     )
     gpu_registry = JuliaFlowWorkerService.gpu_registry_health()
+    profile = local_appliance_profile()
+    appliance_home = local_appliance_home()
+    data_root = local_data_estate_root(appliance_home)
+    zones = local_data_estate_zones(data_root)
+    disk_status = local_disk_status(data_root)
     return JSON3.write(
         Dict(
             "service" => "api-gateway",
             "status" => "ok",
+            "localProfile" => profile,
+            "localHome" => appliance_home,
+            "dataEstateRoot" => data_root,
+            "dataEstateZones" => zones,
+            "dataEstateReady" => all(zone -> zone["exists"] == true && zone["writable"] == true, zones),
+            "freeDiskStatus" => disk_status["status"],
+            "freeDiskBytes" => disk_status["freeBytes"],
+            "localServiceUrls" => local_service_urls(),
+            "postgresProfileStatus" => local_profile_dependency_status(profile, :postgres),
+            "minioProfileStatus" => local_profile_dependency_status(profile, :minio),
+            "cloudCredentialsRequired" => false,
+            "cpuThreadCount" => Threads.nthreads(),
+            "totalMemoryBytes" => Sys.total_memory(),
+            "freeMemoryBytes" => Sys.free_memory(),
+            "gpuReadinessStatus" => gpu_registry["device_count"] > 0 ? "available" : "cpu_fallback",
+            "gpuFallbackReason" => gpu_registry["fallback_available"] ? "no_supported_gpu_required_for_local_bootstrap" : "gpu_fallback_unavailable",
             "repositoryBackend" => String(repository_backend(state)),
             "storeRoot" => store_id,
             "workflowCount" => length(state.workflows),
