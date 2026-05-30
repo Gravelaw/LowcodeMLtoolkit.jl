@@ -22,6 +22,7 @@
     "validate:p1": "npm run validate:perf && npm run validate:coverage && npm run validate:brd-traceability",
     "validate:k8s": "bash scripts/validate-k8s-manifests.sh",
     "smoke:local-bootstrap": "node scripts/smoke-local-bootstrap.mjs",
+    "smoke:local-data-estate": "node scripts/smoke-local-data-estate.mjs",
     "validate:control-doc-sync": "node scripts/validate-control-doc-sync.mjs",
     "preinstall": "node scripts/ensure-wsl-node.mjs",
     "prebuild": "node scripts/ensure-wsl-node.mjs",

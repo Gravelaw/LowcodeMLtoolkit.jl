@@ -962,6 +962,18 @@
           "dataEstateRoot",
           "dataEstateZones",
           "dataEstateReady",
+          "dataEstateManaged",
+          "dataEstateManifestPath",
+          "dataEstateManifestReady",
+          "dataEstateManifestChecksums",
+          "dataEstateArtifactFormats",
+          "dataEstateQuotaBytes",
+          "dataEstateUsedBytes",
+          "dataEstateCleanupStatus",
+          "dataEstateBackupRoot",
+          "dataEstateBackupStatus",
+          "dataEstateDuckdbStatus",
+          "dataEstateDuckdbQueryPath",
           "freeDiskStatus",
           "freeDiskBytes",
           "localServiceUrls",
@@ -1030,6 +1042,52 @@
           },
           "dataEstateReady": {
             "type": "boolean"
+          },
+          "dataEstateManaged": {
+            "type": "boolean"
+          },
+          "dataEstateManifestPath": {
+            "type": "string"
+          },
+          "dataEstateManifestReady": {
+            "type": "boolean"
+          },
+          "dataEstateManifestChecksums": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayDataEstateManifestChecksum"
+            }
+          },
+          "dataEstateArtifactFormats": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["arrow_ipc", "parquet"]
+            }
+          },
+          "dataEstateQuotaBytes": {
+            "type": "integer"
+          },
+          "dataEstateUsedBytes": {
+            "type": "integer"
+          },
+          "dataEstateCleanupStatus": {
+            "type": "string",
+            "enum": ["ready", "pending"]
+          },
+          "dataEstateBackupRoot": {
+            "type": "string"
+          },
+          "dataEstateBackupStatus": {
+            "type": "string",
+            "enum": ["ready", "pending"]
+          },
+          "dataEstateDuckdbStatus": {
+            "type": "string",
+            "enum": ["ready", "pending"]
+          },
+          "dataEstateDuckdbQueryPath": {
+            "type": "string"
           },
           "freeDiskStatus": {
             "type": "string",
@@ -1236,6 +1294,29 @@
           },
           "writable": {
             "type": "boolean"
+          }
+        }
+      },
+      "GatewayDataEstateManifestChecksum": {
+        "type": "object",
+        "required": [
+          "zone",
+          "path",
+          "exists",
+          "checksumSha256"
+        ],
+        "properties": {
+          "zone": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "exists": {
+            "type": "boolean"
+          },
+          "checksumSha256": {
+            "type": "string"
           }
         }
       },

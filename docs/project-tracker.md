@@ -22,6 +22,15 @@ Tracker always records 3 things:
 
 ## Work Done Till Date
 
+### Local Data Estate Proof Slice (2026-05-30)
+
+- Closed the second local-first GA lane after the bootstrap proof.
+- Gateway `/health` now exposes managed data-estate evidence: manifest root, per-zone manifest checksum records, Arrow IPC and Parquet artifact formats, quota/used bytes, cleanup hook status, backup root/status, and DuckDB query binding status/path.
+- Local bootstrap smoke now verifies managed manifests, artifact formats, cleanup/backup readiness, and DuckDB binding before accepting the local appliance state.
+- Added `scripts/smoke-local-data-estate.mjs` and `npm run smoke:local-data-estate` as a bounded temporary-home proof command.
+- Frontend Monitor renders estate manifests, quota, DuckDB query status, and cleanup/backup state for operator review.
+- Updated Julia, contract/OpenAPI, and frontend tests for the expanded managed data-estate health surface.
+
 ### Local Appliance Bootstrap Proof Slice (2026-05-29 to 2026-05-30)
 
 - Continued from partial local-first bootstrap implementation already in the worktree.
