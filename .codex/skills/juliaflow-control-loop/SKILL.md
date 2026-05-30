@@ -1,30 +1,28 @@
 ---
 name: juliaflow-control-loop
-description: Use for JuliaFlow BRD/TODO/checkpoint driven implementation planning, milestone closure, traceability updates, and cross-layer delivery decisions. Trigger when work touches BRD gaps, docs/project-tracker.md, docs/checkpoint-log.md, docs/TODO.md, docs/brd-traceability.md, or milestone completion claims.
+description: Use for JuliaFlow BRD/TODO/checkpoint driven planning, milestone closure, traceability updates, and cross-layer delivery decisions.
 ---
 
 # JuliaFlow Control Loop
 
-Use before meaningful JuliaFlow roadmap work.
+Use before meaningful JuliaFlow roadmap work or completion claims.
 
-## Active control set
+## Control Set
 
-Treat `business-requirements-v0.3.0.md`, `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md` as the current BRD/control set.
+`business-requirements-v0.3.0.md`, `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, `docs/checkpoint-log.md`.
 
-## Required intake
-1. Read `docs/project-tracker.md`, latest `docs/checkpoint-log.md`, `docs/TODO.md`, and `docs/brd-traceability.md`.
+## Workflow
+
+1. Read tracker, latest checkpoint, TODO, and traceability.
 2. Identify active BRD gap and target stage.
-3. Prefer the current local-first order unless the user says otherwise: local appliance bootstrap, managed local data estate, local metadata/database modes, local hardware runtime proof, explainability/reproducibility, offline Hub, then backup/restore.
-4. Use `juliaflow-local-first-appliance` for local bootstrap, data estate, metadata/database, CPU/GPU hardware, explainability, offline Hub, reproducibility, or backup/restore work.
-5. Keep thin-slice strategy: dev/demo fallback stays; production-depth path added behind explicit seam and tests.
-6. Do not check TODO P0/P1/P2 items unless traceability has code/doc evidence plus test evidence.
+3. Prefer the local-first order in `AGENTS.md` unless the user says otherwise.
+4. Use `juliaflow-local-first-appliance` for local-first GA lanes.
+5. Keep thin slices: preserve dev/demo fallback; add production-depth seams with tests.
 
-## Delivery rule
-- Sync docs, contracts, Julia, frontend, infra, and tests in same slice when boundary changes.
-- Run SDLC verification from native WSL/Linux; for JS-backed validation, run `npm run doctor:wsl-node` first if the environment is uncertain.
-- Update tracker and checkpoint after meaningful work with: work done, gaps pending, next items.
-- Run `npm run validate:control-doc-sync` before claiming any slice/phase/review complete.
-- Run `npm run validate:brd-traceability` after TODO/traceability changes.
+## Completion
 
-## Stop condition
-Evidence gathered, review clean, residual gaps explicitly recorded.
+- Sync docs, contracts, Julia, frontend, infra, and tests when a boundary changes.
+- Do not check TODO P0/P1/P2 items without traceability code/doc and verification evidence.
+- Update tracker/checkpoint with work done, gaps pending, and next items.
+- Run `npm run validate:control-doc-sync`.
+- Run `npm run validate:brd-traceability` after TODO or traceability changes.
