@@ -432,6 +432,8 @@ end
 
 const LOCAL_APPLIANCE_PROFILES = Set(["single-user", "lab-team", "s3-compatible-local", "developer"])
 const LOCAL_DATA_ESTATE_ZONES = ["raw", "processed", "features", "models", "runs", "checkpoints", "dashboards", "logs", "extensions"]
+const LOCAL_DATA_ESTATE_ARTIFACT_FORMATS = ["arrow_ipc", "parquet"]
+const LOCAL_DATA_ESTATE_DEFAULT_QUOTA_BYTES = 10_000_000_000
 
 function local_appliance_profile()
     profile = lowercase(strip(get(ENV, "JULIAFLOW_LOCAL_PROFILE", "single-user")))
@@ -528,6 +530,98 @@ function local_disk_status(root::AbstractString)
     end
 end
 
+function local_data_estate_quota_bytes()
+    raw = get(ENV, "JULIAFLOW_DATA_ESTATE_QUOTA_BYTES", "")
+    isempty(strip(raw)) && return LOCAL_DATA_ESTATE_DEFAULT_QUOTA_BYTES
+    parsed = tryparse(Int, strip(raw))
+    parsed === nothing && return LOCAL_DATA_ESTATE_DEFAULT_QUOTA_BYTES
+    parsed > 0 || return LOCAL_DATA_ESTATE_DEFAULT_QUOTA_BYTES
+    return parsed
+end
+
+function directory_size_bytes(root::AbstractString)
+    isdir(root) || return 0
+    total = 0
+    visited = 0
+    for (dir, _dirs, files) in walkdir(root)
+        for file in files
+            visited += 1
+            visited <= 10_000 || return total
+            path = joinpath(dir, file)
+            isfile(path) || continue
+            total += filesize(path)
+        end
+    end
+    return total
+end
+
+function ensure_managed_data_estate_file(path::AbstractString, content::AbstractString)
+    get(ENV, "JULIAFLOW_APPLIANCE_BOOTSTRAP", "0") == "1" || return
+    mkpath(dirname(path))
+    isfile(path) || write(path, content)
+end
+
+function file_sha256(path::AbstractString)
+    isfile(path) || return ""
+    return bytes2hex(sha256(read(path)))
+end
+
+function local_zone_manifest(root::AbstractString, zone::AbstractString, zone_path::AbstractString, quota_bytes::Int)
+    manifest_dir = joinpath(root, "_manifests")
+    manifest_path = joinpath(manifest_dir, "$(zone).json")
+    payload = Dict(
+        "version" => "0.1.0",
+        "zone" => zone,
+        "path" => zone_path,
+        "artifactFormats" => LOCAL_DATA_ESTATE_ARTIFACT_FORMATS,
+        "quotaBytes" => quota_bytes,
+        "cleanupHook" => "local_retention_policy",
+        "backupHook" => "filesystem_snapshot_bundle",
+    )
+    ensure_managed_data_estate_file(manifest_path, JSON3.write(payload))
+    return Dict(
+        "zone" => zone,
+        "path" => manifest_path,
+        "exists" => isfile(manifest_path),
+        "checksumSha256" => file_sha256(manifest_path),
+    )
+end
+
+function local_data_estate_duckdb_query_path(root::AbstractString)
+    return joinpath(root, "_duckdb", "local-data-estate.sql")
+end
+
+function local_data_estate_management(root::AbstractString, zones)
+    quota_bytes = local_data_estate_quota_bytes()
+    backup_root = joinpath(root, "_backups")
+    duckdb_query_path = local_data_estate_duckdb_query_path(root)
+    ensure_managed_data_estate_file(
+        duckdb_query_path,
+        "-- JuliaFlow local data estate DuckDB query binding\n" *
+        "SELECT count(*) AS row_count FROM read_parquet('processed/**/*.parquet');\n",
+    )
+    get(ENV, "JULIAFLOW_APPLIANCE_BOOTSTRAP", "0") == "1" && mkpath(backup_root)
+    manifests = [
+        local_zone_manifest(root, String(zone["name"]), String(zone["path"]), quota_bytes) for zone in zones
+    ]
+    used_bytes = directory_size_bytes(root)
+    manifests_ready = all(item -> item["exists"] == true && !isempty(item["checksumSha256"]), manifests)
+    zones_ready = all(zone -> zone["exists"] == true && zone["writable"] == true, zones)
+    return Dict(
+        "manifestPath" => joinpath(root, "_manifests"),
+        "manifestReady" => manifests_ready,
+        "manifestChecksums" => manifests,
+        "quotaBytes" => quota_bytes,
+        "usedBytes" => used_bytes,
+        "cleanupStatus" => manifests_ready && zones_ready ? "ready" : "pending",
+        "backupRoot" => backup_root,
+        "backupStatus" => isdir(backup_root) ? "ready" : "pending",
+        "duckdbStatus" => isfile(duckdb_query_path) ? "ready" : "pending",
+        "duckdbQueryPath" => duckdb_query_path,
+        "artifactFormats" => LOCAL_DATA_ESTATE_ARTIFACT_FORMATS,
+    )
+end
+
 function healthcheck(state::GatewayState)
     store_id = state.repository isa FileGatewayRepository ? state.repository.root : "postgresql"
     event_stats = health_event_stats(state)
@@ -543,6 +637,7 @@ function healthcheck(state::GatewayState)
     data_root = local_data_estate_root(appliance_home)
     zones = local_data_estate_zones(data_root)
     disk_status = local_disk_status(data_root)
+    data_estate = local_data_estate_management(data_root, zones)
     return JSON3.write(
         Dict(
             "service" => "api-gateway",
@@ -552,6 +647,18 @@ function healthcheck(state::GatewayState)
             "dataEstateRoot" => data_root,
             "dataEstateZones" => zones,
             "dataEstateReady" => all(zone -> zone["exists"] == true && zone["writable"] == true, zones),
+            "dataEstateManaged" => data_estate["manifestReady"],
+            "dataEstateManifestPath" => data_estate["manifestPath"],
+            "dataEstateManifestReady" => data_estate["manifestReady"],
+            "dataEstateManifestChecksums" => data_estate["manifestChecksums"],
+            "dataEstateArtifactFormats" => data_estate["artifactFormats"],
+            "dataEstateQuotaBytes" => data_estate["quotaBytes"],
+            "dataEstateUsedBytes" => data_estate["usedBytes"],
+            "dataEstateCleanupStatus" => data_estate["cleanupStatus"],
+            "dataEstateBackupRoot" => data_estate["backupRoot"],
+            "dataEstateBackupStatus" => data_estate["backupStatus"],
+            "dataEstateDuckdbStatus" => data_estate["duckdbStatus"],
+            "dataEstateDuckdbQueryPath" => data_estate["duckdbQueryPath"],
             "freeDiskStatus" => disk_status["status"],
             "freeDiskBytes" => disk_status["freeBytes"],
             "localServiceUrls" => local_service_urls(),

@@ -73,6 +73,18 @@ function healthPayload(overrides: Record<string, unknown> = {}) {
       { name: "extensions", path: "/tmp/juliaflow/data/extensions", exists: true, writable: true }
     ],
     dataEstateReady: true,
+    dataEstateManaged: true,
+    dataEstateManifestPath: "/tmp/juliaflow/data/_manifests",
+    dataEstateManifestReady: true,
+    dataEstateManifestChecksums: [{ zone: "raw", path: "/tmp/juliaflow/data/_manifests/raw.json", exists: true, checksumSha256: "abc123" }],
+    dataEstateArtifactFormats: ["arrow_ipc", "parquet"],
+    dataEstateQuotaBytes: 10000000000,
+    dataEstateUsedBytes: 2048,
+    dataEstateCleanupStatus: "ready",
+    dataEstateBackupRoot: "/tmp/juliaflow/data/_backups",
+    dataEstateBackupStatus: "ready",
+    dataEstateDuckdbStatus: "ready",
+    dataEstateDuckdbQueryPath: "/tmp/juliaflow/data/_duckdb/local-data-estate.sql",
     freeDiskStatus: "available",
     freeDiskBytes: 1024 * 1024 * 1024,
     localServiceUrls: {
@@ -786,6 +798,12 @@ describe("App", () => {
     expect(await screen.findByText(/Transport \+ worker modes/i)).toBeInTheDocument();
     expect(screen.getByText(/Appliance profile/i)).toBeInTheDocument();
     expect(screen.getByText(/Data estate/i)).toBeInTheDocument();
+    expect(screen.getByText(/Estate manifests/i)).toBeInTheDocument();
+    expect(screen.getByText(/ready · 1 checksums/i)).toBeInTheDocument();
+    expect(screen.getByText(/Estate quota/i)).toBeInTheDocument();
+    expect(screen.getByText(/DuckDB query/i)).toBeInTheDocument();
+    expect(screen.getByText("Cleanup + backup")).toBeInTheDocument();
+    expect(screen.getByText("ready / ready")).toBeInTheDocument();
     expect(screen.getByText(/Disk free/i)).toBeInTheDocument();
     expect(screen.getByText(/Postgres profile/i)).toBeInTheDocument();
     expect(screen.getByText(/MinIO profile/i)).toBeInTheDocument();

@@ -263,6 +263,18 @@ async function runSmoke(config, env) {
     if (!Array.isArray(health.dataEstateZones) || health.dataEstateZones.length !== ZONES.length) {
       throw new Error("Gateway health did not report all local data-estate zones");
     }
+    if (health.dataEstateManifestReady !== true || !Array.isArray(health.dataEstateManifestChecksums)) {
+      throw new Error("Gateway health did not report managed data-estate manifests");
+    }
+    if (!health.dataEstateArtifactFormats?.includes("arrow_ipc") || !health.dataEstateArtifactFormats?.includes("parquet")) {
+      throw new Error("Gateway health did not report Arrow/Parquet artifact formats");
+    }
+    if (health.dataEstateCleanupStatus !== "ready" || health.dataEstateBackupStatus !== "ready") {
+      throw new Error("Gateway health did not report cleanup and backup hooks as ready");
+    }
+    if (health.dataEstateDuckdbStatus !== "ready") {
+      throw new Error("Gateway health did not report DuckDB query binding as ready");
+    }
     if (!workflows.items?.some((item) => item.workflowId === "wf-foundation")) {
       throw new Error("Sample foundation workflow was not available");
     }

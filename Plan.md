@@ -22,6 +22,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Documentation cleanup removed the user-approved obsolete BRD/planning/checkpoint artifacts, while the active control set remains `business-requirements-v0.3.0.md`, `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/project-tracker.md`, `docs/checkpoint-log.md`, and `docs/brd-traceability.md`.
 - Agent prompt hygiene now routes local-first appliance work through a dedicated repo-local skill, replaces stale skill/plugin names with installed plugin skill names, and removes hard-coded model/subagent assumptions from project guidance.
 - Local appliance bootstrap proof is complete for the current local-first slice: `dev:local`/`smoke:local-bootstrap` scripts, profile wiring (`single-user`, `lab-team`, `s3-compatible-local`, `developer`), local data-estate zone initialization, gateway health local-appliance evidence, Monitor rendering, sample workflow availability, and JS/Julia/contract smoke evidence are in place. Residual toolchain caveat: `npm run build` can hang after Vite transform in this Windows npm/WSL interop shell, while direct TypeScript and Vite build commands pass.
+- Local data estate proof is complete for the current local-first slice: managed zone manifests/checksums, Arrow IPC and Parquet artifact-format evidence, quota/used-byte health fields, cleanup and backup hook readiness, DuckDB query binding, Monitor rendering, smoke wrapper, and Julia/frontend/contract coverage are in place.
 
 ## Active Development Order
 
@@ -30,10 +31,10 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Support explicit `single-user`, `lab-team`, `s3-compatible-local`, and `developer` install profiles.
    - Verify fresh local install to sample workflow without cloud credentials.
 
-2. **Local data estate proof**
+2. **Local data estate proof** - complete for current slice
    - Initialize managed local zones for raw, processed, features, models, runs, checkpoints, dashboards, logs, and extensions.
-   - Prove Parquet/Arrow durable local artifacts plus Arrow IPC runtime payloads.
-   - Bind DuckDB query acceleration over local files/tables.
+   - Prove Parquet/Arrow durable local artifacts plus Arrow IPC runtime payloads through manifest/checksum and artifact-format evidence.
+   - Bind DuckDB query acceleration over local files/tables through a generated local query file and health/smoke checks.
 
 3. **Local metadata/database proof**
    - Keep single-user metadata lightweight and local.
@@ -87,6 +88,12 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Isolated fixture execution / downloaded artifact hash / private-offline mirror registry proof slice is complete as of 2026-05-17.
    - External registry/provider mirror work is now optional future compatibility; the next core Hub proof is offline/local install.
 
+
+## Latest Completed Slice — 2026-05-30 Local Data Estate
+
+**Local data estate proof** is complete for the current slice. Gateway health now exposes managed manifest/checksum status, Arrow IPC and Parquet artifact formats, quota/used bytes, cleanup and backup hook readiness, and a DuckDB query binding over local processed Parquet files. The local smoke command verifies these fields, and the Monitor renders the new managed-estate evidence.
+
+Verification evidence for this slice: `npm run smoke:local-data-estate`, `npm run validate:contracts`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
 ## Latest Completed Slice — 2026-05-15
 

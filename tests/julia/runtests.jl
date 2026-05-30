@@ -1352,6 +1352,22 @@ end
         ENV["JULIAFLOW_APPLIANCE_BOOTSTRAP"] = "1"
         @test occursin("\"status\":\"ok\"", healthcheck(state))
         @test occursin("\"localProfile\":\"single-user\"", healthcheck(state))
+        health_payload = JSON3.read(healthcheck(state), Dict{String,Any})
+        @test health_payload["dataEstateReady"] == true
+        @test health_payload["dataEstateManaged"] == true
+        @test health_payload["dataEstateManifestReady"] == true
+        @test length(health_payload["dataEstateManifestChecksums"]) == 9
+        @test all(item -> item["exists"] == true && !isempty(item["checksumSha256"]), health_payload["dataEstateManifestChecksums"])
+        @test "arrow_ipc" in health_payload["dataEstateArtifactFormats"]
+        @test "parquet" in health_payload["dataEstateArtifactFormats"]
+        @test health_payload["dataEstateQuotaBytes"] > 0
+        @test health_payload["dataEstateUsedBytes"] >= 0
+        @test health_payload["dataEstateCleanupStatus"] == "ready"
+        @test health_payload["dataEstateBackupStatus"] == "ready"
+        @test health_payload["dataEstateDuckdbStatus"] == "ready"
+        @test isdir(health_payload["dataEstateManifestPath"])
+        @test isdir(health_payload["dataEstateBackupRoot"])
+        @test isfile(health_payload["dataEstateDuckdbQueryPath"])
         @test occursin("\"dataEstateReady\":true", healthcheck(state))
         @test occursin("\"cloudCredentialsRequired\":false", healthcheck(state))
         @test occursin("wf-foundation", list_workflows_response(state))

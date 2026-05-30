@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Local Data Estate Proof Complete — 2026-05-30
+
+### Work Done Till Date
+
+- Implemented and verified the managed local data-estate slice after bootstrap closure.
+- Gateway `/health` now exposes manifest/checksum evidence, Arrow IPC and Parquet artifact-format support, quota and used-byte reporting, cleanup hook readiness, backup root/status, and DuckDB query binding path/status.
+- `scripts/dev-local.mjs` smoke checks now reject incomplete managed-estate evidence, and `scripts/smoke-local-data-estate.mjs` provides a bounded temporary-home proof command through `npm run smoke:local-data-estate`.
+- Frontend Monitor renders estate manifests, quota, DuckDB query binding, and cleanup/backup readiness.
+- TypeScript/OpenAPI contracts, Julia gateway tests, frontend tests, and contract tests cover the expanded health surface.
+
+### Gaps Pending
+
+- Current data-estate product proof is closed for manifests, artifact-format evidence, quotas, cleanup/backup hooks, and DuckDB query binding.
+- This slice records a DuckDB query binding file and managed readiness, not a full analytical query execution benchmark.
+- Full backup/restore integrity remains queued for the later backup/restore and migration proof lane.
+
+### Next Items To Implement
+
+- Start local metadata/database proof: single-user metadata mode plus PostgreSQL lab/team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
+- Keep `npm run smoke:local-bootstrap` and `npm run smoke:local-data-estate` in the gate set for local-first follow-up slices.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` Local Appliance Bootstrap Proof Complete — 2026-05-30
 
 ### Work Done Till Date

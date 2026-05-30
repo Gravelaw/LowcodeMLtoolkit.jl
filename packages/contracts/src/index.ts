@@ -422,6 +422,18 @@ export interface GatewayHealthcheck {
   dataEstateRoot: string;
   dataEstateZones: GatewayDataEstateZoneStatus[];
   dataEstateReady: boolean;
+  dataEstateManaged: boolean;
+  dataEstateManifestPath: string;
+  dataEstateManifestReady: boolean;
+  dataEstateManifestChecksums: GatewayDataEstateManifestChecksum[];
+  dataEstateArtifactFormats: Array<"arrow_ipc" | "parquet">;
+  dataEstateQuotaBytes: number;
+  dataEstateUsedBytes: number;
+  dataEstateCleanupStatus: "ready" | "pending";
+  dataEstateBackupRoot: string;
+  dataEstateBackupStatus: "ready" | "pending";
+  dataEstateDuckdbStatus: "ready" | "pending";
+  dataEstateDuckdbQueryPath: string;
   freeDiskStatus: "available" | "unavailable" | "unknown";
   freeDiskBytes: number;
   localServiceUrls: GatewayLocalServiceUrls;
@@ -474,6 +486,13 @@ export interface GatewayDataEstateZoneStatus {
   path: string;
   exists: boolean;
   writable: boolean;
+}
+
+export interface GatewayDataEstateManifestChecksum {
+  zone: string;
+  path: string;
+  exists: boolean;
+  checksumSha256: string;
 }
 
 export interface GatewayLocalServiceUrls {

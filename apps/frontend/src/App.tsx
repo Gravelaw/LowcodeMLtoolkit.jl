@@ -4411,6 +4411,22 @@ function App() {
                       </span>
                     </div>
                     <div className="inspector-row">
+                      <strong>Estate manifests</strong>
+                      <span>{workspaceData.health?.dataEstateManifestReady ? "ready" : "pending"} · {workspaceData.health?.dataEstateManifestChecksums?.length ?? 0} checksums</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Estate quota</strong>
+                      <span>{(workspaceData.health?.dataEstateUsedBytes ?? 0).toLocaleString()} / {(workspaceData.health?.dataEstateQuotaBytes ?? 0).toLocaleString()} bytes</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>DuckDB query</strong>
+                      <span>{workspaceData.health?.dataEstateDuckdbStatus ?? "pending"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Cleanup + backup</strong>
+                      <span>{workspaceData.health?.dataEstateCleanupStatus ?? "pending"} / {workspaceData.health?.dataEstateBackupStatus ?? "pending"}</span>
+                    </div>
+                    <div className="inspector-row">
                       <strong>Disk free</strong>
                       <span>
                         {workspaceData.health?.freeDiskStatus ?? "unknown"} ·{" "}
