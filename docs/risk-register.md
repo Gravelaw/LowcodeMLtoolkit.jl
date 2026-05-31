@@ -1,6 +1,6 @@
 # JuliaFlow Risk Register
 
-Last updated: 2026-05-30
+Last updated: 2026-05-31
 
 This register tracks active BRD delivery risks that should be burned down through thin, verified slices. It complements `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md`.
 
@@ -12,7 +12,7 @@ Next implementation lane: local-first GA proof after the BRD v0.4.0 strategy ref
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | R-LOCAL-001 | Bootstrap | Local install remains multi-step or brittle across machines. | Target academic/small-team users cannot get to first workflow quickly. | High | `dev:local`/`smoke:local-bootstrap`, profile wiring, local zone initialization, gateway health evidence, Monitor rendering, and sample workflow availability are implemented and smoke-tested with no cloud credentials. | Carry residual Windows npm/WSL `npm run build` wrapper caveat into toolchain hygiene; proceed to local metadata/database proof. | Mitigated for bootstrap slice |
 | R-DATA-001 | Local data estate | Filesystem zones, Parquet/Arrow artifacts, DuckDB query path, quotas, cleanup, and backup needed proof as a managed product surface. | Runs can sprawl across disk and become hard to reproduce or migrate. | High | Managed zone manifests/checksums, Arrow IPC and Parquet artifact-format evidence, quota/used-byte fields, cleanup/backup hook readiness, DuckDB query binding, Monitor rendering, smoke checks, and Julia/frontend/contract tests are implemented. | Continue to local metadata/database proof; deeper data backup/restore integrity remains part of the later backup/restore lane. | Mitigated for data-estate slice |
-| R-DB-001 | Local metadata | DuckDB is overused for concurrent service metadata writes. | Metadata lock/contention or corruption risk in lab/team deployments. | Medium | Use DuckDB for analytics; use local PostgreSQL for lab/team metadata, RBAC, audit, and execution history. | Single-user metadata smoke plus PostgreSQL lab/team mode smoke. | Open |
+| R-DB-001 | Local metadata | DuckDB is overused for concurrent service metadata writes. | Metadata lock/contention or corruption risk in lab/team deployments. | Medium | Gateway health, contracts, Monitor, repository tests, and `smoke:local-metadata` now prove file-backed single-user metadata plus PostgreSQL-backed lab/team metadata for workflows, executions, RBAC policy/directory, audit events, cursors, Hub extensions, and published dashboards. | Carry metadata backup/restore and migration integrity into the later backup/restore lane. | Mitigated for metadata/database slice |
 | R-HW-001 | Local hardware | CPU/GPU/RAM/disk variability causes confusing performance or failures. | Academic machines differ widely; GPU availability cannot be assumed. | High | Hardware profiler, conservative resource defaults, CUDA smoke when available, and explicit CPU fallback reason. | Local hardware profile and CPU/GPU fallback evidence. | Open |
 | R-XAI-001 | Explainability | Model outputs lack defensible explanations or users overtrust weak explanations. | Academic/research users cannot defend or teach results; governance confidence drops. | Medium | Add model cards, dataset cards, feature importance, local/global explanations, limitations/warnings, and export into checkpoints. | Explainability proof workflow with model card and reproducibility bundle. | Open |
 | R-OFFLINE-001 | Offline Hub | Core extensions require network or unsafe local install paths. | Offline/lab environments cannot bootstrap or may load unsafe code. | Medium | Bundled official extensions, local artifact cache, checksum verification, sandbox tests, unsafe-extension blocking. | Offline Hub install smoke. | Open |
@@ -38,7 +38,7 @@ Next implementation lane: local-first GA proof after the BRD v0.4.0 strategy ref
 
 1. Local appliance bootstrap: burn down `R-LOCAL-001`.
 2. Local data estate: `R-DATA-001` is mitigated for the current managed-estate slice and replaces cloud object-store proof as the core storage gate.
-3. Local metadata/database modes: burn down `R-DB-001`.
+3. Local metadata/database modes: `R-DB-001` is mitigated for the current metadata/database slice; backup/restore and migration integrity remain in the later backup/restore lane.
 4. Local hardware runtime: burn down `R-HW-001`; keep multi-GPU conditional on available local hardware.
 5. Explainability/model evidence: burn down `R-XAI-001`.
 6. Offline Hub: burn down `R-OFFLINE-001` and keep external registry proof optional.

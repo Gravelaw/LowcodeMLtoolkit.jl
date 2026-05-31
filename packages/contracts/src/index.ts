@@ -419,6 +419,21 @@ export interface GatewayHealthcheck {
   status: "ok";
   localProfile: "single-user" | "lab-team" | "s3-compatible-local" | "developer";
   localHome: string;
+  metadataMode: "single-user" | "lab-team";
+  metadataBackend: "file" | "postgres";
+  metadataRoot: string;
+  metadataReady: boolean;
+  metadataSchemaStatus: "not_required" | "ready" | "missing" | "error";
+  metadataConcurrencyStatus: "single_writer" | "shared_postgres_ready" | "unverified";
+  metadataCapabilities: Array<
+    | "workflows"
+    | "executions"
+    | "authPolicy"
+    | "authDirectory"
+    | "auditEvents"
+    | "consumerCursors"
+    | "publishedDashboards"
+  >;
   dataEstateRoot: string;
   dataEstateZones: GatewayDataEstateZoneStatus[];
   dataEstateReady: boolean;

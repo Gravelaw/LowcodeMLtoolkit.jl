@@ -434,6 +434,15 @@ const LOCAL_APPLIANCE_PROFILES = Set(["single-user", "lab-team", "s3-compatible-
 const LOCAL_DATA_ESTATE_ZONES = ["raw", "processed", "features", "models", "runs", "checkpoints", "dashboards", "logs", "extensions"]
 const LOCAL_DATA_ESTATE_ARTIFACT_FORMATS = ["arrow_ipc", "parquet"]
 const LOCAL_DATA_ESTATE_DEFAULT_QUOTA_BYTES = 10_000_000_000
+const LOCAL_METADATA_CAPABILITIES = [
+    "workflows",
+    "executions",
+    "authPolicy",
+    "authDirectory",
+    "auditEvents",
+    "consumerCursors",
+    "publishedDashboards",
+]
 
 function local_appliance_profile()
     profile = lowercase(strip(get(ENV, "JULIAFLOW_LOCAL_PROFILE", "single-user")))
@@ -455,6 +464,10 @@ end
 
 function local_data_estate_root(home::AbstractString)
     return normpath(get(ENV, "JULIAFLOW_DATA_ESTATE_ROOT", joinpath(home, "data")))
+end
+
+function local_metadata_root(home::AbstractString)
+    return normpath(get(ENV, "JULIAFLOW_METADATA_ROOT", joinpath(home, "metadata")))
 end
 
 function local_service_urls()
@@ -480,6 +493,32 @@ function local_profile_dependency_status(profile::AbstractString, dependency::Sy
         return optional_env_setting("JULIAFLOW_MINIO_ENDPOINT") === nothing ? "missing" : "configured"
     end
     return "not_required"
+end
+
+function local_metadata_health(state::GatewayState, profile::AbstractString, home::AbstractString)
+    backend = state.repository isa PostgreSQLGatewayRepository ? "postgres" : "file"
+    metadata_mode = backend == "postgres" ? "lab-team" : "single-user"
+    metadata_root = backend == "postgres" ? "postgresql" : local_metadata_root(home)
+    schema_status = "not_required"
+    metadata_ready = false
+
+    if backend == "postgres"
+        schema_status = "ready"
+        metadata_ready = local_profile_dependency_status(profile, :postgres) == "configured"
+    else
+        get(ENV, "JULIAFLOW_APPLIANCE_BOOTSTRAP", "0") == "1" && mkpath(metadata_root)
+        metadata_ready = isdir(metadata_root) && local_zone_writable(metadata_root)
+    end
+
+    return Dict(
+        "metadataMode" => metadata_mode,
+        "metadataBackend" => backend,
+        "metadataRoot" => metadata_root,
+        "metadataReady" => metadata_ready,
+        "metadataSchemaStatus" => schema_status,
+        "metadataConcurrencyStatus" => backend == "postgres" && metadata_ready ? "shared_postgres_ready" : backend == "file" && metadata_ready ? "single_writer" : "unverified",
+        "metadataCapabilities" => LOCAL_METADATA_CAPABILITIES,
+    )
 end
 
 function ensure_local_zone(path::AbstractString)
@@ -638,12 +677,20 @@ function healthcheck(state::GatewayState)
     zones = local_data_estate_zones(data_root)
     disk_status = local_disk_status(data_root)
     data_estate = local_data_estate_management(data_root, zones)
+    metadata = local_metadata_health(state, profile, appliance_home)
     return JSON3.write(
         Dict(
             "service" => "api-gateway",
             "status" => "ok",
             "localProfile" => profile,
             "localHome" => appliance_home,
+            "metadataMode" => metadata["metadataMode"],
+            "metadataBackend" => metadata["metadataBackend"],
+            "metadataRoot" => metadata["metadataRoot"],
+            "metadataReady" => metadata["metadataReady"],
+            "metadataSchemaStatus" => metadata["metadataSchemaStatus"],
+            "metadataConcurrencyStatus" => metadata["metadataConcurrencyStatus"],
+            "metadataCapabilities" => metadata["metadataCapabilities"],
             "dataEstateRoot" => data_root,
             "dataEstateZones" => zones,
             "dataEstateReady" => all(zone -> zone["exists"] == true && zone["writable"] == true, zones),

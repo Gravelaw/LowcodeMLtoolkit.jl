@@ -27,7 +27,8 @@
     "preinstall": "node scripts/ensure-wsl-node.mjs",
     "prebuild": "node scripts/ensure-wsl-node.mjs",
     "pretest": "node scripts/ensure-wsl-node.mjs",
-    "doctor:wsl-node": "node scripts/ensure-wsl-node.mjs && node -p \"process.platform + ' ' + process.execPath\" && npm --version && npx --version"
+    "doctor:wsl-node": "node scripts/ensure-wsl-node.mjs && node -p \"process.platform + ' ' + process.execPath\" && npm --version && npx --version",
+    "smoke:local-metadata": "node scripts/smoke-local-metadata.mjs"
   },
   "dependencies": {
     "smol-toml": "^1.3.4"

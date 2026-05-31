@@ -60,6 +60,13 @@ function healthPayload(overrides: Record<string, unknown> = {}) {
     status: "ok",
     localProfile: "single-user",
     localHome: "/tmp/juliaflow",
+    metadataMode: "single-user",
+    metadataBackend: "file",
+    metadataRoot: "/tmp/juliaflow/metadata",
+    metadataReady: true,
+    metadataSchemaStatus: "not_required",
+    metadataConcurrencyStatus: "single_writer",
+    metadataCapabilities: ["workflows", "executions", "authPolicy", "authDirectory", "auditEvents", "consumerCursors", "publishedDashboards"],
     dataEstateRoot: "/tmp/juliaflow/data",
     dataEstateZones: [
       { name: "raw", path: "/tmp/juliaflow/data/raw", exists: true, writable: true },
@@ -797,6 +804,14 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /MonitorExecutions, workers, backbone/i }));
     expect(await screen.findByText(/Transport \+ worker modes/i)).toBeInTheDocument();
     expect(screen.getByText(/Appliance profile/i)).toBeInTheDocument();
+    expect(screen.getByText(/Metadata mode/i)).toBeInTheDocument();
+    expect(screen.getByText(/single-user \/ file/i)).toBeInTheDocument();
+    expect(screen.getByText(/Metadata readiness/i)).toBeInTheDocument();
+    expect(screen.getByText(/ready · not_required/i)).toBeInTheDocument();
+    expect(screen.getByText(/Metadata concurrency/i)).toBeInTheDocument();
+    expect(screen.getByText(/single_writer/i)).toBeInTheDocument();
+    expect(screen.getByText(/Metadata capabilities/i)).toBeInTheDocument();
+    expect(screen.getByText(/workflows, executions, authPolicy, authDirectory, auditEvents, consumerCursors, publishedDashboards/i)).toBeInTheDocument();
     expect(screen.getByText(/Data estate/i)).toBeInTheDocument();
     expect(screen.getByText(/Estate manifests/i)).toBeInTheDocument();
     expect(screen.getByText(/ready · 1 checksums/i)).toBeInTheDocument();

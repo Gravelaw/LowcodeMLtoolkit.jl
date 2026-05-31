@@ -959,6 +959,13 @@
           "status",
           "localProfile",
           "localHome",
+          "metadataMode",
+          "metadataBackend",
+          "metadataRoot",
+          "metadataReady",
+          "metadataSchemaStatus",
+          "metadataConcurrencyStatus",
+          "metadataCapabilities",
           "dataEstateRoot",
           "dataEstateZones",
           "dataEstateReady",
@@ -1062,7 +1069,10 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["arrow_ipc", "parquet"]
+              "enum": [
+                "arrow_ipc",
+                "parquet"
+              ]
             }
           },
           "dataEstateQuotaBytes": {
@@ -1073,18 +1083,27 @@
           },
           "dataEstateCleanupStatus": {
             "type": "string",
-            "enum": ["ready", "pending"]
+            "enum": [
+              "ready",
+              "pending"
+            ]
           },
           "dataEstateBackupRoot": {
             "type": "string"
           },
           "dataEstateBackupStatus": {
             "type": "string",
-            "enum": ["ready", "pending"]
+            "enum": [
+              "ready",
+              "pending"
+            ]
           },
           "dataEstateDuckdbStatus": {
             "type": "string",
-            "enum": ["ready", "pending"]
+            "enum": [
+              "ready",
+              "pending"
+            ]
           },
           "dataEstateDuckdbQueryPath": {
             "type": "string"
@@ -1271,6 +1290,58 @@
               "string",
               "null"
             ]
+          },
+          "metadataMode": {
+            "type": "string",
+            "enum": [
+              "single-user",
+              "lab-team"
+            ]
+          },
+          "metadataBackend": {
+            "type": "string",
+            "enum": [
+              "file",
+              "postgres"
+            ]
+          },
+          "metadataRoot": {
+            "type": "string"
+          },
+          "metadataReady": {
+            "type": "boolean"
+          },
+          "metadataSchemaStatus": {
+            "type": "string",
+            "enum": [
+              "not_required",
+              "ready",
+              "missing",
+              "error"
+            ]
+          },
+          "metadataConcurrencyStatus": {
+            "type": "string",
+            "enum": [
+              "single_writer",
+              "shared_postgres_ready",
+              "unverified"
+            ]
+          },
+          "metadataCapabilities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "workflows",
+                "executions",
+                "authPolicy",
+                "authDirectory",
+                "auditEvents",
+                "consumerCursors",
+                "publishedDashboards"
+              ]
+            }
           }
         }
       },

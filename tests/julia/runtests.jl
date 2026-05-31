@@ -311,6 +311,14 @@ end
     @testset "PostgreSQL integration scaffold" begin
         with_postgres_repository() do postgres_repo
             run_gateway_repository_contract!(postgres_repo; label = "PostgreSQL")
+            reader_repo = JuliaFlowApiGateway.JuliaFlowGatewayRepository.PostgreSQLGatewayRepository(
+                postgres_repo.connection_string;
+                schema = postgres_repo.schema,
+            )
+            workflows = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_workflows(reader_repo)
+            @test haskey(workflows, "wf-foundation")
+            @test workflows["wf-foundation"].name == "Foundation PoC Contract Test"
+            @test JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_consumer_cursor(reader_repo, "gateway-test") > 0
         end
     end
 end
@@ -1353,6 +1361,13 @@ end
         @test occursin("\"status\":\"ok\"", healthcheck(state))
         @test occursin("\"localProfile\":\"single-user\"", healthcheck(state))
         health_payload = JSON3.read(healthcheck(state), Dict{String,Any})
+        @test health_payload["metadataMode"] == "single-user"
+        @test health_payload["metadataBackend"] == "file"
+        @test health_payload["metadataReady"] == true
+        @test health_payload["metadataSchemaStatus"] == "not_required"
+        @test health_payload["metadataConcurrencyStatus"] == "single_writer"
+        @test "workflows" in health_payload["metadataCapabilities"]
+        @test "publishedDashboards" in health_payload["metadataCapabilities"]
         @test health_payload["dataEstateReady"] == true
         @test health_payload["dataEstateManaged"] == true
         @test health_payload["dataEstateManifestReady"] == true
@@ -2447,6 +2462,11 @@ end
         @test occursin("\"queuedExecutionsTotal\":", String(health_response.body))
         @test occursin("\"runningExecutionsTotal\":", String(health_response.body))
         @test occursin("\"localProfile\":\"single-user\"", String(health_response.body))
+        @test occursin("\"metadataMode\":\"single-user\"", String(health_response.body))
+        @test occursin("\"metadataBackend\":\"file\"", String(health_response.body))
+        @test occursin("\"metadataReady\":true", String(health_response.body))
+        @test occursin("\"metadataConcurrencyStatus\":\"single_writer\"", String(health_response.body))
+        @test occursin("\"metadataCapabilities\":", String(health_response.body))
         @test occursin("\"dataEstateZones\":", String(health_response.body))
         @test occursin("\"dataEstateReady\":", String(health_response.body))
         @test occursin("\"freeDiskStatus\":", String(health_response.body))

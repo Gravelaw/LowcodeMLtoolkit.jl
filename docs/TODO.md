@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-05-30
+Last updated: 2026-05-31
 Source: BRD gap review against `business-requirements-v0.3.0.md` and current code.
 Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning context is preserved in `docs/project-tracker.md` and `docs/checkpoint-log.md`.
 
@@ -39,7 +39,7 @@ Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning
 2. [x] Agent prompt hygiene: repo-local skills and `AGENTS.md` now route local-first appliance work through installed/current skills, remove stale skill/plugin/model references, and keep project guidance from duplicating obsolete plugin prompts.
 3. [x] Local appliance bootstrap proof: one-command local stack, installation profiles, service health checks, local folder initialization, and sample workflow with no cloud credentials.
 4. [x] Local data estate proof: managed filesystem zones, Parquet/Arrow durable artifacts, Arrow IPC runtime payloads, DuckDB query acceleration, quotas, cleanup, and backup hooks.
-5. [ ] Local metadata/database proof: single-user metadata mode plus local PostgreSQL lab/team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
+5. [x] Local metadata/database proof: single-user metadata mode plus local PostgreSQL lab/team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
 6. [ ] Local hardware runtime proof: CPU/RAM/disk/GPU profiler, CPU scheduling, memory-aware limits, CUDA smoke when available, and explicit CPU fallback when unavailable.
 7. [ ] Explainability/model evidence proof: dataset cards, model cards, feature importance, local/global explanations, limitations/warnings, and checkpoint/reproducibility-bundle export.
 8. [ ] Offline Hub proof: bundled/local extensions install without external registry dependency, with checksum verification, sandbox tests, local artifact cache, and unsafe-extension blocking.
@@ -94,6 +94,7 @@ Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning
 - 2026-05-28: Frontend Monitor expansion now renders executor dataflow stage-policy rows and per-node executor/branch result evidence, so operators can inspect callback/dataflow flags, readiness barriers, source/sink counts, row counts, output kind, and output-ref counts directly in Monitor; tracked `.staging/` skill residue was removed, future staging folders are ignored, and the moderate `ws` audit advisory was resolved.
 - 2026-05-28: Core BRD updated to v0.4.0 local-first baseline. Provider/cloud proof, cloud object stores, external registry proof, enterprise identity, and cloud multi-GPU closure are no longer core GA gates; local appliance bootstrap, local data estate, local metadata/database modes, local hardware runtime, explainability/model evidence, offline Hub, academic reproducibility, and backup/restore are the active implementation lanes.
 - 2026-05-30: Local data estate proof is closed for the current local-first slice: gateway health now reports managed zone manifests/checksums, Arrow IPC and Parquet artifact formats, quota/used bytes, cleanup/backup hook readiness, and DuckDB query binding; `npm run smoke:local-data-estate`, Julia tests, contracts, frontend tests, build, control-doc sync, BRD traceability, and diff checks are the required closure evidence.
+- 2026-05-31: Local metadata/database proof is closed for the current local-first slice: gateway health reports metadata mode/backend/root/readiness/schema/concurrency/capabilities, Monitor renders metadata evidence, `npm run smoke:local-metadata` proves single-user file mode and live Docker Postgres lab-team mode, and repository tests prove shared Postgres catalog/cursor reads across repository instances. Metadata backup/restore and migration integrity remain queued for the later backup/restore lane.
 - 2026-05-30: Local appliance bootstrap proof is closed for the current local-first slice: `npm run smoke:local-bootstrap` reaches gateway health and the sample `wf-foundation` workflow with `single-user` and no cloud credentials; `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run validate:contracts`, direct frontend TypeScript checks, direct Vite production build, `npm run validate:control-doc-sync`, and `npm run validate:brd-traceability` passed. Residual environment note: `npm run build` reaches Vite transform but the Windows npm/WSL interop wrapper can hang after Vite finishes; direct Node/Vite build evidence is recorded until native WSL Node/npm is available.
 - 2026-05-29 (runtime follow-up): Windows Node/Julia installs are now verified (`node.exe v26.2.0`, `julia.exe 1.12.6`). Remaining local-bootstrap closure work is to rerun npm/JS/smoke gates in a fresh shell session so nested npm workspace commands resolve consistently.
 - Any new requirement/change must update contracts, Julia structs/routes, frontend behavior, tests, tracker/checkpoint, and this TODO when relevant.

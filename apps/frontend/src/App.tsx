@@ -4404,6 +4404,26 @@ function App() {
                       <span>{workspaceData.health?.localProfile ?? "single-user"}</span>
                     </div>
                     <div className="inspector-row">
+                      <strong>Metadata mode</strong>
+                      <span>
+                        {workspaceData.health?.metadataMode ?? "single-user"} / {workspaceData.health?.metadataBackend ?? "file"}
+                      </span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Metadata readiness</strong>
+                      <span>
+                        {workspaceData.health?.metadataReady ? "ready" : "pending"} · {workspaceData.health?.metadataSchemaStatus ?? "not_required"}
+                      </span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Metadata concurrency</strong>
+                      <span>{workspaceData.health?.metadataConcurrencyStatus ?? "single_writer"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Metadata capabilities</strong>
+                      <span>{workspaceData.health?.metadataCapabilities?.join(", ") ?? "workflows"}</span>
+                    </div>
+                    <div className="inspector-row">
                       <strong>Data estate</strong>
                       <span>
                         {workspaceData.health?.dataEstateReady ? "ready" : "pending"} ·{" "}
