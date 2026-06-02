@@ -1,6 +1,6 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-05-30
+Last updated: 2026-05-31
 
 ## Current Phase
 
@@ -23,6 +23,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Agent prompt hygiene now routes local-first appliance work through a dedicated repo-local skill, replaces stale skill/plugin names with installed plugin skill names, and removes hard-coded model/subagent assumptions from project guidance.
 - Local appliance bootstrap proof is complete for the current local-first slice: `dev:local`/`smoke:local-bootstrap` scripts, profile wiring (`single-user`, `lab-team`, `s3-compatible-local`, `developer`), local data-estate zone initialization, gateway health local-appliance evidence, Monitor rendering, sample workflow availability, and JS/Julia/contract smoke evidence are in place. Residual toolchain caveat: `npm run build` can hang after Vite transform in this Windows npm/WSL interop shell, while direct TypeScript and Vite build commands pass.
 - Local data estate proof is complete for the current local-first slice: managed zone manifests/checksums, Arrow IPC and Parquet artifact-format evidence, quota/used-byte health fields, cleanup and backup hook readiness, DuckDB query binding, Monitor rendering, smoke wrapper, and Julia/frontend/contract coverage are in place.
+- Local metadata/database proof is complete for the current local-first slice: gateway `/health` exposes metadata mode/backend/root/readiness/schema/concurrency/capability evidence, Monitor renders the metadata block, `smoke:local-metadata` proves single-user file mode plus live Docker Postgres lab-team mode, and repository tests prove shared Postgres catalog/cursor visibility across repository instances.
 
 ## Active Development Order
 
@@ -36,10 +37,10 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Prove Parquet/Arrow durable local artifacts plus Arrow IPC runtime payloads through manifest/checksum and artifact-format evidence.
    - Bind DuckDB query acceleration over local files/tables through a generated local query file and health/smoke checks.
 
-3. **Local metadata/database proof**
+3. **Local metadata/database proof** - complete for current slice
    - Keep single-user metadata lightweight and local.
-   - Add/verify local PostgreSQL lab-team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
-   - Add backup/restore and migration evidence for local metadata.
+   - Verify local PostgreSQL lab-team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
+   - Metadata backup/restore and migration integrity remain queued for the later backup/restore lane.
 
 4. **Local hardware runtime proof**
    - Detect CPU cores, RAM, disk, GPU vendor/runtime, VRAM, CUDA readiness, and selected backend.
@@ -88,6 +89,12 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Isolated fixture execution / downloaded artifact hash / private-offline mirror registry proof slice is complete as of 2026-05-17.
    - External registry/provider mirror work is now optional future compatibility; the next core Hub proof is offline/local install.
 
+
+## Latest Completed Slice — 2026-05-31 Local Metadata / Database
+
+**Local metadata/database proof** is complete for the current slice. Gateway health now exposes metadata mode/backend/root/readiness/schema/concurrency/capability evidence for file-backed `single-user` and PostgreSQL-backed `lab-team` operation. The Monitor renders the metadata evidence, `npm run smoke:local-metadata` proves single-user file metadata plus live Docker Postgres lab-team metadata, and Julia repository coverage proves shared Postgres catalog/cursor visibility between two repository instances.
+
+Verification evidence for this slice: `npm run doctor:wsl-node`, `npm run smoke:local-bootstrap`, `npm run smoke:local-data-estate`, `npm run smoke:local-metadata`, `npm run validate:contracts`, `julia --project=. tests/julia/runtests.jl`, `npm --workspace @juliaflow/frontend run test -- App.test.tsx`, plus pending full `npm run test`, `npm run build`, control-doc sync, BRD traceability, and diff checks before final commit.
 
 ## Latest Completed Slice — 2026-05-30 Local Data Estate
 

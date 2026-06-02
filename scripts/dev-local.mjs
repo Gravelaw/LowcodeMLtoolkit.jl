@@ -260,6 +260,28 @@ async function runSmoke(config, env) {
     if (health.localProfile !== config.profile) {
       throw new Error(`Expected localProfile ${config.profile}, got ${health.localProfile}`);
     }
+    const expectedMetadataBackend = config.profile === "lab-team" ? "postgres" : "file";
+    const expectedMetadataMode = config.profile === "lab-team" ? "lab-team" : "single-user";
+    if (health.metadataBackend !== expectedMetadataBackend || health.metadataMode !== expectedMetadataMode) {
+      throw new Error(`Expected metadata ${expectedMetadataMode}/${expectedMetadataBackend}, got ${health.metadataMode}/${health.metadataBackend}`);
+    }
+    if (health.metadataReady !== true) {
+      throw new Error("Gateway health did not report metadata readiness");
+    }
+    if (expectedMetadataBackend === "postgres" && health.metadataSchemaStatus !== "ready") {
+      throw new Error("Gateway health did not report ready Postgres metadata schema");
+    }
+    if (expectedMetadataBackend === "file" && health.metadataConcurrencyStatus !== "single_writer") {
+      throw new Error("Gateway health did not report single-writer file metadata concurrency");
+    }
+    if (expectedMetadataBackend === "postgres" && health.metadataConcurrencyStatus !== "shared_postgres_ready") {
+      throw new Error("Gateway health did not report shared Postgres metadata concurrency");
+    }
+    for (const capability of ["workflows", "executions", "authPolicy", "authDirectory", "auditEvents", "consumerCursors", "publishedDashboards"]) {
+      if (!health.metadataCapabilities?.includes(capability)) {
+        throw new Error(`Gateway health missing metadata capability ${capability}`);
+      }
+    }
     if (!Array.isArray(health.dataEstateZones) || health.dataEstateZones.length !== ZONES.length) {
       throw new Error("Gateway health did not report all local data-estate zones");
     }

@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Local Metadata / Database Proof Complete — 2026-05-31
+
+### Work Done Till Date
+
+- Implemented and verified the local metadata/database slice after local data-estate closure.
+- Gateway `/health` now exposes metadata mode/backend/root/readiness/schema/concurrency/capability evidence for file and PostgreSQL repository backends.
+- `scripts/dev-local.mjs` smoke checks now verify metadata evidence for `single-user` and `lab-team` profiles.
+- Added `scripts/smoke-local-metadata.mjs` and `scripts/smoke-local-metadata.jl` behind `npm run smoke:local-metadata`; the smoke proves single-user file metadata, live Docker Postgres lab-team metadata, repository contracts, shared Postgres catalog/cursor visibility, and smoke-schema cleanup.
+- Frontend Monitor renders metadata evidence alongside local profile, data estate, Postgres profile, and worker health.
+- TypeScript/OpenAPI contracts, Julia gateway/repository tests, frontend tests, and contract tests cover the expanded health surface.
+
+### Gaps Pending
+
+- Current metadata/database proof is closed for single-user file mode and lab/team local PostgreSQL mode.
+- Metadata backup/restore and migration integrity remain queued for the later backup/restore lane.
+- Provider-managed database proof remains optional compatibility scope, not a core local-first GA gate.
+
+### Next Items To Implement
+
+- Start local hardware runtime proof: CPU/RAM/disk/GPU profiler, CPU scheduling, memory-aware worker limits, CUDA smoke when available, and explicit CPU fallback evidence.
+- Keep `npm run smoke:local-bootstrap`, `npm run smoke:local-data-estate`, and `npm run smoke:local-metadata` in the local-first gate set.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` Local Data Estate Proof Complete — 2026-05-30
 
 ### Work Done Till Date

@@ -123,6 +123,16 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayHealthcheck.properties.realtimeTransport);
   assert.ok(schemas.GatewayHealthcheck.properties.localProfile);
   assert.ok(schemas.GatewayHealthcheck.properties.localHome);
+  assert.ok(schemas.GatewayHealthcheck.properties.metadataMode);
+  assert.deepEqual(schemas.GatewayHealthcheck.properties.metadataMode.enum, ["single-user", "lab-team"]);
+  assert.ok(schemas.GatewayHealthcheck.properties.metadataBackend);
+  assert.deepEqual(schemas.GatewayHealthcheck.properties.metadataBackend.enum, ["file", "postgres"]);
+  assert.ok(schemas.GatewayHealthcheck.properties.metadataRoot);
+  assert.ok(schemas.GatewayHealthcheck.properties.metadataReady);
+  assert.ok(schemas.GatewayHealthcheck.properties.metadataSchemaStatus);
+  assert.ok(schemas.GatewayHealthcheck.properties.metadataConcurrencyStatus);
+  assert.ok(schemas.GatewayHealthcheck.properties.metadataCapabilities);
+  assert.ok(schemas.GatewayHealthcheck.required.includes("metadataReady"));
   assert.ok(schemas.GatewayHealthcheck.properties.dataEstateRoot);
   assert.ok(schemas.GatewayHealthcheck.properties.dataEstateZones);
   assert.ok(schemas.GatewayHealthcheck.properties.dataEstateReady);

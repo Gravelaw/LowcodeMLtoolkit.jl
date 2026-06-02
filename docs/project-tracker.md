@@ -18,9 +18,19 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.0 local-first baseline
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-05-30`
+- Last updated: `2026-05-31`
 
 ## Work Done Till Date
+
+### Local Metadata / Database Proof Slice (2026-05-31)
+
+- Closed the third local-first GA lane after the local data estate proof.
+- Gateway `/health` now exposes metadata mode, backend, root, readiness, schema status, concurrency status, and metadata capability evidence.
+- `scripts/dev-local.mjs` smoke checks now reject incomplete metadata evidence for `single-user` file mode and `lab-team` PostgreSQL mode.
+- Added `scripts/smoke-local-metadata.mjs`, `scripts/smoke-local-metadata.jl`, and `npm run smoke:local-metadata` to prove single-user file metadata plus live Docker Postgres lab/team metadata with isolated homes/schemas and smoke-schema cleanup.
+- Frontend Monitor renders metadata mode/readiness/concurrency/capabilities next to data-estate and profile evidence.
+- Julia repository tests now prove shared PostgreSQL catalog/cursor visibility across two repository instances.
+- Metadata backup/restore and migration integrity are intentionally deferred to the later backup/restore lane.
 
 ### Local Data Estate Proof Slice (2026-05-30)
 
