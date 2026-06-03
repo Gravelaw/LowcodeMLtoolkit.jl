@@ -18,9 +18,18 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.0 local-first baseline
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-05-31`
+- Last updated: `2026-06-03`
 
 ## Work Done Till Date
+
+### Local Hardware Runtime Proof Slice (2026-06-03)
+
+- Closed the fourth local-first GA lane after metadata/database proof.
+- Gateway `/health` now exposes hardware profile status, selected backend, bounded CPU scheduler policy, CPU worker concurrency, CPU memory limit, CUDA probe status, hardware/simulated GPU counts, VRAM totals, and GPU device summaries.
+- `scripts/dev-local.mjs` smoke checks now reject incomplete hardware profile, CPU scheduling, memory-limit, CUDA status, and GPU probe evidence.
+- Added `scripts/smoke-local-hardware.mjs` and `npm run smoke:local-hardware` to prove CPU fallback with an empty GPU registry and deterministic CUDA-smoke skip behavior when CUDA is not requested.
+- Frontend Monitor renders hardware profile, CPU scheduler/memory limit, GPU probe, and VRAM evidence alongside data-estate and metadata readiness.
+- Hardware-backed CUDA and multi-GPU proof remain conditional on available local hardware or CI runners with visible CUDA devices.
 
 ### Local Metadata / Database Proof Slice (2026-05-31)
 

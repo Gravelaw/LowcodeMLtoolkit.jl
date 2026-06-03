@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Local Hardware Runtime Proof Complete — 2026-06-03
+
+### Work Done Till Date
+
+- Implemented and verified the local hardware runtime slice after local metadata/database closure.
+- Gateway `/health` now exposes hardware profile status, selected backend, bounded CPU scheduler policy, CPU worker concurrency, CPU memory limit, CUDA probe status, hardware/simulated GPU counts, VRAM totals, and GPU device summaries.
+- `scripts/dev-local.mjs` smoke checks verify the hardware profile evidence for local profiles.
+- Added `scripts/smoke-local-hardware.mjs` behind `npm run smoke:local-hardware`; the smoke proves CPU fallback with an empty GPU registry and deterministic CUDA-smoke skip behavior when CUDA is not requested.
+- Frontend Monitor renders hardware profile, CPU scheduler/memory limit, GPU probe, and VRAM evidence.
+- TypeScript/OpenAPI contracts, Julia gateway tests, frontend tests, and contract tests cover the expanded health surface.
+
+### Gaps Pending
+
+- Current hardware runtime proof is closed for CPU/RAM/disk profiling, bounded CPU scheduling, memory-aware CPU limits, selected backend evidence, GPU probe summaries, and explicit CPU fallback.
+- Hardware-backed CUDA smoke remains optional and conditional on a host with CUDA packages/runtime available.
+- Multi-GPU evidence remains optional compatibility/final hardware-gated scope, not a local-first GA blocker.
+
+### Next Items To Implement
+
+- Start explainability/model evidence proof: dataset cards, model cards, feature importance, local/global explanations, limitations/warnings, and checkpoint/reproducibility-bundle export.
+- Keep `npm run smoke:local-bootstrap`, `npm run smoke:local-data-estate`, `npm run smoke:local-metadata`, and `npm run smoke:local-hardware` in the local-first gate set.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` Local Metadata / Database Proof Complete — 2026-05-31
 
 ### Work Done Till Date
