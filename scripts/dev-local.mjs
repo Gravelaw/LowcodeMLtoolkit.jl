@@ -297,6 +297,30 @@ async function runSmoke(config, env) {
     if (health.dataEstateDuckdbStatus !== "ready") {
       throw new Error("Gateway health did not report DuckDB query binding as ready");
     }
+    if (health.hardwareProfileStatus !== "ready") {
+      throw new Error(`Gateway health did not report ready hardware profile: ${health.hardwareProfileStatus}`);
+    }
+    if (!["cpu", "cuda", "simulated_cuda"].includes(health.hardwareSelectedBackend)) {
+      throw new Error(`Gateway health reported unsupported hardware backend: ${health.hardwareSelectedBackend}`);
+    }
+    if (health.cpuSchedulerPolicy !== "bounded_threads") {
+      throw new Error(`Gateway health did not report bounded CPU scheduler policy: ${health.cpuSchedulerPolicy}`);
+    }
+    if (!Number.isInteger(health.cpuWorkerConcurrency) || health.cpuWorkerConcurrency < 1 || health.cpuWorkerConcurrency > health.cpuThreadCount) {
+      throw new Error("Gateway health did not report bounded CPU worker concurrency");
+    }
+    if (!Number.isInteger(health.cpuMemoryLimitBytes) || health.cpuMemoryLimitBytes < 1 || health.cpuMemoryLimitBytes > health.totalMemoryBytes) {
+      throw new Error("Gateway health did not report bounded CPU memory limit");
+    }
+    if (!Number.isInteger(health.gpuHardwareDeviceCount) || !Number.isInteger(health.gpuSimulatedDeviceCount)) {
+      throw new Error("Gateway health did not report GPU hardware/simulated device counts");
+    }
+    if (!Array.isArray(health.gpuDeviceSummaries)) {
+      throw new Error("Gateway health did not report GPU device summaries");
+    }
+    if (!["not_requested", "requested", "ready", "unavailable"].includes(health.gpuCudaStatus)) {
+      throw new Error(`Gateway health reported unsupported CUDA status: ${health.gpuCudaStatus}`);
+    }
     if (!workflows.items?.some((item) => item.workflowId === "wf-foundation")) {
       throw new Error("Sample foundation workflow was not available");
     }

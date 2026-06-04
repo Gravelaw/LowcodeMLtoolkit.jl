@@ -4466,12 +4466,38 @@ function App() {
                       <span>{workspaceData.health?.minioProfileStatus ?? "not_required"}</span>
                     </div>
                     <div className="inspector-row">
+                      <strong>Hardware profile</strong>
+                      <span>
+                        {workspaceData.health?.hardwareProfileStatus ?? "degraded"} · {workspaceData.health?.hardwareSelectedBackend ?? "cpu"}
+                      </span>
+                    </div>
+                    <div className="inspector-row">
                       <strong>CPU threads</strong>
                       <span>{workspaceData.health?.cpuThreadCount ?? 1}</span>
                     </div>
                     <div className="inspector-row">
+                      <strong>CPU scheduler</strong>
+                      <span>
+                        {workspaceData.health?.cpuSchedulerPolicy ?? "bounded_threads"} · {workspaceData.health?.cpuWorkerConcurrency ?? 1} workers
+                      </span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>CPU memory limit</strong>
+                      <span>{workspaceData.health?.cpuMemoryLimitBytes?.toLocaleString() ?? 0} bytes</span>
+                    </div>
+                    <div className="inspector-row">
                       <strong>GPU readiness</strong>
                       <span>{workspaceData.health?.gpuReadinessStatus ?? "cpu_fallback"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>GPU probe</strong>
+                      <span>
+                        {workspaceData.health?.gpuCudaStatus ?? "not_requested"} · {workspaceData.health?.gpuHardwareDeviceCount ?? 0} hardware · {workspaceData.health?.gpuSimulatedDeviceCount ?? 0} simulated
+                      </span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>GPU VRAM</strong>
+                      <span>{workspaceData.health?.gpuTotalVramBytes?.toLocaleString() ?? 0} bytes</span>
                     </div>
                     <div className="inspector-row">
                       <strong>Realtime transport</strong>

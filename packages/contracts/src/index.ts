@@ -414,6 +414,14 @@ export const phaseSummaries = [
   }
 ] as const;
 
+export interface GatewayGpuDeviceSummary {
+  deviceId: string;
+  vendor: string;
+  accelerator: string;
+  mode: "hardware" | "simulated" | string;
+  memoryBytes: number;
+}
+
 export interface GatewayHealthcheck {
   service: "api-gateway";
   status: "ok";
@@ -458,8 +466,18 @@ export interface GatewayHealthcheck {
   cpuThreadCount: number;
   totalMemoryBytes: number;
   freeMemoryBytes: number;
+  hardwareProfileStatus: "ready" | "degraded";
+  hardwareSelectedBackend: "cpu" | "cuda" | "simulated_cuda" | string;
+  cpuSchedulerPolicy: "bounded_threads" | string;
+  cpuWorkerConcurrency: number;
+  cpuMemoryLimitBytes: number;
   gpuReadinessStatus: "available" | "cpu_fallback";
   gpuFallbackReason: string;
+  gpuCudaStatus: "not_requested" | "requested" | "ready" | "unavailable" | string;
+  gpuHardwareDeviceCount: number;
+  gpuSimulatedDeviceCount: number;
+  gpuTotalVramBytes: number;
+  gpuDeviceSummaries: GatewayGpuDeviceSummary[];
   repositoryBackend: string;
   storeRoot: string;
   workflowCount: number;

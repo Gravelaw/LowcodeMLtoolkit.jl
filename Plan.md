@@ -1,6 +1,6 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-05-31
+Last updated: 2026-06-03
 
 ## Current Phase
 
@@ -24,6 +24,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Local appliance bootstrap proof is complete for the current local-first slice: `dev:local`/`smoke:local-bootstrap` scripts, profile wiring (`single-user`, `lab-team`, `s3-compatible-local`, `developer`), local data-estate zone initialization, gateway health local-appliance evidence, Monitor rendering, sample workflow availability, and JS/Julia/contract smoke evidence are in place. Residual toolchain caveat: `npm run build` can hang after Vite transform in this Windows npm/WSL interop shell, while direct TypeScript and Vite build commands pass.
 - Local data estate proof is complete for the current local-first slice: managed zone manifests/checksums, Arrow IPC and Parquet artifact-format evidence, quota/used-byte health fields, cleanup and backup hook readiness, DuckDB query binding, Monitor rendering, smoke wrapper, and Julia/frontend/contract coverage are in place.
 - Local metadata/database proof is complete for the current local-first slice: gateway `/health` exposes metadata mode/backend/root/readiness/schema/concurrency/capability evidence, Monitor renders the metadata block, `smoke:local-metadata` proves single-user file mode plus live Docker Postgres lab-team mode, and repository tests prove shared Postgres catalog/cursor visibility across repository instances.
+- Local hardware runtime proof is complete for the current local-first slice: gateway `/health` exposes hardware profile/backend, bounded CPU scheduler/concurrency/memory-limit evidence, GPU CUDA probe status, hardware/simulated GPU counts, VRAM totals, and per-device summaries; Monitor renders hardware evidence; `smoke:local-hardware` proves CPU fallback with an empty GPU registry plus safe CUDA-smoke skip behavior on non-CUDA machines.
 
 ## Active Development Order
 
@@ -42,10 +43,10 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Verify local PostgreSQL lab-team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
    - Metadata backup/restore and migration integrity remain queued for the later backup/restore lane.
 
-4. **Local hardware runtime proof**
+4. **Local hardware runtime proof** - complete for current slice
    - Detect CPU cores, RAM, disk, GPU vendor/runtime, VRAM, CUDA readiness, and selected backend.
    - Verify CPU scheduling, memory-aware worker limits, GPU smoke when available, and explicit CPU fallback when unavailable.
-   - Treat multi-GPU as conditional local hardware validation only.
+   - Treat multi-GPU as conditional local hardware validation only; hardware-backed CUDA remains opportunistic evidence when a CUDA host is available.
 
 5. **Explainability and model evidence**
    - Add dataset cards, model cards, global feature importance, local prediction explanations, permutation importance, partial-dependence/ICE-style summaries where practical, and limitations/warnings.
@@ -89,6 +90,12 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Isolated fixture execution / downloaded artifact hash / private-offline mirror registry proof slice is complete as of 2026-05-17.
    - External registry/provider mirror work is now optional future compatibility; the next core Hub proof is offline/local install.
 
+
+## Latest Completed Slice — 2026-06-03 Local Hardware Runtime
+
+**Local hardware runtime proof** is complete for the current slice. Gateway health now exposes local hardware profile status, selected backend (`cpu`, `cuda`, or `simulated_cuda`), bounded CPU scheduler policy, worker concurrency, CPU memory limit, CUDA probe status, hardware/simulated GPU counts, VRAM totals, and per-device summaries. The Monitor renders the hardware evidence, `npm run smoke:local-hardware` proves CPU fallback with an empty GPU registry and deterministic CUDA-smoke skip behavior when CUDA is not requested, and contract/frontend/Julia coverage pins the expanded health surface.
+
+Verification evidence for this slice: `npm run doctor:wsl-node`, `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- App.test.tsx`, `npm run smoke:local-hardware`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run smoke:local-bootstrap`, `npm run smoke:local-data-estate`, `npm run smoke:local-metadata`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
 ## Latest Completed Slice — 2026-05-31 Local Metadata / Database
 

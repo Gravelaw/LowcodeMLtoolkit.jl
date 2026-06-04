@@ -107,8 +107,18 @@ function healthPayload(overrides: Record<string, unknown> = {}) {
     cpuThreadCount: 8,
     totalMemoryBytes: 16 * 1024 * 1024 * 1024,
     freeMemoryBytes: 8 * 1024 * 1024 * 1024,
+    hardwareProfileStatus: "ready",
+    hardwareSelectedBackend: "cpu",
+    cpuSchedulerPolicy: "bounded_threads",
+    cpuWorkerConcurrency: 4,
+    cpuMemoryLimitBytes: 6 * 1024 * 1024 * 1024,
     gpuReadinessStatus: "cpu_fallback",
     gpuFallbackReason: "no_supported_gpu_required_for_local_bootstrap",
+    gpuCudaStatus: "not_requested",
+    gpuHardwareDeviceCount: 0,
+    gpuSimulatedDeviceCount: 0,
+    gpuTotalVramBytes: 0,
+    gpuDeviceSummaries: [],
     repositoryBackend: "file",
     storeRoot: "/tmp/juliaflow",
     workflowCount: 0,
@@ -812,6 +822,13 @@ describe("App", () => {
     expect(screen.getByText(/single_writer/i)).toBeInTheDocument();
     expect(screen.getByText(/Metadata capabilities/i)).toBeInTheDocument();
     expect(screen.getByText(/workflows, executions, authPolicy, authDirectory, auditEvents, consumerCursors, publishedDashboards/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hardware profile/i)).toBeInTheDocument();
+    expect(screen.getByText(/ready · cpu/i)).toBeInTheDocument();
+    expect(screen.getByText(/CPU scheduler/i)).toBeInTheDocument();
+    expect(screen.getByText(/bounded_threads · 4 workers/i)).toBeInTheDocument();
+    expect(screen.getByText(/CPU memory limit/i)).toBeInTheDocument();
+    expect(screen.getByText(/GPU probe/i)).toBeInTheDocument();
+    expect(screen.getByText(/not_requested · 0 hardware · 0 simulated/i)).toBeInTheDocument();
     expect(screen.getByText(/Data estate/i)).toBeInTheDocument();
     expect(screen.getByText(/Estate manifests/i)).toBeInTheDocument();
     expect(screen.getByText(/ready · 1 checksums/i)).toBeInTheDocument();

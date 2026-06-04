@@ -661,6 +661,67 @@ function local_data_estate_management(root::AbstractString, zones)
     )
 end
 
+
+function positive_env_int(name::AbstractString, fallback::Int)
+    parsed = tryparse(Int, strip(get(ENV, name, "")))
+    parsed === nothing && return fallback
+    parsed > 0 || return fallback
+    return parsed
+end
+
+function gpu_device_summaries(gpu_registry)
+    summaries = Vector{Dict{String,Any}}()
+    total_vram_bytes = 0
+    hardware_count = 0
+    simulated_count = 0
+    for device in get(gpu_registry, "devices", Any[])
+        memory_gb = Int(get(device, "memory_gb", 0))
+        memory_bytes = memory_gb * 1_000_000_000
+        mode = String(get(device, "mode", "hardware"))
+        mode == "hardware" && (hardware_count += 1)
+        mode == "simulated" && (simulated_count += 1)
+        total_vram_bytes += memory_bytes
+        push!(summaries, Dict(
+            "deviceId" => String(get(device, "device_id", "unknown")),
+            "vendor" => String(get(device, "vendor", "unknown")),
+            "accelerator" => String(get(device, "accelerator", "unknown")),
+            "mode" => mode,
+            "memoryBytes" => memory_bytes,
+        ))
+    end
+    return summaries, total_vram_bytes, hardware_count, simulated_count
+end
+
+function local_hardware_runtime_profile(disk_status, gpu_registry)
+    cpu_threads = Threads.nthreads()
+    total_memory = Int(Sys.total_memory())
+    free_memory = Int(Sys.free_memory())
+    cpu_concurrency = min(cpu_threads, positive_env_int("JULIAFLOW_CPU_WORKER_CONCURRENCY", cpu_threads))
+    default_memory_limit = max(1, min(free_memory, total_memory ÷ 2))
+    memory_limit = min(total_memory, positive_env_int("JULIAFLOW_CPU_WORKER_MEMORY_LIMIT_BYTES", default_memory_limit))
+    gpu_summaries, total_vram_bytes, hardware_count, simulated_count = gpu_device_summaries(gpu_registry)
+    cuda_required = get(ENV, "JULIAFLOW_CUDA_SMOKE", "0") == "1"
+    cuda_status = cuda_required ? "requested" : "not_requested"
+    selected_backend = hardware_count > 0 ? "cuda" : simulated_count > 0 ? "simulated_cuda" : "cpu"
+    hardware_ready = cpu_threads > 0 &&
+                     total_memory > 0 &&
+                     free_memory >= 0 &&
+                     String(disk_status["status"]) != "unavailable" &&
+                     get(gpu_registry, "fallback_available", false) == true
+    return Dict(
+        "hardwareProfileStatus" => hardware_ready ? "ready" : "degraded",
+        "hardwareSelectedBackend" => selected_backend,
+        "cpuSchedulerPolicy" => "bounded_threads",
+        "cpuWorkerConcurrency" => cpu_concurrency,
+        "cpuMemoryLimitBytes" => memory_limit,
+        "gpuCudaStatus" => cuda_status,
+        "gpuHardwareDeviceCount" => hardware_count,
+        "gpuSimulatedDeviceCount" => simulated_count,
+        "gpuTotalVramBytes" => total_vram_bytes,
+        "gpuDeviceSummaries" => gpu_summaries,
+    )
+end
+
 function healthcheck(state::GatewayState)
     store_id = state.repository isa FileGatewayRepository ? state.repository.root : "postgresql"
     event_stats = health_event_stats(state)
@@ -678,6 +739,7 @@ function healthcheck(state::GatewayState)
     disk_status = local_disk_status(data_root)
     data_estate = local_data_estate_management(data_root, zones)
     metadata = local_metadata_health(state, profile, appliance_home)
+    hardware = local_hardware_runtime_profile(disk_status, gpu_registry)
     return JSON3.write(
         Dict(
             "service" => "api-gateway",
@@ -715,8 +777,18 @@ function healthcheck(state::GatewayState)
             "cpuThreadCount" => Threads.nthreads(),
             "totalMemoryBytes" => Sys.total_memory(),
             "freeMemoryBytes" => Sys.free_memory(),
+            "hardwareProfileStatus" => hardware["hardwareProfileStatus"],
+            "hardwareSelectedBackend" => hardware["hardwareSelectedBackend"],
+            "cpuSchedulerPolicy" => hardware["cpuSchedulerPolicy"],
+            "cpuWorkerConcurrency" => hardware["cpuWorkerConcurrency"],
+            "cpuMemoryLimitBytes" => hardware["cpuMemoryLimitBytes"],
             "gpuReadinessStatus" => gpu_registry["device_count"] > 0 ? "available" : "cpu_fallback",
             "gpuFallbackReason" => gpu_registry["fallback_available"] ? "no_supported_gpu_required_for_local_bootstrap" : "gpu_fallback_unavailable",
+            "gpuCudaStatus" => hardware["gpuCudaStatus"],
+            "gpuHardwareDeviceCount" => hardware["gpuHardwareDeviceCount"],
+            "gpuSimulatedDeviceCount" => hardware["gpuSimulatedDeviceCount"],
+            "gpuTotalVramBytes" => hardware["gpuTotalVramBytes"],
+            "gpuDeviceSummaries" => hardware["gpuDeviceSummaries"],
             "repositoryBackend" => String(repository_backend(state)),
             "storeRoot" => store_id,
             "workflowCount" => length(state.workflows),

@@ -1380,6 +1380,18 @@ end
         @test health_payload["dataEstateCleanupStatus"] == "ready"
         @test health_payload["dataEstateBackupStatus"] == "ready"
         @test health_payload["dataEstateDuckdbStatus"] == "ready"
+        @test health_payload["hardwareProfileStatus"] == "ready"
+        @test health_payload["hardwareSelectedBackend"] in ["cpu", "cuda", "simulated_cuda"]
+        @test health_payload["cpuSchedulerPolicy"] == "bounded_threads"
+        @test health_payload["cpuWorkerConcurrency"] >= 1
+        @test health_payload["cpuWorkerConcurrency"] <= health_payload["cpuThreadCount"]
+        @test health_payload["cpuMemoryLimitBytes"] > 0
+        @test health_payload["cpuMemoryLimitBytes"] <= health_payload["totalMemoryBytes"]
+        @test health_payload["gpuCudaStatus"] in ["not_requested", "requested", "ready", "unavailable"]
+        @test health_payload["gpuHardwareDeviceCount"] >= 0
+        @test health_payload["gpuSimulatedDeviceCount"] >= 0
+        @test health_payload["gpuTotalVramBytes"] >= 0
+        @test length(health_payload["gpuDeviceSummaries"]) == health_payload["gpuHardwareDeviceCount"] + health_payload["gpuSimulatedDeviceCount"]
         @test isdir(health_payload["dataEstateManifestPath"])
         @test isdir(health_payload["dataEstateBackupRoot"])
         @test isfile(health_payload["dataEstateDuckdbQueryPath"])
@@ -2475,7 +2487,14 @@ end
         @test occursin("\"minioProfileStatus\":", String(health_response.body))
         @test occursin("\"cloudCredentialsRequired\":false", String(health_response.body))
         @test occursin("\"cpuThreadCount\":", String(health_response.body))
+        @test occursin("\"hardwareProfileStatus\":", String(health_response.body))
+        @test occursin("\"hardwareSelectedBackend\":", String(health_response.body))
+        @test occursin("\"cpuSchedulerPolicy\":", String(health_response.body))
+        @test occursin("\"cpuWorkerConcurrency\":", String(health_response.body))
+        @test occursin("\"cpuMemoryLimitBytes\":", String(health_response.body))
         @test occursin("\"gpuReadinessStatus\":", String(health_response.body))
+        @test occursin("\"gpuCudaStatus\":", String(health_response.body))
+        @test occursin("\"gpuDeviceSummaries\":", String(health_response.body))
         @test occursin("\"otelTraceSeamEnabled\":true", String(health_response.body))
         @test metrics_route_response.status == 200
         @test occursin("juliaflow_workflows_total", String(metrics_route_response.body))
