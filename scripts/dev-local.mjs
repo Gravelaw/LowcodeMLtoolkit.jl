@@ -318,6 +318,18 @@ async function runSmoke(config, env) {
     if (!Array.isArray(health.gpuDeviceSummaries)) {
       throw new Error("Gateway health did not report GPU device summaries");
     }
+    if (health.explainabilityEvidence?.status !== "ready") {
+      throw new Error("Gateway health did not report ready explainability evidence");
+    }
+    if (health.explainabilityEvidence.datasetCard?.datasetId !== "foundation-sales-sample") {
+      throw new Error("Gateway health did not report foundation dataset card evidence");
+    }
+    if (health.explainabilityEvidence.modelCard?.kind !== "deterministic_linear_baseline") {
+      throw new Error("Gateway health did not report deterministic model card evidence");
+    }
+    if (!Array.isArray(health.explainabilityEvidence.explanation?.featureImportance) || health.explainabilityEvidence.explanation.featureImportance.length < 1) {
+      throw new Error("Gateway health did not report feature-importance evidence");
+    }
     if (!["not_requested", "requested", "ready", "unavailable"].includes(health.gpuCudaStatus)) {
       throw new Error(`Gateway health reported unsupported CUDA status: ${health.gpuCudaStatus}`);
     }

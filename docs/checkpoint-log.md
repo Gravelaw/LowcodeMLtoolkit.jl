@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Explainability / Model Evidence Proof Complete — 2026-06-06
+
+### Work Done Till Date
+
+- Implemented and verified the explainability/model evidence slice after local hardware runtime closure.
+- Gateway `/health`, checkpoint payloads, and accepted execution payloads expose deterministic dataset-card, model-card, feature-importance, local-explanation, limitations/warnings, and reproducibility-bundle readiness evidence.
+- `scripts/dev-local.mjs` smoke checks verify explainability evidence and `npm run smoke:local-explainability` runs the bounded local proof.
+- Frontend Monitor renders explainability evidence in health and execution surfaces.
+- Contracts, OpenAPI, Julia gateway tests, frontend tests, and contract tests cover the expanded evidence surface.
+
+### Gaps Pending
+
+- Current explainability/model evidence proof is closed for deterministic local evidence wiring.
+- Broader export/reimport reproducibility bundles remain queued for the academic reproducibility lane.
+- Backup/restore integrity remains queued for the backup/restore lane.
+
+### Next Items To Implement
+
+- Start offline Hub proof: bundled/local extension install without external registry dependency, checksum verification, sandbox tests, local artifact cache, and unsafe-extension blocking.
+- Keep `npm run smoke:local-explainability` in the local-first gate set.
+
+---
+
+
 ## Checkpoint: `cp/02-alpha-core` Local Hardware Runtime Proof Complete — 2026-06-03
 
 ### Work Done Till Date

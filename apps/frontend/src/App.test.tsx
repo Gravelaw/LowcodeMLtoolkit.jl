@@ -54,6 +54,19 @@ function hubVerification(verified = true, blockers: string[] = []) {
   };
 }
 
+function explainabilityEvidencePayload() {
+  return {
+    status: "ready",
+    generatedAt: "2026-06-04T00:00:00Z",
+    workflowId: "wf-live-contracts",
+    checkpointTag: "cp/02-alpha-core",
+    datasetCard: { datasetId: "foundation-sales-sample", sourceUri: "tests/contracts/fixtures/foundation.workflow.toml", checksumSha256: "abc123", schemaSummary: [{ name: "amount", type: "float64" }], rowCount: 3, limitations: ["local fixture"] },
+    modelCard: { modelId: "foundation-linear-baseline", kind: "deterministic_linear_baseline", target: "amount", config: { seed: 42 }, metrics: { mae: 1.25, r2: 0.91 }, limitations: ["fixture model"] },
+    explanation: { method: "deterministic_feature_contribution", featureImportance: [{ feature: "amount", importance: 0.62 }, { feature: "region", importance: 0.28 }, { feature: "window", importance: 0.10 }], localExample: { rowId: "foundation-row-1", prediction: 124.5, contributions: [] }, warnings: ["local only"] },
+    reproducibilityBundleReady: true
+  };
+}
+
 function healthPayload(overrides: Record<string, unknown> = {}) {
   return {
     service: "api-gateway",
@@ -119,6 +132,7 @@ function healthPayload(overrides: Record<string, unknown> = {}) {
     gpuSimulatedDeviceCount: 0,
     gpuTotalVramBytes: 0,
     gpuDeviceSummaries: [],
+    explainabilityEvidence: explainabilityEvidencePayload(),
     repositoryBackend: "file",
     storeRoot: "/tmp/juliaflow",
     workflowCount: 0,
@@ -385,6 +399,7 @@ describe("App", () => {
                 createdAt: "2026-04-18T12:00:00Z",
                 updatedAt: "2026-04-18T12:01:00Z",
                 statusHistory: [],
+                explainabilityEvidence: explainabilityEvidencePayload(),
                 controlFlowPlan: [
                   {
                     controlId: "loop-bi-refresh",
@@ -829,6 +844,13 @@ describe("App", () => {
     expect(screen.getByText(/CPU memory limit/i)).toBeInTheDocument();
     expect(screen.getByText(/GPU probe/i)).toBeInTheDocument();
     expect(screen.getByText(/not_requested · 0 hardware · 0 simulated/i)).toBeInTheDocument();
+    expect(screen.getByText(/Explainability evidence/i)).toBeInTheDocument();
+    expect(screen.getByText(/ready · foundation-sales-sample/i)).toBeInTheDocument();
+    expect(screen.getByText(/Model card/i)).toBeInTheDocument();
+    expect(screen.getByText(/deterministic_linear_baseline · 1.25 MAE/i)).toBeInTheDocument();
+    expect(screen.getByText(/Explanation method/i)).toBeInTheDocument();
+    expect(screen.getByText(/deterministic_feature_contribution · 3 features/i)).toBeInTheDocument();
+    expect(screen.getByText(/foundation-sales-sample · deterministic_linear_baseline · deterministic_feature_contribution/i)).toBeInTheDocument();
     expect(screen.getByText(/Data estate/i)).toBeInTheDocument();
     expect(screen.getByText(/Estate manifests/i)).toBeInTheDocument();
     expect(screen.getByText(/ready · 1 checksums/i)).toBeInTheDocument();

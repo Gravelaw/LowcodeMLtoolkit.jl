@@ -1392,6 +1392,11 @@ end
         @test health_payload["gpuSimulatedDeviceCount"] >= 0
         @test health_payload["gpuTotalVramBytes"] >= 0
         @test length(health_payload["gpuDeviceSummaries"]) == health_payload["gpuHardwareDeviceCount"] + health_payload["gpuSimulatedDeviceCount"]
+        @test health_payload["explainabilityEvidence"]["status"] == "ready"
+        @test health_payload["explainabilityEvidence"]["datasetCard"]["datasetId"] == "foundation-sales-sample"
+        @test health_payload["explainabilityEvidence"]["modelCard"]["kind"] == "deterministic_linear_baseline"
+        @test length(health_payload["explainabilityEvidence"]["explanation"]["featureImportance"]) == 3
+        @test health_payload["explainabilityEvidence"]["reproducibilityBundleReady"] == true
         @test isdir(health_payload["dataEstateManifestPath"])
         @test isdir(health_payload["dataEstateBackupRoot"])
         @test isfile(health_payload["dataEstateDuckdbQueryPath"])
@@ -1417,6 +1422,9 @@ end
         @test accepted_execution["controlFlowPlan"][2]["controlId"] == "try-bi-outlet"
         @test accepted_execution["controlFlowPlan"][2]["tryNodeIds"] == ["node-transform"]
         @test accepted_execution["controlFlowPlan"][2]["catchNodeIds"] == ["node-bi"]
+        @test accepted_execution["explainabilityEvidence"]["datasetCard"]["datasetId"] == "foundation-sales-sample"
+        @test accepted_execution["explainabilityEvidence"]["modelCard"]["kind"] == "deterministic_linear_baseline"
+        @test accepted_execution["explainabilityEvidence"]["checkpointTag"] == accepted_execution["checkpointTag"]
         recovered_execution_json = transition_execution_response!(
             state,
             accepted_execution["executionId"];
@@ -1478,8 +1486,12 @@ end
         )
         @test occursin("\"status\":\"queued\"", queued_execution_json)
         @test occursin("\"queueName\":\"foundation-cpu\"", queued_execution_json)
-        @test occursin("cp/01-contracts-frozen", create_checkpoint_response!(state; tag = "cp/01-contracts-frozen", summary = "Contracts frozen"))
+        checkpoint_create_payload = JSON3.read(create_checkpoint_response!(state; tag = "cp/01-contracts-frozen", summary = "Contracts frozen"), Dict{String,Any})
+        @test checkpoint_create_payload["checkpoint"]["tag"] == "cp/01-contracts-frozen"
+        @test checkpoint_create_payload["checkpoint"]["explainabilityEvidence"]["datasetCard"]["datasetId"] == "foundation-sales-sample"
         @test occursin("cp/01-contracts-frozen", checkpoint_list_response(state))
+        checkpoint_list_payload = JSON3.read(checkpoint_list_response(state), Dict{String,Any})
+        @test checkpoint_list_payload["items"][end]["explainabilityEvidence"]["modelCard"]["kind"] == "deterministic_linear_baseline"
         @test haskey(reloaded.workflows, "wf-foundation")
         @test isfile(joinpath(store_root, "checkpoints.json"))
         @test isfile(joinpath(store_root, "executions.json"))

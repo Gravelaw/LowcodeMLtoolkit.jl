@@ -4500,6 +4500,18 @@ function App() {
                       <span>{workspaceData.health?.gpuTotalVramBytes?.toLocaleString() ?? 0} bytes</span>
                     </div>
                     <div className="inspector-row">
+                      <strong>Explainability evidence</strong>
+                      <span>{workspaceData.health?.explainabilityEvidence?.status ?? "pending"} · {workspaceData.health?.explainabilityEvidence?.datasetCard.datasetId ?? "dataset card pending"}</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Model card</strong>
+                      <span>{workspaceData.health?.explainabilityEvidence?.modelCard.kind ?? "model card pending"} · {workspaceData.health?.explainabilityEvidence?.modelCard.metrics.mae ?? "n/a"} MAE</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Explanation method</strong>
+                      <span>{workspaceData.health?.explainabilityEvidence?.explanation.method ?? "pending"} · {workspaceData.health?.explainabilityEvidence?.explanation.featureImportance.length ?? 0} features</span>
+                    </div>
+                    <div className="inspector-row">
                       <strong>Realtime transport</strong>
                       <span>{workspaceData.health?.realtimeTransport ?? "jsonrpc_websocket"}</span>
                     </div>
@@ -4680,6 +4692,14 @@ function App() {
                                 executor {item.executorState.status} · stage {item.executorState.currentStageIndex}/
                                 {item.executorState.stageCount} · active {item.executorState.activeNodeIds.length} · completed{" "}
                                 {item.executorState.completedNodeIds.length}
+                              </span>
+                            </div>
+                          ) : null}
+                          {item.explainabilityEvidence ? (
+                            <div className="inspector-row">
+                              <strong>Explainability</strong>
+                              <span>
+                                {item.explainabilityEvidence.datasetCard.datasetId} · {item.explainabilityEvidence.modelCard.kind} · {item.explainabilityEvidence.explanation.method}
                               </span>
                             </div>
                           ) : null}

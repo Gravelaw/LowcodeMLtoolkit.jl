@@ -29,7 +29,8 @@
     "pretest": "node scripts/ensure-wsl-node.mjs",
     "doctor:wsl-node": "node scripts/ensure-wsl-node.mjs && node -p \"process.platform + ' ' + process.execPath\" && npm --version && npx --version",
     "smoke:local-metadata": "node scripts/smoke-local-metadata.mjs",
-    "smoke:local-hardware": "node scripts/smoke-local-hardware.mjs"
+    "smoke:local-hardware": "node scripts/smoke-local-hardware.mjs",
+    "smoke:local-explainability": "node scripts/dev-local.mjs --profile single-user --smoke --no-deps"
   },
   "dependencies": {
     "smol-toml": "^1.3.4"
