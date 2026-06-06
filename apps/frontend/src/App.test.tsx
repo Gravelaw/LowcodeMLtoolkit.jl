@@ -4,6 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 expect.extend(matchers);
 import App from "./App";
+import {
+  buildCanvasNodeLayouts,
+  buildCheckpointRailItems,
+  buildExecutionRailItems,
+  buildWorkflowFromGateway,
+  formatPortSummary,
+  portTypeCounts
+} from "./sample-workflow";
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -161,6 +169,189 @@ function healthPayload(overrides: Record<string, unknown> = {}) {
   };
 }
 
+describe("sample workflow helpers", () => {
+  it("builds gateway workflows from metadata and bounded synthetic summaries", () => {
+    const metadataWorkflow = buildWorkflowFromGateway(
+      {
+        workflowId: "wf-summary",
+        name: "Summary",
+        version: "1.0.0",
+        nodeCount: 2
+      },
+      {
+        workflowId: "wf-meta",
+        name: "Metadata",
+        version: "2.0.0",
+        nodeCount: 1,
+        connectionCount: 0,
+        flowVariableCount: 1,
+        biOutletCount: 0,
+        dashboardCount: 0,
+        graphRevision: 3,
+        runMode: "stream",
+        nodes: [
+          {
+            id: "node-meta",
+            type: "io.meta",
+            name: "Metadata Node",
+            executionHint: "cpu_only",
+            ports: [{ id: "out", direction: "output", type: "data_table" }],
+            config: {}
+          }
+        ],
+        connections: [],
+        flowVariables: [{ name: "tenant", type: "String", default: "local" }],
+        dashboards: [],
+        graph: { revision: 3, nodeLayouts: [{ nodeId: "node-meta", x: 12, y: 16 }] },
+        runtime: { runMode: "stream" }
+      }
+    );
+
+    expect(metadataWorkflow.workflowId).toBe("wf-meta");
+    expect(metadataWorkflow.nodes).toHaveLength(1);
+    expect(metadataWorkflow.runtime?.runMode).toBe("stream");
+
+    const syntheticWorkflow = buildWorkflowFromGateway(
+      {
+        workflowId: "wf-synth",
+        name: "Synthetic",
+        version: "1.0.0",
+        nodeCount: 8,
+        graphRevision: 4,
+        runMode: "batch"
+      },
+      {
+        workflowId: "wf-synth",
+        name: "Synthetic",
+        version: "1.0.0",
+        nodeCount: 8,
+        connectionCount: 9,
+        flowVariableCount: 7,
+        biOutletCount: 2,
+        dashboardCount: 1,
+        graphRevision: 4,
+        runMode: "batch",
+        nodes: [],
+        connections: [],
+        flowVariables: [],
+        dashboards: []
+      }
+    );
+
+    expect(syntheticWorkflow.nodes).toHaveLength(6);
+    expect(syntheticWorkflow.connections).toHaveLength(5);
+    expect(syntheticWorkflow.flowVariables).toHaveLength(4);
+    expect(syntheticWorkflow.nodes.at(-1)?.type).toBe("bi.outlet");
+    expect(syntheticWorkflow.nodes[2].executionHint).toBe("gpu_preferred");
+  });
+
+  it("maps execution, checkpoint, layout, and port helper outputs", () => {
+    const workflow = buildWorkflowFromGateway({
+      workflowId: "wf-helper",
+      name: "Helper",
+      version: "1.0.0",
+      nodeCount: 3,
+      runMode: "batch"
+    });
+
+    const layouts = buildCanvasNodeLayouts(workflow);
+    expect(layouts["live-node-1"].status).toBe("configured");
+    expect(layouts["live-node-2"].x).toBe(284);
+    expect(layouts["live-node-3"].runtime).toMatch(/GPU-capable/);
+
+    const rails = buildExecutionRailItems([
+      {
+        executionId: "exec-stream",
+        workflowId: "wf-helper",
+        workflowVersion: "1.0.0",
+        checkpointTag: "cp/01",
+        status: "running",
+        mode: "stream",
+        plan: [],
+        stages: [],
+        nodeCount: 3,
+        connectionCount: 2,
+        createdAt: "2026-06-01T00:00:00Z",
+        updatedAt: "2026-06-01T00:01:00Z",
+        startedAt: "2026-06-01T00:00:00Z",
+        finishedAt: "2026-06-01T00:02:00Z",
+        statusHistory: [{ status: "running", at: "2026-06-01T00:01:00Z", message: "stream started" }],
+        streamLifecycleStatus: "active"
+      },
+      {
+        executionId: "exec-failed",
+        workflowId: "wf-helper",
+        workflowVersion: "1.0.0",
+        checkpointTag: "cp/01",
+        status: "failed",
+        mode: "batch",
+        plan: [],
+        stages: [],
+        nodeCount: 3,
+        connectionCount: 2,
+        createdAt: "2026-06-01T00:00:00Z",
+        updatedAt: "2026-06-01T00:00:00Z",
+        statusHistory: [],
+        dispatchLane: "gpu"
+      }
+    ]);
+
+    expect(rails[0].status).toBe("streaming_active");
+    expect(rails[0].trigger).toBe("stream started");
+    expect(rails[1].status).toBe("error");
+    expect(rails[1].duration).toBe("in-flight");
+    expect(rails[1].planner).toContain("gpu/default");
+
+    expect(buildExecutionRailItems([
+      {
+        executionId: "exec-accepted",
+        workflowId: "wf-helper",
+        workflowVersion: "1.0.0",
+        checkpointTag: "cp/01",
+        status: "accepted",
+        mode: "batch",
+        plan: [],
+        stages: [],
+        nodeCount: 1,
+        connectionCount: 0,
+        createdAt: "2026-06-01T00:00:00Z",
+        updatedAt: "2026-06-01T00:00:00Z",
+        statusHistory: []
+      },
+      {
+        executionId: "exec-completed",
+        workflowId: "wf-helper",
+        workflowVersion: "1.0.0",
+        checkpointTag: "cp/01",
+        status: "completed",
+        mode: "batch",
+        plan: [],
+        stages: [],
+        nodeCount: 1,
+        connectionCount: 0,
+        createdAt: "2026-06-01T00:00:00Z",
+        updatedAt: "2026-06-01T00:01:00Z",
+        statusHistory: []
+      }
+    ]).map((item) => item.status)).toEqual(["configured", "executed"]);
+
+    expect(buildCheckpointRailItems([
+      { tag: "", workflowId: "wf-helper", summary: "first", createdAt: "2026-06-01T00:00:00Z" },
+      { tag: "cp/custom", workflowId: "wf-helper", summary: "second", createdAt: "2026-06-01T00:01:00Z" },
+      { tag: "", workflowId: "wf-helper", summary: "third", createdAt: "2026-06-01T00:02:00Z" }
+    ])).toMatchObject([
+      { tag: "cp/live-01", state: "ready" },
+      { tag: "cp/custom", state: "validating" },
+      { tag: "cp/live-03", state: "blocked" }
+    ]);
+
+    expect(formatPortSummary(workflow.connections, "live-node-2")).toBe("1 in / 1 out");
+    expect(portTypeCounts(workflow)).toEqual(expect.arrayContaining([
+      { type: "data_table", count: 5 }
+    ]));
+  });
+});
+
 describe("App", () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
@@ -195,7 +386,10 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /save workflow/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run workflow/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /open bi workspace/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /add flow variable/i })).toBeInTheDocument();
+    const addFlowVariableButton = screen.getByRole("button", { name: /add flow variable/i });
+    expect(addFlowVariableButton).toBeInTheDocument();
+    fireEvent.click(addFlowVariableButton);
+    expect(screen.getByText(/Added a new flow variable to the draft/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /validation/i }));
     expect(screen.getByText(/Components\/control-flow/i)).toBeInTheDocument();
     expect(screen.getByText(/Preparation Container/i)).toBeInTheDocument();
@@ -1202,6 +1396,233 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /Copy selected row JSON/i }));
     await waitFor(() => {
       expect(clipboardWrite).toHaveBeenLastCalledWith(expect.stringContaining('"window": "2026-Q1"'));
+    });
+  });
+
+  it("handles demo-mode Hub and auth actions locally", async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /HubTrust-aware extension lifecycle/i }));
+    expect(await screen.findByText(/Extension marketplace/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Publish sample extension/i }));
+    expect(await screen.findByText(/Demo Hub publish queued for juliaflow-private-mirror-pack/i)).toBeInTheDocument();
+    expect(screen.getByText(/Private Mirror Pack/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Install/i }));
+    expect(await screen.findByText(/Demo Hub install queued for juliaflow-private-mirror-pack/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /SettingsDelivery, theme, discovery/i }));
+    expect(await screen.findByText(/Policy \+ audit management/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Queue role binding/i }));
+    expect(screen.getByText(/Role binding needs principal and workspace/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Queue resource policy/i }));
+    expect(screen.getByText(/Resource policy needs type, id, and workspace/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Queue directory user/i }));
+    expect(screen.getByText(/Directory user needs principal and display name/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Queue directory workspace/i }));
+    expect(screen.getByText(/Directory workspace needs id and name/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Remove role binding/i }));
+    expect(screen.getByText(/Queued role binding removal/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Remove resource policy/i }));
+    expect(screen.getByText(/Queued resource policy removal/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Remove directory user/i }));
+    expect(screen.getByText(/Queued directory user removal/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Remove directory workspace/i }));
+    expect(screen.getByText(/Queued directory workspace removal/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Save auth policy/i }));
+    expect(await screen.findByText(/Demo auth policy changes stored locally/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Save auth directory/i }));
+    expect(await screen.findByText(/Demo auth directory changes stored locally/i)).toBeInTheDocument();
+  });
+
+  it("renders metric and table published dashboard previews", async () => {
+    vi.stubEnv("VITE_JULIAFLOW_GATEWAY_BASE_URL", "http://gateway.test");
+    window.history.replaceState({}, "", "/dashboard?dashboard=dashboard-mixed&share=token-mixed");
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.endsWith("/health")) {
+        return new Response(JSON.stringify(healthPayload()));
+      }
+
+      if (url.endsWith("/api/v1/workflows") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (url.endsWith("/api/v1/executions") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (url.endsWith("/api/v1/checkpoints") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (url.endsWith("/api/v1/hub/extensions") && init?.method === "GET") {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (
+        url.endsWith("/api/v1/workflows/wf-phase0-cpu-forecast/dashboards") &&
+        init?.method === "GET"
+      ) {
+        return new Response(JSON.stringify({ items: [] }));
+      }
+
+      if (
+        url.includes("/api/v1/dashboards/dashboard-mixed?shareToken=token-mixed") &&
+        init?.method === "GET"
+      ) {
+        return new Response(
+          JSON.stringify({
+            dashboardId: "dashboard-mixed",
+            workflowId: "wf-mixed",
+            name: "Mixed Dashboard",
+            version: 5,
+            publishedAt: "2026-04-25T12:00:00Z",
+            visibility: "public",
+            shareToken: "token-mixed",
+            binding: {
+              outletNodeId: "node-bi-outlet",
+              datasetKey: "mixed_dataset",
+              refreshMode: "manual"
+            },
+            charts: [
+              { chartId: "chart-metric", title: "Gross Metric", family: "metric", yField: "revenue" },
+              { chartId: "chart-table", title: "Detail Table", family: "table" }
+            ]
+          })
+        );
+      }
+
+      if (
+        url.includes("/api/v1/dashboards/dashboard-mixed/charts/chart-metric/data?shareToken=token-mixed") &&
+        init?.method === "GET"
+      ) {
+        return new Response(
+          JSON.stringify({
+            dashboardId: "dashboard-mixed",
+            chartId: "chart-metric",
+            datasetKey: "metric_dataset",
+            family: "metric",
+            fields: ["segment", "revenue"],
+            rows: [{ segment: "north", revenue: 42 }],
+            rowCount: 1,
+            refreshedAt: "2026-04-25T12:01:00Z",
+            semantic: {
+              dimensions: ["segment"],
+              measures: ["revenue"],
+              xField: "segment",
+              yField: "revenue",
+              seriesField: null,
+              availableDimensions: ["segment"],
+              availableMeasures: ["revenue"]
+            },
+            cache: {
+              cacheKey: "dashboard-mixed:chart-metric:v5",
+              sourceVersion: 5,
+              snapshotAt: "2026-04-25T12:00:00Z",
+              refreshMode: "manual",
+              live: false,
+              stale: false
+            },
+            exportFormats: ["json", "csv"]
+          })
+        );
+      }
+
+      if (
+        url.includes("/api/v1/dashboards/dashboard-mixed/charts/chart-table/data?shareToken=token-mixed") &&
+        init?.method === "GET"
+      ) {
+        return new Response(
+          JSON.stringify({
+            dashboardId: "dashboard-mixed",
+            chartId: "chart-table",
+            datasetKey: "table_dataset",
+            family: "table",
+            fields: ["region", "status", "amount", "owner"],
+            rows: [
+              { region: "north", status: "ready", amount: 42, owner: "ana" },
+              { region: "south", status: "blocked", amount: 7, owner: "dev" }
+            ],
+            rowCount: 2,
+            refreshedAt: "2026-04-25T12:02:00Z",
+            semantic: {
+              dimensions: ["region", "status"],
+              measures: ["amount"],
+              xField: "region",
+              yField: "amount",
+              seriesField: null,
+              availableDimensions: ["region", "status"],
+              availableMeasures: ["amount"]
+            },
+            cache: {
+              cacheKey: "dashboard-mixed:chart-table:v5",
+              sourceVersion: 5,
+              snapshotAt: "2026-04-25T12:00:00Z",
+              refreshMode: "manual",
+              live: false,
+              stale: false
+            },
+            exportFormats: ["json", "csv"]
+          })
+        );
+      }
+
+      throw new Error("Unhandled fetch: " + url);
+    });
+
+    vi.stubGlobal("fetch", fetchMock as typeof fetch);
+    const clipboardWrite = vi.fn(async (_value: string) => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: clipboardWrite }
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText(/Mixed Dashboard/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Gross Metric/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Detail Table/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/snapshot · manual/i)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("42")).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /Copy share link/i }));
+    await waitFor(() => {
+      expect(clipboardWrite).toHaveBeenCalledWith(expect.stringContaining("dashboard=dashboard-mixed"));
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Drill into metric row/i }));
+    expect(await screen.findByText(/Drilldown: Gross Metric/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Copy selected row JSON/i }));
+    await waitFor(() => {
+      expect(clipboardWrite).toHaveBeenLastCalledWith(expect.stringContaining('"segment": "north"'));
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Export all CSV/i })[0]);
+    await waitFor(() => {
+      expect(clipboardWrite).toHaveBeenLastCalledWith("segment,revenue\nnorth,42\n");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "blocked" }));
+    expect(await screen.findByText(/Drilldown: Detail Table/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/status=blocked/i).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /Refresh charts/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Published dashboard refresh requested/i)).toBeInTheDocument();
     });
   });
 
