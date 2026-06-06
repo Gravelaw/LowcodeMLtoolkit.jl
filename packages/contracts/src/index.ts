@@ -422,6 +422,10 @@ export interface GatewayGpuDeviceSummary {
   memoryBytes: number;
 }
 
+export interface GatewayDatasetCardEvidence { datasetId: string; sourceUri: string; checksumSha256: string; schemaSummary: Array<{ name: string; type: string }>; rowCount: number; limitations: string[]; }
+export interface GatewayModelCardEvidence { modelId: string; kind: string; target: string; config: Record<string, string | number | boolean>; metrics: Record<string, number>; limitations: string[]; }
+export interface GatewayExplanationEvidence { method: string; featureImportance: Array<{ feature: string; importance: number }>; localExample: { rowId: string; prediction: number; contributions: Array<{ feature: string; contribution: number }>; }; warnings: string[]; }
+export interface GatewayExplainabilityEvidence { status: "ready" | "pending"; generatedAt: string; workflowId: string; checkpointTag: string; datasetCard: GatewayDatasetCardEvidence; modelCard: GatewayModelCardEvidence; explanation: GatewayExplanationEvidence; reproducibilityBundleReady: boolean; }
 export interface GatewayHealthcheck {
   service: "api-gateway";
   status: "ok";
@@ -478,6 +482,7 @@ export interface GatewayHealthcheck {
   gpuSimulatedDeviceCount: number;
   gpuTotalVramBytes: number;
   gpuDeviceSummaries: GatewayGpuDeviceSummary[];
+  explainabilityEvidence: GatewayExplainabilityEvidence;
   repositoryBackend: string;
   storeRoot: string;
   workflowCount: number;
@@ -593,6 +598,7 @@ export interface GatewayCheckpointRecord {
   tag: string;
   summary: string;
   createdAt: string;
+  explainabilityEvidence?: GatewayExplainabilityEvidence;
 }
 
 export interface GatewayCheckpointCreateResponse {
@@ -879,6 +885,7 @@ export interface GatewayExecutionRecord {
   }>;
   executorSchedule?: GatewayExecutorScheduleStage[];
   executorState?: GatewayExecutorState;
+  explainabilityEvidence?: GatewayExplainabilityEvidence;
   dispatchLane?: WorkflowResourceClass;
   dispatchWorkerPool?: string;
   dispatchIsolationMode?: "shared" | "isolated";

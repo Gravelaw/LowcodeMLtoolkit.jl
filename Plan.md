@@ -1,6 +1,6 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-06-03
+Last updated: 2026-06-06
 
 ## Current Phase
 
@@ -25,6 +25,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Local data estate proof is complete for the current local-first slice: managed zone manifests/checksums, Arrow IPC and Parquet artifact-format evidence, quota/used-byte health fields, cleanup and backup hook readiness, DuckDB query binding, Monitor rendering, smoke wrapper, and Julia/frontend/contract coverage are in place.
 - Local metadata/database proof is complete for the current local-first slice: gateway `/health` exposes metadata mode/backend/root/readiness/schema/concurrency/capability evidence, Monitor renders the metadata block, `smoke:local-metadata` proves single-user file mode plus live Docker Postgres lab-team mode, and repository tests prove shared Postgres catalog/cursor visibility across repository instances.
 - Local hardware runtime proof is complete for the current local-first slice: gateway `/health` exposes hardware profile/backend, bounded CPU scheduler/concurrency/memory-limit evidence, GPU CUDA probe status, hardware/simulated GPU counts, VRAM totals, and per-device summaries; Monitor renders hardware evidence; `smoke:local-hardware` proves CPU fallback with an empty GPU registry plus safe CUDA-smoke skip behavior on non-CUDA machines.
+- Explainability and model evidence proof is complete for the current local-first slice: gateway `/health`, checkpoint payloads, and accepted executions now expose deterministic dataset-card, model-card, feature-importance, local-explanation, limitations/warnings, and reproducibility-bundle readiness evidence; Monitor renders the evidence; `smoke:local-explainability` verifies the local surface.
 
 ## Active Development Order
 
@@ -48,7 +49,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Verify CPU scheduling, memory-aware worker limits, GPU smoke when available, and explicit CPU fallback when unavailable.
    - Treat multi-GPU as conditional local hardware validation only; hardware-backed CUDA remains opportunistic evidence when a CUDA host is available.
 
-5. **Explainability and model evidence**
+5. **Explainability and model evidence** - complete for current slice
    - Add dataset cards, model cards, global feature importance, local prediction explanations, permutation importance, partial-dependence/ICE-style summaries where practical, and limitations/warnings.
    - Include explainability outputs in checkpoints and reproducibility bundles.
 
@@ -89,6 +90,13 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Deterministic sandbox/hash/mirror verification slice is complete as of 2026-05-16.
    - Isolated fixture execution / downloaded artifact hash / private-offline mirror registry proof slice is complete as of 2026-05-17.
    - External registry/provider mirror work is now optional future compatibility; the next core Hub proof is offline/local install.
+
+
+## Latest Completed Slice — 2026-06-06 Explainability / Model Evidence
+
+**Explainability/model evidence proof** is complete for the current slice. Gateway health, checkpoint records, and accepted execution records now carry deterministic local evidence: dataset card with source checksum/schema/row count, model card with metrics/config/limitations, feature-importance and local prediction explanation, warnings, and reproducibility-bundle readiness. Monitor renders the evidence, and `npm run smoke:local-explainability` verifies the local appliance surface without cloud or GPU dependencies.
+
+Verification evidence for this slice: `npm run validate:contracts`, `julia --project=. tests/julia/runtests.jl`, `npm run smoke:local-explainability`, `npm run build`, and `npm run test`.
 
 
 ## Latest Completed Slice — 2026-06-03 Local Hardware Runtime

@@ -9,6 +9,7 @@ import type {
   GatewayExecutorScheduleStage,
   GatewayExecutorState,
   GatewayExecutionStatus,
+  GatewayExplainabilityEvidence,
   GatewayWorkflowMetadata,
   GatewayWorkflowSummary,
   NodeDefinition,
@@ -41,6 +42,7 @@ export interface ExecutionRailItem {
   controlFlowBranchState?: GatewayControlFlowBranchState;
   executorSchedule?: GatewayExecutorScheduleStage[];
   executorState?: GatewayExecutorState;
+  explainabilityEvidence?: GatewayExplainabilityEvidence;
 }
 
 export interface CheckpointRailItem {
@@ -596,7 +598,8 @@ export function buildExecutionRailItems(records: GatewayExecutionRecord[]): Exec
       controlFlowRecovery: record.controlFlowRecovery,
       controlFlowBranchState: record.controlFlowBranchState,
       executorSchedule: record.executorSchedule,
-      executorState: record.executorState
+      executorState: record.executorState,
+      explainabilityEvidence: record.explainabilityEvidence
     };
   });
 }

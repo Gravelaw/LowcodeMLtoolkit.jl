@@ -18,9 +18,18 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.0 local-first baseline
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-03`
+- Last updated: `2026-06-06`
 
 ## Work Done Till Date
+### Explainability / Model Evidence Proof Slice (2026-06-06)
+
+- Closed the fifth local-first GA lane after local hardware runtime proof.
+- Gateway `/health`, checkpoint records, and accepted execution records now expose deterministic explainability evidence: dataset card, model card, feature importance, local prediction explanation, limitations/warnings, and reproducibility-bundle readiness.
+- `scripts/dev-local.mjs` smoke checks now reject missing explainability evidence, and `npm run smoke:local-explainability` verifies the local single-user surface without cloud or GPU dependencies.
+- Frontend Monitor renders explainability status, model-card metrics, explanation method, and execution-card evidence for operator review.
+- TypeScript/OpenAPI contracts, Julia gateway tests, frontend tests, and contract tests cover the expanded evidence surface.
+
+
 
 ### Local Hardware Runtime Proof Slice (2026-06-03)
 
@@ -651,11 +660,11 @@ Tracker always records 3 things:
 
 ## Gaps Pending
 
-### Local-First Active Gap (2026-05-30)
+### Local-First Active Gap (2026-06-06)
 
-- `R-LOCAL-001` is mitigated for the bootstrap slice: smoke, health evidence, profile wiring, sample workflow availability, contracts, frontend Monitor rendering, and Julia tests are verified.
-- Active local-first product gap moves to local data estate proof: manifests, durable Arrow/Parquet artifacts, DuckDB acceleration, quotas, cleanup, and backup/restore hooks.
-- Toolchain hygiene remains: native `npm run build` can hang in this Windows npm/WSL interop shell after Vite transform, although direct Node/TypeScript/Vite build commands pass.
+- Local appliance bootstrap, data estate, metadata/database, hardware runtime, and explainability/model evidence are mitigated for current thin slices.
+- Active local-first product gap moves to offline Hub proof: bundled/local extension install without external registry dependency, checksum verification, sandbox tests, local artifact cache, and unsafe-extension blocking.
+- Broader export/reimport reproducibility bundles remain queued for the academic reproducibility lane; backup/restore integrity remains queued for the backup/restore lane.
 
 ### Phase 1 / Alpha Critical Gaps
 
@@ -677,11 +686,11 @@ Tracker always records 3 things:
 
 ## Next Items To Implement
 
-### Immediate Next Steps (Post 2026-05-30 Slice)
+### Immediate Next Steps (Post 2026-06-06 Slice)
 
-1. Start local data estate proof with managed zone manifests, checksums, Arrow/Parquet durability, DuckDB queries, quotas, cleanup, and backup hooks.
-2. Preserve `npm run smoke:local-bootstrap` as a regression gate for the local appliance path.
-3. Re-test `npm run build` in native WSL Node/npm or CI; continue using direct Node/TypeScript/Vite build commands as local evidence in the mixed Windows npm/WSL shell.
+1. Start offline Hub proof with bundled/local extension install, local artifact cache, checksum verification, sandbox tests, and unsafe-extension blocking without external registry dependency.
+2. Preserve `npm run smoke:local-explainability` plus prior local-first smokes as regression gates for the appliance path.
+3. Keep export/reimport reproducibility and backup/restore integrity queued for their later lanes.
 
 ### Next Priority
 

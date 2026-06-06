@@ -952,6 +952,10 @@
           }
         }
       },
+      "GatewayDatasetCardEvidence": {"type": "object", "required": ["datasetId", "sourceUri", "checksumSha256", "schemaSummary", "rowCount", "limitations"], "properties": {"datasetId": {"type": "string"}, "sourceUri": {"type": "string"}, "checksumSha256": {"type": "string"}, "schemaSummary": {"type": "array", "items": {"type": "object", "required": ["name", "type"], "properties": {"name": {"type": "string"}, "type": {"type": "string"}}}}, "rowCount": {"type": "integer"}, "limitations": {"type": "array", "items": {"type": "string"}}}},
+      "GatewayModelCardEvidence": {"type": "object", "required": ["modelId", "kind", "target", "config", "metrics", "limitations"], "properties": {"modelId": {"type": "string"}, "kind": {"type": "string"}, "target": {"type": "string"}, "config": {"type": "object", "additionalProperties": true}, "metrics": {"type": "object", "additionalProperties": {"type": "number"}}, "limitations": {"type": "array", "items": {"type": "string"}}}},
+      "GatewayExplanationEvidence": {"type": "object", "required": ["method", "featureImportance", "localExample", "warnings"], "properties": {"method": {"type": "string"}, "featureImportance": {"type": "array", "items": {"type": "object", "required": ["feature", "importance"], "properties": {"feature": {"type": "string"}, "importance": {"type": "number"}}}}, "localExample": {"type": "object", "additionalProperties": true}, "warnings": {"type": "array", "items": {"type": "string"}}}},
+      "GatewayExplainabilityEvidence": {"type": "object", "required": ["status", "generatedAt", "workflowId", "checkpointTag", "datasetCard", "modelCard", "explanation", "reproducibilityBundleReady"], "properties": {"status": {"type": "string", "enum": ["ready", "pending"]}, "generatedAt": {"type": "string"}, "workflowId": {"type": "string"}, "checkpointTag": {"type": "string"}, "datasetCard": {"$ref": "#/components/schemas/GatewayDatasetCardEvidence"}, "modelCard": {"$ref": "#/components/schemas/GatewayModelCardEvidence"}, "explanation": {"$ref": "#/components/schemas/GatewayExplanationEvidence"}, "reproducibilityBundleReady": {"type": "boolean"}}},
       "GatewayHealthcheck": {
         "type": "object",
         "required": [
@@ -1002,6 +1006,7 @@
           "gpuDeviceSummaries",
           "gpuReadinessStatus",
           "gpuFallbackReason",
+          "explainabilityEvidence",
           "repositoryBackend",
           "storeRoot",
           "workflowCount",
@@ -1169,6 +1174,9 @@
           },
           "gpuFallbackReason": {
             "type": "string"
+          },
+          "explainabilityEvidence": {
+            "$ref": "#/components/schemas/GatewayExplainabilityEvidence"
           },
           "repositoryBackend": {
             "type": "string"
@@ -2038,6 +2046,9 @@
               "$ref": "#/components/schemas/ExecutionStatusEvent"
             }
           },
+          "explainabilityEvidence": {
+            "$ref": "#/components/schemas/GatewayExplainabilityEvidence"
+          },
           "queuedAt": {
             "type": "string"
           },
@@ -2677,6 +2688,9 @@
           },
           "createdAt": {
             "type": "string"
+          },
+          "explainabilityEvidence": {
+            "$ref": "#/components/schemas/GatewayExplainabilityEvidence"
           }
         }
       },

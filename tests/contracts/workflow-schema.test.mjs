@@ -175,6 +175,12 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayHealthcheck.properties.gpuTotalVramBytes);
   assert.ok(schemas.GatewayHealthcheck.properties.gpuDeviceSummaries);
   assert.ok(schemas.GatewayGpuDeviceSummary.properties.memoryBytes);
+  assert.ok(schemas.GatewayExplainabilityEvidence);
+  assert.ok(schemas.GatewayDatasetCardEvidence.properties.checksumSha256);
+  assert.ok(schemas.GatewayModelCardEvidence.properties.metrics);
+  assert.ok(schemas.GatewayExplanationEvidence.properties.featureImportance);
+  assert.ok(schemas.GatewayHealthcheck.properties.explainabilityEvidence);
+  assert.ok(schemas.GatewayHealthcheck.required.includes("explainabilityEvidence"));
   assert.ok(schemas.GatewayHealthcheck.required.includes("hardwareProfileStatus"));
   assert.ok(schemas.GatewayHealthcheck.required.includes("gpuDeviceSummaries"));
   assert.ok(schemas.GatewayHealthcheck.properties.eventBackboneMode);
@@ -280,6 +286,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayExecutionRecord.properties.gpuSchedulerPolicy);
   assert.ok(schemas.GatewayExecutionRecord.properties.gpuWorkerIsolationMode);
   assert.ok(schemas.GatewayExecutionRecord.properties.gpuWorkerCapacity);
+  assert.ok(schemas.GatewayExecutionRecord.properties.explainabilityEvidence);
+  assert.ok(schemas.CheckpointRecord.properties.explainabilityEvidence);
   assert.ok(schemas.CreateCheckpointResponse.properties.checkpoint);
   assert.ok(schemas.CreateCheckpointResponse.properties.checkpointCount);
   assert.ok(schemas.HubExtensionListResponse.properties.items);
