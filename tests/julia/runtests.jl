@@ -2473,6 +2473,50 @@ end
                 JSON3.write(Dict("bundle" => tampered_reproducibility_bundle)),
             ),
         )
+        local_backup_export_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-backups",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("notes" => "local backup restore proof", "includeExecutions" => true)),
+            ),
+        )
+        local_backup_export_payload = JSON3.read(String(local_backup_export_response.body), Dict{String,Any})
+        imported_backup_home = mktempdir()
+        imported_backup_state = withenv(
+            "JULIAFLOW_HOME" => imported_backup_home,
+            "JULIAFLOW_DATA_ESTATE_ROOT" => joinpath(imported_backup_home, "data"),
+            "JULIAFLOW_METADATA_ROOT" => joinpath(imported_backup_home, "metadata"),
+        ) do
+            load_state(joinpath(imported_backup_home, "metadata", "gateway-store"))
+        end
+        local_backup_import_response = withenv(
+            "JULIAFLOW_HOME" => imported_backup_home,
+            "JULIAFLOW_DATA_ESTATE_ROOT" => joinpath(imported_backup_home, "data"),
+            "JULIAFLOW_METADATA_ROOT" => joinpath(imported_backup_home, "metadata"),
+        ) do
+            route_request(
+                imported_backup_state,
+                HTTP.Request(
+                    "POST",
+                    "/api/v1/local-backups/import",
+                    ["Content-Type" => "application/json"],
+                    JSON3.write(Dict("backup" => local_backup_export_payload["backup"])),
+                ),
+            )
+        end
+        tampered_local_backup = Dict{String,Any}(String(key) => value for (key, value) in pairs(local_backup_export_payload["backup"]))
+        tampered_local_backup["notes"] = "tampered local backup"
+        local_backup_import_tampered_response = route_request(
+            load_state(mktempdir()),
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-backups/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("backup" => tampered_local_backup)),
+            ),
+        )
         execute_payload = JSON3.read(String(execute_response.body), Dict{String,Any})
         execute_payload_id = get(execute_payload, "executionId", "missing-execution-id")
         gpu_execute_response = route_request(
@@ -2550,6 +2594,7 @@ end
         @test occursin("\"hubArtifactCacheRoot\":", String(health_response.body))
         @test occursin("\"hubCacheStatus\":", String(health_response.body))
         @test occursin("\"hubOfflineInstallReady\":", String(health_response.body))
+        @test occursin("\"localBackupRestoreReady\":", String(health_response.body))
         @test occursin("\"hubBundledExtensionCount\":", String(health_response.body))
         @test occursin("\"hubInstalledLocalExtensionCount\":", String(health_response.body))
         @test occursin("\"otelTraceSeamEnabled\":true", String(health_response.body))
@@ -2800,6 +2845,24 @@ end
         @test haskey(imported_reproducibility_state.published_dashboards, "dashboard-foundation")
         @test reproducibility_import_tampered_response.status == 400
         @test occursin("reproducibility bundle checksum mismatch", String(reproducibility_import_tampered_response.body))
+        @test local_backup_export_response.status == 200
+        @test local_backup_export_payload["backup"]["schemaVersion"] == "juliaflow.backup.v1"
+        @test local_backup_export_payload["backup"]["workflows"][1]["workflowId"] == "wf-foundation"
+        @test any(item -> item["tag"] == "cp/02-alpha-core", local_backup_export_payload["backup"]["checkpoints"])
+        @test any(item -> item["dashboardId"] == "dashboard-foundation", local_backup_export_payload["backup"]["publishedDashboards"])
+        @test length(local_backup_export_payload["backup"]["backupChecksumSha256"]) == 64
+        @test local_backup_import_response.status == 201
+        local_backup_import_payload = JSON3.read(String(local_backup_import_response.body), Dict{String,Any})
+        @test local_backup_import_payload["status"] in ["restored", "restored_with_missing_artifacts"]
+        @test local_backup_import_payload["backupId"] == local_backup_export_payload["backup"]["backupId"]
+        @test "wf-foundation" in local_backup_import_payload["restored"]["workflows"]
+        @test "cp/02-alpha-core" in local_backup_import_payload["restored"]["checkpoints"]
+        @test "dashboard-foundation" in local_backup_import_payload["restored"]["publishedDashboards"]
+        @test haskey(imported_backup_state.workflows, "wf-foundation")
+        @test any(item -> item.tag == "cp/02-alpha-core", imported_backup_state.checkpoints)
+        @test haskey(imported_backup_state.published_dashboards, "dashboard-foundation")
+        @test local_backup_import_tampered_response.status == 400
+        @test occursin("local backup checksum mismatch", String(local_backup_import_tampered_response.body))
         @test import_post.status == 201
         @test occursin("wf-parallel", String(import_post.body))
         @test preflight.status == 204

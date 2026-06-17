@@ -463,6 +463,80 @@
         }
       }
     },
+    "/api/v1/local-backups": {
+      "post": {
+        "summary": "Export a local appliance backup bundle",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalBackupExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Local backup exported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalBackupExportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid local backup export request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/local-backups/import": {
+      "post": {
+        "summary": "Restore a local appliance backup bundle",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalBackupImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Local backup restored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalBackupImportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid local backup import request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dashboards/{dashboardId}": {
       "get": {
         "summary": "Get published dashboard snapshot",
@@ -1057,6 +1131,7 @@
           "dataEstateCleanupStatus",
           "dataEstateBackupRoot",
           "dataEstateBackupStatus",
+          "localBackupRestoreReady",
           "dataEstateDuckdbStatus",
           "dataEstateDuckdbQueryPath",
           "freeDiskStatus",
@@ -1194,6 +1269,9 @@
               "ready",
               "pending"
             ]
+          },
+          "localBackupRestoreReady": {
+            "type": "boolean"
           },
           "dataEstateDuckdbStatus": {
             "type": "string",
@@ -2853,6 +2931,15 @@
       "ReproducibilityBundleExportResponse": {"type": "object", "required": ["status", "bundle"], "properties": {"status": {"type": "string", "enum": ["ok"]}, "bundle": {"$ref": "#/components/schemas/ReproducibilityBundle"}}},
       "ReproducibilityBundleImportRequest": {"type": "object", "required": ["bundle"], "properties": {"bundle": {"$ref": "#/components/schemas/ReproducibilityBundle"}}},
       "ReproducibilityBundleImportResponse": {"type": "object", "required": ["status", "bundleId", "workflowId", "checkpointTag", "bundleChecksumSha256"], "properties": {"status": {"type": "string", "enum": ["imported"]}, "bundleId": {"type": "string"}, "workflowId": {"type": "string"}, "checkpointTag": {"type": "string"}, "dashboardId": {"type": ["string", "null"]}, "bundleChecksumSha256": {"type": "string"}}},
+      "LocalBackupExportRequest": {"type": "object", "properties": {"notes": {"type": "string"}, "includeExecutions": {"type": "boolean"}}},
+      "LocalBackupArtifact": {"type": "object", "required": ["relativePath", "sizeBytes", "checksumSha256", "present"], "properties": {"relativePath": {"type": "string"}, "sizeBytes": {"type": "integer"}, "checksumSha256": {"type": "string"}, "present": {"type": "boolean"}}},
+      "LocalBackupBundle": {"type": "object", "required": ["backupId", "createdAt", "schemaVersion", "notes", "localOnly", "appliance", "dataEstate", "workflows", "checkpoints", "executions", "publishedDashboards", "hubExtensions", "authPolicy", "authDirectory", "packageEnvironment", "runtimeConfig", "backupChecksumSha256"], "properties": {"backupId": {"type": "string"}, "createdAt": {"type": "string"}, "schemaVersion": {"type": "string", "enum": ["juliaflow.backup.v1"]}, "notes": {"type": "string"}, "localOnly": {"type": "boolean"}, "appliance": {"type": "object", "additionalProperties": true}, "dataEstate": {"type": "object", "required": ["root", "zones", "artifactFormats", "manifestChecksums", "artifacts"], "properties": {"root": {"type": "string"}, "zones": {"type": "array", "items": {"$ref": "#/components/schemas/GatewayDataEstateZoneStatus"}}, "artifactFormats": {"type": "array", "items": {"type": "string", "enum": ["arrow_ipc", "parquet"]}}, "manifestChecksums": {"type": "array", "items": {"$ref": "#/components/schemas/GatewayDataEstateManifestChecksum"}}, "artifacts": {"type": "array", "items": {"$ref": "#/components/schemas/LocalBackupArtifact"}}}}, "workflows": {"type": "array", "items": {"$ref": "#/components/schemas/WorkflowDetail"}}, "checkpoints": {"type": "array", "items": {"$ref": "#/components/schemas/CheckpointRecord"}}, "executions": {"type": "array", "items": {"$ref": "#/components/schemas/GatewayExecutionRecord"}}, "publishedDashboards": {"type": "array", "items": {"$ref": "#/components/schemas/PublishedDashboard"}}, "hubExtensions": {"type": "array", "items": {"$ref": "#/components/schemas/HubExtensionRecord"}}, "authPolicy": {"$ref": "#/components/schemas/GatewayAuthPolicy"}, "authDirectory": {"$ref": "#/components/schemas/GatewayAuthDirectory"}, "packageEnvironment": {"type": "object", "additionalProperties": true}, "runtimeConfig": {"type": "object", "additionalProperties": true}, "backupChecksumSha256": {"type": "string"}}},
+      "LocalBackupExportResponse": {"type": "object", "required": ["status", "backup"], "properties": {"status": {"type": "string", "enum": ["ok"]}, "backup": {"$ref": "#/components/schemas/LocalBackupBundle"}}},
+      "LocalBackupImportRequest": {"type": "object", "required": ["backup"], "properties": {"backup": {"$ref": "#/components/schemas/LocalBackupBundle"}}},
+      "LocalBackupRestoredSummary": {"type": "object", "required": ["workflows", "checkpoints", "executions", "publishedDashboards", "hubExtensions", "authPolicy", "authDirectory"], "properties": {"workflows": {"type": "array", "items": {"type": "string"}}, "checkpoints": {"type": "array", "items": {"type": "string"}}, "executions": {"type": "array", "items": {"type": "string"}}, "publishedDashboards": {"type": "array", "items": {"type": "string"}}, "hubExtensions": {"type": "array", "items": {"type": "string"}}, "authPolicy": {"type": "boolean"}, "authDirectory": {"type": "boolean"}}},
+      "LocalBackupCheckedArtifact": {"type": "object", "required": ["relativePath", "checksumSha256", "sizeBytes"], "properties": {"relativePath": {"type": "string"}, "checksumSha256": {"type": "string"}, "sizeBytes": {"type": "integer"}}},
+      "LocalBackupChecksumMismatch": {"type": "object", "required": ["relativePath", "expectedChecksumSha256", "actualChecksumSha256", "sizeBytes"], "properties": {"relativePath": {"type": "string"}, "expectedChecksumSha256": {"type": "string"}, "actualChecksumSha256": {"type": "string"}, "sizeBytes": {"type": "integer"}}},
+      "LocalBackupImportResponse": {"type": "object", "required": ["status", "backupId", "backupChecksumSha256", "restored", "missingArtifacts", "checkedArtifacts", "checksumMismatches"], "properties": {"status": {"type": "string", "enum": ["restored", "restored_with_missing_artifacts"]}, "backupId": {"type": "string"}, "backupChecksumSha256": {"type": "string"}, "restored": {"$ref": "#/components/schemas/LocalBackupRestoredSummary"}, "missingArtifacts": {"type": "array", "items": {"$ref": "#/components/schemas/LocalBackupArtifact"}}, "checkedArtifacts": {"type": "array", "items": {"$ref": "#/components/schemas/LocalBackupCheckedArtifact"}}, "checksumMismatches": {"type": "array", "items": {"$ref": "#/components/schemas/LocalBackupChecksumMismatch"}}}},
       "HubExtensionRecord": {
         "type": "object",
         "required": [

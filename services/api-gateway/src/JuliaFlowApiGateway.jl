@@ -31,6 +31,8 @@ export GatewayCheckpoint,
     checkpoint_list_response,
     reproducibility_bundle_export_response!,
     reproducibility_bundle_import_response!,
+    local_backup_export_response!,
+    local_backup_restore_response!,
     import_workflow_response!,
     create_workflow_response!,
     update_workflow_response!,
@@ -852,6 +854,7 @@ function healthcheck(state::GatewayState)
             "dataEstateCleanupStatus" => data_estate["cleanupStatus"],
             "dataEstateBackupRoot" => data_estate["backupRoot"],
             "dataEstateBackupStatus" => data_estate["backupStatus"],
+            "localBackupRestoreReady" => data_estate["backupStatus"] == "ready" && metadata["metadataReady"] == true,
             "dataEstateDuckdbStatus" => data_estate["duckdbStatus"],
             "dataEstateDuckdbQueryPath" => data_estate["duckdbQueryPath"],
             "freeDiskStatus" => disk_status["status"],
@@ -1002,6 +1005,8 @@ const GATEWAY_ROLE_PERMISSIONS = Dict(
         "execution:write",
         "checkpoint:read",
         "checkpoint:write",
+        "backup:read",
+        "backup:write",
         "dashboard:read",
         "dashboard:publish",
         "hub:read",
@@ -1017,6 +1022,7 @@ const GATEWAY_ROLE_PERMISSIONS = Dict(
         "workflow:execute",
         "execution:read",
         "checkpoint:read",
+        "backup:read",
         "dashboard:read",
         "dashboard:publish",
         "hub:read",
@@ -1026,6 +1032,7 @@ const GATEWAY_ROLE_PERMISSIONS = Dict(
         "workflow:read",
         "execution:read",
         "checkpoint:read",
+        "backup:read",
         "dashboard:read",
         "hub:read",
     ]),
@@ -2034,6 +2041,272 @@ function reproducibility_bundle_import_response!(
     ))
 end
 
+function local_backup_checksum(backup::AbstractDict)
+    checksum_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(backup))
+    delete!(checksum_payload, "backupChecksumSha256")
+    materialized_payload = JSON3.read(JSON3.write(checksum_payload), Dict{String,Any})
+    return bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(materialized_payload)))))
+end
+
+function local_data_estate_artifact_records(root::AbstractString)
+    isdir(root) || return Dict{String,Any}[]
+    records = Dict{String,Any}[]
+    root_path = normpath(String(root))
+    visited = 0
+    for (dir, _dirs, files) in walkdir(root_path)
+        "_backups" in splitpath(dir) && continue
+        for file in sort(files)
+            visited += 1
+            visited <= 10_000 || return records
+            path = joinpath(dir, file)
+            isfile(path) || continue
+            relative_path = relpath(path, root_path)
+            push!(
+                records,
+                Dict{String,Any}(
+                    "relativePath" => relative_path,
+                    "sizeBytes" => filesize(path),
+                    "checksumSha256" => bytes2hex(sha256(read(path))),
+                    "present" => true,
+                ),
+            )
+        end
+    end
+    sort!(records; by = item -> String(item["relativePath"]))
+    return records
+end
+
+function local_backup_payload(
+    state::GatewayState;
+    notes::Union{Nothing,AbstractString} = nothing,
+    include_executions::Bool = true,
+)
+    health = JSON3.read(healthcheck(state), Dict{String,Any})
+    data_root = String(health["dataEstateRoot"])
+    workflows = [
+        JuliaFlowGatewayRepository.workflow_detail_payload(state.workflows[workflow_id])
+        for workflow_id in sort(collect(keys(state.workflows)))
+    ]
+    backup = Dict{String,Any}(
+        "backupId" => "backup-" * replace(string(uuid4()), "-" => ""),
+        "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
+        "schemaVersion" => "juliaflow.backup.v1",
+        "notes" => notes === nothing ? "" : String(notes),
+        "localOnly" => true,
+        "appliance" => Dict{String,Any}(
+            "localProfile" => health["localProfile"],
+            "localHome" => health["localHome"],
+            "repositoryBackend" => health["repositoryBackend"],
+            "metadataMode" => health["metadataMode"],
+            "metadataBackend" => health["metadataBackend"],
+            "metadataRoot" => health["metadataRoot"],
+            "cloudCredentialsRequired" => health["cloudCredentialsRequired"],
+        ),
+        "dataEstate" => Dict{String,Any}(
+            "root" => data_root,
+            "zones" => health["dataEstateZones"],
+            "artifactFormats" => health["dataEstateArtifactFormats"],
+            "manifestChecksums" => health["dataEstateManifestChecksums"],
+            "artifacts" => local_data_estate_artifact_records(data_root),
+        ),
+        "workflows" => workflows,
+        "checkpoints" => [checkpoint_payload(checkpoint, state) for checkpoint in state.checkpoints],
+        "executions" => include_executions ? [execution_payload(execution) for execution in state.executions] : Dict{String,Any}[],
+        "publishedDashboards" => [
+            JuliaFlowGatewayRepository.published_dashboard_payload(state.published_dashboards[dashboard_id])
+            for dashboard_id in sort(collect(keys(state.published_dashboards)))
+        ],
+        "hubExtensions" => [
+            JuliaFlowGatewayRepository.hub_extension_payload(state.hub_extensions[extension_id])
+            for extension_id in sort(collect(keys(state.hub_extensions)))
+        ],
+        "authPolicy" => JuliaFlowGatewayRepository.auth_policy_payload(JuliaFlowGatewayRepository.load_auth_policy(state.repository)),
+        "authDirectory" => JuliaFlowGatewayRepository.auth_directory_payload(JuliaFlowGatewayRepository.load_auth_directory(state.repository)),
+        "packageEnvironment" => package_environment_metadata(),
+        "runtimeConfig" => reproducibility_runtime_config(state),
+    )
+    backup["backupChecksumSha256"] = local_backup_checksum(backup)
+    return backup
+end
+
+function local_backup_export_response!(state::GatewayState, body::AbstractDict)
+    notes = haskey(body, "notes") ? String(body["notes"]) : nothing
+    include_executions = haskey(body, "includeExecutions") ? Bool(body["includeExecutions"]) : true
+    backup = local_backup_payload(state; notes = notes, include_executions = include_executions)
+    return JSON3.write(Dict("status" => "ok", "backup" => backup))
+end
+
+function safe_backup_artifact_path(root::AbstractString, relative_path::AbstractString)
+    path = normpath(joinpath(String(root), String(relative_path)))
+    root_path = normpath(String(root))
+    relative_to_root = relpath(path, root_path)
+    !isempty(splitpath(relative_to_root)) &&
+        splitpath(relative_to_root)[1] == ".." &&
+        error("backup artifact path escapes data estate: $(relative_path)")
+    isabspath(relative_to_root) && error("backup artifact path escapes data estate: $(relative_path)")
+    return path
+end
+
+function validate_backup_artifacts(backup::AbstractDict, data_root::AbstractString)
+    missing = Dict{String,Any}[]
+    checked = Dict{String,Any}[]
+    mismatches = Dict{String,Any}[]
+    data_estate = Dict{String,Any}(String(key) => value for (key, value) in pairs(backup["dataEstate"]))
+    for raw_artifact in get(data_estate, "artifacts", Any[])
+        artifact = Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_artifact))
+        relative_path = String(artifact["relativePath"])
+        path = safe_backup_artifact_path(data_root, relative_path)
+        expected_checksum = String(get(artifact, "checksumSha256", ""))
+        if !isfile(path)
+            push!(missing, artifact)
+            continue
+        end
+        actual_checksum = bytes2hex(sha256(read(path)))
+        if !isempty(expected_checksum) && actual_checksum != expected_checksum
+            push!(
+                mismatches,
+                Dict{String,Any}(
+                    "relativePath" => relative_path,
+                    "expectedChecksumSha256" => expected_checksum,
+                    "actualChecksumSha256" => actual_checksum,
+                    "sizeBytes" => filesize(path),
+                ),
+            )
+            continue
+        end
+        push!(
+            checked,
+            Dict{String,Any}(
+                "relativePath" => relative_path,
+                "checksumSha256" => actual_checksum,
+                "sizeBytes" => filesize(path),
+            ),
+        )
+    end
+    return missing, checked, mismatches
+end
+
+function restore_workflows_from_backup!(state::GatewayState, backup::AbstractDict)
+    restored = String[]
+    for raw_workflow in get(backup, "workflows", Any[])
+        workflow_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_workflow))
+        workflow_toml = workflow_toml_from_request(Dict{String,Any}("workflow" => workflow_payload))
+        workflow = save_workflow!(state.repository, workflow_toml; producer = "local-backup-restore")
+        state.workflows[workflow.id] = workflow
+        push!(restored, workflow.id)
+    end
+    return restored
+end
+
+function restore_checkpoints_from_backup!(state::GatewayState, backup::AbstractDict)
+    restored = String[]
+    for raw_checkpoint in get(backup, "checkpoints", Any[])
+        checkpoint_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_checkpoint))
+        checkpoint = GatewayCheckpoint(
+            tag = String(checkpoint_payload["tag"]),
+            summary = String(checkpoint_payload["summary"]),
+            created_at = String(checkpoint_payload["createdAt"]),
+        )
+        save_checkpoint!(state.repository, checkpoint)
+        index = findfirst(item -> item.tag == checkpoint.tag, state.checkpoints)
+        index === nothing ? push!(state.checkpoints, checkpoint) : (state.checkpoints[index] = checkpoint)
+        push!(restored, checkpoint.tag)
+    end
+    return restored
+end
+
+function restore_executions_from_backup!(state::GatewayState, backup::AbstractDict)
+    restored = String[]
+    for raw_execution in get(backup, "executions", Any[])
+        execution_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_execution))
+        execution = JuliaFlowGatewayRepository.gateway_execution(execution_payload)
+        save_execution!(state.repository, execution; producer = "local-backup-restore")
+        index = findfirst(item -> item.execution_id == execution.execution_id, state.executions)
+        index === nothing ? push!(state.executions, execution) : (state.executions[index] = execution)
+        push!(restored, execution.execution_id)
+    end
+    sync_worker_service!(state.worker_service, state.executions)
+    return restored
+end
+
+function restore_dashboards_from_backup!(state::GatewayState, backup::AbstractDict)
+    restored = String[]
+    for raw_dashboard in get(backup, "publishedDashboards", Any[])
+        dashboard_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_dashboard))
+        dashboard = JuliaFlowGatewayRepository.gateway_published_dashboard(dashboard_payload)
+        state.published_dashboards[dashboard.dashboard_id] = dashboard
+        JuliaFlowGatewayRepository.save_published_dashboard!(state.repository, dashboard; producer = "local-backup-restore")
+        push!(restored, dashboard.dashboard_id)
+    end
+    return restored
+end
+
+function restore_hub_extensions_from_backup!(state::GatewayState, backup::AbstractDict)
+    restored = String[]
+    for raw_extension in get(backup, "hubExtensions", Any[])
+        extension_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_extension))
+        extension = JuliaFlowGatewayRepository.gateway_hub_extension(extension_payload)
+        state.hub_extensions[extension.extension_id] = extension
+        JuliaFlowGatewayRepository.save_hub_extension!(state.repository, extension; producer = "local-backup-restore")
+        push!(restored, extension.extension_id)
+    end
+    return restored
+end
+
+function restore_auth_from_backup!(state::GatewayState, backup::AbstractDict)
+    if haskey(backup, "authPolicy")
+        policy_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(backup["authPolicy"]))
+        policy = JuliaFlowGatewayRepository.gateway_auth_policy(policy_payload)
+        JuliaFlowGatewayRepository.save_auth_policy!(state.repository, policy; producer = "local-backup-restore")
+    end
+    if haskey(backup, "authDirectory")
+        directory_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(backup["authDirectory"]))
+        directory = JuliaFlowGatewayRepository.gateway_auth_directory(directory_payload)
+        JuliaFlowGatewayRepository.save_auth_directory!(state.repository, directory; producer = "local-backup-restore")
+    end
+    return true
+end
+
+function local_backup_restore_response!(state::GatewayState, body::AbstractDict)
+    haskey(body, "backup") || error("missing backup")
+    raw_backup = body["backup"]
+    raw_backup isa AbstractDict || error("backup must be an object")
+    backup = Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_backup))
+    String(get(backup, "schemaVersion", "")) == "juliaflow.backup.v1" || error("unsupported local backup schemaVersion")
+    declared_checksum = String(get(backup, "backupChecksumSha256", ""))
+    isempty(declared_checksum) && error("backup missing backupChecksumSha256")
+    actual_checksum = local_backup_checksum(backup)
+    declared_checksum == actual_checksum || error("local backup checksum mismatch")
+
+    health = JSON3.read(healthcheck(state), Dict{String,Any})
+    missing_artifacts, checked_artifacts, checksum_mismatches = validate_backup_artifacts(backup, String(health["dataEstateRoot"]))
+    restored_workflows = restore_workflows_from_backup!(state, backup)
+    restored_checkpoints = restore_checkpoints_from_backup!(state, backup)
+    restored_executions = restore_executions_from_backup!(state, backup)
+    restored_dashboards = restore_dashboards_from_backup!(state, backup)
+    restored_hub_extensions = restore_hub_extensions_from_backup!(state, backup)
+    restore_auth_from_backup!(state, backup)
+    status = isempty(missing_artifacts) && isempty(checksum_mismatches) ? "restored" : "restored_with_missing_artifacts"
+
+    return JSON3.write(Dict{String,Any}(
+        "status" => status,
+        "backupId" => String(backup["backupId"]),
+        "backupChecksumSha256" => declared_checksum,
+        "restored" => Dict{String,Any}(
+            "workflows" => restored_workflows,
+            "checkpoints" => restored_checkpoints,
+            "executions" => restored_executions,
+            "publishedDashboards" => restored_dashboards,
+            "hubExtensions" => restored_hub_extensions,
+            "authPolicy" => haskey(backup, "authPolicy"),
+            "authDirectory" => haskey(backup, "authDirectory"),
+        ),
+        "missingArtifacts" => missing_artifacts,
+        "checkedArtifacts" => checked_artifacts,
+        "checksumMismatches" => checksum_mismatches,
+    ))
+end
+
 function current_contract_version()
     return "0.1.0"
 end
@@ -2941,6 +3214,14 @@ function classify_gateway_error(err)
     elseif occursin("missing ", message)
         return 400, message
     elseif occursin("reproducibility bundle checksum mismatch", message)
+        return 400, message
+    elseif occursin("local backup checksum mismatch", message)
+        return 400, message
+    elseif occursin("local backup artifact checksum mismatch", message)
+        return 400, message
+    elseif occursin("backup artifact path escapes data estate", message)
+        return 400, message
+    elseif occursin("unsupported local backup schemaVersion", message)
         return 400, message
     elseif occursin("manifest ", message)
         return 400, message
@@ -3954,6 +4235,20 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             body = parse_request_body(request)
             response = reproducibility_bundle_import_response!(state, body)
             append_audit_event!(state, request, "reproducibility.bundle.import"; target_type = "reproducibility_bundle", target_id = "import")
+            return json_response(201, response)
+        end
+        method == "POST" && segments == ["api", "v1", "local-backups"] && begin
+            require_permission!(state, request, "backup:read")
+            body = parse_request_body(request)
+            response = local_backup_export_response!(state, body)
+            append_audit_event!(state, request, "local.backup.export"; target_type = "local_backup", target_id = "export")
+            return json_response(200, response)
+        end
+        method == "POST" && segments == ["api", "v1", "local-backups", "import"] && begin
+            require_permission!(state, request, "backup:write")
+            body = parse_request_body(request)
+            response = local_backup_restore_response!(state, body)
+            append_audit_event!(state, request, "local.backup.import"; target_type = "local_backup", target_id = "import")
             return json_response(201, response)
         end
         method == "POST" && segments == ["api", "v1", "workflows"] && begin

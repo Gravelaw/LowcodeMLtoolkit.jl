@@ -55,6 +55,8 @@ export type ResourcePermission =
   | "execution:write"
   | "checkpoint:read"
   | "checkpoint:write"
+  | "backup:read"
+  | "backup:write"
   | "dashboard:read"
   | "dashboard:publish"
   | "hub:read"
@@ -459,6 +461,7 @@ export interface GatewayHealthcheck {
   dataEstateCleanupStatus: "ready" | "pending";
   dataEstateBackupRoot: string;
   dataEstateBackupStatus: "ready" | "pending";
+  localBackupRestoreReady: boolean;
   dataEstateDuckdbStatus: "ready" | "pending";
   dataEstateDuckdbQueryPath: string;
   freeDiskStatus: "available" | "unavailable" | "unknown";
@@ -671,6 +674,76 @@ export interface GatewayReproducibilityBundleImportResponse {
   checkpointTag: string;
   dashboardId?: string | null;
   bundleChecksumSha256: string;
+}
+
+export interface GatewayLocalBackupExportRequest {
+  notes?: string;
+  includeExecutions?: boolean;
+}
+
+export interface GatewayLocalBackupArtifact {
+  relativePath: string;
+  sizeBytes: number;
+  checksumSha256: string;
+  present: boolean;
+}
+
+export interface GatewayLocalBackupBundle {
+  backupId: string;
+  createdAt: string;
+  schemaVersion: "juliaflow.backup.v1";
+  notes: string;
+  localOnly: boolean;
+  appliance: Record<string, string | boolean>;
+  dataEstate: {
+    root: string;
+    zones: GatewayDataEstateZoneStatus[];
+    artifactFormats: Array<"arrow_ipc" | "parquet">;
+    manifestChecksums: GatewayDataEstateManifestChecksum[];
+    artifacts: GatewayLocalBackupArtifact[];
+  };
+  workflows: GatewayWorkflowMetadata[];
+  checkpoints: GatewayCheckpointRecord[];
+  executions: GatewayExecutionRecord[];
+  publishedDashboards: PublishedDashboardDefinition[];
+  hubExtensions: GatewayHubExtensionRecord[];
+  authPolicy: GatewayAuthPolicy;
+  authDirectory: GatewayAuthDirectory;
+  packageEnvironment: Record<string, string | boolean>;
+  runtimeConfig: Record<string, string | number | boolean>;
+  backupChecksumSha256: string;
+}
+
+export interface GatewayLocalBackupExportResponse {
+  status: "ok";
+  backup: GatewayLocalBackupBundle;
+}
+
+export interface GatewayLocalBackupImportRequest {
+  backup: GatewayLocalBackupBundle;
+}
+
+export interface GatewayLocalBackupImportResponse {
+  status: "restored" | "restored_with_missing_artifacts";
+  backupId: string;
+  backupChecksumSha256: string;
+  restored: {
+    workflows: string[];
+    checkpoints: string[];
+    executions: string[];
+    publishedDashboards: string[];
+    hubExtensions: string[];
+    authPolicy: boolean;
+    authDirectory: boolean;
+  };
+  missingArtifacts: GatewayLocalBackupArtifact[];
+  checkedArtifacts: Array<{ relativePath: string; checksumSha256: string; sizeBytes: number }>;
+  checksumMismatches: Array<{
+    relativePath: string;
+    expectedChecksumSha256: string;
+    actualChecksumSha256: string;
+    sizeBytes: number;
+  }>;
 }
 
 export type HubExtensionPublisher = "official" | "partner";
@@ -1085,6 +1158,8 @@ export const gatewayEndpointPaths = {
   checkpoints: "/api/v1/checkpoints",
   reproducibilityBundles: "/api/v1/reproducibility-bundles",
   reproducibilityBundleImport: "/api/v1/reproducibility-bundles/import",
+  localBackups: "/api/v1/local-backups",
+  localBackupImport: "/api/v1/local-backups/import",
   publishedDashboard: (dashboardId: string, request?: GatewayPublishedDashboardReadRequest) => {
     const path = `/api/v1/dashboards/${encodeURIComponent(dashboardId)}`;
     const params = new URLSearchParams();
@@ -1347,6 +1422,14 @@ export interface GatewayApiClient {
     request: GatewayReproducibilityBundleImportRequest,
     options?: GatewayRequestOptions
   ): Promise<GatewayReproducibilityBundleImportResponse>;
+  exportLocalBackup(
+    request: GatewayLocalBackupExportRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayLocalBackupExportResponse>;
+  importLocalBackup(
+    request: GatewayLocalBackupImportRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayLocalBackupImportResponse>;
   listPublishedDashboards(
     workflowId: string,
     options?: GatewayRequestOptions
@@ -1602,6 +1685,20 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "POST",
         gatewayEndpointPaths.reproducibilityBundleImport,
         bundleRequest,
+        requestOptions
+      ),
+    exportLocalBackup: (backupRequest, requestOptions) =>
+      request<GatewayLocalBackupExportResponse>(
+        "POST",
+        gatewayEndpointPaths.localBackups,
+        backupRequest,
+        requestOptions
+      ),
+    importLocalBackup: (backupRequest, requestOptions) =>
+      request<GatewayLocalBackupImportResponse>(
+        "POST",
+        gatewayEndpointPaths.localBackupImport,
+        backupRequest,
         requestOptions
       ),
     listPublishedDashboards: (workflowId, requestOptions) =>
