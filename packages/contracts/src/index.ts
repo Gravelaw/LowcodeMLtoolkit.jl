@@ -483,6 +483,14 @@ export interface GatewayHealthcheck {
   gpuTotalVramBytes: number;
   gpuDeviceSummaries: GatewayGpuDeviceSummary[];
   explainabilityEvidence: GatewayExplainabilityEvidence;
+  hubCacheRoot: string;
+  hubArtifactStorePath: string;
+  hubMirrorRegistryPath: string;
+  hubArtifactCacheRoot: string;
+  hubCacheStatus: "ready" | "pending";
+  hubOfflineInstallReady: boolean;
+  hubBundledExtensionCount: number;
+  hubInstalledLocalExtensionCount: number;
   repositoryBackend: string;
   storeRoot: string;
   workflowCount: number;
@@ -617,6 +625,52 @@ export interface GatewayDashboardPublishRequest {
 
 export interface GatewayPublishedDashboardListResponse {
   items: PublishedDashboardDefinition[];
+}
+
+export interface GatewayReproducibilityBundleExportRequest {
+  workflowId: string;
+  checkpointTag: string;
+  dashboardId?: string;
+  notes?: string;
+}
+
+export interface GatewayReproducibilityBundle {
+  bundleId: string;
+  createdAt: string;
+  schemaVersion: "juliaflow.reproducibility.v1";
+  workflow: GatewayWorkflowMetadata;
+  checkpoint: GatewayCheckpointRecord;
+  dataReferences: Array<{ datasetId: string; sourceUri: string; checksumSha256: string; rowCount: number }>;
+  datasetCards: GatewayDatasetCardEvidence[];
+  packageEnvironment: Record<string, string | boolean>;
+  runtimeConfig: Record<string, string | number | boolean>;
+  randomSeeds: Record<string, number>;
+  modelArtifact: { modelId: string; artifactRef: string; checksumSha256: string };
+  metrics: Record<string, number>;
+  evaluationOutputs: Record<string, unknown>;
+  explainabilityOutputs: GatewayExplanationEvidence;
+  dashboardSnapshot?: PublishedDashboardDefinition | null;
+  notes: string;
+  localOnly: boolean;
+  bundleChecksumSha256: string;
+}
+
+export interface GatewayReproducibilityBundleExportResponse {
+  status: "ok";
+  bundle: GatewayReproducibilityBundle;
+}
+
+export interface GatewayReproducibilityBundleImportRequest {
+  bundle: GatewayReproducibilityBundle;
+}
+
+export interface GatewayReproducibilityBundleImportResponse {
+  status: "imported";
+  bundleId: string;
+  workflowId: string;
+  checkpointTag: string;
+  dashboardId?: string | null;
+  bundleChecksumSha256: string;
 }
 
 export type HubExtensionPublisher = "official" | "partner";
@@ -1029,6 +1083,8 @@ export const gatewayEndpointPaths = {
   executionStatus: (executionId: string) =>
     `/api/v1/executions/${encodeURIComponent(executionId)}/status`,
   checkpoints: "/api/v1/checkpoints",
+  reproducibilityBundles: "/api/v1/reproducibility-bundles",
+  reproducibilityBundleImport: "/api/v1/reproducibility-bundles/import",
   publishedDashboard: (dashboardId: string, request?: GatewayPublishedDashboardReadRequest) => {
     const path = `/api/v1/dashboards/${encodeURIComponent(dashboardId)}`;
     const params = new URLSearchParams();
@@ -1283,6 +1339,14 @@ export interface GatewayApiClient {
     request: CreateCheckpointRequest,
     options?: GatewayRequestOptions
   ): Promise<GatewayCheckpointCreateResponse>;
+  exportReproducibilityBundle(
+    request: GatewayReproducibilityBundleExportRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayReproducibilityBundleExportResponse>;
+  importReproducibilityBundle(
+    request: GatewayReproducibilityBundleImportRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayReproducibilityBundleImportResponse>;
   listPublishedDashboards(
     workflowId: string,
     options?: GatewayRequestOptions
@@ -1524,6 +1588,20 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "POST",
         gatewayEndpointPaths.checkpoints,
         checkpoint,
+        requestOptions
+      ),
+    exportReproducibilityBundle: (bundleRequest, requestOptions) =>
+      request<GatewayReproducibilityBundleExportResponse>(
+        "POST",
+        gatewayEndpointPaths.reproducibilityBundles,
+        bundleRequest,
+        requestOptions
+      ),
+    importReproducibilityBundle: (bundleRequest, requestOptions) =>
+      request<GatewayReproducibilityBundleImportResponse>(
+        "POST",
+        gatewayEndpointPaths.reproducibilityBundleImport,
+        bundleRequest,
         requestOptions
       ),
     listPublishedDashboards: (workflowId, requestOptions) =>

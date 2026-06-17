@@ -1,6 +1,6 @@
 ---
 name: juliaflow-control-loop
-description: Use for JuliaFlow BRD/TODO/checkpoint driven planning, milestone closure, traceability updates, and cross-layer delivery decisions.
+description: Use for JuliaFlow control docs, traceability, and milestone closure.
 ---
 
 # JuliaFlow Control Loop

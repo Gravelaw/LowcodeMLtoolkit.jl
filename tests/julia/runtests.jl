@@ -2436,6 +2436,43 @@ end
             state,
             HTTP.Request("POST", "/api/v1/workflows/import", ["Content-Type" => "application/json"], JSON3.write(Dict("sourcePath" => parallel_path))),
         )
+        reproducibility_export_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/reproducibility-bundles",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict(
+                    "workflowId" => "wf-foundation",
+                    "checkpointTag" => "cp/02-alpha-core",
+                    "dashboardId" => "dashboard-foundation",
+                    "notes" => "local academic reproducibility proof",
+                )),
+            ),
+        )
+        reproducibility_export_payload = JSON3.read(String(reproducibility_export_response.body), Dict{String,Any})
+        imported_reproducibility_store = mktempdir()
+        imported_reproducibility_state = load_state(imported_reproducibility_store)
+        reproducibility_import_response = route_request(
+            imported_reproducibility_state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/reproducibility-bundles/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("bundle" => reproducibility_export_payload["bundle"])),
+            ),
+        )
+        tampered_reproducibility_bundle = Dict{String,Any}(String(key) => value for (key, value) in pairs(reproducibility_export_payload["bundle"]))
+        tampered_reproducibility_bundle["notes"] = "tampered notes"
+        reproducibility_import_tampered_response = route_request(
+            load_state(mktempdir()),
+            HTTP.Request(
+                "POST",
+                "/api/v1/reproducibility-bundles/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("bundle" => tampered_reproducibility_bundle)),
+            ),
+        )
         execute_payload = JSON3.read(String(execute_response.body), Dict{String,Any})
         execute_payload_id = get(execute_payload, "executionId", "missing-execution-id")
         gpu_execute_response = route_request(
@@ -2507,6 +2544,14 @@ end
         @test occursin("\"gpuReadinessStatus\":", String(health_response.body))
         @test occursin("\"gpuCudaStatus\":", String(health_response.body))
         @test occursin("\"gpuDeviceSummaries\":", String(health_response.body))
+        @test occursin("\"hubCacheRoot\":", String(health_response.body))
+        @test occursin("\"hubArtifactStorePath\":", String(health_response.body))
+        @test occursin("\"hubMirrorRegistryPath\":", String(health_response.body))
+        @test occursin("\"hubArtifactCacheRoot\":", String(health_response.body))
+        @test occursin("\"hubCacheStatus\":", String(health_response.body))
+        @test occursin("\"hubOfflineInstallReady\":", String(health_response.body))
+        @test occursin("\"hubBundledExtensionCount\":", String(health_response.body))
+        @test occursin("\"hubInstalledLocalExtensionCount\":", String(health_response.body))
         @test occursin("\"otelTraceSeamEnabled\":true", String(health_response.body))
         @test metrics_route_response.status == 200
         @test occursin("juliaflow_workflows_total", String(metrics_route_response.body))
@@ -2730,6 +2775,31 @@ end
         @test occursin("\"status\":\"queued\"", String(execution_detail.body))
         @test checkpoint_post.status == 201
         @test occursin("cp/02-alpha-core", String(checkpoint_post.body))
+        @test reproducibility_export_response.status == 200
+        @test reproducibility_export_payload["bundle"]["schemaVersion"] == "juliaflow.reproducibility.v1"
+        @test reproducibility_export_payload["bundle"]["workflow"]["workflowId"] == "wf-foundation"
+        @test reproducibility_export_payload["bundle"]["checkpoint"]["tag"] == "cp/02-alpha-core"
+        @test reproducibility_export_payload["bundle"]["dataReferences"][1]["datasetId"] == "foundation-sales-sample"
+        @test reproducibility_export_payload["bundle"]["datasetCards"][1]["checksumSha256"] == reproducibility_export_payload["bundle"]["dataReferences"][1]["checksumSha256"]
+        @test reproducibility_export_payload["bundle"]["packageEnvironment"]["offlineOnly"] == true
+        @test reproducibility_export_payload["bundle"]["runtimeConfig"]["cloudCredentialsRequired"] == false
+        @test reproducibility_export_payload["bundle"]["randomSeeds"]["modelSeed"] == 42
+        @test reproducibility_export_payload["bundle"]["modelArtifact"]["modelId"] == "foundation-linear-baseline"
+        @test reproducibility_export_payload["bundle"]["metrics"]["mae"] == 1.25
+        @test reproducibility_export_payload["bundle"]["explainabilityOutputs"]["method"] == "deterministic_feature_contribution"
+        @test reproducibility_export_payload["bundle"]["dashboardSnapshot"]["dashboardId"] == "dashboard-foundation"
+        @test length(reproducibility_export_payload["bundle"]["bundleChecksumSha256"]) == 64
+        @test reproducibility_import_response.status == 201
+        reproducibility_import_payload = JSON3.read(String(reproducibility_import_response.body), Dict{String,Any})
+        @test reproducibility_import_payload["status"] == "imported"
+        @test reproducibility_import_payload["workflowId"] == "wf-foundation"
+        @test reproducibility_import_payload["checkpointTag"] == "cp/02-alpha-core"
+        @test reproducibility_import_payload["dashboardId"] == "dashboard-foundation"
+        @test haskey(imported_reproducibility_state.workflows, "wf-foundation")
+        @test imported_reproducibility_state.checkpoints[end].tag == "cp/02-alpha-core"
+        @test haskey(imported_reproducibility_state.published_dashboards, "dashboard-foundation")
+        @test reproducibility_import_tampered_response.status == 400
+        @test occursin("reproducibility bundle checksum mismatch", String(reproducibility_import_tampered_response.body))
         @test import_post.status == 201
         @test occursin("wf-parallel", String(import_post.body))
         @test preflight.status == 204

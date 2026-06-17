@@ -141,6 +141,14 @@ function healthPayload(overrides: Record<string, unknown> = {}) {
     gpuTotalVramBytes: 0,
     gpuDeviceSummaries: [],
     explainabilityEvidence: explainabilityEvidencePayload(),
+    hubCacheRoot: "/tmp/juliaflow/hub-cache",
+    hubArtifactStorePath: "/tmp/juliaflow/hub-cache/artifact-store.json",
+    hubMirrorRegistryPath: "/tmp/juliaflow/hub-cache/mirror-registry.json",
+    hubArtifactCacheRoot: "/tmp/juliaflow/hub-cache/artifacts",
+    hubCacheStatus: "ready",
+    hubOfflineInstallReady: true,
+    hubBundledExtensionCount: 1,
+    hubInstalledLocalExtensionCount: 1,
     repositoryBackend: "file",
     storeRoot: "/tmp/juliaflow",
     workflowCount: 0,
@@ -1044,6 +1052,10 @@ describe("App", () => {
     expect(screen.getByText(/deterministic_linear_baseline · 1.25 MAE/i)).toBeInTheDocument();
     expect(screen.getByText(/Explanation method/i)).toBeInTheDocument();
     expect(screen.getByText(/deterministic_feature_contribution · 3 features/i)).toBeInTheDocument();
+    expect(screen.getByText(/Offline Hub/i)).toBeInTheDocument();
+    expect(screen.getByText(/ready · 1 bundled/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hub install proof/i)).toBeInTheDocument();
+    expect(screen.getByText(/ready · 1 local installed/i)).toBeInTheDocument();
     expect(screen.getByText(/foundation-sales-sample · deterministic_linear_baseline · deterministic_feature_contribution/i)).toBeInTheDocument();
     expect(screen.getByText(/Data estate/i)).toBeInTheDocument();
     expect(screen.getByText(/Estate manifests/i)).toBeInTheDocument();

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 
 const CONTROL_DOCS = new Set([
   "Plan.md",
@@ -15,16 +15,16 @@ const OPTIONAL_CONTROL_DOCS = new Set([
 ]);
 
 function gitLines(args) {
-  try {
-    return execFileSync("git", args, { encoding: "utf8" })
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-  } catch (error) {
-    console.error(error.stdout ?? "");
-    console.error(error.stderr ?? error.message);
+  const result = spawnSync("git", args, { encoding: "utf8" });
+  if (result.status !== 0) {
+    console.error(result.stdout ?? "");
+    console.error(result.stderr ?? result.error?.message ?? "git command failed");
     process.exit(1);
   }
+  return result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 const changed = new Set([

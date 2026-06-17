@@ -4512,6 +4512,14 @@ function App() {
                       <span>{workspaceData.health?.explainabilityEvidence?.explanation.method ?? "pending"} · {workspaceData.health?.explainabilityEvidence?.explanation.featureImportance.length ?? 0} features</span>
                     </div>
                     <div className="inspector-row">
+                      <strong>Offline Hub</strong>
+                      <span>{workspaceData.health?.hubCacheStatus ?? "pending"} · {workspaceData.health?.hubBundledExtensionCount ?? 0} bundled</span>
+                    </div>
+                    <div className="inspector-row">
+                      <strong>Hub install proof</strong>
+                      <span>{workspaceData.health?.hubOfflineInstallReady ? "ready" : "pending"} · {workspaceData.health?.hubInstalledLocalExtensionCount ?? 0} local installed</span>
+                    </div>
+                    <div className="inspector-row">
                       <strong>Realtime transport</strong>
                       <span>{workspaceData.health?.realtimeTransport ?? "jsonrpc_websocket"}</span>
                     </div>

@@ -1,6 +1,6 @@
 ---
 name: juliaflow-local-first-appliance
-description: Use when implementing or reviewing JuliaFlow local-first GA work: one-command local bootstrap, local data estate, DuckDB analytics, local PostgreSQL lab/team metadata, CPU/GPU hardware profiling, explainability/model evidence, offline Hub, academic reproducibility bundles, and backup/restore.
+description: Use for JuliaFlow local-first GA appliance work, including Offline Hub, reproducibility, and backup/restore.
 ---
 
 # JuliaFlow Local-First Appliance

@@ -29,6 +29,8 @@ export GatewayCheckpoint,
     transition_execution_response!,
     create_checkpoint_response!,
     checkpoint_list_response,
+    reproducibility_bundle_export_response!,
+    reproducibility_bundle_import_response!,
     import_workflow_response!,
     create_workflow_response!,
     update_workflow_response!,
@@ -774,6 +776,37 @@ function local_hardware_runtime_profile(disk_status, gpu_registry)
     )
 end
 
+function local_hub_cache_root(appliance_home::AbstractString)
+    return get(ENV, "JULIAFLOW_HUB_CACHE_ROOT", joinpath(appliance_home, "hub-cache"))
+end
+
+function local_hub_cache_health(appliance_home::AbstractString, extensions)
+    cache_root = local_hub_cache_root(appliance_home)
+    artifact_store_path = get(ENV, "JULIAFLOW_HUB_ARTIFACT_STORE", joinpath(cache_root, "artifact-store.json"))
+    mirror_registry_path = get(ENV, "JULIAFLOW_HUB_MIRROR_REGISTRY", joinpath(cache_root, "mirror-registry.json"))
+    artifact_cache_root = joinpath(cache_root, "artifacts")
+    bundled_count = count(extension -> extension.publisher == "official", values(extensions))
+    installed_local_count = count(
+        extension -> extension.install_state in ("installed", "enabled") &&
+                     all(valid_hub_mirror_ref(ref) for ref in extension.mirror_refs),
+        values(extensions),
+    )
+    registries_ready = isdir(cache_root) &&
+                       isdir(artifact_cache_root) &&
+                       isfile(artifact_store_path) &&
+                       isfile(mirror_registry_path)
+    return Dict(
+        "hubCacheRoot" => cache_root,
+        "hubArtifactStorePath" => artifact_store_path,
+        "hubMirrorRegistryPath" => mirror_registry_path,
+        "hubArtifactCacheRoot" => artifact_cache_root,
+        "hubCacheStatus" => registries_ready ? "ready" : "pending",
+        "hubOfflineInstallReady" => registries_ready,
+        "hubBundledExtensionCount" => bundled_count,
+        "hubInstalledLocalExtensionCount" => installed_local_count,
+    )
+end
+
 function healthcheck(state::GatewayState)
     store_id = state.repository isa FileGatewayRepository ? state.repository.root : "postgresql"
     event_stats = health_event_stats(state)
@@ -792,6 +825,7 @@ function healthcheck(state::GatewayState)
     data_estate = local_data_estate_management(data_root, zones)
     metadata = local_metadata_health(state, profile, appliance_home)
     hardware = local_hardware_runtime_profile(disk_status, gpu_registry)
+    hub_cache = local_hub_cache_health(appliance_home, state.hub_extensions)
     return JSON3.write(
         Dict(
             "service" => "api-gateway",
@@ -842,6 +876,14 @@ function healthcheck(state::GatewayState)
             "gpuTotalVramBytes" => hardware["gpuTotalVramBytes"],
             "gpuDeviceSummaries" => hardware["gpuDeviceSummaries"],
             "explainabilityEvidence" => gateway_explainability_evidence(state),
+            "hubCacheRoot" => hub_cache["hubCacheRoot"],
+            "hubArtifactStorePath" => hub_cache["hubArtifactStorePath"],
+            "hubMirrorRegistryPath" => hub_cache["hubMirrorRegistryPath"],
+            "hubArtifactCacheRoot" => hub_cache["hubArtifactCacheRoot"],
+            "hubCacheStatus" => hub_cache["hubCacheStatus"],
+            "hubOfflineInstallReady" => hub_cache["hubOfflineInstallReady"],
+            "hubBundledExtensionCount" => hub_cache["hubBundledExtensionCount"],
+            "hubInstalledLocalExtensionCount" => hub_cache["hubInstalledLocalExtensionCount"],
             "repositoryBackend" => String(repository_backend(state)),
             "storeRoot" => store_id,
             "workflowCount" => length(state.workflows),
@@ -1805,6 +1847,193 @@ function checkpoint_list_response(state::GatewayState)
     return JSON3.write(Dict("items" => [checkpoint_payload(checkpoint, state) for checkpoint in state.checkpoints]))
 end
 
+function canonical_json(value)
+    if value isa AbstractDict || value isa JSON3.Object
+        parts = String[]
+        normalized = Dict{String,Any}(String(key) => item for (key, item) in pairs(value))
+        for key in sort(collect(keys(normalized)))
+            push!(parts, JSON3.write(key) * ":" * canonical_json(normalized[key]))
+        end
+        return "{" * join(parts, ",") * "}"
+    elseif value isa AbstractVector || value isa JSON3.Array
+        return "[" * join([canonical_json(item) for item in value], ",") * "]"
+    elseif value === nothing
+        return "null"
+    elseif value isa AbstractString || value isa Number || value isa Bool
+        return JSON3.write(value)
+    else
+        return JSON3.write(value)
+    end
+end
+
+function reproducibility_bundle_checksum(bundle::AbstractDict)
+    checksum_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(bundle))
+    delete!(checksum_payload, "bundleChecksumSha256")
+    materialized_payload = JSON3.read(JSON3.write(checksum_payload), Dict{String,Any})
+    return bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(materialized_payload)))))
+end
+
+function find_checkpoint(state::GatewayState, checkpoint_tag::AbstractString)
+    for checkpoint in state.checkpoints
+        checkpoint.tag == checkpoint_tag && return checkpoint
+    end
+    return nothing
+end
+
+function package_environment_metadata()
+    project_path = joinpath(pwd(), "Project.toml")
+    package_path = joinpath(pwd(), "package.json")
+    return Dict{String,Any}(
+        "juliaVersion" => string(VERSION),
+        "projectPath" => project_path,
+        "projectChecksumSha256" => isfile(project_path) ? bytes2hex(sha256(read(project_path))) : "",
+        "packagePath" => package_path,
+        "packageChecksumSha256" => isfile(package_path) ? bytes2hex(sha256(read(package_path))) : "",
+        "offlineOnly" => true,
+    )
+end
+
+function reproducibility_runtime_config(state::GatewayState)
+    health = JSON3.read(healthcheck(state), Dict{String,Any})
+    return Dict{String,Any}(
+        "localProfile" => health["localProfile"],
+        "metadataMode" => health["metadataMode"],
+        "metadataBackend" => health["metadataBackend"],
+        "hardwareSelectedBackend" => health["hardwareSelectedBackend"],
+        "cpuThreadCount" => health["cpuThreadCount"],
+        "cpuWorkerConcurrency" => health["cpuWorkerConcurrency"],
+        "gpuReadinessStatus" => health["gpuReadinessStatus"],
+        "cloudCredentialsRequired" => health["cloudCredentialsRequired"],
+        "hubOfflineInstallReady" => health["hubOfflineInstallReady"],
+    )
+end
+
+function reproducibility_bundle_payload(
+    state::GatewayState;
+    workflow_id::AbstractString,
+    checkpoint_tag::AbstractString,
+    dashboard_id::Union{Nothing,AbstractString} = nothing,
+    notes::Union{Nothing,AbstractString} = nothing,
+)
+    haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
+    checkpoint = find_checkpoint(state, checkpoint_tag)
+    checkpoint === nothing && error("checkpoint not found: $(checkpoint_tag)")
+    checkpoint_evidence = checkpoint_payload(checkpoint, state)
+    explainability = checkpoint_evidence["explainabilityEvidence"]
+    dashboard_snapshot = nothing
+    if dashboard_id !== nothing
+        haskey(state.published_dashboards, dashboard_id) || error("published dashboard not found: $(dashboard_id)")
+        dashboard = state.published_dashboards[String(dashboard_id)]
+        dashboard.workflow_id == workflow_id || error("dashboard $(dashboard_id) does not belong to workflow $(workflow_id)")
+        dashboard_snapshot = JuliaFlowGatewayRepository.published_dashboard_payload(dashboard)
+    end
+
+    bundle = Dict{String,Any}(
+        "bundleId" => "repro-" * replace(string(uuid4()), "-" => ""),
+        "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
+        "schemaVersion" => "juliaflow.reproducibility.v1",
+        "workflow" => JuliaFlowGatewayRepository.workflow_detail_payload(state.workflows[String(workflow_id)]),
+        "checkpoint" => checkpoint_evidence,
+        "dataReferences" => [Dict{String,Any}(
+            "datasetId" => explainability["datasetCard"]["datasetId"],
+            "sourceUri" => explainability["datasetCard"]["sourceUri"],
+            "checksumSha256" => explainability["datasetCard"]["checksumSha256"],
+            "rowCount" => explainability["datasetCard"]["rowCount"],
+        )],
+        "datasetCards" => [explainability["datasetCard"]],
+        "packageEnvironment" => package_environment_metadata(),
+        "runtimeConfig" => reproducibility_runtime_config(state),
+        "randomSeeds" => Dict{String,Any}(
+            "modelSeed" => get(explainability["modelCard"]["config"], "seed", 42),
+            "runtimeSeed" => 42,
+        ),
+        "modelArtifact" => Dict{String,Any}(
+            "modelId" => explainability["modelCard"]["modelId"],
+            "artifactRef" => "local://models/" * String(explainability["modelCard"]["modelId"]) * ".json",
+            "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(explainability["modelCard"]))))),
+        ),
+        "metrics" => explainability["modelCard"]["metrics"],
+        "evaluationOutputs" => Dict{String,Any}(
+            "modelCard" => explainability["modelCard"],
+            "limitations" => explainability["modelCard"]["limitations"],
+        ),
+        "explainabilityOutputs" => explainability["explanation"],
+        "dashboardSnapshot" => dashboard_snapshot,
+        "notes" => notes === nothing ? "" : String(notes),
+        "localOnly" => true,
+    )
+    bundle["bundleChecksumSha256"] = reproducibility_bundle_checksum(bundle)
+    return bundle
+end
+
+function reproducibility_bundle_export_response!(
+    state::GatewayState,
+    body::AbstractDict,
+)
+    haskey(body, "workflowId") || error("missing workflowId")
+    haskey(body, "checkpointTag") || error("missing checkpointTag")
+    dashboard_id = haskey(body, "dashboardId") ? String(body["dashboardId"]) : nothing
+    notes = haskey(body, "notes") ? String(body["notes"]) : nothing
+    bundle = reproducibility_bundle_payload(
+        state;
+        workflow_id = String(body["workflowId"]),
+        checkpoint_tag = String(body["checkpointTag"]),
+        dashboard_id = dashboard_id,
+        notes = notes,
+    )
+    return JSON3.write(Dict("status" => "ok", "bundle" => bundle))
+end
+
+function reproducibility_bundle_import_response!(
+    state::GatewayState,
+    body::AbstractDict,
+)
+    haskey(body, "bundle") || error("missing bundle")
+    raw_bundle = body["bundle"]
+    raw_bundle isa AbstractDict || error("bundle must be an object")
+    bundle = Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_bundle))
+    declared_checksum = String(get(bundle, "bundleChecksumSha256", ""))
+    isempty(declared_checksum) && error("bundle missing bundleChecksumSha256")
+    actual_checksum = reproducibility_bundle_checksum(bundle)
+    declared_checksum == actual_checksum || error("reproducibility bundle checksum mismatch")
+
+    workflow_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(bundle["workflow"]))
+    workflow_toml = workflow_toml_from_request(Dict{String,Any}("workflow" => workflow_payload))
+    workflow_response = JSON3.read(create_workflow_response!(state; workflow_toml = workflow_toml), Dict{String,Any})
+
+    checkpoint_body = Dict{String,Any}(String(key) => value for (key, value) in pairs(bundle["checkpoint"]))
+    checkpoint = GatewayCheckpoint(
+        tag = String(checkpoint_body["tag"]),
+        summary = String(checkpoint_body["summary"]),
+        created_at = String(checkpoint_body["createdAt"]),
+    )
+    save_checkpoint!(state.repository, checkpoint)
+    existing_index = findfirst(item -> item.tag == checkpoint.tag, state.checkpoints)
+    if existing_index === nothing
+        push!(state.checkpoints, checkpoint)
+    else
+        state.checkpoints[existing_index] = checkpoint
+    end
+
+    restored_dashboard_id = nothing
+    if haskey(bundle, "dashboardSnapshot") && bundle["dashboardSnapshot"] !== nothing
+        dashboard_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(bundle["dashboardSnapshot"]))
+        dashboard = JuliaFlowGatewayRepository.gateway_published_dashboard(dashboard_payload)
+        state.published_dashboards[dashboard.dashboard_id] = dashboard
+        JuliaFlowGatewayRepository.save_published_dashboard!(state.repository, dashboard; producer = "reproducibility-import")
+        restored_dashboard_id = dashboard.dashboard_id
+    end
+
+    return JSON3.write(Dict{String,Any}(
+        "status" => "imported",
+        "bundleId" => String(bundle["bundleId"]),
+        "workflowId" => String(workflow_response["workflowId"]),
+        "checkpointTag" => checkpoint.tag,
+        "dashboardId" => restored_dashboard_id,
+        "bundleChecksumSha256" => declared_checksum,
+    ))
+end
+
 function current_contract_version()
     return "0.1.0"
 end
@@ -1883,7 +2112,7 @@ function execute_hub_sandbox_command(command::AbstractString)
         return true, "Bounded compatibility sandbox command accepted"
     end
 
-    command_result = Cmd(["julia", "--project=.", script_path])
+    command_result = Cmd(vcat(Base.julia_cmd().exec, ["--project=.", script_path]))
     passed = try
         success(pipeline(command_result, stdout = devnull, stderr = devnull))
     catch
@@ -2710,6 +2939,8 @@ function classify_gateway_error(err)
     elseif occursin("duplicate ", message)
         return 400, message
     elseif occursin("missing ", message)
+        return 400, message
+    elseif occursin("reproducibility bundle checksum mismatch", message)
         return 400, message
     elseif occursin("manifest ", message)
         return 400, message
@@ -3708,6 +3939,22 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             response = publish_dashboard_response!(state, segments[4], segments[6]; visibility = visibility)
             append_audit_event!(state, request, "dashboard.publish"; target_type = "dashboard", target_id = segments[6], details = Dict("workflowId" => segments[4], "visibility" => visibility))
             return json_response(200, response)
+        end
+        method == "POST" && segments == ["api", "v1", "reproducibility-bundles"] && begin
+            require_permission!(state, request, "checkpoint:read")
+            body = parse_request_body(request)
+            response = reproducibility_bundle_export_response!(state, body)
+            target_id = haskey(body, "checkpointTag") ? String(body["checkpointTag"]) : "unknown"
+            append_audit_event!(state, request, "reproducibility.bundle.export"; target_type = "checkpoint", target_id = target_id)
+            return json_response(200, response)
+        end
+        method == "POST" && segments == ["api", "v1", "reproducibility-bundles", "import"] && begin
+            require_permission!(state, request, "workflow:write")
+            require_permission!(state, request, "checkpoint:write")
+            body = parse_request_body(request)
+            response = reproducibility_bundle_import_response!(state, body)
+            append_audit_event!(state, request, "reproducibility.bundle.import"; target_type = "reproducibility_bundle", target_id = "import")
+            return json_response(201, response)
         end
         method == "POST" && segments == ["api", "v1", "workflows"] && begin
             require_permission!(state, request, "workflow:write")

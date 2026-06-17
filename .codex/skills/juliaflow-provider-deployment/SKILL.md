@@ -1,6 +1,6 @@
 ---
 name: juliaflow-provider-deployment
-description: Use when adding or reviewing JuliaFlow Kubernetes/ArgoCD/Kustomize provider overlays, secret delivery, live cluster dry-runs, production deployment hardening, or provider-specific PostgreSQL/Kafka/NATS/object-store/OIDC bindings.
+description: Use for optional JuliaFlow provider/cloud deployment, Kustomize, secrets, and live dry-runs.
 ---
 
 # JuliaFlow Provider Deployment
@@ -25,4 +25,4 @@ Optional compatibility lane under the local-first BRD. Confirm the user wants pr
 - `npm run validate:k8s`
 - `kubectl apply --dry-run=server -k <overlay>` when cluster access exists.
 - Relevant provider smoke: auth, PostgreSQL, Kafka/NATS, object store, gateway health/metrics.
-- Use `codex-security:security-scan` for secrets, auth, RBAC, Hub trust, deployment, or supply-chain changes.
+- Use an available security skill for secrets, auth, RBAC, Hub trust, deployment, or supply-chain changes.

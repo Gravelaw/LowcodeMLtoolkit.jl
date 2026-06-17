@@ -1,6 +1,6 @@
 ---
 name: juliaflow-julia-development
-description: Use when implementing, debugging, or reviewing JuliaFlow Julia services, node SDK, execution/runtime logic, extensions, GPU/stream workers, Project.toml/Manifest.toml changes, Julia syntax questions, or Julia package/API usage.
+description: Use for JuliaFlow Julia services, runtime, workers, node SDK, extensions, and package changes.
 ---
 
 # JuliaFlow Julia Development
