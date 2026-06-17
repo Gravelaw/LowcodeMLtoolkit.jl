@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "tests/browser",
+  testIgnore: /local-live\.spec\.ts/,
   timeout: 30_000,
   expect: {
     timeout: 5_000

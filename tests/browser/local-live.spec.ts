@@ -11,8 +11,6 @@ const gatewayBaseUrl = process.env.JULIAFLOW_GATEWAY_BASE_URL
   ?? "http://127.0.0.1:8088";
 
 test("optional live local gateway smoke reflects real health evidence", async ({ page }) => {
-  test.skip(process.env.JULIAFLOW_BROWSER_LIVE !== "1", "Set JULIAFLOW_BROWSER_LIVE=1 to run against a live local gateway.");
-
   let health: LiveHealth;
   try {
     const response = await fetch(`${gatewayBaseUrl}/health`);

@@ -111,6 +111,8 @@ test("backend-backed local actions use mocked gateway fixtures", async ({ page }
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("button", { name: /create local snapshot/i }).click();
   await expect(page.getByRole("status", { name: /action feedback/i })).toContainText("Gateway action completed locally.");
+  await page.getByRole("button", { name: /verify scope/i }).click();
+  await expect(page.getByRole("status", { name: /action feedback/i })).toContainText("LAN API scope remains disabled.");
 });
 
 test("keyboard navigation and live feedback stay accessible", async ({ page }) => {

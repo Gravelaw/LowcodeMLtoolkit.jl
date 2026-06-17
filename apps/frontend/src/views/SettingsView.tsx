@@ -23,7 +23,11 @@ export function SettingsView({
   const [threadLimit, setThreadLimit] = useState(String(data.health.cpuWorkerConcurrency));
   const [memoryLimit, setMemoryLimit] = useState(formatGb(data.health.cpuMemoryLimitBytes));
   const [backupRetention, setBackupRetention] = useState("14 snapshots");
-  const actionFeedback = feedback ?? localFeedback;
+  const actionFeedback = localFeedback ?? feedback;
+  const createSnapshot = () => {
+    setLocalFeedback(undefined);
+    onCreateSnapshot();
+  };
   const workspacePaths = [
     { area: "Data root", path: data.health.dataEstateRoot, status: data.health.dataEstateReady ? "ready" : "pending" },
     { area: "Models", path: zonePath(data, "models", `${data.health.dataEstateRoot}/models`), status: "writable" },
@@ -147,7 +151,7 @@ export function SettingsView({
 
       <Card title="Backup And Restore" className="wide">
         <div className="button-row top-aligned">
-          <button type="button" className="jf-button primary" onClick={onCreateSnapshot}>Create Local Snapshot</button>
+          <button type="button" className="jf-button primary" onClick={createSnapshot}>Create Local Snapshot</button>
           <label className="control-row inline">
             <span>Retention</span>
             <select value={backupRetention} onChange={(event) => setBackupRetention(event.target.value)} aria-label="Backup retention">

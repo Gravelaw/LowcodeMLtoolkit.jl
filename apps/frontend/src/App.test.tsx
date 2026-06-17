@@ -119,6 +119,8 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("button", { name: /create local snapshot/i }));
     expect(screen.getByRole("status", { name: /action feedback/i })).toHaveTextContent("Synthetic local backup snapshot prepared from fixture evidence.");
+    fireEvent.click(screen.getByRole("button", { name: /save local settings/i }));
+    expect(screen.getByRole("status", { name: /action feedback/i })).toHaveTextContent("Local appliance settings saved to the active profile.");
   });
 
   it("uses runtime gateway config before falling back to fixtures", async () => {
