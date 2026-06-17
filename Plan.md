@@ -27,6 +27,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Local hardware runtime proof is complete for the current local-first slice: gateway `/health` exposes hardware profile/backend, bounded CPU scheduler/concurrency/memory-limit evidence, GPU CUDA probe status, hardware/simulated GPU counts, VRAM totals, and per-device summaries; Monitor renders hardware evidence; `smoke:local-hardware` proves CPU fallback with an empty GPU registry plus safe CUDA-smoke skip behavior on non-CUDA machines.
 - Explainability and model evidence proof is complete for the current local-first slice: gateway `/health`, checkpoint payloads, and accepted executions now expose deterministic dataset-card, model-card, feature-importance, local-explanation, limitations/warnings, and reproducibility-bundle readiness evidence; Monitor renders the evidence; `smoke:local-explainability` verifies the local surface.
 - Academic reproducibility workflow proof is complete for the current local-first slice: gateway export/import routes produce a checksum-protected local JSON bundle with workflow, checkpoint, dataset checksum/card, package/runtime metadata, seeds, model artifact, metrics, explainability outputs, dashboard snapshot, notes, and local-only evidence; `smoke:local-reproducibility` verifies export/reimport into a fresh local repository and rejects tampered bundles.
+- Backup/restore and migration proof is complete for the current local-first slice: gateway export/import routes produce a checksum-protected local appliance bundle with workflows, checkpoints, executions, published dashboards, Hub records, auth policy/directory, package/runtime metadata, settings, and data-estate artifact references/checksums; restore rehydrates metadata into a fresh store, reports missing local artifacts and checksum mismatches, and rejects tampered bundles; `smoke:local-migration` verifies the migration path.
 
 ## Active Development Order
 
@@ -68,7 +69,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Gateway export/import routes prove offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport path.
    - Local bundles capture workflow definition, data checksums, package metadata, seeds, metrics, model artifact evidence, explainability outputs, dashboard snapshot, notes, and checksum validation.
 
-9. **Backup/restore and migration proof**
+9. **Backup/restore and migration proof** - complete for current slice
    - Prove local data estate backup, metadata backup, checkpoint import/export, workflow bundle import/export, and integrity checks.
    - Keep this distinct from reproducibility JSON bundles: backup/restore should cover local estate and metadata portability.
 
@@ -114,6 +115,12 @@ Verification evidence for this slice: `npm run validate:contracts`, `julia --pro
 **Academic reproducibility workflow proof** is complete for the current slice. Gateway routes now export a local reproducibility bundle and import it into a fresh repository, carrying workflow, checkpoint, data checksum/card, Julia/package/runtime metadata, seeds, model artifact evidence, metrics, explainability output, dashboard snapshot, notes, local-only evidence, and a deterministic checksum. The smoke also rejects a tampered bundle.
 
 Verification evidence for this slice: `npm run smoke:local-reproducibility`, `npm run validate:contracts`, Debian-local `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+
+## Latest Completed Slice — 2026-06-17 Backup/Restore And Migration
+
+**Backup/restore and migration proof** is complete for the current slice. Gateway routes now export a local appliance backup bundle and import it into a fresh local repository, carrying workflows, checkpoints, executions, published dashboards, Hub extension records, auth policy/directory, package/runtime metadata, local appliance settings, and data-estate artifact references/checksums. Restore validates the signed backup checksum, reports missing local data artifacts and checksum mismatches, rehydrates metadata state, and rejects tampered bundles.
+
+Verification evidence for this slice: `npm run smoke:local-migration`, `npm run validate:contracts`, repo-local-depot `julia --project=. tests/julia/runtests.jl`, `npm run doctor:debian`, `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
 
 ## Latest Completed Slice — 2026-06-03 Local Hardware Runtime

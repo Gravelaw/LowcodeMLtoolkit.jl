@@ -21,6 +21,23 @@ Tracker always records 3 things:
 - Last updated: `2026-06-17`
 
 ## Work Done Till Date
+### Backup/Restore And Migration Proof (2026-06-17)
+
+- Closed the backup/restore and migration lane after PR #10 landed.
+- Added gateway export/import routes for local appliance backup bundles.
+- Bundle evidence now includes workflows, checkpoints, executions, published dashboards, Hub records, auth policy/directory, package/runtime metadata, local settings, and data-estate artifact references/checksums.
+- Restore now validates the signed backup checksum, reports missing local artifacts and checksum mismatches, rehydrates metadata into a fresh local repository, and rejects tampered bundles.
+- Added `scripts/smoke-local-migration.mjs`, `scripts/smoke-local-migration.jl`, and `npm run smoke:local-migration` to prove migration without cloud credentials.
+
+### Gaps Pending
+
+- Backup bundles intentionally reference local data-estate files by path/checksum rather than embedding binary artifact bytes.
+- Mock-derived product modules still need an implementation vertical before local-first product readiness can be claimed.
+
+### Next Items To Implement
+
+- Start the mock-aligned local product workflow vertical: Explorer/Workspace -> Data -> Transform -> ML Studio/Models -> Visualize -> checkpoint/export, keeping Hub, Monitor, and Settings wired into the same local state.
+
 ### Academic Reproducibility Workflow Proof (2026-06-17)
 
 - Closed the academic reproducibility workflow lane after the Offline Hub and mock-aligned BRD product-surface slices.

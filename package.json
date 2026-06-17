@@ -33,7 +33,8 @@
     "smoke:local-hardware": "node scripts/smoke-local-hardware.mjs",
     "smoke:local-explainability": "node scripts/dev-local.mjs --profile single-user --smoke --no-deps",
     "smoke:local-offline-hub": "node scripts/smoke-local-offline-hub.mjs",
-    "smoke:local-reproducibility": "node scripts/smoke-local-reproducibility.mjs"
+    "smoke:local-reproducibility": "node scripts/smoke-local-reproducibility.mjs",
+    "smoke:local-migration": "node scripts/smoke-local-migration.mjs"
   },
   "dependencies": {
     "smol-toml": "^1.3.4"

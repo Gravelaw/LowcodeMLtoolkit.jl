@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Backup/Restore And Migration Proof Complete — 2026-06-17
+
+### Work Done Till Date
+
+- Landed PR #10 and restarted from updated `main` on `codex-local-backup-restore-proof`.
+- Added local appliance backup export/import routes for checksum-protected migration bundles.
+- Bundles cover workflows, checkpoints, executions, published dashboards, Hub records, auth policy/directory, package/runtime metadata, local settings, and data-estate artifact references/checksums.
+- Restore validates the signed backup checksum, reports missing local artifacts and checksum mismatches, rehydrates metadata into a fresh local repository, and rejects tampered bundles.
+- Added `npm run smoke:local-migration` with an in-process gateway smoke that proves export, restore, missing artifact reporting, and tamper rejection.
+
+### Gaps Pending
+
+- Backup bundles do not embed local binary artifact bytes; they provide manifest-style references/checksums for migration validation.
+- Mock-derived product modules remain open implementation work.
+
+### Next Items To Implement
+
+- Start the mock-aligned local product workflow vertical: Explorer/Workspace -> Data -> Transform -> ML Studio/Models -> Visualize -> checkpoint/export.
+- Keep `npm run smoke:local-migration`, `npm run validate:contracts`, Julia tests, control-doc sync, BRD traceability, and `git diff --check` in the PR gate set.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` Mock-Aligned BRD Product Surface Refresh Complete — 2026-06-16
 
 ### Work Done Till Date
