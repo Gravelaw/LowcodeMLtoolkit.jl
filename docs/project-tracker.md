@@ -2159,3 +2159,27 @@ After any meaningful job:
 ### Next Items To Implement
 
 - Start academic reproducibility workflow: offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport with package, seed, checksum, metric, model, explanation, dashboard, and notes evidence.
+
+---
+
+## Update: Backend-Backed Data And Transform Product Actions — 2026-06-17
+
+### Work Done Till Date
+
+- Merged PR #12 after `web` and `julia` CI passed, then opened draft PR #13 from updated `main`.
+- Added `POST /api/v1/local-data/import` to return local data-estate profile evidence with dataset ID normalization, schema/profile summary, manifest checksum evidence, DuckDB status, checksum, and local artifact ref.
+- Added `POST /api/v1/workflows/{workflowId}/transforms/run` and `GET /api/v1/workflows/{workflowId}/transforms/history` to tie transform runs to workflow nodes, execution records, checkpoints, and local artifact evidence.
+- Added shared TypeScript client types/methods and OpenAPI paths/schemas for the Data and Transform actions.
+- Updated Data and Transform views to call the gateway actions when configured and deterministic demo fallback otherwise.
+- Added focused contract, frontend, and Julia gateway coverage.
+
+### Gaps Pending
+
+- ML Studio experiment tracking, Models registry mutation, Visualize checkpoint/export depth, and local Deploy packaging remain product-depth follow-ups.
+- Provider/cloud deployment remains optional compatibility work and was intentionally not expanded.
+- Hardware-backed CUDA and multi-GPU evidence remain conditional on available local hardware.
+
+### Next Items To Implement
+
+- Complete final verification, commit, push, and PR #13 CI/review workflow.
+- Continue the local product-depth path with ML Studio experiment tracking or Models registry mutation before Deploy packaging.

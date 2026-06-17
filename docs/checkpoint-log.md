@@ -2380,3 +2380,27 @@ Each checkpoint entry must contain:
 
 - Start backup/restore and migration proof.
 - Keep `npm run smoke:local-reproducibility` in the local-first verification gate set.
+
+---
+
+## Checkpoint: Backend-Backed Data And Transform Product Actions — 2026-06-17
+
+### Work Done Till Date
+
+- Closed PR #12 after GitHub `web` and `julia` checks passed, then started draft PR #13 for the next product-depth branch.
+- Added local data import/profile gateway support with data-estate zone validation, checksum/profile evidence, manifest/DuckDB status, and deterministic local artifact references.
+- Added transform run/history gateway support that wraps workflow execution state and returns workflow-node, checkpoint, status, and artifact evidence.
+- Extended `packages/contracts` TypeScript client types and OpenAPI paths/schemas for the new Data and Transform endpoints.
+- Wired Data and Transform product views to run the actions against the gateway when configured, with deterministic demo fallback and visible action feedback.
+- Added route-level Julia tests, typed-client contract coverage, OpenAPI assertions, and frontend demo smoke coverage.
+
+### Gaps Pending
+
+- Full product readiness still needs ML Studio experiment tracking, Models registry mutation, Visualize checkpoint/export depth, and local Deploy packaging.
+- Optional provider/cloud compatibility remains out of scope for this local-first slice.
+- Hardware-backed CUDA/multi-GPU evidence remains environment-gated.
+
+### Next Items To Implement
+
+- Finish PR #13 verification/CI/review and merge once green.
+- Continue product-depth implementation with ML Studio experiments or Models registry actions before packaging/deploy depth.

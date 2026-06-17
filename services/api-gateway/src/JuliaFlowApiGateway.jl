@@ -2076,6 +2076,150 @@ function local_data_estate_artifact_records(root::AbstractString)
     return records
 end
 
+function safe_local_dataset_id(value::AbstractString)
+    normalized = lowercase(strip(String(value)))
+    normalized = replace(normalized, r"[^a-z0-9._-]+" => "-")
+    normalized = strip(normalized, ['-', '.', '_'])
+    isempty(normalized) && return "workflow-dataset"
+    return first(normalized, min(lastindex(normalized), 80))
+end
+
+function data_import_profile_response!(state::GatewayState, body::AbstractDict)
+    health = JSON3.read(healthcheck(state), Dict{String,Any})
+    evidence = gateway_explainability_evidence(state)
+    dataset_card = Dict{String,Any}(String(key) => value for (key, value) in pairs(evidence["datasetCard"]))
+    requested_dataset_id = String(get(body, "datasetId", dataset_card["datasetId"]))
+    dataset_id = safe_local_dataset_id(requested_dataset_id)
+    source_uri = String(get(body, "sourceUri", dataset_card["sourceUri"]))
+    source_format = String(get(body, "format", "csv"))
+    target_zone = String(get(body, "targetZone", "raw"))
+    zones = [String(zone["name"]) for zone in health["dataEstateZones"]]
+    target_zone in zones || error("data estate zone not found: $(target_zone)")
+    checksum = explainability_source_checksum(source_uri)
+    imported_at = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+    artifact_ref = "local://data/$(target_zone)/$(dataset_id).arrow"
+
+    profile = Dict{String,Any}(
+        "datasetId" => dataset_id,
+        "sourceUri" => source_uri,
+        "sourceFormat" => source_format,
+        "targetZone" => target_zone,
+        "artifactRef" => artifact_ref,
+        "artifactFormats" => health["dataEstateArtifactFormats"],
+        "checksumSha256" => checksum,
+        "rowCount" => Int(get(dataset_card, "rowCount", 0)),
+        "schemaSummary" => get(dataset_card, "schemaSummary", Any[]),
+        "profileSummary" => [
+            Dict("name" => String(field["name"]), "type" => String(field["type"]), "quality" => index % 2 == 1 ? "complete" : "sampled_locally")
+            for (index, field) in enumerate(get(dataset_card, "schemaSummary", Any[]))
+        ],
+        "manifestReady" => Bool(health["dataEstateManifestReady"]),
+        "manifestChecksums" => health["dataEstateManifestChecksums"],
+        "duckdbStatus" => health["dataEstateDuckdbStatus"],
+        "importedAt" => imported_at,
+        "localOnly" => true,
+    )
+    return JSON3.write(Dict("status" => "profiled", "profile" => profile))
+end
+
+function transform_node_ids(workflow)
+    return [
+        node.id for node in workflow.nodes
+        if startswith(node.type, "io.") ||
+            startswith(node.type, "transform.") ||
+            occursin(".CSVReader", node.type) ||
+            occursin(".Column", node.type) ||
+            occursin(".Aggregate", node.type) ||
+            node.type == "bi.outlet"
+    ]
+end
+
+function transform_artifact_ref(execution::GatewayExecution, node_id::AbstractString)
+    return "local://data/runs/$(execution.execution_id)/$(String(node_id)).arrow"
+end
+
+function transform_run_payload(state::GatewayState, execution::GatewayExecution)
+    haskey(state.workflows, execution.workflow_id) || error("workflow not found: $(execution.workflow_id)")
+    workflow = state.workflows[execution.workflow_id]
+    node_ids = transform_node_ids(workflow)
+    node_results = if haskey(execution.metadata, "executor_state")
+        [
+            Dict{String,Any}(
+                "nodeId" => String(get(item, "node_id", "")),
+                "nodeType" => String(get(item, "node_type", "")),
+                "status" => String(get(item, "status", "")),
+                "rowCount" => Int(get(item, "row_count", 0)),
+                "artifactRefs" => isempty(get(item, "output_refs", Any[])) ?
+                    [transform_artifact_ref(execution, String(get(item, "node_id", "")))] :
+                    [String(ref) for ref in get(item, "output_refs", Any[])],
+            )
+            for item in get(execution.metadata["executor_state"], "node_results", Any[])
+            if String(get(item, "node_id", "")) in node_ids
+        ]
+    else
+        Dict{String,Any}[]
+    end
+    if isempty(node_results)
+        node_results = [
+            Dict{String,Any}(
+                "nodeId" => String(node_id),
+                "nodeType" => state.workflows[execution.workflow_id].nodes[findfirst(node -> node.id == node_id, workflow.nodes)].type,
+                "status" => node_runtime_status(node_id, execution),
+                "rowCount" => 0,
+                "artifactRefs" => [transform_artifact_ref(execution, node_id)],
+            )
+            for node_id in node_ids
+        ]
+    end
+
+    return Dict{String,Any}(
+        "runId" => execution.execution_id,
+        "workflowId" => execution.workflow_id,
+        "workflowVersion" => execution.workflow_version,
+        "checkpointTag" => execution.checkpoint_tag,
+        "status" => execution.status,
+        "startedAt" => execution.started_at === nothing ? execution.created_at : execution.started_at,
+        "finishedAt" => execution.finished_at,
+        "stageCount" => length(execution.stages),
+        "nodeIds" => node_ids,
+        "nodeResults" => node_results,
+        "artifactEvidence" => [
+            Dict("nodeId" => String(result["nodeId"]), "artifactRefs" => result["artifactRefs"])
+            for result in node_results
+        ],
+        "localOnly" => true,
+    )
+end
+
+function transform_run_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
+    flow_variable_values = haskey(body, "flowVariables") ? normalized_string_dict(body["flowVariables"]) : Dict{String,Any}()
+    execution_mode_override = haskey(body, "executionMode") ? String(body["executionMode"]) : nothing
+    execution = JSON3.read(
+        execution_accept_response(
+            state,
+            workflow_id;
+            flow_variable_values = flow_variable_values,
+            execution_mode_override = execution_mode_override,
+        ),
+        Dict{String,Any},
+    )
+    execution_id = String(execution["executionId"])
+    matched = findfirst(item -> item.execution_id == execution_id, state.executions)
+    matched === nothing && error("transform execution not found: $(execution_id)")
+    run = transform_run_payload(state, state.executions[matched])
+    return JSON3.write(Dict("status" => "accepted", "execution" => execution, "run" => run))
+end
+
+function transform_history_response(state::GatewayState, workflow_id::AbstractString)
+    haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
+    runs = [
+        transform_run_payload(state, execution)
+        for execution in reverse(state.executions)
+        if execution.workflow_id == workflow_id
+    ]
+    return JSON3.write(Dict("items" => runs, "count" => length(runs)))
+end
+
 function local_backup_payload(
     state::GatewayState;
     notes::Union{Nothing,AbstractString} = nothing,
@@ -4251,6 +4395,14 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             append_audit_event!(state, request, "local.backup.import"; target_type = "local_backup", target_id = "import")
             return json_response(201, response)
         end
+        method == "POST" && segments == ["api", "v1", "local-data", "import"] && begin
+            require_permission!(state, request, "workflow:write")
+            body = parse_request_body(request)
+            response = data_import_profile_response!(state, body)
+            target_id = haskey(body, "datasetId") ? String(body["datasetId"]) : "workflow-dataset"
+            append_audit_event!(state, request, "local.data.import"; target_type = "dataset", target_id = target_id)
+            return json_response(201, response)
+        end
         method == "POST" && segments == ["api", "v1", "workflows"] && begin
             require_permission!(state, request, "workflow:write")
             body = parse_request_body(request)
@@ -4287,6 +4439,17 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             response = update_workflow_response_from_body!(state, segments[4], body)
             append_audit_event!(state, request, "workflow.update"; target_type = "workflow", target_id = segments[4])
             return json_response(200, response)
+        end
+        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:6] == ["transforms", "run"] && begin
+            require_permission!(state, request, "workflow:execute"; resource_type = "workflow", resource_id = segments[4])
+            body = parse_request_body(request)
+            response = transform_run_response!(state, segments[4], body)
+            append_audit_event!(state, request, "workflow.transform.run"; target_type = "workflow", target_id = segments[4])
+            return json_response(202, response)
+        end
+        method == "GET" && length(segments) == 6 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:6] == ["transforms", "history"] && begin
+            require_permission!(state, request, "execution:read")
+            return json_response(200, transform_history_response(state, segments[4]))
         end
         method == "POST" && length(segments) == 5 && segments[1:3] == ["api", "v1", "workflows"] && segments[5] == "execute" && begin
             require_permission!(state, request, "workflow:execute"; resource_type = "workflow", resource_id = segments[4])

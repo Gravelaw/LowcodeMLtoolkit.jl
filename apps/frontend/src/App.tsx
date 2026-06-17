@@ -17,6 +17,7 @@ import {
   type GatewayAuditActionEvent,
   type GatewayAuthDirectory,
   type GatewayAuthPolicy,
+  type GatewayDataImportProfile,
   type GatewayExecutorDataflowPolicy,
   type GatewayExecutorNodeResult,
   type GatewayExecutionStateChangedEvent,
@@ -27,6 +28,7 @@ import {
   type HubExtensionManifest,
   type GatewayNodeStateChangedEvent,
   type GatewayRealtimeNotification,
+  type GatewayTransformRunRecord,
   type GatewayWorkflowMetadata,
   type GatewayWorkflowStateChangedEvent,
   type GatewayWorkflowSummary,
@@ -1410,6 +1412,83 @@ function buildActionTimestampLabel(): string {
   return new Date().toISOString();
 }
 
+function localTransformNodes(workflow: WorkflowDefinition): NodeDefinition[] {
+  return workflow.nodes.filter(
+    (node) =>
+      node.type.startsWith("io.") ||
+      node.type.startsWith("transform.") ||
+      node.type.includes(".CSVReader") ||
+      node.type.includes(".Column") ||
+      node.type.includes(".Aggregate") ||
+      node.type === "bi.outlet"
+  );
+}
+
+function buildDemoDataProfile(
+  workflow: WorkflowDefinition,
+  health: GatewayHealthcheck | null,
+  datasetCard: GatewayHealthcheck["explainabilityEvidence"]["datasetCard"] | null
+): GatewayDataImportProfile {
+  const datasetId = datasetCard?.datasetId ?? `${workflow.workflowId}-dataset`;
+  const schemaSummary = datasetCard?.schemaSummary ?? [
+    { name: "horizon", type: "Int64" },
+    { name: "region", type: "String" },
+    { name: "demand", type: "Float64" },
+    { name: "capacity", type: "Float64" }
+  ];
+  return {
+    datasetId,
+    sourceUri: datasetCard?.sourceUri ?? "local://data/raw/workflow.csv",
+    sourceFormat: "csv",
+    targetZone: "raw",
+    artifactRef: `local://data/raw/${datasetId}.arrow`,
+    artifactFormats: health?.dataEstateArtifactFormats ?? ["arrow_ipc", "parquet"],
+    checksumSha256: datasetCard?.checksumSha256 ?? health?.dataEstateManifestChecksums[0]?.checksumSha256 ?? "demo-profile",
+    rowCount: datasetCard?.rowCount ?? 0,
+    schemaSummary,
+    profileSummary: schemaSummary.map((field, index) => ({
+      ...field,
+      quality: index % 2 === 0 ? "complete" : "sampled_locally"
+    })),
+    manifestReady: health?.dataEstateManifestReady ?? true,
+    manifestChecksums: health?.dataEstateManifestChecksums ?? [],
+    duckdbStatus: health?.dataEstateDuckdbStatus ?? "pending",
+    importedAt: buildActionTimestampLabel(),
+    localOnly: true
+  };
+}
+
+function buildDemoTransformRun(
+  workflow: WorkflowDefinition,
+  executionId: string,
+  status: string = "accepted"
+): GatewayTransformRunRecord {
+  const nodes = localTransformNodes(workflow);
+  return {
+    runId: executionId,
+    workflowId: workflow.workflowId,
+    workflowVersion: workflow.version,
+    checkpointTag: "local-demo-transform",
+    status,
+    startedAt: buildActionTimestampLabel(),
+    finishedAt: null,
+    stageCount: Math.max(1, nodes.length),
+    nodeIds: nodes.map((node) => node.id),
+    nodeResults: nodes.map((node) => ({
+      nodeId: node.id,
+      nodeType: node.type,
+      status: status === "completed" ? "executed" : "planned",
+      rowCount: 0,
+      artifactRefs: [`local://data/runs/${executionId}/${node.id}.arrow`]
+    })),
+    artifactEvidence: nodes.map((node) => ({
+      nodeId: node.id,
+      artifactRefs: [`local://data/runs/${executionId}/${node.id}.arrow`]
+    })),
+    localOnly: true
+  };
+}
+
 function buildRealtimeRuntimeLabel(status: WorkflowStatus, executionHint: ExecutionHint): string {
   if (status === "streaming_active") {
     return "Realtime stream active";
@@ -1768,6 +1847,10 @@ function App() {
   const [isSavingAuthPolicy, setIsSavingAuthPolicy] = useState(false);
   const [isSavingAuthDirectory, setIsSavingAuthDirectory] = useState(false);
   const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
+  const [isProfilingData, setIsProfilingData] = useState(false);
+  const [isRunningTransform, setIsRunningTransform] = useState(false);
+  const [dataImportProfile, setDataImportProfile] = useState<GatewayDataImportProfile | null>(null);
+  const [transformRunHistory, setTransformRunHistory] = useState<GatewayTransformRunRecord[]>([]);
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
   const [connectionDraftDirection, setConnectionDraftDirection] = useState<ConnectionDraftDirection>("outgoing");
   const [connectionDraftPeerNodeId, setConnectionDraftPeerNodeId] = useState("");
@@ -2284,13 +2367,18 @@ function App() {
   const health = workspaceData.health;
   const explainabilityEvidence = health?.explainabilityEvidence ?? latestExecution?.explainabilityEvidence ?? null;
   const datasetCard = explainabilityEvidence?.datasetCard ?? null;
+  const activeDataProfile = dataImportProfile ?? buildDemoDataProfile(workflow, health, datasetCard);
   const modelCard = explainabilityEvidence?.modelCard ?? null;
   const explanation = explainabilityEvidence?.explanation ?? null;
   const dataEstateZones = health?.dataEstateZones ?? [];
   const dataEstateChecksums = health?.dataEstateManifestChecksums ?? [];
-  const transformPipelineNodes = workflow.nodes.filter(
-    (node) => node.type.startsWith("io.") || node.type.startsWith("transform.") || node.type === "bi.outlet"
-  );
+  const transformPipelineNodes = localTransformNodes(workflow);
+  const visibleTransformRuns = transformRunHistory.length > 0
+    ? transformRunHistory
+    : executionItems
+        .filter((item) => item.workflowId === workflow.workflowId)
+        .slice(0, 3)
+        .map((item) => buildDemoTransformRun(workflow, item.id, item.status));
   const mlPipelineNodes = workflow.nodes.filter(
     (node) =>
       node.type.startsWith("ml.") ||
@@ -2472,6 +2560,90 @@ function App() {
       setActionFeedback({ text: `Run failed: ${message}`, tone: "error" });
     } finally {
       setIsRunningWorkflow(false);
+    }
+  }
+
+  async function handleImportDataProfile() {
+    setIsProfilingData(true);
+    const request = {
+      datasetId: datasetCard?.datasetId ?? `${workflow.workflowId}-dataset`,
+      sourceUri: datasetCard?.sourceUri ?? "local://data/raw/workflow.csv",
+      format: "csv",
+      targetZone: "raw"
+    };
+
+    if (gatewayBaseUrl.length === 0) {
+      const profile = buildDemoDataProfile(workflow, health, datasetCard);
+      setDataImportProfile(profile);
+      setActionFeedback({
+        text: `Demo data profile ready for ${profile.datasetId}.`,
+        tone: "demo"
+      });
+      setIsProfilingData(false);
+      return;
+    }
+
+    try {
+      const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+      const response = await gatewayClient.importDataProfile(request);
+      setDataImportProfile(response.profile);
+      setActionFeedback({
+        text: `Data profile stored for ${response.profile.datasetId}.`,
+        tone: "success"
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to import data profile.";
+      setActionFeedback({ text: `Data profile failed: ${message}`, tone: "error" });
+    } finally {
+      setIsProfilingData(false);
+    }
+  }
+
+  async function handleRunTransformPipeline() {
+    setIsRunningTransform(true);
+
+    try {
+      let workflowId = workflow.workflowId;
+      if (isDirty) {
+        const persistedWorkflowId = await persistWorkflow("run");
+        if (persistedWorkflowId === null) {
+          return;
+        }
+        workflowId = persistedWorkflowId;
+      }
+
+      if (gatewayBaseUrl.length === 0) {
+        const execution = buildDraftExecution(workflow, "Demo transform run", "running");
+        const run = buildDemoTransformRun(workflow, execution.id, execution.status);
+        setExecutionItems((currentItems) => [execution, ...currentItems]);
+        setTransformRunHistory((currentRuns) => [run, ...currentRuns.filter((item) => item.runId !== run.runId)]);
+        setActionFeedback({
+          text: `Demo transform run queued for ${workflowId}.`,
+          tone: "demo"
+        });
+        return;
+      }
+
+      const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+      const response = await gatewayClient.runWorkflowTransform(workflowId, {});
+      const nextExecutionItem = buildExecutionRailItems([response.execution])[0];
+      setExecutionItems((currentItems) => mergeExecutionRailItem(currentItems, nextExecutionItem));
+      setTransformRunHistory((currentRuns) => [
+        response.run,
+        ...currentRuns.filter((item) => item.runId !== response.run.runId)
+      ]);
+      setActionFeedback({
+        text: `Transform run accepted for ${workflowId}: ${response.run.runId}.`,
+        tone: "success"
+      });
+
+      const history = await gatewayClient.getWorkflowTransformHistory(workflowId);
+      setTransformRunHistory(history.items);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to run transform pipeline.";
+      setActionFeedback({ text: `Transform run failed: ${message}`, tone: "error" });
+    } finally {
+      setIsRunningTransform(false);
     }
   }
 
@@ -3836,14 +4008,29 @@ function App() {
                       <p className="panel-detail">
                         All source references, schemas, and artifact checksums are read from the local data estate and evidence cards.
                       </p>
+                      <div className="quick-add-list">
+                        <button
+                          className="secondary-action-button"
+                          disabled={isProfilingData}
+                          onClick={() => { void handleImportDataProfile(); }}
+                          type="button"
+                        >
+                          {isProfilingData ? "Profiling..." : "Import and profile data"}
+                        </button>
+                      </div>
                     </div>
                     <div className="workspace-metrics">
-                      <ProductMetric label="Rows" value={datasetCard?.rowCount.toLocaleString() ?? "sample"} detail="profile evidence" />
-                      <ProductMetric label="Columns" value={datasetCard?.schemaSummary.length ?? workflow.nodes.length} detail="schema fields" />
+                      <ProductMetric label="Rows" value={activeDataProfile.rowCount.toLocaleString()} detail="profile evidence" />
+                      <ProductMetric label="Columns" value={activeDataProfile.schemaSummary.length} detail="schema fields" />
                       <ProductMetric label="Zones" value={dataEstateZones.length || 9} detail={health?.dataEstateManaged ? "managed estate" : "demo estate"} />
-                      <ProductMetric label="Checksums" value={dataEstateChecksums.length} detail="manifest entries" />
+                      <ProductMetric label="Checksums" value={activeDataProfile.manifestChecksums.length} detail="manifest entries" />
                     </div>
                   </div>
+                  {actionFeedback ? (
+                    <div className={`canvas-action-feedback is-${actionFeedback.tone}`} role="status">
+                      {actionFeedback.text}
+                    </div>
+                  ) : null}
                 </div>
               </section>
 
@@ -3885,24 +4072,27 @@ function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {(datasetCard?.schemaSummary ?? [
-                          { name: "horizon", type: "Int64" },
-                          { name: "region", type: "String" },
-                          { name: "demand", type: "Float64" },
-                          { name: "capacity", type: "Float64" }
-                        ]).map((field, index) => (
+                        {activeDataProfile.profileSummary.map((field, index) => (
                           <tr key={`${field.name}-${index}`}>
                             <td>{field.name}</td>
                             <td>{field.type}</td>
-                            <td>{index % 2 === 0 ? "complete" : "sampled locally"}</td>
+                            <td>{field.quality.replace(/_/g, " ")}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
+                  <div className="inspector-row">
+                    <strong>Local artifact</strong>
+                    <span>{activeDataProfile.artifactRef}</span>
+                  </div>
+                  <div className="inspector-row">
+                    <strong>DuckDB profile</strong>
+                    <span>{activeDataProfile.duckdbStatus}</span>
+                  </div>
                   <div className="code-preview-block">
                     <strong>Julia code preview</strong>
-                    <pre>{`using CSV, DataFrames\nsource = "${datasetCard?.sourceUri ?? "local://data/raw/workflow.csv"}"\ndf = CSV.read(source, DataFrame)\nfirst(df, 5)`}</pre>
+                    <pre>{`using CSV, DataFrames\nsource = "${activeDataProfile.sourceUri}"\ndf = CSV.read(source, DataFrame)\nfirst(df, 5)\n# profile artifact: ${activeDataProfile.artifactRef}`}</pre>
                   </div>
                 </Panel>
               </section>
@@ -3925,11 +4115,21 @@ function App() {
                       <button className="secondary-action-button" onClick={() => { void persistWorkflow("save"); }} type="button">
                         Save locally
                       </button>
-                      <button className="secondary-action-button" onClick={() => { void handleRunWorkflow(); }} type="button">
-                        Run pipeline
+                      <button
+                        className="secondary-action-button"
+                        disabled={isRunningTransform}
+                        onClick={() => { void handleRunTransformPipeline(); }}
+                        type="button"
+                      >
+                        {isRunningTransform ? "Running..." : "Run transform"}
                       </button>
                     </div>
                   </div>
+                  {actionFeedback ? (
+                    <div className={`canvas-action-feedback is-${actionFeedback.tone}`} role="status">
+                      {actionFeedback.text}
+                    </div>
+                  ) : null}
                 </div>
               </section>
 
@@ -3983,12 +4183,18 @@ function App() {
                   <div className="checkpoint-policy">
                     <h2>History / lineage</h2>
                     <ul className="checkpoint-list">
-                      {workspaceData.checkpoints.slice(0, 4).map((checkpoint) => (
-                        <li key={checkpoint.tag}>
-                          <strong>{checkpoint.tag}</strong>
-                          <span>{checkpoint.evidence}</span>
+                      {visibleTransformRuns.slice(0, 4).map((run) => (
+                        <li key={run.runId}>
+                          <strong>{run.runId}</strong>
+                          <span>{run.status} · {run.artifactEvidence.length} local artifacts · {run.checkpointTag}</span>
                         </li>
                       ))}
+                      {visibleTransformRuns.length === 0 ? (
+                        <li>
+                          <strong>No transform runs yet</strong>
+                          <span>Run transform to create local artifact evidence.</span>
+                        </li>
+                      ) : null}
                     </ul>
                   </div>
                 </Panel>

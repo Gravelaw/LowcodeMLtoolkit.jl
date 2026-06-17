@@ -5,7 +5,9 @@ import {
   milestoneCheckpoints,
   type CreateCheckpointRequest,
   type CreateWorkflowRequest,
+  type GatewayDataImportProfileRequest,
   type GatewayExecutionStatus,
+  type GatewayTransformRunRequest,
   type MilestoneCheckpointTag,
   type TransitionExecutionStatusRequest
 } from "../../../packages/contracts/src/index";
@@ -26,6 +28,15 @@ const transitionRequest: TransitionExecutionStatusRequest = {
   status: executionStatus,
   message: `Moved to ${executionStatus}`,
   metadata: { lane: "contracts" }
+};
+const dataProfileRequest: GatewayDataImportProfileRequest = {
+  datasetId: "contracts-profile",
+  sourceUri: "local://data/raw/contracts.csv",
+  targetZone: "raw"
+};
+const transformRunRequest: GatewayTransformRunRequest = {
+  executionMode: "cpu_only",
+  flowVariables: { JULIAFLOW_GPU_DEVICE: "cpu" }
 };
 
 const client = createGatewayApiClient({
@@ -52,8 +63,14 @@ client.healthcheck();
 client.createWorkflow(workflowRequest);
 client.createCheckpoint(checkpointRequest);
 client.transitionExecutionStatus("exec-1", transitionRequest);
+client.importDataProfile(dataProfileRequest);
+client.runWorkflowTransform("wf-foundation", transformRunRequest);
+client.getWorkflowTransformHistory("wf-foundation");
 
 gatewayEndpointPaths.workflowDetail("foundation/workflow");
 gatewayEndpointPaths.executionStatus("exec-1");
+gatewayEndpointPaths.localDataImport;
+gatewayEndpointPaths.workflowTransformRun("wf-foundation");
+gatewayEndpointPaths.workflowTransformHistory("wf-foundation");
 gatewayExecutionStatuses satisfies readonly GatewayExecutionStatus[];
 milestoneTag satisfies MilestoneCheckpointTag;

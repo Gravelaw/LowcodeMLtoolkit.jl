@@ -417,11 +417,17 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /Local Data/i, level: 1 })).toBeInTheDocument();
     expect(screen.getByText(/Data estate zones/i)).toBeInTheDocument();
     expect(screen.getByText(/Julia code preview/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Import and profile data/i }));
+    expect(screen.getByText(/Demo data profile ready/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/local:\/\/data\/raw\//i).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: /TransformLocal pipeline lineage/i }));
     expect(screen.getByRole("heading", { name: /Transform Pipeline/i, level: 1 })).toBeInTheDocument();
     expect(screen.getByText(/Local transform lineage/i)).toBeInTheDocument();
     expect(screen.getByText(/Julia transform code/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Run transform/i }));
+    expect(screen.getByText(/Demo transform run queued/i)).toBeInTheDocument();
+    expect(screen.getByText(/local artifacts/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /ML StudioOn-device training evidence/i }));
     expect(screen.getByRole("heading", { name: /ML Studio/i, level: 1 })).toBeInTheDocument();
