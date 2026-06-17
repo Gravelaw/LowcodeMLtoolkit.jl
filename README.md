@@ -24,14 +24,16 @@ JuliaFlow is a monorepo for a visual low-code analytics platform built in Julia.
 
 ## Tooling
 
-- Node.js `25.9.0`
+- Debian-compatible Linux shell
+- Node.js via native Linux/nvm Node; run `npm run doctor:debian` to verify
 - npm workspaces used for bootstrap because `pnpm` is not installed in current environment
-- Julia `1.12.6`
+- Julia LTS `1.10.x` via repo-local Juliaup (`.juliaup`) or another native Linux Julia compatible with `Project.toml`
 
 ## Commands
 
 ```bash
 npm install
+npm run doctor:debian
 npm run dev:frontend
 npm run build
 npm run test

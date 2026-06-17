@@ -1,12 +1,12 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-06-06
+Last updated: 2026-06-17
 
 ## Current Phase
 
 JuliaFlow is past local-platform P0, P1, and P2 thin-slice closure. The active development phase is **Local-First GA Proof + Explainable Local Appliance Expansion**.
 
-P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD direction now prioritizes a self-contained local appliance for academia and low-resource teams: local install/bootstrap, local data estate, local metadata/database modes, local CPU/GPU hardware use, AI explainability, offline Hub, academic reproducibility, and backup/restore. Provider/cloud paths are optional compatibility work, not the core GA gate.
+P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD direction now prioritizes a self-contained local appliance for academia and low-resource teams: local install/bootstrap, local product modules, local data estate, local metadata/database modes, local CPU/GPU hardware use, AI explainability, offline Hub, academic reproducibility, and backup/restore. Provider/cloud paths are optional compatibility work, not the core GA gate.
 
 ## Current Baseline
 
@@ -18,14 +18,15 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Frontend module expansion follow-up is complete: Monitor now expands executor dataflow stage-policy evidence and per-node executor/branch result details for operator review.
 - Julia runtime module expansion now has loop runtime-plan, try/catch runtime-plan, try/catch failure-recovery routing, catch-branch worker execution, DAG branch rescheduling, executor stage-schedule evidence, metadata-only multi-tick executor scheduling, executor node result/error binding, base-extension dataflow binding, authored-node alias coverage, and callback dataflow scheduling-policy evidence slices: covered failed nodes queue catch work, worker-service schedules catch branch DAG stages, execution records carry bounded topological executor schedules, staged executor ticks persist node output/error telemetry, base extension source/transform/sink/aggregate nodes can propagate Arrow IPC payloads through executor callbacks from UI/contract-style base node types, and executor schedule/state payloads expose bounded callback-dataflow policy evidence.
 - Governed Hub production-depth proof now records verification evidence, blocks unsafe sandbox/hash/mirror install paths, executes an env-gated allowlisted sandbox fixture, verifies downloaded artifact hashes from a local artifact-store registry, and resolves private/offline mirror refs through a local registry.
-- `business-requirements-v0.3.0.md` is now the v0.4.0 local-first BRD baseline: no cloud account required, local filesystem/DuckDB first, PostgreSQL for lab/team metadata, optional MinIO only for local S3 compatibility, explainability as core scope, and multi-GPU validation conditional on local hardware.
+- `business-requirements-v0.3.0.md` is now the v0.4.1 local product-surface BRD baseline: no cloud account required, local filesystem/DuckDB first, PostgreSQL for lab/team metadata, optional MinIO only for local S3 compatibility, explainability as core scope, multi-GPU validation conditional on local hardware, and Explorer/Data/Transform/ML Studio/Models/Deploy/Visualize/Settings treated as required local product modules.
 - Documentation cleanup removed the user-approved obsolete BRD/planning/checkpoint artifacts, while the active control set remains `business-requirements-v0.3.0.md`, `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/project-tracker.md`, `docs/checkpoint-log.md`, and `docs/brd-traceability.md`.
 - Agent prompt hygiene now routes local-first appliance work through a dedicated repo-local skill, replaces stale skill/plugin names with installed plugin skill names, and removes hard-coded model/subagent assumptions from project guidance.
-- Local appliance bootstrap proof is complete for the current local-first slice: `dev:local`/`smoke:local-bootstrap` scripts, profile wiring (`single-user`, `lab-team`, `s3-compatible-local`, `developer`), local data-estate zone initialization, gateway health local-appliance evidence, Monitor rendering, sample workflow availability, and JS/Julia/contract smoke evidence are in place. Residual toolchain caveat: `npm run build` can hang after Vite transform in this Windows npm/WSL interop shell, while direct TypeScript and Vite build commands pass.
+- Local appliance bootstrap proof is complete for the current local-first slice: `dev:local`/`smoke:local-bootstrap` scripts, profile wiring (`single-user`, `lab-team`, `s3-compatible-local`, `developer`), local data-estate zone initialization, gateway health local-appliance evidence, Monitor rendering, sample workflow availability, and JS/Julia/contract smoke evidence are in place. The active development shell is now Debian-native with repo-local Julia LTS via Juliaup and native Linux/nvm Node.
 - Local data estate proof is complete for the current local-first slice: managed zone manifests/checksums, Arrow IPC and Parquet artifact-format evidence, quota/used-byte health fields, cleanup and backup hook readiness, DuckDB query binding, Monitor rendering, smoke wrapper, and Julia/frontend/contract coverage are in place.
 - Local metadata/database proof is complete for the current local-first slice: gateway `/health` exposes metadata mode/backend/root/readiness/schema/concurrency/capability evidence, Monitor renders the metadata block, `smoke:local-metadata` proves single-user file mode plus live Docker Postgres lab-team mode, and repository tests prove shared Postgres catalog/cursor visibility across repository instances.
 - Local hardware runtime proof is complete for the current local-first slice: gateway `/health` exposes hardware profile/backend, bounded CPU scheduler/concurrency/memory-limit evidence, GPU CUDA probe status, hardware/simulated GPU counts, VRAM totals, and per-device summaries; Monitor renders hardware evidence; `smoke:local-hardware` proves CPU fallback with an empty GPU registry plus safe CUDA-smoke skip behavior on non-CUDA machines.
 - Explainability and model evidence proof is complete for the current local-first slice: gateway `/health`, checkpoint payloads, and accepted executions now expose deterministic dataset-card, model-card, feature-importance, local-explanation, limitations/warnings, and reproducibility-bundle readiness evidence; Monitor renders the evidence; `smoke:local-explainability` verifies the local surface.
+- Academic reproducibility workflow proof is complete for the current local-first slice: gateway export/import routes produce a checksum-protected local JSON bundle with workflow, checkpoint, dataset checksum/card, package/runtime metadata, seeds, model artifact, metrics, explainability outputs, dashboard snapshot, notes, and local-only evidence; `smoke:local-reproducibility` verifies export/reimport into a fresh local repository and rejects tampered bundles.
 
 ## Active Development Order
 
@@ -53,21 +54,31 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Add dataset cards, model cards, global feature importance, local prediction explanations, permutation importance, partial-dependence/ICE-style summaries where practical, and limitations/warnings.
    - Include explainability outputs in checkpoints and reproducibility bundles.
 
-6. **Offline Hub proof**
+6. **Offline Hub proof** - complete for current slice
+   - Gateway health reports local Hub cache/artifact/mirror readiness, local bootstrap initializes offline artifact and mirror registry files, and `npm run smoke:local-offline-hub` exercises local extension registration/install plus unsafe sandbox blocking without external registry access.
    - Make bundled/local extensions install without external registry dependency.
    - Keep checksum verification, sandbox compatibility tests, local artifact cache, and unsafe-extension blocking.
 
-7. **Academic reproducibility workflow**
-   - Prove offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport path.
-   - Capture workflow definition, data checksums, package metadata, seeds, metrics, model artifacts, explainability outputs, dashboard snapshots, and notes.
+7. **Mock-aligned local product surface** - BRD requirements captured
+   - Explorer, Data, Transform, ML Studio, Models, Deploy, Visualize, and Settings are now explicit BRD product modules.
+   - Do not mark implementation complete from the mock refresh alone; deliver module depth in thin frontend/backend slices.
+   - Keep hosted SaaS collaboration, remote managed inference, cloud telemetry, cloud model registries, and external connectors optional unless explicitly enabled.
 
-8. **Frontend module expansion**
+8. **Academic reproducibility workflow** - complete for current slice
+   - Gateway export/import routes prove offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport path.
+   - Local bundles capture workflow definition, data checksums, package metadata, seeds, metrics, model artifact evidence, explainability outputs, dashboard snapshot, notes, and checksum validation.
+
+9. **Backup/restore and migration proof**
+   - Prove local data estate backup, metadata backup, checkpoint import/export, workflow bundle import/export, and integrity checks.
+   - Keep this distinct from reproducibility JSON bundles: backup/restore should cover local estate and metadata portability.
+
+10. **Frontend module expansion**
    - First BI published-viewer row-search slice is complete as of 2026-05-15.
    - Monitor dataflow policy/result detail slice is complete as of 2026-05-28.
    - Continue canvas/BI/Hub/settings improvements with `juliaflow-frontend-development` plus React/design/visual-test skills when frontend depth is selected again.
    - Preserve route shell, demo fallback, runtime `juliaflow-config.js`, accessibility selectors, and coverage gates.
 
-9. **Julia runtime module expansion**
+11. **Julia runtime module expansion**
    - Loop runtime-plan slice is complete as of 2026-05-15.
    - Try/catch runtime-plan slice is complete as of 2026-05-16.
    - Try/catch failure-recovery route slice is complete as of 2026-05-16.
@@ -82,11 +93,11 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Next Julia runtime follow-up: pause unless a narrower production-runtime gap is identified; otherwise return to provider proof or frontend module depth.
    - Use `juliaflow-julia-development`, `julia-coding`, and `julia-debugging`; verify with Julia tests and contract tests.
 
-10. **Provider/cloud compatibility backlog**
+12. **Provider/cloud compatibility backlog**
    - Kustomize/Kubernetes, S3/GCS/Azure object stores, external Hub registries, enterprise OIDC, and provider dry-runs are optional future paths.
    - Do not treat provider proof as a core GA blocker unless the BRD changes again.
 
-11. **Governed Hub production depth**
+13. **Governed Hub production depth**
    - Deterministic sandbox/hash/mirror verification slice is complete as of 2026-05-16.
    - Isolated fixture execution / downloaded artifact hash / private-offline mirror registry proof slice is complete as of 2026-05-17.
    - External registry/provider mirror work is now optional future compatibility; the next core Hub proof is offline/local install.
@@ -98,18 +109,24 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 
 Verification evidence for this slice: `npm run validate:contracts`, `julia --project=. tests/julia/runtests.jl`, `npm run smoke:local-explainability`, `npm run build`, and `npm run test`.
 
+## Latest Completed Slice — 2026-06-17 Academic Reproducibility
+
+**Academic reproducibility workflow proof** is complete for the current slice. Gateway routes now export a local reproducibility bundle and import it into a fresh repository, carrying workflow, checkpoint, data checksum/card, Julia/package/runtime metadata, seeds, model artifact evidence, metrics, explainability output, dashboard snapshot, notes, local-only evidence, and a deterministic checksum. The smoke also rejects a tampered bundle.
+
+Verification evidence for this slice: `npm run smoke:local-reproducibility`, `npm run validate:contracts`, Debian-local `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+
 
 ## Latest Completed Slice — 2026-06-03 Local Hardware Runtime
 
 **Local hardware runtime proof** is complete for the current slice. Gateway health now exposes local hardware profile status, selected backend (`cpu`, `cuda`, or `simulated_cuda`), bounded CPU scheduler policy, worker concurrency, CPU memory limit, CUDA probe status, hardware/simulated GPU counts, VRAM totals, and per-device summaries. The Monitor renders the hardware evidence, `npm run smoke:local-hardware` proves CPU fallback with an empty GPU registry and deterministic CUDA-smoke skip behavior when CUDA is not requested, and contract/frontend/Julia coverage pins the expanded health surface.
 
-Verification evidence for this slice: `npm run doctor:wsl-node`, `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- App.test.tsx`, `npm run smoke:local-hardware`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run smoke:local-bootstrap`, `npm run smoke:local-data-estate`, `npm run smoke:local-metadata`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+Verification evidence for this slice: `npm run doctor:wsl-node`, `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- App.test.tsx`, `npm run smoke:local-hardware`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run smoke:local-bootstrap`, `npm run smoke:local-data-estate`, `npm run smoke:local-metadata`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`. This historical doctor command now delegates to the Debian doctor in current repo state.
 
 ## Latest Completed Slice — 2026-05-31 Local Metadata / Database
 
 **Local metadata/database proof** is complete for the current slice. Gateway health now exposes metadata mode/backend/root/readiness/schema/concurrency/capability evidence for file-backed `single-user` and PostgreSQL-backed `lab-team` operation. The Monitor renders the metadata evidence, `npm run smoke:local-metadata` proves single-user file metadata plus live Docker Postgres lab-team metadata, and Julia repository coverage proves shared Postgres catalog/cursor visibility between two repository instances.
 
-Verification evidence for this slice: `npm run doctor:wsl-node`, `npm run smoke:local-bootstrap`, `npm run smoke:local-data-estate`, `npm run smoke:local-metadata`, `npm run validate:contracts`, `julia --project=. tests/julia/runtests.jl`, `npm --workspace @juliaflow/frontend run test -- App.test.tsx`, plus pending full `npm run test`, `npm run build`, control-doc sync, BRD traceability, and diff checks before final commit.
+Verification evidence for this slice: `npm run doctor:wsl-node`, `npm run smoke:local-bootstrap`, `npm run smoke:local-data-estate`, `npm run smoke:local-metadata`, `npm run validate:contracts`, `julia --project=. tests/julia/runtests.jl`, `npm --workspace @juliaflow/frontend run test -- App.test.tsx`, plus pending full `npm run test`, `npm run build`, control-doc sync, BRD traceability, and diff checks before final commit. This historical doctor command now delegates to the Debian doctor in current repo state.
 
 ## Latest Completed Slice — 2026-05-30 Local Data Estate
 
@@ -222,14 +239,32 @@ Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl
 
 Verification evidence for this slice: `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:coverage`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
+## Latest Completed Slice — 2026-06-16 Agent Skill Frontmatter Repair
+
+**Agent prompt hygiene follow-up / repo-local skill YAML repair** is complete. The `juliaflow-local-first-appliance` skill description frontmatter is now quoted so its colon-bearing trigger text remains valid YAML and the skill can be discovered without changing local-first routing guidance. The control-doc sync validator now uses status-based child-process handling so normal git stdout does not fail validation.
+
+Verification evidence for this slice: local repo-skill frontmatter check, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`. Official `skill-creator` validation remains blocked until `PyYAML` is available in the Python environment.
+
+## Latest Completed Slice — 2026-06-16 Mock-Aligned BRD Product Surface Refresh
+
+**Mock-aligned BRD product surface refresh** is complete. The BRD now captures mock-only local product requirements for Explorer/workspace overview, Data import/profile/lineage, Transform pipeline/code preview/history, ML Studio training/experiments, Models registry/drift/lineage, local Deploy targets/endpoints, Visualize dashboard builder/export, and Settings for local paths/packages/Julia/compute/security/API keys/snapshots. Stale cloud/provider wording was tightened so hosted SaaS collaboration, remote managed inference, cloud telemetry, cloud model registries, cloud deployment, and external connectors remain optional compatibility rather than core local-first requirements.
+
+Verification evidence for this doc-only slice: `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+
+## Latest Completed Slice — 2026-06-16 Debian Toolchain And Offline Hub Proof
+
+**Debian toolchain rectification and Offline Hub proof are complete for the current slice.** The repo now uses `npm run doctor:debian`, native Linux/nvm Node, and a repo-local Juliaup LTS install with workspace-local Julia depots. Gateway health exposes local Hub cache readiness, artifact-store and mirror-registry paths, bundled extension count, and locally installed extension count. Local bootstrap initializes the offline Hub cache registry files. `npm run smoke:local-offline-hub` runs in-process through the gateway router, registers and enables a local official extension through a local artifact cache and mirror registry, then verifies an unsafe sandbox command remains blocked.
+
+Verification evidence for this slice: `npm run doctor:debian`, `npm run smoke:local-offline-hub`, Debian-local `julia --project=. tests/julia/runtests.jl`, `npm run validate:contracts`, `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, `npm audit --audit-level=moderate`, and `git diff --check`.
+
 ## Required Skills By Lane
 
-- BRD/control docs: `juliaflow-control-loop`, `analysis-engineering-workflow:plan-work`, `analysis-engineering-workflow:implement-work`, `analysis-engineering-workflow:execute-verify`
-- Local-first appliance: `juliaflow-local-first-appliance`, `analysis-engineering-workflow:architect-work`, `analysis-engineering-workflow:review-architecture`
-- Julia services/runtime/nodes: `juliaflow-julia-development`, `julia-engineering-toolkit:julia-coding`, `julia-engineering-toolkit:julia-data-science`, `julia-engineering-toolkit:julia-debugging`
-- Frontend/UI: `juliaflow-frontend-development`, `frontend-design-workflow:frontend-implementation`, `frontend-design-workflow:frontend-architecture`, `frontend-design-workflow:frontend-visual-qa`, `frontend-design-workflow:frontend-accessibility-review`, `lowcode-ml-ui-patterns`
-- Deployment/provider proof: `juliaflow-provider-deployment` only for explicit optional provider/cloud compatibility
-- Review/security: `analysis-engineering-workflow:framework-compliance-review`, `analysis-engineering-workflow:post-execution-review`, `codex-security:security-scan`
+- BRD/control docs: `juliaflow-control-loop`.
+- Local-first GA: `juliaflow-local-first-appliance`.
+- Julia services/runtime/nodes: `juliaflow-julia-development`.
+- Frontend/UI: `juliaflow-frontend-development`.
+- Deployment/provider proof: `juliaflow-provider-deployment` only for explicit optional provider/cloud compatibility.
+- Review/security/GitHub/plugin work: use an installed plugin skill only when it is available and directly matches the task.
 
 Use multi-agent tools for independent bounded lanes only when available and ownership is clear; otherwise keep work integrated in the current agent session.
 

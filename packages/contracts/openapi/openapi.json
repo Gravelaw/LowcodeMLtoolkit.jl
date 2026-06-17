@@ -389,6 +389,80 @@
         }
       }
     },
+    "/api/v1/reproducibility-bundles": {
+      "post": {
+        "summary": "Export a local reproducibility bundle",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReproducibilityBundleExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reproducibility bundle exported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReproducibilityBundleExportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid reproducibility bundle export request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reproducibility-bundles/import": {
+      "post": {
+        "summary": "Import a local reproducibility bundle",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReproducibilityBundleImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reproducibility bundle imported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReproducibilityBundleImportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid reproducibility bundle import request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dashboards/{dashboardId}": {
       "get": {
         "summary": "Get published dashboard snapshot",
@@ -1007,6 +1081,14 @@
           "gpuReadinessStatus",
           "gpuFallbackReason",
           "explainabilityEvidence",
+          "hubCacheRoot",
+          "hubArtifactStorePath",
+          "hubMirrorRegistryPath",
+          "hubArtifactCacheRoot",
+          "hubCacheStatus",
+          "hubOfflineInstallReady",
+          "hubBundledExtensionCount",
+          "hubInstalledLocalExtensionCount",
           "repositoryBackend",
           "storeRoot",
           "workflowCount",
@@ -1177,6 +1259,34 @@
           },
           "explainabilityEvidence": {
             "$ref": "#/components/schemas/GatewayExplainabilityEvidence"
+          },
+          "hubCacheRoot": {
+            "type": "string"
+          },
+          "hubArtifactStorePath": {
+            "type": "string"
+          },
+          "hubMirrorRegistryPath": {
+            "type": "string"
+          },
+          "hubArtifactCacheRoot": {
+            "type": "string"
+          },
+          "hubCacheStatus": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "pending"
+            ]
+          },
+          "hubOfflineInstallReady": {
+            "type": "boolean"
+          },
+          "hubBundledExtensionCount": {
+            "type": "integer"
+          },
+          "hubInstalledLocalExtensionCount": {
+            "type": "integer"
           },
           "repositoryBackend": {
             "type": "string"
@@ -2738,6 +2848,11 @@
           }
         }
       },
+      "ReproducibilityBundleExportRequest": {"type": "object", "required": ["workflowId", "checkpointTag"], "properties": {"workflowId": {"type": "string"}, "checkpointTag": {"type": "string"}, "dashboardId": {"type": "string"}, "notes": {"type": "string"}}},
+      "ReproducibilityBundle": {"type": "object", "required": ["bundleId", "createdAt", "schemaVersion", "workflow", "checkpoint", "dataReferences", "datasetCards", "packageEnvironment", "runtimeConfig", "randomSeeds", "modelArtifact", "metrics", "evaluationOutputs", "explainabilityOutputs", "notes", "localOnly", "bundleChecksumSha256"], "properties": {"bundleId": {"type": "string"}, "createdAt": {"type": "string"}, "schemaVersion": {"type": "string", "enum": ["juliaflow.reproducibility.v1"]}, "workflow": {"$ref": "#/components/schemas/WorkflowDetail"}, "checkpoint": {"$ref": "#/components/schemas/CheckpointRecord"}, "dataReferences": {"type": "array", "items": {"type": "object", "required": ["datasetId", "sourceUri", "checksumSha256", "rowCount"], "properties": {"datasetId": {"type": "string"}, "sourceUri": {"type": "string"}, "checksumSha256": {"type": "string"}, "rowCount": {"type": "integer"}}}}, "datasetCards": {"type": "array", "items": {"$ref": "#/components/schemas/GatewayDatasetCardEvidence"}}, "packageEnvironment": {"type": "object", "additionalProperties": true}, "runtimeConfig": {"type": "object", "additionalProperties": true}, "randomSeeds": {"type": "object", "additionalProperties": {"type": "integer"}}, "modelArtifact": {"type": "object", "required": ["modelId", "artifactRef", "checksumSha256"], "properties": {"modelId": {"type": "string"}, "artifactRef": {"type": "string"}, "checksumSha256": {"type": "string"}}}, "metrics": {"type": "object", "additionalProperties": {"type": "number"}}, "evaluationOutputs": {"type": "object", "additionalProperties": true}, "explainabilityOutputs": {"$ref": "#/components/schemas/GatewayExplanationEvidence"}, "dashboardSnapshot": {"anyOf": [{"$ref": "#/components/schemas/PublishedDashboard"}, {"type": "null"}]}, "notes": {"type": "string"}, "localOnly": {"type": "boolean"}, "bundleChecksumSha256": {"type": "string"}}},
+      "ReproducibilityBundleExportResponse": {"type": "object", "required": ["status", "bundle"], "properties": {"status": {"type": "string", "enum": ["ok"]}, "bundle": {"$ref": "#/components/schemas/ReproducibilityBundle"}}},
+      "ReproducibilityBundleImportRequest": {"type": "object", "required": ["bundle"], "properties": {"bundle": {"$ref": "#/components/schemas/ReproducibilityBundle"}}},
+      "ReproducibilityBundleImportResponse": {"type": "object", "required": ["status", "bundleId", "workflowId", "checkpointTag", "bundleChecksumSha256"], "properties": {"status": {"type": "string", "enum": ["imported"]}, "bundleId": {"type": "string"}, "workflowId": {"type": "string"}, "checkpointTag": {"type": "string"}, "dashboardId": {"type": ["string", "null"]}, "bundleChecksumSha256": {"type": "string"}}},
       "HubExtensionRecord": {
         "type": "object",
         "required": [

@@ -15,12 +15,55 @@ Tracker always records 3 things:
 ## Project
 
 - Name: `JuliaFlow`
-- BRD: `business-requirements-v0.3.0.md` v0.4.0 local-first baseline
+- BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-06`
+- Last updated: `2026-06-17`
 
 ## Work Done Till Date
+### Academic Reproducibility Workflow Proof (2026-06-17)
+
+- Closed the academic reproducibility workflow lane after the Offline Hub and mock-aligned BRD product-surface slices.
+- Added gateway export/import routes for local reproducibility bundles.
+- Bundle evidence now includes workflow definition, checkpoint, dataset reference/checksum, dataset card, Julia/package metadata, runtime config, seeds, model artifact evidence, metrics, explainability output, dashboard snapshot, user notes, local-only flag, and deterministic bundle checksum.
+- Added tamper rejection for checksum mismatches.
+- Added `scripts/smoke-local-reproducibility.mjs`, `scripts/smoke-local-reproducibility.jl`, and `npm run smoke:local-reproducibility` to prove export/reimport into a fresh local repository without network or cloud credentials.
+
+### Gaps Pending
+
+- Backup/restore and migration remain open and should cover local data estate backup, metadata backup, checkpoint/workflow bundle portability, dashboard/model/package/settings portability, and restore integrity checks.
+- Mock-derived product modules still need implementation slices before they can be claimed complete.
+
+### Next Items To Implement
+
+- Start backup/restore and migration proof unless a mock-derived local product module slice is explicitly selected first.
+
+### Mock-Aligned BRD Product Surface Refresh (2026-06-16)
+
+- Compared the eight `mockdesigns/` screens against the current BRD and repository state.
+- Updated `business-requirements-v0.3.0.md` so Explorer, Data, Transform, ML Studio, Models, Deploy, Visualize, and Settings are explicit local-first product modules.
+- Added mock-derived requirements for local workspace overview, local source connectors, visual transforms, MLJ training, local experiment tracking, model registry, local deployment targets/endpoints, dashboard builder/export, local package/Julia settings, API keys, autosave, and snapshots.
+- Reworked stale cloud/provider references so hosted SaaS collaboration, remote managed inference, cloud telemetry, cloud model registries, cloud deployment, external connectors, and external registries remain optional compatibility only.
+
+### Gaps Pending
+
+- This was a BRD/control-doc refresh only; mock-derived features still need implementation slices before they can be claimed complete.
+- Academic reproducibility and backup/restore remain open core local-first lanes.
+
+### Next Items To Implement
+
+- Continue with academic reproducibility workflow unless a mock-derived local product module slice is selected first.
+
+### Debian Toolchain / Offline Hub Proof Slice (2026-06-16)
+
+- Closed the sixth local-first GA lane after explainability/model evidence proof.
+- Replaced the active Windows/WSL toolchain path with Debian-native checks: `npm run doctor:debian` verifies native Linux/nvm Node and repo-local Juliaup LTS with workspace-local Julia depots.
+- Gateway `/health` now exposes local Hub cache readiness, artifact-store path, mirror-registry path, artifact cache root, bundled extension count, installed local extension count, and offline install readiness.
+- Local bootstrap initializes offline Hub artifact and mirror registry files under the local appliance cache.
+- `npm run smoke:local-offline-hub` verifies local official extension registration/enablement through the gateway router without external registry access and keeps unsafe sandbox commands blocked.
+- Frontend Monitor renders Offline Hub readiness and install-proof evidence, with TypeScript/OpenAPI, Julia, frontend, and contract tests covering the expanded surface.
+- Dependency hygiene follow-up is closed in this PR branch: `npm audit --audit-level=moderate` reports zero vulnerabilities after the Vite 8 lockfile upgrade.
+
 ### Explainability / Model Evidence Proof Slice (2026-06-06)
 
 - Closed the fifth local-first GA lane after local hardware runtime proof.
@@ -2040,3 +2083,44 @@ After any meaningful job:
 ### Next Items To Implement
 
 - Start local appliance bootstrap proof using `juliaflow-control-loop` plus `juliaflow-local-first-appliance`.
+
+---
+
+## Update: Agent Prompt Hygiene Skill Frontmatter Repair — 2026-06-16
+
+### Work Done Till Date
+
+- Quoted `.codex/skills/juliaflow-local-first-appliance/SKILL.md` description frontmatter so the `work: one-command` trigger text is valid YAML.
+- Hardened `scripts/validate-control-doc-sync.mjs` to read git output via status-based child-process handling after `execFileSync` threw despite status `0` in the current environment.
+- Confirmed all repo-local skill frontmatter blocks still expose required `name` and `description` keys.
+
+### Gaps Pending
+
+- Official `skill-creator` validation still depends on `PyYAML`, which is not installed in the current Python environment.
+
+### Next Items To Implement
+
+- Re-run official skill validation after project or user environment dependencies provide `PyYAML`.
+
+---
+
+## Update: Offline Hub Proof Implementation Staged — 2026-06-16
+
+### Work Done Till Date
+
+- Added gateway health evidence for local Hub cache readiness, artifact-store path, mirror-registry path, artifact cache root, bundled extension count, and locally installed extension count.
+- Updated local appliance bootstrap to initialize offline Hub artifact and mirror registry files under the local Hub cache.
+- Added `npm run smoke:local-offline-hub`, which runs the gateway router in-process, registers a local official extension from a local artifact cache, enables it through offline mirror resolution, and verifies an unsafe sandbox command is blocked.
+- Exposed Offline Hub readiness in the Monitor health panel and aligned TypeScript/OpenAPI/test fixtures.
+- Rectified the development shell for Debian by adding `npm run doctor:debian`, repo-local Juliaup support, and workspace-local Julia depots; the compatibility `doctor:wsl-node` script now delegates to the Debian doctor.
+- Verified with `npm run doctor:debian`, `npm run smoke:local-offline-hub`, Debian-local `julia --project=. tests/julia/runtests.jl`, `npm run validate:contracts`, `npm run test`, `npm run build`, control-doc sync, BRD traceability, and diff checks.
+
+### Gaps Pending
+
+- Offline Hub TODO item 8 is closed for the current local-first slice.
+- External Hub registry/provider mirror proof remains optional compatibility work.
+- The Babel/esbuild/Vite dependency advisories are resolved in this PR branch; `npm audit --audit-level=moderate` reports zero vulnerabilities after the Vite 8 lockfile upgrade.
+
+### Next Items To Implement
+
+- Start academic reproducibility workflow: offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport with package, seed, checksum, metric, model, explanation, dashboard, and notes evidence.

@@ -1,7 +1,7 @@
 # JuliaFlow Repository Guidance
 
 Project-local overlay for `/mnt/c/Users/aksha/OneDrive/Documents/LowCodeJulia`.
-Global Codex guidance owns engineering discipline, deterministic operations, WSL execution, failure escalation, skill-routing hygiene, verification posture, and git safety. Keep this file JuliaFlow-specific.
+Global Codex guidance owns engineering discipline, deterministic operations, Debian execution, failure escalation, skill-routing hygiene, verification posture, and git safety. Keep this file JuliaFlow-specific.
 
 ## Repo Shape
 
@@ -26,7 +26,7 @@ Prefer feature-oriented paths inside these areas over unrelated new root files.
 ## Commands
 
 - `npm install`
-- `npm run doctor:wsl-node`
+- `npm run doctor:debian`
 - `npm run dev:frontend`
 - `npm run build`
 - `npm run test`
@@ -85,11 +85,11 @@ Preferred local-first order:
 
 ## Skill Index
 
-- `juliaflow-control-loop`: BRD/TODO/checkpoint closure, traceability, milestone decisions.
-- `juliaflow-local-first-appliance`: local bootstrap, data estate, metadata/database, hardware, explainability, offline Hub, reproducibility, backup/restore.
-- `juliaflow-julia-development`: Julia services, node SDK, worker runtime, base extensions, Julia package/API/debugging work.
-- `juliaflow-frontend-development`: React/Vite canvas, BI, Hub, Monitor, settings, runtime config, frontend tests/visual QA.
+- `juliaflow-control-loop`: BRD/TODO/checkpoint closure and traceability.
+- `juliaflow-local-first-appliance`: local-first GA appliance proof work.
+- `juliaflow-julia-development`: Julia services, runtime, workers, node SDK, and extensions.
+- `juliaflow-frontend-development`: React/Vite canvas, BI, Hub, Monitor, settings, and frontend tests.
 - `juliaflow-provider-deployment`: optional provider/cloud compatibility.
-- Installed plugin skills: use analysis-engineering, Julia, frontend, security, and GitHub skills when their trigger descriptions match the work.
+- Installed plugin skills: use only when available and directly matched to the task.
 
 Use multi-agent tools only when available, independent, and clearly owned. Do not delegate shared-file edits without explicit ownership.

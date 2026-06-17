@@ -1,6 +1,6 @@
 ---
 name: juliaflow-frontend-development
-description: Use when implementing or reviewing JuliaFlow frontend canvas, BI/dashboard viewer, Hub, Monitor, settings, React/Vite tests, UI state, runtime config, accessibility, visual QA, or frontend performance.
+description: Use for JuliaFlow React/Vite frontend, BI, Hub, Monitor, settings, tests, and visual QA.
 ---
 
 # JuliaFlow Frontend Development

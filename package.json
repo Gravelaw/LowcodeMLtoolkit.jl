@@ -24,13 +24,16 @@
     "smoke:local-bootstrap": "node scripts/smoke-local-bootstrap.mjs",
     "smoke:local-data-estate": "node scripts/smoke-local-data-estate.mjs",
     "validate:control-doc-sync": "node scripts/validate-control-doc-sync.mjs",
-    "preinstall": "node scripts/ensure-wsl-node.mjs",
-    "prebuild": "node scripts/ensure-wsl-node.mjs",
-    "pretest": "node scripts/ensure-wsl-node.mjs",
-    "doctor:wsl-node": "node scripts/ensure-wsl-node.mjs && node -p \"process.platform + ' ' + process.execPath\" && npm --version && npx --version",
+    "preinstall": "node scripts/ensure-debian-toolchain.mjs",
+    "prebuild": "node scripts/ensure-debian-toolchain.mjs",
+    "pretest": "node scripts/ensure-debian-toolchain.mjs",
+    "doctor:debian": "node scripts/ensure-debian-toolchain.mjs --julia && node -p \"process.platform + ' ' + process.execPath\" && npm --version && npx --version",
+    "doctor:wsl-node": "npm run doctor:debian",
     "smoke:local-metadata": "node scripts/smoke-local-metadata.mjs",
     "smoke:local-hardware": "node scripts/smoke-local-hardware.mjs",
-    "smoke:local-explainability": "node scripts/dev-local.mjs --profile single-user --smoke --no-deps"
+    "smoke:local-explainability": "node scripts/dev-local.mjs --profile single-user --smoke --no-deps",
+    "smoke:local-offline-hub": "node scripts/smoke-local-offline-hub.mjs",
+    "smoke:local-reproducibility": "node scripts/smoke-local-reproducibility.mjs"
   },
   "dependencies": {
     "smol-toml": "^1.3.4"

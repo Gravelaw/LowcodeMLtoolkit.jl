@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdirSync, statfsSync } from "node:fs";
+import { existsSync, mkdirSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,22 @@ import { spawn, spawnSync } from "node:child_process";
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PROFILES = new Set(["single-user", "lab-team", "s3-compatible-local", "developer"]);
 const ZONES = ["raw", "processed", "features", "models", "runs", "checkpoints", "dashboards", "logs", "extensions"];
+const LOCAL_JULIA = join(ROOT_DIR, ".juliaup", "bin", "julia");
+
+function juliaCommand() {
+  if (process.env.JULIAFLOW_JULIA_CMD) {
+    return process.env.JULIAFLOW_JULIA_CMD;
+  }
+  return existsSync(LOCAL_JULIA) ? LOCAL_JULIA : "julia";
+}
+
+function withJuliaEnv(env) {
+  return {
+    ...env,
+    JULIAUP_DEPOT_PATH: env.JULIAUP_DEPOT_PATH ?? join(ROOT_DIR, ".juliaup"),
+    JULIA_DEPOT_PATH: env.JULIA_DEPOT_PATH ?? join(ROOT_DIR, ".julia-depot")
+  };
+}
 
 function parseArgs(argv) {
   const options = {
@@ -120,11 +136,21 @@ function initLocalHome(options) {
   const metadataRoot = resolve(process.env.JULIAFLOW_METADATA_ROOT ?? join(home, "metadata"));
   const storeRoot = resolve(process.env.JULIAFLOW_STORE_ROOT ?? join(metadataRoot, "gateway-store"));
   const hubCacheRoot = resolve(process.env.JULIAFLOW_HUB_CACHE_ROOT ?? join(home, "hub-cache"));
+  const hubArtifactCacheRoot = resolve(process.env.JULIAFLOW_HUB_ARTIFACT_CACHE_ROOT ?? join(hubCacheRoot, "artifacts"));
+  const hubArtifactStorePath = resolve(process.env.JULIAFLOW_HUB_ARTIFACT_STORE ?? join(hubCacheRoot, "artifact-store.json"));
+  const hubMirrorRegistryPath = resolve(process.env.JULIAFLOW_HUB_MIRROR_REGISTRY ?? join(hubCacheRoot, "mirror-registry.json"));
 
   mkdirSync(home, { recursive: true });
   mkdirSync(metadataRoot, { recursive: true });
   mkdirSync(storeRoot, { recursive: true });
   mkdirSync(hubCacheRoot, { recursive: true });
+  mkdirSync(hubArtifactCacheRoot, { recursive: true });
+  if (!existsSync(hubArtifactStorePath)) {
+    writeFileSync(hubArtifactStorePath, "{}\n");
+  }
+  if (!existsSync(hubMirrorRegistryPath)) {
+    writeFileSync(hubMirrorRegistryPath, "{}\n");
+  }
 
   const zones = ZONES.map((name) => {
     const path = join(dataRoot, name);
@@ -147,6 +173,9 @@ function initLocalHome(options) {
     metadataRoot,
     storeRoot,
     hubCacheRoot,
+    hubArtifactCacheRoot,
+    hubArtifactStorePath,
+    hubMirrorRegistryPath,
     zones,
     freeDiskBytes,
     serviceUrls: serviceUrls(options)
@@ -163,6 +192,8 @@ function baseEnv(config, options) {
     JULIAFLOW_METADATA_ROOT: config.metadataRoot,
     JULIAFLOW_STORE_ROOT: config.storeRoot,
     JULIAFLOW_HUB_CACHE_ROOT: config.hubCacheRoot,
+    JULIAFLOW_HUB_ARTIFACT_STORE: config.hubArtifactStorePath,
+    JULIAFLOW_HUB_MIRROR_REGISTRY: config.hubMirrorRegistryPath,
     JULIAFLOW_GATEWAY_HOST: options.host,
     JULIAFLOW_GATEWAY_PORT: numberOption(options.gatewayPort, "gateway port"),
     JULIAFLOW_EXECUTION_HOST: options.host,
@@ -208,11 +239,11 @@ function ensureJuliaDependencies(env) {
   }
   console.log("[dev:local] ensuring Julia dependencies");
   const result = spawnSync(
-    "julia",
+    juliaCommand(),
     ["--project=.", "-e", "using Pkg; Pkg.instantiate()"],
     {
       cwd: ROOT_DIR,
-      env,
+      env: withJuliaEnv(env),
       stdio: "inherit",
       shell: false
     }
@@ -252,7 +283,8 @@ async function waitForJson(url, timeoutMs) {
 }
 
 async function runSmoke(config, env) {
-  const gateway = spawnProcess("api-gateway", "julia", ["--project=.", "scripts/run-api-gateway.jl"], env);
+  const julia = juliaCommand();
+  const gateway = spawnProcess("api-gateway", julia, ["--project=.", "scripts/run-api-gateway.jl"], withJuliaEnv(env));
   const stop = () => gateway.kill("SIGTERM");
   try {
     const health = await waitForJson(`${config.serviceUrls.gateway}/health`, 30000);
@@ -330,6 +362,15 @@ async function runSmoke(config, env) {
     if (!Array.isArray(health.explainabilityEvidence.explanation?.featureImportance) || health.explainabilityEvidence.explanation.featureImportance.length < 1) {
       throw new Error("Gateway health did not report feature-importance evidence");
     }
+    if (health.hubCacheStatus !== "ready" || health.hubOfflineInstallReady !== true) {
+      throw new Error("Gateway health did not report ready offline Hub cache");
+    }
+    if (health.hubArtifactStorePath !== config.hubArtifactStorePath || health.hubMirrorRegistryPath !== config.hubMirrorRegistryPath) {
+      throw new Error("Gateway health did not report local Hub artifact/mirror registry paths");
+    }
+    if (!Number.isInteger(health.hubBundledExtensionCount) || health.hubBundledExtensionCount < 1) {
+      throw new Error("Gateway health did not report bundled Hub extensions");
+    }
     if (!["not_requested", "requested", "ready", "unavailable"].includes(health.gpuCudaStatus)) {
       throw new Error(`Gateway health reported unsupported CUDA status: ${health.gpuCudaStatus}`);
     }
@@ -362,10 +403,10 @@ async function main() {
   }
 
   const children = [
-    spawnProcess("api-gateway", "julia", ["--project=.", "scripts/run-api-gateway.jl"], env),
-    spawnProcess("execution-service", "julia", ["--project=.", "scripts/run-execution-service.jl"], env),
-    spawnProcess("stream-worker", "julia", ["--project=.", "scripts/run-stream-worker.jl"], env),
-    spawnProcess("gpu-worker", "julia", ["--project=.", "scripts/run-gpu-worker.jl"], env),
+    spawnProcess("api-gateway", juliaCommand(), ["--project=.", "scripts/run-api-gateway.jl"], withJuliaEnv(env)),
+    spawnProcess("execution-service", juliaCommand(), ["--project=.", "scripts/run-execution-service.jl"], withJuliaEnv(env)),
+    spawnProcess("stream-worker", juliaCommand(), ["--project=.", "scripts/run-stream-worker.jl"], withJuliaEnv(env)),
+    spawnProcess("gpu-worker", juliaCommand(), ["--project=.", "scripts/run-gpu-worker.jl"], withJuliaEnv(env)),
     spawnProcess("frontend", "npm", ["--workspace", "@juliaflow/frontend", "run", "dev", "--", "--host", options.host, "--port", numberOption(options.frontendPort, "frontend port")], env)
   ];
 

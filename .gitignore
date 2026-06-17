@@ -8,6 +8,8 @@ coverage/
 .env.*
 !.env.example
 .julia/
+.julia-depot/
+.juliaup/
 Manifest.toml
 tmp/
 artifacts/

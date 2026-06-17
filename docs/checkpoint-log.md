@@ -20,6 +20,52 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Mock-Aligned BRD Product Surface Refresh Complete — 2026-06-16
+
+### Work Done Till Date
+
+- Compared the eight `mockdesigns/` screens against the BRD and current repo state.
+- Updated the BRD to capture Explorer, Data, Transform, ML Studio, Models, Deploy, Visualize, and Settings as required local-first product modules.
+- Added requirements for local workspace health/activity, local data import/profile/lineage, transform canvas/code/history, MLJ training/experiments, model registry/drift/lineage, local deployment targets/endpoints, dashboard builder/export, local package/Julia settings, API keys, autosave, and snapshots.
+- Removed stale core-product emphasis on cloud/provider paths by keeping hosted SaaS collaboration, remote managed inference, cloud telemetry, cloud model registries, cloud deployment, external connectors, and external registries optional.
+
+### Gaps Pending
+
+- This checkpoint closes the BRD/control-doc refresh only; mock-derived module implementation remains open.
+- Academic reproducibility and backup/restore remain open local-first lanes.
+
+### Next Items To Implement
+
+- Start academic reproducibility workflow unless the next selected slice is a mock-derived local module implementation pass.
+- Keep `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check` as required evidence for doc/control slices.
+
+---
+
+## Checkpoint: `cp/02-alpha-core` Debian Toolchain / Offline Hub Proof Complete — 2026-06-16
+
+### Work Done Till Date
+
+- Rectified the active development shell for Debian: `npm run doctor:debian` verifies native Linux/nvm Node and repo-local Juliaup LTS with workspace-local Julia depots.
+- Implemented and verified the offline Hub proof after explainability/model evidence closure.
+- Gateway `/health` exposes local Hub cache readiness, artifact-store path, mirror-registry path, artifact cache root, bundled extension count, installed local extension count, and offline install readiness.
+- Local bootstrap initializes offline Hub artifact and mirror registry files under the local appliance cache.
+- `npm run smoke:local-offline-hub` runs through the in-process gateway router, registers/enables a local official extension from local artifact/mirror registries, and verifies unsafe sandbox commands remain blocked.
+- Frontend Monitor, TypeScript/OpenAPI contracts, Julia health assertions, frontend tests, and contract tests cover the expanded Offline Hub evidence surface.
+
+### Gaps Pending
+
+- Offline Hub proof is closed for the current local-first slice.
+- Socket-bound gateway smoke remains unavailable in the current sandbox because TCP bind fails with `EPERM`; the in-process router smoke verifies the install path without network binding.
+- The Babel/esbuild/Vite dependency advisories are resolved in this PR branch; `npm audit --audit-level=moderate` now reports zero vulnerabilities after the Vite 8 lockfile upgrade.
+- Academic reproducibility bundles and backup/restore integrity remain queued for the next local-first lanes.
+
+### Next Items To Implement
+
+- Start academic reproducibility workflow: offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport with package, seed, checksum, metric, model, explanation, dashboard, and notes evidence.
+- Keep `npm run doctor:debian` and `npm run smoke:local-offline-hub` in the local-first gate set.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` Explainability / Model Evidence Proof Complete — 2026-06-06
 
 ### Work Done Till Date
@@ -2228,3 +2274,65 @@ Each checkpoint entry must contain:
 ### Next Items To Implement
 
 - Use the new local-first appliance skill for the next local bootstrap implementation slice.
+
+---
+
+## Checkpoint: Agent Prompt Hygiene Skill Frontmatter Repair — 2026-06-16
+
+### Work Done Till Date
+
+- Repaired `.codex/skills/juliaflow-local-first-appliance/SKILL.md` by quoting its description frontmatter value, preserving the existing trigger wording while making the colon-bearing YAML scalar valid.
+- Hardened `scripts/validate-control-doc-sync.mjs` to avoid failing when child-process git output is returned with status `0` in the current environment.
+- Ran a local frontmatter check across all repo-local `SKILL.md` files for required `name` and `description` keys.
+
+### Gaps Pending
+
+- The official `skill-creator` validator could not run because `PyYAML` is not installed in the current Python environment.
+
+### Next Items To Implement
+
+- Install or restore project validation dependencies before running the official skill validator.
+
+---
+
+## Checkpoint: Offline Hub Proof Implementation Staged — 2026-06-16
+
+### Work Done Till Date
+
+- Added local Hub cache readiness evidence to gateway `/health`, including artifact-store and mirror-registry paths plus local install counts.
+- Updated local bootstrap setup so the Hub cache contains offline artifact and mirror registry files by default.
+- Added `scripts/smoke-local-offline-hub.mjs`, `scripts/smoke-local-offline-hub.jl`, and the `npm run smoke:local-offline-hub` command to prove local extension install without an external registry and to keep unsafe sandbox commands blocked.
+- Updated contracts, OpenAPI, frontend Monitor rendering, frontend fixtures, contract tests, and Julia health assertions for the new evidence surface.
+- Rectified the active development shell for Debian with `npm run doctor:debian`, repo-local Juliaup LTS, workspace-local Julia depots, and Julia sandbox execution through the active Julia command instead of a PATH-dependent `julia` shim.
+- Verified with `npm run doctor:debian`, `npm run smoke:local-offline-hub`, Debian-local `julia --project=. tests/julia/runtests.jl`, `npm run validate:contracts`, `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+
+### Gaps Pending
+
+- Offline Hub proof is closed for the current local-first slice.
+- Socket-bound gateway smoke remains unavailable in the current sandbox because TCP bind fails with `EPERM`; the offline Hub smoke uses the in-process gateway router to verify the same install path without network binding.
+- The Babel/esbuild/Vite dependency advisories are resolved in this PR branch; `npm audit --audit-level=moderate` now reports zero vulnerabilities after the Vite 8 lockfile upgrade.
+
+### Next Items To Implement
+
+- Start academic reproducibility workflow: offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport with package, seed, checksum, metric, model, explanation, dashboard, and notes evidence.
+---
+
+## Checkpoint: Academic Reproducibility Workflow Proof — 2026-06-17
+
+### Work Done Till Date
+
+- Added local reproducibility bundle export/import routes to the gateway.
+- Added contract/OpenAPI/client shapes for reproducibility bundle export and import.
+- Bundles include workflow, checkpoint, dataset checksum/card, package/runtime metadata, seeds, model artifact evidence, metrics, explainability output, dashboard snapshot, notes, local-only flag, and deterministic checksum.
+- Import validates the checksum, restores workflow/checkpoint/dashboard evidence into a fresh local repository, and rejects tampered bundles.
+- Added `npm run smoke:local-reproducibility` to prove export/reimport through the in-process gateway router without network binding or cloud credentials.
+
+### Gaps Pending
+
+- Backup/restore and migration remain open for full local data estate and metadata portability.
+- Mock-derived product modules remain requirements-only until implementation slices land.
+
+### Next Items To Implement
+
+- Start backup/restore and migration proof.
+- Keep `npm run smoke:local-reproducibility` in the local-first verification gate set.
