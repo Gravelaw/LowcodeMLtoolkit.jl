@@ -1027,6 +1027,117 @@
           }
         }
       }
+    },
+    "/api/v1/local-data/import": {
+      "post": {
+        "summary": "Import and profile a local data estate dataset",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataImportProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dataset imported and profiled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataImportProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid local data import request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}/transforms/run": {
+      "post": {
+        "summary": "Run a workflow transform and return local artifact evidence",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransformRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Transform run accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransformRunResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Workflow not found or transform run failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}/transforms/history": {
+      "get": {
+        "summary": "List transform run history for a workflow",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transform run history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransformHistoryResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Workflow not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1100,10 +1211,178 @@
           }
         }
       },
-      "GatewayDatasetCardEvidence": {"type": "object", "required": ["datasetId", "sourceUri", "checksumSha256", "schemaSummary", "rowCount", "limitations"], "properties": {"datasetId": {"type": "string"}, "sourceUri": {"type": "string"}, "checksumSha256": {"type": "string"}, "schemaSummary": {"type": "array", "items": {"type": "object", "required": ["name", "type"], "properties": {"name": {"type": "string"}, "type": {"type": "string"}}}}, "rowCount": {"type": "integer"}, "limitations": {"type": "array", "items": {"type": "string"}}}},
-      "GatewayModelCardEvidence": {"type": "object", "required": ["modelId", "kind", "target", "config", "metrics", "limitations"], "properties": {"modelId": {"type": "string"}, "kind": {"type": "string"}, "target": {"type": "string"}, "config": {"type": "object", "additionalProperties": true}, "metrics": {"type": "object", "additionalProperties": {"type": "number"}}, "limitations": {"type": "array", "items": {"type": "string"}}}},
-      "GatewayExplanationEvidence": {"type": "object", "required": ["method", "featureImportance", "localExample", "warnings"], "properties": {"method": {"type": "string"}, "featureImportance": {"type": "array", "items": {"type": "object", "required": ["feature", "importance"], "properties": {"feature": {"type": "string"}, "importance": {"type": "number"}}}}, "localExample": {"type": "object", "additionalProperties": true}, "warnings": {"type": "array", "items": {"type": "string"}}}},
-      "GatewayExplainabilityEvidence": {"type": "object", "required": ["status", "generatedAt", "workflowId", "checkpointTag", "datasetCard", "modelCard", "explanation", "reproducibilityBundleReady"], "properties": {"status": {"type": "string", "enum": ["ready", "pending"]}, "generatedAt": {"type": "string"}, "workflowId": {"type": "string"}, "checkpointTag": {"type": "string"}, "datasetCard": {"$ref": "#/components/schemas/GatewayDatasetCardEvidence"}, "modelCard": {"$ref": "#/components/schemas/GatewayModelCardEvidence"}, "explanation": {"$ref": "#/components/schemas/GatewayExplanationEvidence"}, "reproducibilityBundleReady": {"type": "boolean"}}},
+      "GatewayDatasetCardEvidence": {
+        "type": "object",
+        "required": [
+          "datasetId",
+          "sourceUri",
+          "checksumSha256",
+          "schemaSummary",
+          "rowCount",
+          "limitations"
+        ],
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "sourceUri": {
+            "type": "string"
+          },
+          "checksumSha256": {
+            "type": "string"
+          },
+          "schemaSummary": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "type"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "rowCount": {
+            "type": "integer"
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GatewayModelCardEvidence": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "kind",
+          "target",
+          "config",
+          "metrics",
+          "limitations"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GatewayExplanationEvidence": {
+        "type": "object",
+        "required": [
+          "method",
+          "featureImportance",
+          "localExample",
+          "warnings"
+        ],
+        "properties": {
+          "method": {
+            "type": "string"
+          },
+          "featureImportance": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "feature",
+                "importance"
+              ],
+              "properties": {
+                "feature": {
+                  "type": "string"
+                },
+                "importance": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "localExample": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GatewayExplainabilityEvidence": {
+        "type": "object",
+        "required": [
+          "status",
+          "generatedAt",
+          "workflowId",
+          "checkpointTag",
+          "datasetCard",
+          "modelCard",
+          "explanation",
+          "reproducibilityBundleReady"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "pending"
+            ]
+          },
+          "generatedAt": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "checkpointTag": {
+            "type": "string"
+          },
+          "datasetCard": {
+            "$ref": "#/components/schemas/GatewayDatasetCardEvidence"
+          },
+          "modelCard": {
+            "$ref": "#/components/schemas/GatewayModelCardEvidence"
+          },
+          "explanation": {
+            "$ref": "#/components/schemas/GatewayExplanationEvidence"
+          },
+          "reproducibilityBundleReady": {
+            "type": "boolean"
+          }
+        }
+      },
       "GatewayHealthcheck": {
         "type": "object",
         "required": [
@@ -2926,20 +3205,570 @@
           }
         }
       },
-      "ReproducibilityBundleExportRequest": {"type": "object", "required": ["workflowId", "checkpointTag"], "properties": {"workflowId": {"type": "string"}, "checkpointTag": {"type": "string"}, "dashboardId": {"type": "string"}, "notes": {"type": "string"}}},
-      "ReproducibilityBundle": {"type": "object", "required": ["bundleId", "createdAt", "schemaVersion", "workflow", "checkpoint", "dataReferences", "datasetCards", "packageEnvironment", "runtimeConfig", "randomSeeds", "modelArtifact", "metrics", "evaluationOutputs", "explainabilityOutputs", "notes", "localOnly", "bundleChecksumSha256"], "properties": {"bundleId": {"type": "string"}, "createdAt": {"type": "string"}, "schemaVersion": {"type": "string", "enum": ["juliaflow.reproducibility.v1"]}, "workflow": {"$ref": "#/components/schemas/WorkflowDetail"}, "checkpoint": {"$ref": "#/components/schemas/CheckpointRecord"}, "dataReferences": {"type": "array", "items": {"type": "object", "required": ["datasetId", "sourceUri", "checksumSha256", "rowCount"], "properties": {"datasetId": {"type": "string"}, "sourceUri": {"type": "string"}, "checksumSha256": {"type": "string"}, "rowCount": {"type": "integer"}}}}, "datasetCards": {"type": "array", "items": {"$ref": "#/components/schemas/GatewayDatasetCardEvidence"}}, "packageEnvironment": {"type": "object", "additionalProperties": true}, "runtimeConfig": {"type": "object", "additionalProperties": true}, "randomSeeds": {"type": "object", "additionalProperties": {"type": "integer"}}, "modelArtifact": {"type": "object", "required": ["modelId", "artifactRef", "checksumSha256"], "properties": {"modelId": {"type": "string"}, "artifactRef": {"type": "string"}, "checksumSha256": {"type": "string"}}}, "metrics": {"type": "object", "additionalProperties": {"type": "number"}}, "evaluationOutputs": {"type": "object", "additionalProperties": true}, "explainabilityOutputs": {"$ref": "#/components/schemas/GatewayExplanationEvidence"}, "dashboardSnapshot": {"anyOf": [{"$ref": "#/components/schemas/PublishedDashboard"}, {"type": "null"}]}, "notes": {"type": "string"}, "localOnly": {"type": "boolean"}, "bundleChecksumSha256": {"type": "string"}}},
-      "ReproducibilityBundleExportResponse": {"type": "object", "required": ["status", "bundle"], "properties": {"status": {"type": "string", "enum": ["ok"]}, "bundle": {"$ref": "#/components/schemas/ReproducibilityBundle"}}},
-      "ReproducibilityBundleImportRequest": {"type": "object", "required": ["bundle"], "properties": {"bundle": {"$ref": "#/components/schemas/ReproducibilityBundle"}}},
-      "ReproducibilityBundleImportResponse": {"type": "object", "required": ["status", "bundleId", "workflowId", "checkpointTag", "bundleChecksumSha256"], "properties": {"status": {"type": "string", "enum": ["imported"]}, "bundleId": {"type": "string"}, "workflowId": {"type": "string"}, "checkpointTag": {"type": "string"}, "dashboardId": {"type": ["string", "null"]}, "bundleChecksumSha256": {"type": "string"}}},
-      "LocalBackupExportRequest": {"type": "object", "properties": {"notes": {"type": "string"}, "includeExecutions": {"type": "boolean"}}},
-      "LocalBackupArtifact": {"type": "object", "required": ["relativePath", "sizeBytes", "checksumSha256", "present"], "properties": {"relativePath": {"type": "string"}, "sizeBytes": {"type": "integer"}, "checksumSha256": {"type": "string"}, "present": {"type": "boolean"}}},
-      "LocalBackupBundle": {"type": "object", "required": ["backupId", "createdAt", "schemaVersion", "notes", "localOnly", "appliance", "dataEstate", "workflows", "checkpoints", "executions", "publishedDashboards", "hubExtensions", "authPolicy", "authDirectory", "packageEnvironment", "runtimeConfig", "backupChecksumSha256"], "properties": {"backupId": {"type": "string"}, "createdAt": {"type": "string"}, "schemaVersion": {"type": "string", "enum": ["juliaflow.backup.v1"]}, "notes": {"type": "string"}, "localOnly": {"type": "boolean"}, "appliance": {"type": "object", "additionalProperties": true}, "dataEstate": {"type": "object", "required": ["root", "zones", "artifactFormats", "manifestChecksums", "artifacts"], "properties": {"root": {"type": "string"}, "zones": {"type": "array", "items": {"$ref": "#/components/schemas/GatewayDataEstateZoneStatus"}}, "artifactFormats": {"type": "array", "items": {"type": "string", "enum": ["arrow_ipc", "parquet"]}}, "manifestChecksums": {"type": "array", "items": {"$ref": "#/components/schemas/GatewayDataEstateManifestChecksum"}}, "artifacts": {"type": "array", "items": {"$ref": "#/components/schemas/LocalBackupArtifact"}}}}, "workflows": {"type": "array", "items": {"$ref": "#/components/schemas/WorkflowDetail"}}, "checkpoints": {"type": "array", "items": {"$ref": "#/components/schemas/CheckpointRecord"}}, "executions": {"type": "array", "items": {"$ref": "#/components/schemas/GatewayExecutionRecord"}}, "publishedDashboards": {"type": "array", "items": {"$ref": "#/components/schemas/PublishedDashboard"}}, "hubExtensions": {"type": "array", "items": {"$ref": "#/components/schemas/HubExtensionRecord"}}, "authPolicy": {"$ref": "#/components/schemas/GatewayAuthPolicy"}, "authDirectory": {"$ref": "#/components/schemas/GatewayAuthDirectory"}, "packageEnvironment": {"type": "object", "additionalProperties": true}, "runtimeConfig": {"type": "object", "additionalProperties": true}, "backupChecksumSha256": {"type": "string"}}},
-      "LocalBackupExportResponse": {"type": "object", "required": ["status", "backup"], "properties": {"status": {"type": "string", "enum": ["ok"]}, "backup": {"$ref": "#/components/schemas/LocalBackupBundle"}}},
-      "LocalBackupImportRequest": {"type": "object", "required": ["backup"], "properties": {"backup": {"$ref": "#/components/schemas/LocalBackupBundle"}}},
-      "LocalBackupRestoredSummary": {"type": "object", "required": ["workflows", "checkpoints", "executions", "publishedDashboards", "hubExtensions", "authPolicy", "authDirectory"], "properties": {"workflows": {"type": "array", "items": {"type": "string"}}, "checkpoints": {"type": "array", "items": {"type": "string"}}, "executions": {"type": "array", "items": {"type": "string"}}, "publishedDashboards": {"type": "array", "items": {"type": "string"}}, "hubExtensions": {"type": "array", "items": {"type": "string"}}, "authPolicy": {"type": "boolean"}, "authDirectory": {"type": "boolean"}}},
-      "LocalBackupCheckedArtifact": {"type": "object", "required": ["relativePath", "checksumSha256", "sizeBytes"], "properties": {"relativePath": {"type": "string"}, "checksumSha256": {"type": "string"}, "sizeBytes": {"type": "integer"}}},
-      "LocalBackupChecksumMismatch": {"type": "object", "required": ["relativePath", "expectedChecksumSha256", "actualChecksumSha256", "sizeBytes"], "properties": {"relativePath": {"type": "string"}, "expectedChecksumSha256": {"type": "string"}, "actualChecksumSha256": {"type": "string"}, "sizeBytes": {"type": "integer"}}},
-      "LocalBackupImportResponse": {"type": "object", "required": ["status", "backupId", "backupChecksumSha256", "restored", "missingArtifacts", "checkedArtifacts", "checksumMismatches"], "properties": {"status": {"type": "string", "enum": ["restored", "restored_with_missing_artifacts"]}, "backupId": {"type": "string"}, "backupChecksumSha256": {"type": "string"}, "restored": {"$ref": "#/components/schemas/LocalBackupRestoredSummary"}, "missingArtifacts": {"type": "array", "items": {"$ref": "#/components/schemas/LocalBackupArtifact"}}, "checkedArtifacts": {"type": "array", "items": {"$ref": "#/components/schemas/LocalBackupCheckedArtifact"}}, "checksumMismatches": {"type": "array", "items": {"$ref": "#/components/schemas/LocalBackupChecksumMismatch"}}}},
+      "ReproducibilityBundleExportRequest": {
+        "type": "object",
+        "required": [
+          "workflowId",
+          "checkpointTag"
+        ],
+        "properties": {
+          "workflowId": {
+            "type": "string"
+          },
+          "checkpointTag": {
+            "type": "string"
+          },
+          "dashboardId": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "ReproducibilityBundle": {
+        "type": "object",
+        "required": [
+          "bundleId",
+          "createdAt",
+          "schemaVersion",
+          "workflow",
+          "checkpoint",
+          "dataReferences",
+          "datasetCards",
+          "packageEnvironment",
+          "runtimeConfig",
+          "randomSeeds",
+          "modelArtifact",
+          "metrics",
+          "evaluationOutputs",
+          "explainabilityOutputs",
+          "notes",
+          "localOnly",
+          "bundleChecksumSha256"
+        ],
+        "properties": {
+          "bundleId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string",
+            "enum": [
+              "juliaflow.reproducibility.v1"
+            ]
+          },
+          "workflow": {
+            "$ref": "#/components/schemas/WorkflowDetail"
+          },
+          "checkpoint": {
+            "$ref": "#/components/schemas/CheckpointRecord"
+          },
+          "dataReferences": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "datasetId",
+                "sourceUri",
+                "checksumSha256",
+                "rowCount"
+              ],
+              "properties": {
+                "datasetId": {
+                  "type": "string"
+                },
+                "sourceUri": {
+                  "type": "string"
+                },
+                "checksumSha256": {
+                  "type": "string"
+                },
+                "rowCount": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "datasetCards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayDatasetCardEvidence"
+            }
+          },
+          "packageEnvironment": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "runtimeConfig": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "randomSeeds": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "modelArtifact": {
+            "type": "object",
+            "required": [
+              "modelId",
+              "artifactRef",
+              "checksumSha256"
+            ],
+            "properties": {
+              "modelId": {
+                "type": "string"
+              },
+              "artifactRef": {
+                "type": "string"
+              },
+              "checksumSha256": {
+                "type": "string"
+              }
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "evaluationOutputs": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "explainabilityOutputs": {
+            "$ref": "#/components/schemas/GatewayExplanationEvidence"
+          },
+          "dashboardSnapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublishedDashboard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          },
+          "bundleChecksumSha256": {
+            "type": "string"
+          }
+        }
+      },
+      "ReproducibilityBundleExportResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "bundle"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "bundle": {
+            "$ref": "#/components/schemas/ReproducibilityBundle"
+          }
+        }
+      },
+      "ReproducibilityBundleImportRequest": {
+        "type": "object",
+        "required": [
+          "bundle"
+        ],
+        "properties": {
+          "bundle": {
+            "$ref": "#/components/schemas/ReproducibilityBundle"
+          }
+        }
+      },
+      "ReproducibilityBundleImportResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "bundleId",
+          "workflowId",
+          "checkpointTag",
+          "bundleChecksumSha256"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "imported"
+            ]
+          },
+          "bundleId": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "checkpointTag": {
+            "type": "string"
+          },
+          "dashboardId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bundleChecksumSha256": {
+            "type": "string"
+          }
+        }
+      },
+      "LocalBackupExportRequest": {
+        "type": "object",
+        "properties": {
+          "notes": {
+            "type": "string"
+          },
+          "includeExecutions": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LocalBackupArtifact": {
+        "type": "object",
+        "required": [
+          "relativePath",
+          "sizeBytes",
+          "checksumSha256",
+          "present"
+        ],
+        "properties": {
+          "relativePath": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer"
+          },
+          "checksumSha256": {
+            "type": "string"
+          },
+          "present": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LocalBackupBundle": {
+        "type": "object",
+        "required": [
+          "backupId",
+          "createdAt",
+          "schemaVersion",
+          "notes",
+          "localOnly",
+          "appliance",
+          "dataEstate",
+          "workflows",
+          "checkpoints",
+          "executions",
+          "publishedDashboards",
+          "hubExtensions",
+          "authPolicy",
+          "authDirectory",
+          "packageEnvironment",
+          "runtimeConfig",
+          "backupChecksumSha256"
+        ],
+        "properties": {
+          "backupId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string",
+            "enum": [
+              "juliaflow.backup.v1"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          },
+          "appliance": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "dataEstate": {
+            "type": "object",
+            "required": [
+              "root",
+              "zones",
+              "artifactFormats",
+              "manifestChecksums",
+              "artifacts"
+            ],
+            "properties": {
+              "root": {
+                "type": "string"
+              },
+              "zones": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GatewayDataEstateZoneStatus"
+                }
+              },
+              "artifactFormats": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "arrow_ipc",
+                    "parquet"
+                  ]
+                }
+              },
+              "manifestChecksums": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GatewayDataEstateManifestChecksum"
+                }
+              },
+              "artifacts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LocalBackupArtifact"
+                }
+              }
+            }
+          },
+          "workflows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowDetail"
+            }
+          },
+          "checkpoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckpointRecord"
+            }
+          },
+          "executions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayExecutionRecord"
+            }
+          },
+          "publishedDashboards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublishedDashboard"
+            }
+          },
+          "hubExtensions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubExtensionRecord"
+            }
+          },
+          "authPolicy": {
+            "$ref": "#/components/schemas/GatewayAuthPolicy"
+          },
+          "authDirectory": {
+            "$ref": "#/components/schemas/GatewayAuthDirectory"
+          },
+          "packageEnvironment": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "runtimeConfig": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "backupChecksumSha256": {
+            "type": "string"
+          }
+        }
+      },
+      "LocalBackupExportResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "backup"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "backup": {
+            "$ref": "#/components/schemas/LocalBackupBundle"
+          }
+        }
+      },
+      "LocalBackupImportRequest": {
+        "type": "object",
+        "required": [
+          "backup"
+        ],
+        "properties": {
+          "backup": {
+            "$ref": "#/components/schemas/LocalBackupBundle"
+          }
+        }
+      },
+      "LocalBackupRestoredSummary": {
+        "type": "object",
+        "required": [
+          "workflows",
+          "checkpoints",
+          "executions",
+          "publishedDashboards",
+          "hubExtensions",
+          "authPolicy",
+          "authDirectory"
+        ],
+        "properties": {
+          "workflows": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "checkpoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "executions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "publishedDashboards": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hubExtensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "authPolicy": {
+            "type": "boolean"
+          },
+          "authDirectory": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LocalBackupCheckedArtifact": {
+        "type": "object",
+        "required": [
+          "relativePath",
+          "checksumSha256",
+          "sizeBytes"
+        ],
+        "properties": {
+          "relativePath": {
+            "type": "string"
+          },
+          "checksumSha256": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer"
+          }
+        }
+      },
+      "LocalBackupChecksumMismatch": {
+        "type": "object",
+        "required": [
+          "relativePath",
+          "expectedChecksumSha256",
+          "actualChecksumSha256",
+          "sizeBytes"
+        ],
+        "properties": {
+          "relativePath": {
+            "type": "string"
+          },
+          "expectedChecksumSha256": {
+            "type": "string"
+          },
+          "actualChecksumSha256": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer"
+          }
+        }
+      },
+      "LocalBackupImportResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "backupId",
+          "backupChecksumSha256",
+          "restored",
+          "missingArtifacts",
+          "checkedArtifacts",
+          "checksumMismatches"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "restored",
+              "restored_with_missing_artifacts"
+            ]
+          },
+          "backupId": {
+            "type": "string"
+          },
+          "backupChecksumSha256": {
+            "type": "string"
+          },
+          "restored": {
+            "$ref": "#/components/schemas/LocalBackupRestoredSummary"
+          },
+          "missingArtifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocalBackupArtifact"
+            }
+          },
+          "checkedArtifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocalBackupCheckedArtifact"
+            }
+          },
+          "checksumMismatches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocalBackupChecksumMismatch"
+            }
+          }
+        }
+      },
       "HubExtensionRecord": {
         "type": "object",
         "required": [
@@ -4354,6 +5183,325 @@
           },
           "memoryBytes": {
             "type": "integer"
+          }
+        }
+      },
+      "DataImportProfileRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "sourceUri": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "targetZone": {
+            "type": "string"
+          }
+        }
+      },
+      "DataProfileField": {
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "quality"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "quality": {
+            "type": "string"
+          }
+        }
+      },
+      "DataImportProfile": {
+        "type": "object",
+        "required": [
+          "datasetId",
+          "sourceUri",
+          "sourceFormat",
+          "targetZone",
+          "artifactRef",
+          "artifactFormats",
+          "checksumSha256",
+          "rowCount",
+          "schemaSummary",
+          "profileSummary",
+          "manifestReady",
+          "manifestChecksums",
+          "duckdbStatus",
+          "importedAt",
+          "localOnly"
+        ],
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "sourceUri": {
+            "type": "string"
+          },
+          "sourceFormat": {
+            "type": "string"
+          },
+          "targetZone": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "type": "string"
+          },
+          "artifactFormats": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "arrow_ipc",
+                "parquet"
+              ]
+            }
+          },
+          "checksumSha256": {
+            "type": "string"
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "schemaSummary": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "type"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "profileSummary": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataProfileField"
+            }
+          },
+          "manifestReady": {
+            "type": "boolean"
+          },
+          "manifestChecksums": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayDataEstateManifestChecksum"
+            }
+          },
+          "duckdbStatus": {
+            "type": "string"
+          },
+          "importedAt": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DataImportProfileResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "profile"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "profiled"
+            ]
+          },
+          "profile": {
+            "$ref": "#/components/schemas/DataImportProfile"
+          }
+        }
+      },
+      "TransformNodeResult": {
+        "type": "object",
+        "required": [
+          "nodeId",
+          "nodeType",
+          "status",
+          "rowCount",
+          "artifactRefs"
+        ],
+        "properties": {
+          "nodeId": {
+            "type": "string"
+          },
+          "nodeType": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TransformArtifactEvidence": {
+        "type": "object",
+        "required": [
+          "nodeId",
+          "artifactRefs"
+        ],
+        "properties": {
+          "nodeId": {
+            "type": "string"
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TransformRunRecord": {
+        "type": "object",
+        "required": [
+          "runId",
+          "workflowId",
+          "workflowVersion",
+          "checkpointTag",
+          "status",
+          "startedAt",
+          "stageCount",
+          "nodeIds",
+          "nodeResults",
+          "artifactEvidence",
+          "localOnly"
+        ],
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "workflowVersion": {
+            "type": "string"
+          },
+          "checkpointTag": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stageCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "nodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "nodeResults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransformNodeResult"
+            }
+          },
+          "artifactEvidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransformArtifactEvidence"
+            }
+          },
+          "localOnly": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TransformRunRequest": {
+        "type": "object",
+        "properties": {
+          "executionMode": {
+            "type": "string"
+          },
+          "flowVariables": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "TransformRunResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "execution",
+          "run"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted"
+            ]
+          },
+          "execution": {
+            "$ref": "#/components/schemas/GatewayExecutionRecord"
+          },
+          "run": {
+            "$ref": "#/components/schemas/TransformRunRecord"
+          }
+        }
+      },
+      "TransformHistoryResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "count"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransformRunRecord"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       }

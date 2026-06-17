@@ -1583,6 +1583,35 @@ end
                 ),
             ),
         )
+        data_import_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Foundation Profile",
+                        "sourceUri" => foundation_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        transform_run_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/transforms/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("executionMode" => "cpu_only")),
+            ),
+        )
+        transform_history_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/workflows/wf-foundation/transforms/history"),
+        )
         hub_list_response = route_request(state, HTTP.Request("GET", "/api/v1/hub/extensions"))
         hub_install_response = route_request(
             state,
@@ -2763,6 +2792,23 @@ end
         @test occursin("\"requested_execution_mode\":\"gpu_preferred\"", String(execute_response.body))
         @test occursin("\"flow_variables\":{\"JULIAFLOW_GPU_DEVICE\":\"nvidia:0\"}", String(execute_response.body))
         @test occursin("\"resourcePlan\":[", String(execute_response.body))
+        @test data_import_response.status == 201
+        data_import_payload = JSON3.read(String(data_import_response.body), Dict{String,Any})
+        @test data_import_payload["status"] == "profiled"
+        @test data_import_payload["profile"]["datasetId"] == "foundation-profile"
+        @test data_import_payload["profile"]["targetZone"] == "raw"
+        @test startswith(data_import_payload["profile"]["artifactRef"], "local://data/raw/foundation-profile")
+        @test data_import_payload["profile"]["localOnly"] == true
+        @test transform_run_response.status == 202
+        transform_run_payload = JSON3.read(String(transform_run_response.body), Dict{String,Any})
+        @test transform_run_payload["status"] == "accepted"
+        @test transform_run_payload["run"]["workflowId"] == "wf-foundation"
+        @test "node-source" in transform_run_payload["run"]["nodeIds"]
+        @test length(transform_run_payload["run"]["artifactEvidence"]) >= 1
+        @test transform_history_response.status == 200
+        transform_history_payload = JSON3.read(String(transform_history_response.body), Dict{String,Any})
+        @test transform_history_payload["count"] >= 1
+        @test transform_history_payload["items"][1]["workflowId"] == "wf-foundation"
         @test gpu_execute_response.status == 202
         @test gpu_execute_payload["status"] == "queued"
         @test gpu_execute_payload["dispatchLane"] == "gpu"

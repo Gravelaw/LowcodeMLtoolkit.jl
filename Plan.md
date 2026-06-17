@@ -272,6 +272,12 @@ Verification evidence for this doc-only slice: `npm run validate:control-doc-syn
 
 Verification evidence for this slice: `npm run doctor:debian`, `npm run smoke:local-offline-hub`, Debian-local `julia --project=. tests/julia/runtests.jl`, `npm run validate:contracts`, `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, `npm audit --audit-level=moderate`, and `git diff --check`.
 
+## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
+
+**Backend-backed Data and Transform product actions are complete for the current local product-depth slice.** Gateway routes now support local data import/profile evidence and workflow transform run/history evidence backed by local appliance health, workflow nodes, execution state, and deterministic local artifact refs. Shared contracts/OpenAPI expose typed client methods, and the Data/Transform views call those actions while preserving demo fallback, runtime `juliaflow-config.js`, route compatibility, accessible selectors, and local-first behavior.
+
+Verification evidence for this slice: `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test`, `julia --project=. tests/julia/runtests.jl`, `npm run build`, `npm run test`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+
 ## Required Skills By Lane
 
 - BRD/control docs: `juliaflow-control-loop`.

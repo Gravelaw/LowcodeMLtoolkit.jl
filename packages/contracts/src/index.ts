@@ -746,6 +746,86 @@ export interface GatewayLocalBackupImportResponse {
   }>;
 }
 
+export interface GatewayDataImportProfileRequest {
+  datasetId?: string;
+  sourceUri?: string;
+  format?: "csv" | "json" | "parquet" | "arrow_ipc" | string;
+  targetZone?: string;
+}
+
+export interface GatewayDataProfileField {
+  name: string;
+  type: string;
+  quality: string;
+}
+
+export interface GatewayDataImportProfile {
+  datasetId: string;
+  sourceUri: string;
+  sourceFormat: string;
+  targetZone: string;
+  artifactRef: string;
+  artifactFormats: Array<"arrow_ipc" | "parquet">;
+  checksumSha256: string;
+  rowCount: number;
+  schemaSummary: Array<{ name: string; type: string }>;
+  profileSummary: GatewayDataProfileField[];
+  manifestReady: boolean;
+  manifestChecksums: GatewayDataEstateManifestChecksum[];
+  duckdbStatus: "ready" | "pending" | string;
+  importedAt: string;
+  localOnly: boolean;
+}
+
+export interface GatewayDataImportProfileResponse {
+  status: "profiled";
+  profile: GatewayDataImportProfile;
+}
+
+export interface GatewayTransformNodeResult {
+  nodeId: string;
+  nodeType: string;
+  status: string;
+  rowCount: number;
+  artifactRefs: string[];
+}
+
+export interface GatewayTransformArtifactEvidence {
+  nodeId: string;
+  artifactRefs: string[];
+}
+
+export interface GatewayTransformRunRecord {
+  runId: string;
+  workflowId: string;
+  workflowVersion: string;
+  checkpointTag: string;
+  status: GatewayExecutionStatus | string;
+  startedAt: string;
+  finishedAt?: string | null;
+  stageCount: number;
+  nodeIds: string[];
+  nodeResults: GatewayTransformNodeResult[];
+  artifactEvidence: GatewayTransformArtifactEvidence[];
+  localOnly: boolean;
+}
+
+export interface GatewayTransformRunRequest {
+  executionMode?: ExecutionHint;
+  flowVariables?: Record<string, string | number | boolean>;
+}
+
+export interface GatewayTransformRunResponse {
+  status: "accepted";
+  execution: GatewayExecutionRecord;
+  run: GatewayTransformRunRecord;
+}
+
+export interface GatewayTransformHistoryResponse {
+  items: GatewayTransformRunRecord[];
+  count: number;
+}
+
 export type HubExtensionPublisher = "official" | "partner";
 export type HubInstallState =
   | "available"
@@ -1160,6 +1240,7 @@ export const gatewayEndpointPaths = {
   reproducibilityBundleImport: "/api/v1/reproducibility-bundles/import",
   localBackups: "/api/v1/local-backups",
   localBackupImport: "/api/v1/local-backups/import",
+  localDataImport: "/api/v1/local-data/import",
   publishedDashboard: (dashboardId: string, request?: GatewayPublishedDashboardReadRequest) => {
     const path = `/api/v1/dashboards/${encodeURIComponent(dashboardId)}`;
     const params = new URLSearchParams();
@@ -1186,6 +1267,10 @@ export const gatewayEndpointPaths = {
   ) => dashboardChartPath(dashboardId, chartId, "export.csv", request),
   workflowPublishedDashboards: (workflowId: string) =>
     `/api/v1/workflows/${encodeURIComponent(workflowId)}/dashboards`,
+  workflowTransformRun: (workflowId: string) =>
+    `/api/v1/workflows/${encodeURIComponent(workflowId)}/transforms/run`,
+  workflowTransformHistory: (workflowId: string) =>
+    `/api/v1/workflows/${encodeURIComponent(workflowId)}/transforms/history`,
   publishDashboard: (workflowId: string, dashboardId: string) =>
     `/api/v1/workflows/${encodeURIComponent(workflowId)}/dashboards/${encodeURIComponent(dashboardId)}/publish`,
   hubExtensions: "/api/v1/hub/extensions",
@@ -1430,6 +1515,19 @@ export interface GatewayApiClient {
     request: GatewayLocalBackupImportRequest,
     options?: GatewayRequestOptions
   ): Promise<GatewayLocalBackupImportResponse>;
+  importDataProfile(
+    request: GatewayDataImportProfileRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayDataImportProfileResponse>;
+  runWorkflowTransform(
+    workflowId: string,
+    request?: GatewayTransformRunRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayTransformRunResponse>;
+  getWorkflowTransformHistory(
+    workflowId: string,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayTransformHistoryResponse>;
   listPublishedDashboards(
     workflowId: string,
     options?: GatewayRequestOptions
@@ -1699,6 +1797,27 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "POST",
         gatewayEndpointPaths.localBackupImport,
         backupRequest,
+        requestOptions
+      ),
+    importDataProfile: (dataImportRequest, requestOptions) =>
+      request<GatewayDataImportProfileResponse>(
+        "POST",
+        gatewayEndpointPaths.localDataImport,
+        dataImportRequest,
+        requestOptions
+      ),
+    runWorkflowTransform: (workflowId, transformRequest, requestOptions) =>
+      request<GatewayTransformRunResponse>(
+        "POST",
+        gatewayEndpointPaths.workflowTransformRun(workflowId),
+        transformRequest ?? {},
+        requestOptions
+      ),
+    getWorkflowTransformHistory: (workflowId, requestOptions) =>
+      request<GatewayTransformHistoryResponse>(
+        "GET",
+        gatewayEndpointPaths.workflowTransformHistory(workflowId),
+        undefined,
         requestOptions
       ),
     listPublishedDashboards: (workflowId, requestOptions) =>

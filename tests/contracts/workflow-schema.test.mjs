@@ -57,6 +57,9 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(spec.paths["/api/v1/reproducibility-bundles/import"]);
   assert.ok(spec.paths["/api/v1/local-backups"]);
   assert.ok(spec.paths["/api/v1/local-backups/import"]);
+  assert.ok(spec.paths["/api/v1/local-data/import"]);
+  assert.ok(spec.paths["/api/v1/workflows/{workflowId}/transforms/run"]);
+  assert.ok(spec.paths["/api/v1/workflows/{workflowId}/transforms/history"]);
   assert.ok(spec.paths["/api/v1/dashboards/{dashboardId}"]);
   assert.ok(spec.paths["/api/v1/dashboards/{dashboardId}/charts/{chartId}/data"]);
   assert.ok(spec.paths["/api/v1/dashboards/{dashboardId}/charts/{chartId}/export.csv"]);
@@ -225,6 +228,11 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayHealthcheck.properties.oidcAllowedAlgorithms);
   assert.ok(schemas.GatewayDataEstateZoneStatus);
   assert.ok(schemas.GatewayLocalServiceUrls);
+  assert.ok(schemas.DataImportProfileResponse);
+  assert.ok(schemas.DataImportProfile.properties.artifactRef);
+  assert.ok(schemas.TransformRunResponse);
+  assert.ok(schemas.TransformRunRecord.properties.artifactEvidence);
+  assert.ok(schemas.TransformHistoryResponse);
   assert.ok(schemas.GatewayAuthContext);
   assert.deepEqual(schemas.GatewayAuthContext.properties.role.enum, ["owner", "editor", "viewer"]);
   assert.ok(schemas.GatewayAuthContext.properties.mode.enum.includes("oidc"));
