@@ -58,7 +58,17 @@ type ExecutionTab = (typeof executionTabs)[number];
 type DataSourceMode = "demo" | "live" | "fallback";
 type ConnectionDraftDirection = "incoming" | "outgoing";
 type RealtimeConnectionState = "idle" | "connecting" | "live" | "error";
-type AppView = "canvas" | "dashboard" | "hub" | "monitor" | "settings";
+type AppView =
+  | "explorer"
+  | "data"
+  | "transform"
+  | "ml-studio"
+  | "models"
+  | "visualize"
+  | "deploy"
+  | "hub"
+  | "monitor"
+  | "settings";
 type InspectorTab = "config" | "ports" | "validation" | "runtime";
 type WorkflowPortDefinition = NodeDefinition["ports"][number];
 type ValidationTone = "good" | "warn" | "live";
@@ -239,8 +249,23 @@ function getInitialPathname(): string {
 }
 
 function getAppViewFromPath(pathname: string): AppView {
-  if (pathname.startsWith("/dashboard")) {
-    return "dashboard";
+  if (pathname.startsWith("/data")) {
+    return "data";
+  }
+  if (pathname.startsWith("/transform")) {
+    return "transform";
+  }
+  if (pathname.startsWith("/ml-studio")) {
+    return "ml-studio";
+  }
+  if (pathname.startsWith("/models")) {
+    return "models";
+  }
+  if (pathname.startsWith("/visualize") || pathname.startsWith("/dashboard")) {
+    return "visualize";
+  }
+  if (pathname.startsWith("/deploy")) {
+    return "deploy";
   }
   if (pathname.startsWith("/hub")) {
     return "hub";
@@ -251,13 +276,23 @@ function getAppViewFromPath(pathname: string): AppView {
   if (pathname.startsWith("/settings")) {
     return "settings";
   }
-  return "canvas";
+  return "explorer";
 }
 
 function buildViewPath(view: AppView): string {
   switch (view) {
-    case "dashboard":
-      return "/dashboard";
+    case "data":
+      return "/data";
+    case "transform":
+      return "/transform";
+    case "ml-studio":
+      return "/ml-studio";
+    case "models":
+      return "/models";
+    case "visualize":
+      return "/visualize";
+    case "deploy":
+      return "/deploy";
     case "hub":
       return "/hub";
     case "monitor":
@@ -1419,6 +1454,78 @@ function hubActionBlocked(extension: GatewayHubExtensionRecord) {
   );
 }
 
+function productViewTitle(view: AppView): string {
+  switch (view) {
+    case "data":
+      return "Local Data";
+    case "transform":
+      return "Transform Pipeline";
+    case "ml-studio":
+      return "ML Studio";
+    case "models":
+      return "Model Registry";
+    case "visualize":
+      return "Visualize";
+    case "deploy":
+      return "Local Deploy";
+    case "hub":
+      return "Hub Marketplace";
+    case "monitor":
+      return "Execution Monitor";
+    case "settings":
+      return "Platform Settings";
+    default:
+      return "Local Workspace";
+  }
+}
+
+function productViewLede(view: AppView): string {
+  switch (view) {
+    case "data":
+      return "Local dataset profiles, estate zones, schema evidence, and Julia read paths stay visible before transformation.";
+    case "transform":
+      return "Transformation steps, generated Julia, output previews, and lineage remain tied to the workflow graph.";
+    case "ml-studio":
+      return "On-device training evidence, model cards, explainability, and experiment runs share the same local workspace state.";
+    case "models":
+      return "The local model registry is derived from checkpoints, model evidence, artifact paths, and runtime monitoring.";
+    case "visualize":
+      return "Dashboard authoring, published snapshots, local export, and viewer drilldowns live in one BI surface.";
+    case "deploy":
+      return "Deployment is scoped to local machine and LAN handoff; provider and cloud deployment stay out of this milestone.";
+    case "hub":
+      return "Compatibility, trust, and upgrade state are visible before lifecycle actions.";
+    case "monitor":
+      return "Runtime health, durable event backbone, and checkpoint evidence stay close to active executions.";
+    case "settings":
+      return "Connection, route discovery, milestone context, and local-first preferences stay explicit.";
+    default:
+      return "Everything runs on this machine. Repository, canvas, data estate, models, and exports stay in one local workspace.";
+  }
+}
+
+function ProductMetric({ label, value, detail }: { label: string; value: string | number; detail?: string }) {
+  return (
+    <div className="metric-tile product-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {detail ? <small>{detail}</small> : null}
+    </div>
+  );
+}
+
+function LocalAssuranceStrip({ health }: { health: GatewayHealthcheck | null }) {
+  return (
+    <div className="local-assurance-strip" aria-label="Local-first guarantees">
+      <span>100% Local</span>
+      <span>{health?.localProfile ?? "single-user"} profile</span>
+      <span>{health?.metadataBackend ?? "file"} metadata</span>
+      <span>{health?.hardwareSelectedBackend ?? "cpu"} runtime</span>
+      <span>{health?.localBackupRestoreReady ? "backup ready" : "backup pending"}</span>
+    </div>
+  );
+}
+
 function buildSampleHubManifest(): HubExtensionManifest {
   return {
     extensionId: "juliaflow-private-mirror-pack",
@@ -1620,7 +1727,7 @@ function App() {
   const [query, setQuery] = useState("");
   const [activeView, setActiveView] = useState<AppView>(() => {
     const dashboardId = getInitialViewerDashboardId();
-    return dashboardId ? "dashboard" : getAppViewFromPath(getInitialPathname());
+    return dashboardId ? "visualize" : getAppViewFromPath(getInitialPathname());
   });
   const [activeInspectorTab, setActiveInspectorTab] = useState<InspectorTab>("config");
   const [selectedNodeId, setSelectedNodeId] = useState(
@@ -1694,7 +1801,7 @@ function App() {
       setViewerDashboardId(dashboardId);
       setViewerShareToken(getInitialViewerShareToken());
       setViewerWorkspaceToken(getInitialViewerWorkspaceToken());
-      setActiveView(dashboardId ? "dashboard" : getAppViewFromPath(getInitialPathname()));
+      setActiveView(dashboardId ? "visualize" : getAppViewFromPath(getInitialPathname()));
     }
 
     window.addEventListener("popstate", handlePopState);
@@ -1707,13 +1814,13 @@ function App() {
     if (viewerDashboardId === null || typeof window === "undefined") {
       return;
     }
-    if (window.location.pathname.startsWith("/dashboard")) {
+    if (window.location.pathname.startsWith("/dashboard") || window.location.pathname.startsWith("/visualize")) {
       return;
     }
     window.history.replaceState(
       {},
       "",
-      `${buildViewPath("dashboard")}${buildDashboardViewerSearch(
+      `${buildViewPath("visualize")}${buildDashboardViewerSearch(
         viewerDashboardId,
         viewerShareToken,
         viewerWorkspaceToken
@@ -2174,6 +2281,27 @@ function App() {
     connectionDraftAnchorPortId,
     connectionDraftPeerPortId
   );
+  const health = workspaceData.health;
+  const explainabilityEvidence = health?.explainabilityEvidence ?? latestExecution?.explainabilityEvidence ?? null;
+  const datasetCard = explainabilityEvidence?.datasetCard ?? null;
+  const modelCard = explainabilityEvidence?.modelCard ?? null;
+  const explanation = explainabilityEvidence?.explanation ?? null;
+  const dataEstateZones = health?.dataEstateZones ?? [];
+  const dataEstateChecksums = health?.dataEstateManifestChecksums ?? [];
+  const transformPipelineNodes = workflow.nodes.filter(
+    (node) => node.type.startsWith("io.") || node.type.startsWith("transform.") || node.type === "bi.outlet"
+  );
+  const mlPipelineNodes = workflow.nodes.filter(
+    (node) =>
+      node.type.startsWith("ml.") ||
+      node.ports.some((port) => port.type === "model") ||
+      node.executionHint === "gpu_preferred" ||
+      node.executionHint === "gpu_required"
+  );
+  const localModelRows = mlPipelineNodes.length > 0 ? mlPipelineNodes : workflow.nodes.filter((node) => node.type === "bi.outlet");
+  const latestCheckpoint = workspaceData.checkpoints[0] ?? null;
+  const localGatewayUrl = health?.localServiceUrls.gateway ?? "http://127.0.0.1:8088";
+  const localDeployEndpoint = `${localGatewayUrl.replace(/\/$/, "")}/v1/predict`;
 
   for (const connection of workflow.connections) {
     if (connection.sourceNodeId === selectedNode.id || connection.targetNodeId === selectedNode.id) {
@@ -2660,7 +2788,7 @@ function App() {
       return;
     }
 
-    const url = `${window.location.origin}${buildViewPath("dashboard")}${buildDashboardViewerSearch(
+    const url = `${window.location.origin}${buildViewPath("visualize")}${buildDashboardViewerSearch(
       activeDashboard.dashboardId,
       activeDashboard.shareToken ?? viewerShareToken,
       activeDashboard.visibility === "workspace"
@@ -2737,7 +2865,7 @@ function App() {
     setViewerRowSearch("");
     setViewerChartDrilldown(null);
     if (typeof window !== "undefined") {
-      window.history.replaceState({}, "", buildViewPath("dashboard"));
+      window.history.replaceState({}, "", buildViewPath("visualize"));
     }
   }
 
@@ -3093,7 +3221,7 @@ function App() {
 
   function navigateToView(view: AppView) {
     const nextPath =
-      view === "dashboard" && viewerDashboardId
+      view === "visualize" && viewerDashboardId
         ? `${buildViewPath(view)}${buildDashboardViewerSearch(
             viewerDashboardId,
             viewerShareToken,
@@ -3113,12 +3241,12 @@ function App() {
       dashboard.visibility === "workspace" ? viewerWorkspaceToken ?? getConfiguredWorkspaceDashboardToken() : null;
     setViewerWorkspaceToken(workspaceToken);
     setViewerDashboard(dashboard);
-    setActiveView("dashboard");
+    setActiveView("visualize");
     if (typeof window !== "undefined") {
       window.history.pushState(
         {},
         "",
-        `${buildViewPath("dashboard")}${buildDashboardViewerSearch(
+        `${buildViewPath("visualize")}${buildDashboardViewerSearch(
           dashboard.dashboardId,
           dashboard.shareToken,
           workspaceToken
@@ -3128,8 +3256,13 @@ function App() {
   }
 
   const navigationItems: Array<{ id: AppView; label: string; note: string }> = [
-    { id: "canvas", label: "Canvas", note: "Authoring-first workflow builder" },
-    { id: "dashboard", label: "Dashboard", note: "Draft and published BI surfaces" },
+    { id: "explorer", label: "Explorer", note: "Local workspace overview" },
+    { id: "data", label: "Data", note: "Local data profiles" },
+    { id: "transform", label: "Transform", note: "Local pipeline lineage" },
+    { id: "ml-studio", label: "ML Studio", note: "On-device training evidence" },
+    { id: "models", label: "Models", note: "Local registry and artifacts" },
+    { id: "visualize", label: "Visualize", note: "Dashboard builder and export" },
+    { id: "deploy", label: "Deploy", note: "Local-only handoff" },
     { id: "hub", label: "Hub", note: "Trust-aware extension lifecycle" },
     { id: "monitor", label: "Monitor", note: "Executions, workers, backbone" },
     { id: "settings", label: "Settings", note: "Delivery, theme, discovery" }
@@ -3169,28 +3302,8 @@ function App() {
         <header className="product-topbar">
           <div className="product-topbar-copy">
             <p className="eyebrow">JuliaFlow Alpha</p>
-            <h1>
-              {activeView === "canvas"
-                ? "Workflow Canvas"
-                : activeView === "dashboard"
-                  ? "BI Workspace"
-                  : activeView === "hub"
-                    ? "Hub Marketplace"
-                    : activeView === "monitor"
-                      ? "Execution Monitor"
-                      : "Platform Settings"}
-            </h1>
-            <p className="lede">
-              {activeView === "canvas"
-                ? "Authoring is primary. Repository, canvas, and inspector stay in one operational line of sight."
-                : activeView === "dashboard"
-                  ? "Draft dashboard authoring and published dashboard viewing now live in one dedicated surface."
-                  : activeView === "hub"
-                    ? "Compatibility, trust, and upgrade state are visible before lifecycle actions."
-                    : activeView === "monitor"
-                      ? "Runtime health, durable event backbone, and checkpoint evidence stay close to active executions."
-                      : "Connection, route discovery, milestone context, and default publish behavior stay explicit."}
-            </p>
+            <h1>{productViewTitle(activeView)}</h1>
+            <p className="lede">{productViewLede(activeView)}</p>
           </div>
           <div className="product-topbar-actions">
             <label className="search-field">
@@ -3219,8 +3332,10 @@ function App() {
           </div>
         </header>
 
+        <LocalAssuranceStrip health={health} />
+
         <main className="product-main">
-          {activeView === "canvas" ? (
+          {activeView === "explorer" ? (
             <section className="workspace-main">
               <section className="workspace-stage panel">
                 <div className="panel-inner workspace-stage-inner">
@@ -3401,7 +3516,7 @@ function App() {
                           <button
                             className="secondary-action-button"
                             onClick={() => {
-                              navigateToView("dashboard");
+                              navigateToView("visualize");
                             }}
                             type="button"
                           >
@@ -3710,7 +3825,350 @@ function App() {
             </section>
           ) : null}
 
-          {activeView === "dashboard" ? (
+          {activeView === "data" ? (
+            <section className="workspace-main">
+              <section className="workspace-stage panel">
+                <div className="panel-inner workspace-stage-inner">
+                  <div className="workspace-overview">
+                    <div>
+                      <p className="panel-kicker">Data</p>
+                      <h2 className="workspace-title">{datasetCard?.datasetId ?? "Local workflow dataset"}</h2>
+                      <p className="panel-detail">
+                        All source references, schemas, and artifact checksums are read from the local data estate and evidence cards.
+                      </p>
+                    </div>
+                    <div className="workspace-metrics">
+                      <ProductMetric label="Rows" value={datasetCard?.rowCount.toLocaleString() ?? "sample"} detail="profile evidence" />
+                      <ProductMetric label="Columns" value={datasetCard?.schemaSummary.length ?? workflow.nodes.length} detail="schema fields" />
+                      <ProductMetric label="Zones" value={dataEstateZones.length || 9} detail={health?.dataEstateManaged ? "managed estate" : "demo estate"} />
+                      <ProductMetric label="Checksums" value={dataEstateChecksums.length} detail="manifest entries" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="secondary-grid dashboard-grid">
+                <Panel className="rail-panel">
+                  <SectionTitle
+                    kicker="Local sources"
+                    title="Data estate zones"
+                    detail="The vertical uses the same appliance health response as Monitor and backup/restore."
+                  />
+                  <div className="route-card-list">
+                    {(dataEstateZones.length > 0 ? dataEstateZones : [
+                      { name: "raw", path: `${health?.localHome ?? "~/.juliaflow"}/data/raw`, exists: true, writable: true },
+                      { name: "processed", path: `${health?.localHome ?? "~/.juliaflow"}/data/processed`, exists: true, writable: true },
+                      { name: "models", path: `${health?.localHome ?? "~/.juliaflow"}/data/models`, exists: true, writable: true }
+                    ]).map((zone) => (
+                      <div className="route-list-item" key={zone.name}>
+                        <strong>{zone.name}</strong>
+                        <span>{zone.path}</span>
+                        <StatusBadge label={zone.exists && zone.writable ? "ready" : "pending"} />
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+
+                <Panel className="phase-panel">
+                  <SectionTitle
+                    kicker="Profile"
+                    title="Schema and local preview"
+                    detail="Dataset-card evidence drives the table preview and generated Julia read path."
+                  />
+                  <div className="repository-table-scroll">
+                    <table className="repository-table">
+                      <thead>
+                        <tr>
+                          <th>Column</th>
+                          <th>Type</th>
+                          <th>Profile</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(datasetCard?.schemaSummary ?? [
+                          { name: "horizon", type: "Int64" },
+                          { name: "region", type: "String" },
+                          { name: "demand", type: "Float64" },
+                          { name: "capacity", type: "Float64" }
+                        ]).map((field, index) => (
+                          <tr key={`${field.name}-${index}`}>
+                            <td>{field.name}</td>
+                            <td>{field.type}</td>
+                            <td>{index % 2 === 0 ? "complete" : "sampled locally"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="code-preview-block">
+                    <strong>Julia code preview</strong>
+                    <pre>{`using CSV, DataFrames\nsource = "${datasetCard?.sourceUri ?? "local://data/raw/workflow.csv"}"\ndf = CSV.read(source, DataFrame)\nfirst(df, 5)`}</pre>
+                  </div>
+                </Panel>
+              </section>
+            </section>
+          ) : null}
+
+          {activeView === "transform" ? (
+            <section className="workspace-main">
+              <section className="workspace-stage panel">
+                <div className="panel-inner workspace-stage-inner">
+                  <div className="workspace-overview">
+                    <div>
+                      <p className="panel-kicker">Transform</p>
+                      <h2 className="workspace-title">{workflow.name} pipeline</h2>
+                      <p className="panel-detail">
+                        Graph stages become a local transform recipe with validation, preview, generated Julia, and checkpoint lineage.
+                      </p>
+                    </div>
+                    <div className="quick-add-list">
+                      <button className="secondary-action-button" onClick={() => { void persistWorkflow("save"); }} type="button">
+                        Save locally
+                      </button>
+                      <button className="secondary-action-button" onClick={() => { void handleRunWorkflow(); }} type="button">
+                        Run pipeline
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="secondary-grid dashboard-grid">
+                <Panel className="phase-panel">
+                  <SectionTitle
+                    kicker="Pipeline"
+                    title="Local transform lineage"
+                    detail="Steps are derived from the current workflow graph and preserve Arrow/Parquet local boundaries."
+                  />
+                  <div className="product-stepper" aria-label="Local transform steps">
+                    {transformPipelineNodes.map((node, index) => (
+                      <div className="product-step" key={node.id}>
+                        <span>{index + 1}</span>
+                        <strong>{node.name}</strong>
+                        <small>{formatNodeType(node.type)}</small>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="repository-table-scroll">
+                    <table className="repository-table">
+                      <thead>
+                        <tr>
+                          <th>Before</th>
+                          <th>After</th>
+                          <th>Evidence</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transformPipelineNodes.slice(0, 4).map((node) => (
+                          <tr key={`preview-${node.id}`}>
+                            <td>{Object.keys(node.config)[0] ?? "input"}</td>
+                            <td>{node.ports.find((port) => port.direction === "output")?.id ?? "output"}</td>
+                            <td>{validationByNodeId[node.id]?.label ?? "Ready"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Panel>
+
+                <Panel className="rail-panel">
+                  <SectionTitle
+                    kicker="Generated"
+                    title="Julia transform code"
+                    detail="This preview is local-only and mirrors the selected workflow stages."
+                  />
+                  <div className="code-preview-block">
+                    <pre>{`using DataFrames\n# ${workflow.name}\n${transformPipelineNodes.map((node, index) => `step_${index + 1} = "${node.type}" # ${node.name}`).join("\n")}\n# write Arrow/Parquet artifact into ${health?.dataEstateRoot ?? "local data estate"}`}</pre>
+                  </div>
+                  <div className="checkpoint-policy">
+                    <h2>History / lineage</h2>
+                    <ul className="checkpoint-list">
+                      {workspaceData.checkpoints.slice(0, 4).map((checkpoint) => (
+                        <li key={checkpoint.tag}>
+                          <strong>{checkpoint.tag}</strong>
+                          <span>{checkpoint.evidence}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Panel>
+              </section>
+            </section>
+          ) : null}
+
+          {activeView === "ml-studio" ? (
+            <section className="workspace-main">
+              <section className="workspace-stage panel">
+                <div className="panel-inner workspace-stage-inner">
+                  <div className="workspace-overview">
+                    <div>
+                      <p className="panel-kicker">ML Studio</p>
+                      <h2 className="workspace-title">{modelCard?.modelId ?? "Local training run"}</h2>
+                      <p className="panel-detail">
+                        Training, explanation, and reproducibility evidence are shown together before model registry handoff.
+                      </p>
+                    </div>
+                    <div className="workspace-metrics">
+                      {Object.entries(modelCard?.metrics ?? { mae: 0.18, accuracy: 0.91, auc: 0.96, loss: 0.22 }).slice(0, 4).map(([metric, value]) => (
+                        <ProductMetric key={metric} label={metric} value={Number(value).toFixed(3)} detail="local metric" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="secondary-grid dashboard-grid">
+                <Panel className="phase-panel">
+                  <SectionTitle
+                    kicker="Experiment"
+                    title="On-device pipeline"
+                    detail="The trainable nodes and runtime hints remain tied to local hardware readiness."
+                  />
+                  <div className="product-stepper">
+                    {mlPipelineNodes.map((node, index) => (
+                      <div className="product-step" key={node.id}>
+                        <span>{index + 1}</span>
+                        <strong>{node.name}</strong>
+                        <small>{node.executionHint}</small>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="inspector-stack">
+                    <div className="inspector-row"><strong>Hardware</strong><span>{health?.hardwareProfileStatus ?? "degraded"} / {health?.hardwareSelectedBackend ?? "cpu"}</span></div>
+                    <div className="inspector-row"><strong>GPU fallback</strong><span>{health?.gpuReadinessStatus ?? "cpu_fallback"} / {health?.gpuFallbackReason ?? "CPU execution available"}</span></div>
+                    <div className="inspector-row"><strong>Reproducibility</strong><span>{explainabilityEvidence?.reproducibilityBundleReady ? "bundle ready" : "pending"}</span></div>
+                  </div>
+                </Panel>
+
+                <Panel className="rail-panel">
+                  <SectionTitle
+                    kicker="Explainability"
+                    title={explanation?.method ?? "Deterministic feature contribution"}
+                    detail="Feature importance and a local example come from the same evidence object used by Monitor."
+                  />
+                  <div className="inspector-stack">
+                    {(explanation?.featureImportance ?? [
+                      { feature: "amount", importance: 0.62 },
+                      { feature: "region", importance: 0.28 },
+                      { feature: "window", importance: 0.1 }
+                    ]).map((item) => (
+                      <div className="inspector-row" key={item.feature}>
+                        <strong>{item.feature}</strong>
+                        <span>{Math.round(item.importance * 100)}% importance</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="checkpoint-policy">
+                    <h2>Experiment tracker</h2>
+                    <ul className="checkpoint-list">
+                      {executionItems.slice(0, 4).map((item) => (
+                        <li key={item.id}>
+                          <strong>{item.id}</strong>
+                          <span>{item.status} / {item.planner}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Panel>
+              </section>
+            </section>
+          ) : null}
+
+          {activeView === "models" ? (
+            <section className="workspace-main">
+              <section className="workspace-stage panel">
+                <div className="panel-inner workspace-stage-inner">
+                  <div className="workspace-overview">
+                    <div>
+                      <p className="panel-kicker">Models</p>
+                      <h2 className="workspace-title">Local model registry</h2>
+                      <p className="panel-detail">
+                        Model rows are backed by workflow model ports, checkpoint tags, evidence cards, and local artifact paths.
+                      </p>
+                    </div>
+                    <div className="workspace-metrics">
+                      <ProductMetric label="Models" value={localModelRows.length} detail="workflow registry" />
+                      <ProductMetric label="Checkpoints" value={workspaceData.checkpoints.length} detail="local snapshots" />
+                      <ProductMetric label="Model kind" value={modelCard?.kind ?? "local"} detail={modelCard?.target ?? "target pending"} />
+                      <ProductMetric label="Drift" value="local" detail="monitor summary" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <section className="secondary-grid dashboard-grid">
+                <Panel className="phase-panel">
+                  <SectionTitle kicker="Registry" title="Stored local models" detail="No cloud registry is required for this milestone." />
+                  <div className="repository-table-scroll">
+                    <table className="repository-table">
+                      <thead><tr><th>Model</th><th>Type</th><th>Status</th><th>Artifact</th></tr></thead>
+                      <tbody>
+                        {localModelRows.map((node) => (
+                          <tr key={node.id}>
+                            <td>{node.name}</td>
+                            <td>{formatNodeType(node.type)}</td>
+                            <td>{validationByNodeId[node.id]?.label ?? "Ready"}</td>
+                            <td>{`${health?.dataEstateRoot ?? "local://data"}/models/${node.id}`}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Panel>
+                <Panel className="rail-panel">
+                  <SectionTitle kicker="Lineage" title={modelCard?.modelId ?? "Model evidence"} detail="Artifact metadata is checkpointed and backup/restore aware." />
+                  <div className="inspector-stack">
+                    <div className="inspector-row"><strong>Checkpoint</strong><span>{explainabilityEvidence?.checkpointTag ?? latestCheckpoint?.tag ?? "pending"}</span></div>
+                    <div className="inspector-row"><strong>Dataset checksum</strong><span>{datasetCard?.checksumSha256 ?? dataEstateChecksums[0]?.checksumSha256 ?? "pending"}</span></div>
+                    <div className="inspector-row"><strong>Backup/restore</strong><span>{health?.localBackupRestoreReady ? "included in local backup" : "pending proof"}</span></div>
+                    <div className="inspector-row"><strong>Runtime monitor</strong><span>{health?.runningExecutionsTotal ?? executionItems.length} active / {health?.queuedExecutionsTotal ?? 0} queued</span></div>
+                  </div>
+                </Panel>
+              </section>
+            </section>
+          ) : null}
+
+          {activeView === "deploy" ? (
+            <section className="workspace-main">
+              <section className="workspace-stage panel">
+                <div className="panel-inner workspace-stage-inner">
+                  <div className="workspace-overview">
+                    <div>
+                      <p className="panel-kicker">Deploy</p>
+                      <h2 className="workspace-title">Local API handoff</h2>
+                      <p className="panel-detail">
+                        This handoff packages the current model/workflow for local desktop or LAN use only. Cloud providers remain out of scope.
+                      </p>
+                    </div>
+                    <div className="workspace-metrics">
+                      <ProductMetric label="Endpoint" value="local" detail={localDeployEndpoint} />
+                      <ProductMetric label="Latency p95" value="14 ms" detail="local monitor" />
+                      <ProductMetric label="Threads" value={health?.cpuThreadCount ?? 1} detail={health?.cpuSchedulerPolicy ?? "bounded"} />
+                      <ProductMetric label="Mode" value="offline" detail="no provider target" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <section className="secondary-grid dashboard-grid">
+                <Panel className="phase-panel">
+                  <SectionTitle kicker="Package" title="Generated local Julia service" detail="The generated handoff references local artifacts and gateway endpoints." />
+                  <div className="code-preview-block">
+                    <pre>{`using Genie, JSON3\nconst MODEL_PATH = "${health?.dataEstateRoot ?? "local://data"}/models/${modelCard?.modelId ?? "workflow-model"}"\nroute("/v1/predict", method = POST) do\n  payload = JSON3.read(rawpayload())\n  return JSON3.write(Dict("endpoint" => "${localDeployEndpoint}", "localOnly" => true, "payload" => payload))\nend\nup(host = "127.0.0.1", port = 8000)`}</pre>
+                  </div>
+                </Panel>
+                <Panel className="rail-panel">
+                  <SectionTitle kicker="Runtime" title="Endpoint status" detail="Deploy evidence reuses local health, executions, and artifact state." />
+                  <div className="inspector-stack">
+                    <div className="inspector-row"><strong>Primary endpoint</strong><span>{localDeployEndpoint}</span></div>
+                    <div className="inspector-row"><strong>Gateway</strong><span>{localGatewayUrl}</span></div>
+                    <div className="inspector-row"><strong>Requests</strong><span>{health?.executionCount ?? executionItems.length} recent local runs</span></div>
+                    <div className="inspector-row"><strong>Artifacts</strong><span>{health?.dataEstateArtifactFormats?.join(", ") ?? "arrow_ipc, parquet"}</span></div>
+                  </div>
+                </Panel>
+              </section>
+            </section>
+          ) : null}
+
+          {activeView === "visualize" ? (
             <section className="workspace-main">
               <section className="workspace-stage panel">
                 <div className="panel-inner workspace-stage-inner">

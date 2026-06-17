@@ -386,11 +386,17 @@ describe("App", () => {
     });
   });
 
-  it("renders the route shell and canvas-first authoring surface", () => {
+  it("renders the local product shell and Explorer authoring surface", () => {
     render(<App />);
 
-    expect(screen.getByText(/Workflow Canvas/i)).toBeInTheDocument();
-    expect(screen.getByText(/Authoring-first workflow builder/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Local Workspace/i, level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ExplorerLocal workspace overview/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /DataLocal data profiles/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /TransformLocal pipeline lineage/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ML StudioOn-device training evidence/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ModelsLocal registry and artifacts/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /VisualizeDashboard builder and export/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /DeployLocal-only handoff/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /save workflow/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run workflow/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /open bi workspace/i })).toBeInTheDocument();
@@ -402,6 +408,39 @@ describe("App", () => {
     expect(screen.getByText(/Components\/control-flow/i)).toBeInTheDocument();
     expect(screen.getByText(/Preparation Container/i)).toBeInTheDocument();
     expect(screen.getByText(/Region Switch/i)).toBeInTheDocument();
+  });
+
+  it("walks the mock-aligned local workflow vertical in demo mode", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /DataLocal data profiles/i }));
+    expect(screen.getByRole("heading", { name: /Local Data/i, level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/Data estate zones/i)).toBeInTheDocument();
+    expect(screen.getByText(/Julia code preview/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /TransformLocal pipeline lineage/i }));
+    expect(screen.getByRole("heading", { name: /Transform Pipeline/i, level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/Local transform lineage/i)).toBeInTheDocument();
+    expect(screen.getByText(/Julia transform code/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /ML StudioOn-device training evidence/i }));
+    expect(screen.getByRole("heading", { name: /ML Studio/i, level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/On-device pipeline/i)).toBeInTheDocument();
+    expect(screen.getByText(/Experiment tracker/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /ModelsLocal registry and artifacts/i }));
+    expect(screen.getByRole("heading", { name: /Model Registry/i, level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Local model registry/i, level: 2 })).toBeInTheDocument();
+    expect(screen.getByText(/Stored local models/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /VisualizeDashboard builder and export/i }));
+    expect(screen.getByRole("heading", { name: /Visualize/i, level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/Draft dashboards/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /DeployLocal-only handoff/i }));
+    expect(screen.getByRole("heading", { name: /Local Deploy/i, level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/Local API handoff/i)).toBeInTheDocument();
+    expect(screen.getByText(/Generated local Julia service/i)).toBeInTheDocument();
   });
 
   it("lets authors drag canvas nodes to new positions", () => {
@@ -470,7 +509,7 @@ describe("App", () => {
   it("moves dashboard authoring into dedicated BI workspace and publishes a viewer snapshot", async () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: /DashboardDraft and published BI surfaces/i }));
+    fireEvent.click(screen.getByRole("button", { name: /VisualizeDashboard builder and export/i }));
 
     expect(screen.getByRole("button", { name: /remove dashboard/i })).toBeDisabled();
     expect(screen.getByLabelText(/Dashboard name/i)).toHaveValue("Ops Forecast Overview");
