@@ -602,6 +602,40 @@
         }
       }
     },
+    "/api/v1/workflows/{workflowId}/dashboards/{dashboardId}/checkpoint-export": {
+      "post": {
+        "summary": "Publish a dashboard snapshot, checkpoint workflow state, and export reproducibility evidence",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          },
+          {
+            "$ref": "#/components/parameters/DashboardId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisualizeCheckpointExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Visualize checkpoint export evidence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisualizeCheckpointExportResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/hub/extensions": {
       "get": {
         "summary": "List Hub extension catalog records",
@@ -3525,6 +3559,139 @@
             "enum": [
               "ok"
             ]
+          },
+          "bundle": {
+            "$ref": "#/components/schemas/ReproducibilityBundle"
+          }
+        }
+      },
+      "VisualizeCheckpointExportRequest": {
+        "type": "object",
+        "properties": {
+          "checkpointTag": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "workspace",
+              "public"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "VisualizeCheckpointExportArtifact": {
+        "type": "object",
+        "required": [
+          "kind",
+          "artifactRef",
+          "checksumSha256"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "dashboard_snapshot",
+              "checkpoint",
+              "reproducibility_bundle"
+            ]
+          },
+          "artifactRef": {
+            "type": "string"
+          },
+          "checksumSha256": {
+            "type": "string"
+          }
+        }
+      },
+      "VisualizeCheckpointExportRecord": {
+        "type": "object",
+        "required": [
+          "exportId",
+          "workflowId",
+          "dashboardId",
+          "dashboardVersion",
+          "checkpointTag",
+          "checkpointSummary",
+          "bundleId",
+          "bundleChecksumSha256",
+          "dashboardSnapshotReady",
+          "artifactEvidence",
+          "createdAt",
+          "localOnly"
+        ],
+        "properties": {
+          "exportId": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "dashboardId": {
+            "type": "string"
+          },
+          "dashboardVersion": {
+            "type": "integer"
+          },
+          "checkpointTag": {
+            "type": "string"
+          },
+          "checkpointSummary": {
+            "type": "string"
+          },
+          "bundleId": {
+            "type": "string"
+          },
+          "bundleChecksumSha256": {
+            "type": "string"
+          },
+          "dashboardSnapshotReady": {
+            "type": "boolean"
+          },
+          "artifactEvidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VisualizeCheckpointExportArtifact"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VisualizeCheckpointExportResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "export",
+          "checkpoint",
+          "dashboard",
+          "bundle"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "exported"
+            ]
+          },
+          "export": {
+            "$ref": "#/components/schemas/VisualizeCheckpointExportRecord"
+          },
+          "checkpoint": {
+            "$ref": "#/components/schemas/CheckpointRecord"
+          },
+          "dashboard": {
+            "$ref": "#/components/schemas/PublishedDashboard"
           },
           "bundle": {
             "$ref": "#/components/schemas/ReproducibilityBundle"

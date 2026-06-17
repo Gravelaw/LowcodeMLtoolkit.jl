@@ -69,6 +69,7 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(spec.paths["/api/v1/dashboards/{dashboardId}/charts/{chartId}/export.csv"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/dashboards"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/dashboards/{dashboardId}/publish"]);
+  assert.ok(spec.paths["/api/v1/workflows/{workflowId}/dashboards/{dashboardId}/checkpoint-export"]);
   assert.ok(spec.paths["/api/v1/hub/extensions"]);
   assert.ok(spec.paths["/api/v1/hub/extensions/register"]);
   assert.ok(spec.paths["/api/v1/hub/extensions/{extensionId}/install"]);
@@ -342,6 +343,13 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.ReproducibilityBundleExportResponse.properties.bundle);
   assert.ok(schemas.ReproducibilityBundleImportRequest.properties.bundle);
   assert.ok(schemas.ReproducibilityBundleImportResponse.properties.bundleChecksumSha256);
+  assert.ok(schemas.VisualizeCheckpointExportRequest.properties.checkpointTag);
+  assert.ok(schemas.VisualizeCheckpointExportRequest.properties.visibility);
+  assert.ok(schemas.VisualizeCheckpointExportRecord.properties.artifactEvidence);
+  assert.ok(schemas.VisualizeCheckpointExportRecord.properties.bundleChecksumSha256);
+  assert.ok(schemas.VisualizeCheckpointExportResponse.properties.checkpoint);
+  assert.ok(schemas.VisualizeCheckpointExportResponse.properties.dashboard);
+  assert.ok(schemas.VisualizeCheckpointExportResponse.properties.bundle);
   assert.ok(schemas.LocalBackupBundle);
   assert.ok(schemas.LocalBackupBundle.properties.dataEstate);
   assert.ok(schemas.LocalBackupBundle.properties.workflows);

@@ -31,6 +31,8 @@ import {
   type GatewayNodeStateChangedEvent,
   type GatewayRealtimeNotification,
   type GatewayTransformRunRecord,
+  type GatewayVisualizeCheckpointExportRecord,
+  type GatewayVisualizeCheckpointExportResponse,
   type GatewayWorkflowMetadata,
   type GatewayWorkflowStateChangedEvent,
   type GatewayWorkflowSummary,
@@ -1600,6 +1602,52 @@ function buildDemoModelRegistryRecord(
   };
 }
 
+function demoSha256(seed: string): string {
+  const normalized = seed.replace(/[^a-fA-F0-9]/g, "").padEnd(64, "0");
+  return normalized.slice(0, 64).toLowerCase();
+}
+
+function buildDemoVisualizeCheckpointExport(
+  workflow: WorkflowDefinition,
+  dashboard: PublishedDashboardDefinition,
+  checkpointTag: string
+): GatewayVisualizeCheckpointExportRecord {
+  const bundleId = `repro-demo-${dashboard.dashboardId}-${dashboard.version}`;
+  const dashboardChecksum = demoSha256(`${dashboard.dashboardId}${dashboard.version}`);
+  const checkpointChecksum = demoSha256(checkpointTag);
+  const bundleChecksum = demoSha256(bundleId);
+  return {
+    exportId: `visualize-export-demo-${dashboard.dashboardId}-${dashboard.version}`,
+    workflowId: workflow.workflowId,
+    dashboardId: dashboard.dashboardId,
+    dashboardVersion: dashboard.version,
+    checkpointTag,
+    checkpointSummary: `Visualize checkpoint export for ${dashboard.dashboardId}`,
+    bundleId,
+    bundleChecksumSha256: bundleChecksum,
+    dashboardSnapshotReady: true,
+    artifactEvidence: [
+      {
+        kind: "dashboard_snapshot",
+        artifactRef: `local://dashboards/${dashboard.dashboardId}/v${dashboard.version}.json`,
+        checksumSha256: dashboardChecksum
+      },
+      {
+        kind: "checkpoint",
+        artifactRef: `local://checkpoints/${checkpointTag}.json`,
+        checksumSha256: checkpointChecksum
+      },
+      {
+        kind: "reproducibility_bundle",
+        artifactRef: `local://reproducibility/${bundleId}.json`,
+        checksumSha256: bundleChecksum
+      }
+    ],
+    createdAt: buildActionTimestampLabel(),
+    localOnly: true
+  };
+}
+
 function buildRealtimeRuntimeLabel(status: WorkflowStatus, executionHint: ExecutionHint): string {
   if (status === "streaming_active") {
     return "Realtime stream active";
@@ -1962,10 +2010,12 @@ function App() {
   const [isRunningTransform, setIsRunningTransform] = useState(false);
   const [isRunningMlExperiment, setIsRunningMlExperiment] = useState(false);
   const [isRegisteringModel, setIsRegisteringModel] = useState(false);
+  const [isExportingVisualizeCheckpoint, setIsExportingVisualizeCheckpoint] = useState(false);
   const [dataImportProfile, setDataImportProfile] = useState<GatewayDataImportProfile | null>(null);
   const [transformRunHistory, setTransformRunHistory] = useState<GatewayTransformRunRecord[]>([]);
   const [mlExperimentHistory, setMlExperimentHistory] = useState<GatewayMlExperimentRecord[]>([]);
   const [modelRegistryRecords, setModelRegistryRecords] = useState<GatewayModelRegistryRecord[]>([]);
+  const [visualizeCheckpointExports, setVisualizeCheckpointExports] = useState<GatewayVisualizeCheckpointExportRecord[]>([]);
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
   const [connectionDraftDirection, setConnectionDraftDirection] = useState<ConnectionDraftDirection>("outgoing");
   const [connectionDraftPeerNodeId, setConnectionDraftPeerNodeId] = useState("");
@@ -3182,6 +3232,84 @@ function App() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to publish dashboard.";
       setActionFeedback({ text: `Dashboard publish failed: ${message}`, tone: "error" });
+    }
+  }
+
+  async function handleExportVisualizeCheckpoint() {
+    setIsExportingVisualizeCheckpoint(true);
+    const draftDashboard = ensureDashboardDraft();
+    const checkpointTag = `cp/visualize-${draftDashboard.dashboardId}-${Date.now()}`;
+
+    try {
+      if (gatewayBaseUrl.length === 0) {
+        const shareToken =
+          publishVisibility === "public" ? `share-${Math.random().toString(36).slice(2, 10)}` : undefined;
+        const nextPublished: PublishedDashboardDefinition = {
+          dashboardId: draftDashboard.dashboardId,
+          workflowId: workflow.workflowId,
+          name: draftDashboard.name,
+          version: (activePublishedDashboard?.version ?? 0) + 1,
+          publishedAt: new Date().toISOString(),
+          visibility: publishVisibility,
+          shareToken,
+          binding: draftDashboard.binding,
+          charts: draftDashboard.charts
+        };
+        const exportRecord = buildDemoVisualizeCheckpointExport(workflow, nextPublished, checkpointTag);
+        setPublishedDashboard(nextPublished);
+        setPublishedDashboards((currentDashboards) =>
+          [
+            ...currentDashboards.filter((item) => item.dashboardId !== nextPublished.dashboardId),
+            nextPublished
+          ].sort((left, right) => left.dashboardId.localeCompare(right.dashboardId))
+        );
+        setVisualizeCheckpointExports((currentExports) => [exportRecord, ...currentExports]);
+        openPublishedDashboard(nextPublished);
+        setActionFeedback({
+          text: `Demo checkpoint export ready for ${draftDashboard.dashboardId}: ${exportRecord.bundleId}.`,
+          tone: "demo"
+        });
+        return;
+      }
+
+      let workflowId = workflow.workflowId;
+      if (isDirty) {
+        const persistedWorkflowId = await persistWorkflow("save");
+        if (persistedWorkflowId === null) {
+          return;
+        }
+        workflowId = persistedWorkflowId;
+      }
+
+      const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+      const response: GatewayVisualizeCheckpointExportResponse = await gatewayClient.exportVisualizeCheckpoint(
+        workflowId,
+        draftDashboard.dashboardId,
+        {
+          checkpointTag,
+          summary: `Visualize checkpoint export for ${draftDashboard.dashboardId}`,
+          visibility: publishVisibility,
+          notes: "local visualize checkpoint export"
+        }
+      );
+      setPublishedDashboard(response.dashboard);
+      setPublishedDashboards((currentDashboards) =>
+        [
+          ...currentDashboards.filter((item) => item.dashboardId !== response.dashboard.dashboardId),
+          response.dashboard
+        ].sort((left, right) => left.dashboardId.localeCompare(right.dashboardId))
+      );
+      setVisualizeCheckpointExports((currentExports) => [response.export, ...currentExports]);
+      openPublishedDashboard(response.dashboard);
+      setActionFeedback({
+        text: `Visualize checkpoint export ready for ${response.export.dashboardId}: ${response.export.bundleId}.`,
+        tone: "success"
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to export Visualize checkpoint.";
+      setActionFeedback({ text: `Visualize checkpoint export failed: ${message}`, tone: "error" });
+    } finally {
+      setIsExportingVisualizeCheckpoint(false);
     }
   }
 
@@ -4689,6 +4817,14 @@ function App() {
                       </button>
                       <button
                         className="secondary-action-button"
+                        disabled={isExportingVisualizeCheckpoint}
+                        onClick={() => { void handleExportVisualizeCheckpoint(); }}
+                        type="button"
+                      >
+                        {isExportingVisualizeCheckpoint ? "Exporting..." : "Checkpoint export"}
+                      </button>
+                      <button
+                        className="secondary-action-button"
                         disabled={!viewerDashboard}
                         onClick={() => {
                           void handleCopyDashboardShareLink();
@@ -4916,6 +5052,27 @@ function App() {
                       <span>Publish a draft to create a read-only snapshot and share link.</span>
                     </div>
                   )}
+
+                  <div className="checkpoint-policy">
+                    <h3>Checkpoint exports</h3>
+                    {visualizeCheckpointExports.length > 0 ? (
+                      <ul className="checkpoint-list">
+                        {visualizeCheckpointExports.slice(0, 4).map((exportRecord) => (
+                          <li key={exportRecord.exportId}>
+                            <strong>{exportRecord.checkpointTag}</strong>
+                            <span>
+                              {exportRecord.bundleId} · {exportRecord.artifactEvidence.length} artifacts · {exportRecord.bundleChecksumSha256.slice(0, 12)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="repository-empty">
+                        <strong>No checkpoint exports yet.</strong>
+                        <span>Export a dashboard checkpoint to capture local reproducibility evidence.</span>
+                      </div>
+                    )}
+                  </div>
 
                   {viewerDashboard ? (
                     <div className="published-dashboard-viewer">

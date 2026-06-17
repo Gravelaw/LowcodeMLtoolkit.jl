@@ -10,6 +10,7 @@ import {
   type GatewayMlExperimentRunRequest,
   type GatewayModelRegistryRequest,
   type GatewayTransformRunRequest,
+  type GatewayVisualizeCheckpointExportRequest,
   type MilestoneCheckpointTag,
   type TransitionExecutionStatusRequest
 } from "../../../packages/contracts/src/index";
@@ -53,6 +54,12 @@ const modelRegistryRequest: GatewayModelRegistryRequest = {
   tags: ["local", "checkpointed"],
   owner: "local-user"
 };
+const visualizeCheckpointExportRequest: GatewayVisualizeCheckpointExportRequest = {
+  checkpointTag: "cp/visualize-contracts",
+  summary: "Visualize contracts checkpoint",
+  visibility: "workspace",
+  notes: "typed client fixture"
+};
 
 const client = createGatewayApiClient({
   baseUrl: "http://127.0.0.1:8088",
@@ -85,6 +92,7 @@ client.runWorkflowMlExperiment("wf-foundation", mlExperimentRunRequest);
 client.getWorkflowMlExperimentHistory("wf-foundation");
 client.registerWorkflowModel("wf-foundation", modelRegistryRequest);
 client.listWorkflowModels("wf-foundation");
+client.exportVisualizeCheckpoint("wf-foundation", "dashboard-foundation", visualizeCheckpointExportRequest);
 
 gatewayEndpointPaths.workflowDetail("foundation/workflow");
 gatewayEndpointPaths.executionStatus("exec-1");
@@ -95,5 +103,6 @@ gatewayEndpointPaths.workflowMlExperimentRun("wf-foundation");
 gatewayEndpointPaths.workflowMlExperimentHistory("wf-foundation");
 gatewayEndpointPaths.workflowModelRegister("wf-foundation");
 gatewayEndpointPaths.workflowModels("wf-foundation");
+gatewayEndpointPaths.workflowVisualizeCheckpointExport("wf-foundation", "dashboard-foundation");
 gatewayExecutionStatuses satisfies readonly GatewayExecutionStatus[];
 milestoneTag satisfies MilestoneCheckpointTag;

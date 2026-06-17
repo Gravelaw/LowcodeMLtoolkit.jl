@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Backend-Backed Visualize Checkpoint/Export Actions — 2026-06-17
+
+### Work Done Till Date
+
+- Continued the mock-aligned local product-depth sequence after Models registry actions.
+- Added dashboard checkpoint-export contracts, OpenAPI schemas, and typed gateway client support.
+- Added a gateway route that composes dashboard publish, checkpoint creation, and reproducibility bundle export into one local evidence action.
+- Returned Visualize export records with workflow/dashboard IDs, dashboard version, checkpoint tag/summary, bundle ID/checksum, artifact refs/checksums, created timestamp, and local-only flag.
+- Wired Visualize to run the backend action when a gateway is configured and deterministic demo fallback when offline.
+- Added visible export history in Visualize for checkpoint tags, bundle IDs, artifact counts, and checksum prefixes.
+- Added focused Julia route assertions, contract/OpenAPI assertions, and frontend demo smoke coverage.
+
+### Gaps Pending
+
+- Local Deploy packaging remains the last product-depth slice before claiming full mock-aligned product readiness.
+- Downloadable bundle UX can be deepened later; current evidence exposes local artifact refs/checksums and bundle IDs.
+
+### Next Items To Implement
+
+- Implement backend-backed local Deploy packaging actions.
+- Keep `npm run validate:contracts`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, control-doc validators, and `git diff --check` in the PR gate.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` Backend-Backed Models Registry Actions — 2026-06-17
 
 ### Work Done Till Date

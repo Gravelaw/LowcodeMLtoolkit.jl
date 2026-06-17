@@ -2520,6 +2520,21 @@ end
             ),
         )
         reproducibility_export_payload = JSON3.read(String(reproducibility_export_response.body), Dict{String,Any})
+        visualize_checkpoint_export_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/dashboards/dashboard-foundation/checkpoint-export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict(
+                    "checkpointTag" => "cp/visualize-export",
+                    "summary" => "Visualize dashboard export checkpoint",
+                    "visibility" => "workspace",
+                    "notes" => "local visualize checkpoint export proof",
+                )),
+            ),
+        )
+        visualize_checkpoint_export_payload = JSON3.read(String(visualize_checkpoint_export_response.body), Dict{String,Any})
         imported_reproducibility_store = mktempdir()
         imported_reproducibility_state = load_state(imported_reproducibility_store)
         reproducibility_import_response = route_request(
@@ -2949,6 +2964,17 @@ end
         @test reproducibility_export_payload["bundle"]["explainabilityOutputs"]["method"] == "deterministic_feature_contribution"
         @test reproducibility_export_payload["bundle"]["dashboardSnapshot"]["dashboardId"] == "dashboard-foundation"
         @test length(reproducibility_export_payload["bundle"]["bundleChecksumSha256"]) == 64
+        @test visualize_checkpoint_export_response.status == 201
+        @test visualize_checkpoint_export_payload["status"] == "exported"
+        @test visualize_checkpoint_export_payload["export"]["workflowId"] == "wf-foundation"
+        @test visualize_checkpoint_export_payload["export"]["dashboardId"] == "dashboard-foundation"
+        @test visualize_checkpoint_export_payload["export"]["checkpointTag"] == "cp/visualize-export"
+        @test visualize_checkpoint_export_payload["export"]["dashboardSnapshotReady"] == true
+        @test length(visualize_checkpoint_export_payload["export"]["bundleChecksumSha256"]) == 64
+        @test length(visualize_checkpoint_export_payload["export"]["artifactEvidence"]) == 3
+        @test visualize_checkpoint_export_payload["checkpoint"]["tag"] == "cp/visualize-export"
+        @test visualize_checkpoint_export_payload["dashboard"]["dashboardId"] == "dashboard-foundation"
+        @test visualize_checkpoint_export_payload["bundle"]["dashboardSnapshot"]["dashboardId"] == "dashboard-foundation"
         @test reproducibility_import_response.status == 201
         reproducibility_import_payload = JSON3.read(String(reproducibility_import_response.body), Dict{String,Any})
         @test reproducibility_import_payload["status"] == "imported"

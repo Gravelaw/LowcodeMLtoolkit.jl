@@ -663,6 +663,42 @@ export interface GatewayReproducibilityBundleExportResponse {
   bundle: GatewayReproducibilityBundle;
 }
 
+export interface GatewayVisualizeCheckpointExportRequest {
+  checkpointTag?: string;
+  summary?: string;
+  visibility?: "workspace" | "public";
+  notes?: string;
+}
+
+export interface GatewayVisualizeCheckpointExportArtifact {
+  kind: "dashboard_snapshot" | "checkpoint" | "reproducibility_bundle";
+  artifactRef: string;
+  checksumSha256: string;
+}
+
+export interface GatewayVisualizeCheckpointExportRecord {
+  exportId: string;
+  workflowId: string;
+  dashboardId: string;
+  dashboardVersion: number;
+  checkpointTag: string;
+  checkpointSummary: string;
+  bundleId: string;
+  bundleChecksumSha256: string;
+  dashboardSnapshotReady: boolean;
+  artifactEvidence: GatewayVisualizeCheckpointExportArtifact[];
+  createdAt: string;
+  localOnly: boolean;
+}
+
+export interface GatewayVisualizeCheckpointExportResponse {
+  status: "exported";
+  export: GatewayVisualizeCheckpointExportRecord;
+  checkpoint: GatewayCheckpointRecord;
+  dashboard: PublishedDashboardDefinition;
+  bundle: GatewayReproducibilityBundle;
+}
+
 export interface GatewayReproducibilityBundleImportRequest {
   bundle: GatewayReproducibilityBundle;
 }
@@ -1375,6 +1411,8 @@ export const gatewayEndpointPaths = {
     `/api/v1/workflows/${encodeURIComponent(workflowId)}/models`,
   publishDashboard: (workflowId: string, dashboardId: string) =>
     `/api/v1/workflows/${encodeURIComponent(workflowId)}/dashboards/${encodeURIComponent(dashboardId)}/publish`,
+  workflowVisualizeCheckpointExport: (workflowId: string, dashboardId: string) =>
+    `/api/v1/workflows/${encodeURIComponent(workflowId)}/dashboards/${encodeURIComponent(dashboardId)}/checkpoint-export`,
   hubExtensions: "/api/v1/hub/extensions",
   hubExtensionRegister: "/api/v1/hub/extensions/register",
   hubExtensionInstall: (extensionId: string) =>
@@ -1675,6 +1713,12 @@ export interface GatewayApiClient {
     request?: GatewayDashboardPublishRequest,
     options?: GatewayRequestOptions
   ): Promise<GatewayDashboardPublishResponse>;
+  exportVisualizeCheckpoint(
+    workflowId: string,
+    dashboardId: string,
+    request?: GatewayVisualizeCheckpointExportRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayVisualizeCheckpointExportResponse>;
   listHubExtensions(
     options?: GatewayRequestOptions
   ): Promise<GatewayListResponse<GatewayHubExtensionRecord>>;
@@ -2000,6 +2044,13 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "POST",
         gatewayEndpointPaths.publishDashboard(workflowId, dashboardId),
         publishRequest,
+        requestOptions
+      ),
+    exportVisualizeCheckpoint: (workflowId, dashboardId, exportRequest, requestOptions) =>
+      request<GatewayVisualizeCheckpointExportResponse>(
+        "POST",
+        gatewayEndpointPaths.workflowVisualizeCheckpointExport(workflowId, dashboardId),
+        exportRequest ?? {},
         requestOptions
       ),
     listHubExtensions: (requestOptions) =>
