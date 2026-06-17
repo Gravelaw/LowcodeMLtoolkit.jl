@@ -21,6 +21,26 @@ Tracker always records 3 things:
 - Last updated: `2026-06-17`
 
 ## Work Done Till Date
+### Backend-Backed Visualize Checkpoint/Export Actions (2026-06-17)
+
+- Added the next product-depth slice after backend-backed Models registry actions.
+- Added dashboard checkpoint-export contracts, OpenAPI path/schemas, and typed gateway client method.
+- Added gateway `POST /api/v1/workflows/{workflowId}/dashboards/{dashboardId}/checkpoint-export` route.
+- The route composes local dashboard publish, checkpoint creation, and reproducibility bundle export, returning dashboard/checkpoint/bundle artifact refs and checksums.
+- Updated Visualize to run checkpoint export against the gateway when configured and use deterministic demo fallback otherwise.
+- Added Visualize export history so checkpoint tags, bundle IDs, artifact counts, and bundle checksum prefixes are visible in the product view.
+- Added Julia gateway route assertions and frontend demo smoke coverage for the Visualize checkpoint/export action.
+
+### Gaps Pending
+
+- Local Deploy packaging remains the last product-depth follow-up before claiming full mock-aligned product readiness.
+- Current Visualize export records expose local artifact evidence; richer downloadable bundle UX can follow after Deploy packaging closes.
+
+### Next Items To Implement
+
+- Continue the local product-depth path with local Deploy packaging actions.
+- Keep contracts, Julia tests, frontend tests, build, control-doc sync, BRD traceability, and `git diff --check` in the PR gate set.
+
 ### Backend-Backed Models Registry Actions (2026-06-17)
 
 - Added the next product-depth slice after backend-backed ML Studio experiment actions.

@@ -29,6 +29,7 @@ export GatewayCheckpoint,
     transition_execution_response!,
     create_checkpoint_response!,
     checkpoint_list_response,
+    visualize_checkpoint_export_response!,
     reproducibility_bundle_export_response!,
     reproducibility_bundle_import_response!,
     local_backup_export_response!,
@@ -1880,6 +1881,11 @@ function reproducibility_bundle_checksum(bundle::AbstractDict)
     return bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(materialized_payload)))))
 end
 
+function artifact_checksum(payload)
+    materialized_payload = JSON3.read(JSON3.write(payload), Dict{String,Any})
+    return bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(materialized_payload)))))
+end
+
 function find_checkpoint(state::GatewayState, checkpoint_tag::AbstractString)
     for checkpoint in state.checkpoints
         checkpoint.tag == checkpoint_tag && return checkpoint
@@ -1989,6 +1995,79 @@ function reproducibility_bundle_export_response!(
         notes = notes,
     )
     return JSON3.write(Dict("status" => "ok", "bundle" => bundle))
+end
+
+function visualize_checkpoint_export_response!(
+    state::GatewayState,
+    workflow_id::AbstractString,
+    dashboard_id::AbstractString,
+    body::AbstractDict,
+)
+    visibility = haskey(body, "visibility") ? String(body["visibility"]) : "workspace"
+    checkpoint_tag = haskey(body, "checkpointTag") ?
+        String(body["checkpointTag"]) :
+        "cp/visualize-" * replace(JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(), r"[^A-Za-z0-9]+" => "-")
+    summary = haskey(body, "summary") ?
+        String(body["summary"]) :
+        "Visualize checkpoint export for $(dashboard_id)"
+    notes = haskey(body, "notes") ? String(body["notes"]) : "visualize checkpoint export"
+
+    dashboard_response = JSON3.read(
+        publish_dashboard_response!(state, workflow_id, dashboard_id; visibility = visibility),
+        Dict{String,Any},
+    )
+    checkpoint_response = JSON3.read(
+        create_checkpoint_response!(state; tag = checkpoint_tag, summary = summary),
+        Dict{String,Any},
+    )
+    bundle = reproducibility_bundle_payload(
+        state;
+        workflow_id = workflow_id,
+        checkpoint_tag = checkpoint_tag,
+        dashboard_id = dashboard_id,
+        notes = notes,
+    )
+    dashboard = dashboard_response["dashboard"]
+    checkpoint = checkpoint_response["checkpoint"]
+    export_id = "visualize-export-" * replace(string(uuid4()), "-" => "")
+    evidence = [
+        Dict{String,Any}(
+            "kind" => "dashboard_snapshot",
+            "artifactRef" => "local://dashboards/$(dashboard_id)/v$(dashboard["version"]).json",
+            "checksumSha256" => artifact_checksum(dashboard),
+        ),
+        Dict{String,Any}(
+            "kind" => "checkpoint",
+            "artifactRef" => "local://checkpoints/$(checkpoint_tag).json",
+            "checksumSha256" => artifact_checksum(checkpoint),
+        ),
+        Dict{String,Any}(
+            "kind" => "reproducibility_bundle",
+            "artifactRef" => "local://reproducibility/$(bundle["bundleId"]).json",
+            "checksumSha256" => String(bundle["bundleChecksumSha256"]),
+        ),
+    ]
+    export_record = Dict{String,Any}(
+        "exportId" => export_id,
+        "workflowId" => String(workflow_id),
+        "dashboardId" => String(dashboard_id),
+        "dashboardVersion" => dashboard["version"],
+        "checkpointTag" => checkpoint_tag,
+        "checkpointSummary" => summary,
+        "bundleId" => bundle["bundleId"],
+        "bundleChecksumSha256" => bundle["bundleChecksumSha256"],
+        "dashboardSnapshotReady" => bundle["dashboardSnapshot"] !== nothing,
+        "artifactEvidence" => evidence,
+        "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
+        "localOnly" => true,
+    )
+    return JSON3.write(Dict(
+        "status" => "exported",
+        "export" => export_record,
+        "checkpoint" => checkpoint,
+        "dashboard" => dashboard,
+        "bundle" => bundle,
+    ))
 end
 
 function reproducibility_bundle_import_response!(
@@ -4574,6 +4653,16 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             response = publish_dashboard_response!(state, segments[4], segments[6]; visibility = visibility)
             append_audit_event!(state, request, "dashboard.publish"; target_type = "dashboard", target_id = segments[6], details = Dict("workflowId" => segments[4], "visibility" => visibility))
             return json_response(200, response)
+        end
+        method == "POST" && length(segments) == 7 && segments[1:3] == ["api", "v1", "workflows"] && segments[5] == "dashboards" && segments[7] == "checkpoint-export" && begin
+            require_permission!(state, request, "dashboard:publish")
+            require_permission!(state, request, "checkpoint:write")
+            require_permission!(state, request, "checkpoint:read")
+            body = parse_request_body(request)
+            response = visualize_checkpoint_export_response!(state, segments[4], segments[6], body)
+            target_id = haskey(body, "checkpointTag") ? String(body["checkpointTag"]) : segments[6]
+            append_audit_event!(state, request, "workflow.visualize.checkpoint_export"; target_type = "dashboard", target_id = segments[6], details = Dict("workflowId" => segments[4], "checkpointTag" => target_id))
+            return json_response(201, response)
         end
         method == "POST" && segments == ["api", "v1", "reproducibility-bundles"] && begin
             require_permission!(state, request, "checkpoint:read")

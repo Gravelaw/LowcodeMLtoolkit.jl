@@ -29,7 +29,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Academic reproducibility workflow proof is complete for the current local-first slice: gateway export/import routes produce a checksum-protected local JSON bundle with workflow, checkpoint, dataset checksum/card, package/runtime metadata, seeds, model artifact, metrics, explainability outputs, dashboard snapshot, notes, and local-only evidence; `smoke:local-reproducibility` verifies export/reimport into a fresh local repository and rejects tampered bundles.
 - Backup/restore and migration proof is complete for the current local-first slice: gateway export/import routes produce a checksum-protected local appliance bundle with workflows, checkpoints, executions, published dashboards, Hub records, auth policy/directory, package/runtime metadata, settings, and data-estate artifact references/checksums; restore rehydrates metadata into a fresh store, reports missing local artifacts and checksum mismatches, and rejects tampered bundles; `smoke:local-migration` verifies the migration path.
 - Mock-aligned local product workflow vertical first implementation slice is complete for the frontend shell: Explorer, Data, Transform, ML Studio, Models, Visualize, and local-only Deploy are wired through shared local workspace state and tested end to end in demo mode.
-- Backend-backed product-depth actions are complete for Data import/profile, Transform run/history, ML Studio experiment run/history, and Models registry register/list, with contracts, gateway routes, frontend actions, deterministic demo fallback, and local evidence tests.
+- Backend-backed product-depth actions are complete for Data import/profile, Transform run/history, ML Studio experiment run/history, Models registry register/list, and Visualize checkpoint/export, with contracts, gateway routes, frontend actions, deterministic demo fallback, and local evidence tests.
 
 ## Active Development Order
 
@@ -65,7 +65,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 7. **Mock-aligned local product surface** - first frontend vertical complete
    - Explorer, Data, Transform, ML Studio, Models, Deploy, Visualize, and Settings are now explicit BRD product modules.
    - First implementation slice extends the existing frontend shell into Explorer/Data/Transform/ML Studio/Models/Visualize/local Deploy using the same local health, workflow, checkpoint, explainability, dashboard, and runtime evidence.
-   - Data, Transform, ML Studio, and Models now have backend-backed local actions; continue module depth in thin frontend/backend slices before claiming full product readiness.
+   - Data, Transform, ML Studio, Models, and Visualize now have backend-backed local actions; continue module depth in thin frontend/backend slices before claiming full product readiness.
    - Keep hosted SaaS collaboration, remote managed inference, cloud telemetry, cloud model registries, and external connectors optional unless explicitly enabled.
 
 8. **Academic reproducibility workflow** - complete for current slice
@@ -142,6 +142,12 @@ Verification evidence for this slice: `npm run validate:contracts`, `npm --works
 **Backend-backed Models registry actions** are complete for the current product-depth slice. Gateway routes now register and list local model records by persisting registry metadata into execution records with checkpoint, model, dataset checksum, primary metric, tags, owner, deployment status, and local artifact evidence. The TypeScript/OpenAPI client exposes the action, and Models runs it against the gateway or deterministic demo fallback.
 
 Verification evidence for this slice: `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test`, `julia --project=. tests/julia/runtests.jl`, `npm run build`, and `npm run test`.
+
+## Latest Completed Slice — 2026-06-17 Backend-Backed Visualize Checkpoint/Export Actions
+
+**Backend-backed Visualize checkpoint/export actions** are complete for the current product-depth slice. Gateway route `POST /api/v1/workflows/{workflowId}/dashboards/{dashboardId}/checkpoint-export` composes dashboard publish, checkpoint creation, and reproducibility bundle export into one local evidence action with dashboard/checkpoint/bundle artifact refs and checksums. The TypeScript/OpenAPI client exposes the action, and Visualize runs it against the gateway or deterministic demo fallback with export history.
+
+Verification evidence for this slice: `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test`, and `julia --project=. tests/julia/runtests.jl`; full `npm run test`, `npm run build`, control-doc validators, and `git diff --check` remain in the final PR gate.
 
 
 ## Latest Completed Slice — 2026-06-03 Local Hardware Runtime

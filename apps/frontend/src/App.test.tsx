@@ -554,6 +554,13 @@ describe("App", () => {
 
     expect(screen.getByText(/read_only/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /copy share link/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /checkpoint export/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Demo checkpoint export ready/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Checkpoint exports/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/repro-demo-/i).length).toBeGreaterThan(0);
   });
 
   it("loads discovery metadata and hub trust\/upgrade state from gateway", async () => {
