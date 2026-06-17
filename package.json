@@ -11,6 +11,8 @@
     "build": "node scripts/build-workspaces.mjs",
     "dev:frontend": "npm --workspace @juliaflow/frontend run dev",
     "dev:local": "node scripts/dev-local.mjs",
+    "test:browser": "playwright test",
+    "test:browser:headed": "playwright test --headed",
     "test": "npm run test --workspaces --if-present && node --test tests/contracts/**/*.test.mjs",
     "validate:contracts": "node --test tests/contracts/**/*.test.mjs",
     "validate:brd-traceability": "node scripts/validate-brd-traceability.mjs",
@@ -40,6 +42,7 @@
     "smol-toml": "^1.3.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "typescript": "^5.9.3"
   }
 }

@@ -303,6 +303,14 @@ Verification evidence for this slice: `npm run doctor:debian`, `npm run smoke:lo
 
 Verification evidence for this slice: `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test`, `julia --project=. tests/julia/runtests.jl`, `npm run build`, `npm run test`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
+## Latest Completed Slice — 2026-06-17 Mockup-Aligned Local UI And Browser Automation
+
+**Mockup-aligned local-only UI redesign and browser automation are complete for the current frontend product-readiness slice.** The frontend now uses a light JuliaFlow Local appliance shell with a left sidebar, persistent `100% Local` status strip, compact white workspace panels, purple primary actions, green privacy/local indicators, right-side detail panels, deterministic local-only fixtures, and split route/view components for Explorer, Data, Transform, ML Studio, Models, Visualize, Deploy, and Settings. Runtime `juliaflow-config.js` gateway lookup and demo fallback remain intact, and Data/Transform/ML/Models/Visualize/Deploy actions still call the shared gateway client when configured.
+
+Playwright is now a first-class browser gate via `npm run test:browser`, covering desktop Chromium and mobile-width Chromium journeys with mocked gateway routes and synthetic local workflow data. The default browser gate is deterministic and does not require a Julia gateway process.
+
+Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- App.test.tsx`, `npm run build`, and `npm run test:browser`.
+
 ## Required Skills By Lane
 
 - BRD/control docs: `juliaflow-control-loop`.

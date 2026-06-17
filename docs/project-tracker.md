@@ -2263,3 +2263,25 @@ After any meaningful job:
 
 - Complete final verification, commit, push, and PR #13 CI/review workflow.
 - Continue the local product-depth path with ML Studio experiment tracking or Models registry mutation before Deploy packaging.
+
+---
+
+## Update: Mockup-Aligned Local UI And Browser Automation — 2026-06-17
+
+### Work Done Till Date
+
+- Rebuilt the frontend around the light JuliaFlow Local mockup language: fixed local sidebar, persistent `100% Local` status strip, compact white panels, purple primary actions, green local/privacy indicators, and right-side detail panels.
+- Split the monolithic app surface into shared shell/card/table/status components, deterministic local fixture data, and dedicated route views for Explorer, Data, Transform, ML Studio, Models, Visualize, Deploy, and Settings.
+- Preserved runtime `juliaflow-config.js` gateway lookup, deterministic demo fallback, route navigation, and backend-backed action buttons for Data import/profile, Transform runs, ML experiments, Models registry, Visualize checkpoint export, and Deploy packaging.
+- Added Playwright browser automation with `npm run test:browser` and `npm run test:browser:headed`, using mocked gateway routes and local-only synthetic workflow data across desktop Chromium and mobile-width Chromium.
+- Updated focused frontend unit coverage for route navigation, runtime gateway config, and action fallback behavior.
+
+### Gaps Pending
+
+- This slice does not expand provider/cloud deployment, external connectors, cloud registries, or hardware-gated multi-GPU evidence.
+- Future UI work should be driven by concrete local-first usability gaps, visual polish, or accessibility findings rather than optional cloud compatibility.
+
+### Next Items To Implement
+
+- Keep `npm run test:browser` in the frontend release gate.
+- Run the full repo gate set before PR completion, including contracts, Julia tests, frontend tests, build, control-doc sync, BRD traceability, and diff whitespace checks.
