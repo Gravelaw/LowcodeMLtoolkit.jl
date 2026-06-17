@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Mock-Aligned Local Product Workflow Vertical First Slice — 2026-06-17
+
+### Work Done Till Date
+
+- Implemented the first frontend-shell slice of the mock-aligned local product workflow vertical.
+- Route shell now exposes Explorer, Data, Transform, ML Studio, Models, Visualize, Deploy, Hub, Monitor, and Settings.
+- Explorer remains the workspace/canvas entry point, while Visualize carries the existing BI dashboard authoring/viewer behavior and preserves `/dashboard` deep-link compatibility.
+- Data, Transform, ML Studio, Models, and Deploy render shared local state from health, data-estate, workflow, checkpoint, execution, explainability/model, dashboard, and runtime endpoint evidence.
+- Added frontend coverage for the route shell and a demo-mode walk through the local workflow vertical.
+
+### Gaps Pending
+
+- This slice is frontend/product integration only; backend-backed import/profile, transform run/history, experiment tracking, model registry mutation, and deploy packaging actions remain open.
+- Full product readiness still needs deeper module behavior and final PR review after PR #11 lands.
+
+### Next Items To Implement
+
+- Rebase this vertical branch after PR #11 lands, then add backend-backed product actions starting with Data import/profile and Transform history if product depth remains the selected lane.
+- Keep `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check` in the gate set.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` Backup/Restore And Migration Proof Complete — 2026-06-17
 
 ### Work Done Till Date

@@ -28,6 +28,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Explainability and model evidence proof is complete for the current local-first slice: gateway `/health`, checkpoint payloads, and accepted executions now expose deterministic dataset-card, model-card, feature-importance, local-explanation, limitations/warnings, and reproducibility-bundle readiness evidence; Monitor renders the evidence; `smoke:local-explainability` verifies the local surface.
 - Academic reproducibility workflow proof is complete for the current local-first slice: gateway export/import routes produce a checksum-protected local JSON bundle with workflow, checkpoint, dataset checksum/card, package/runtime metadata, seeds, model artifact, metrics, explainability outputs, dashboard snapshot, notes, and local-only evidence; `smoke:local-reproducibility` verifies export/reimport into a fresh local repository and rejects tampered bundles.
 - Backup/restore and migration proof is complete for the current local-first slice: gateway export/import routes produce a checksum-protected local appliance bundle with workflows, checkpoints, executions, published dashboards, Hub records, auth policy/directory, package/runtime metadata, settings, and data-estate artifact references/checksums; restore rehydrates metadata into a fresh store, reports missing local artifacts and checksum mismatches, and rejects tampered bundles; `smoke:local-migration` verifies the migration path.
+- Mock-aligned local product workflow vertical first implementation slice is complete for the frontend shell: Explorer, Data, Transform, ML Studio, Models, Visualize, and local-only Deploy are wired through shared local workspace state and tested end to end in demo mode.
 
 ## Active Development Order
 
@@ -60,9 +61,10 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
    - Make bundled/local extensions install without external registry dependency.
    - Keep checksum verification, sandbox compatibility tests, local artifact cache, and unsafe-extension blocking.
 
-7. **Mock-aligned local product surface** - BRD requirements captured
+7. **Mock-aligned local product surface** - first frontend vertical complete
    - Explorer, Data, Transform, ML Studio, Models, Deploy, Visualize, and Settings are now explicit BRD product modules.
-   - Do not mark implementation complete from the mock refresh alone; deliver module depth in thin frontend/backend slices.
+   - First implementation slice extends the existing frontend shell into Explorer/Data/Transform/ML Studio/Models/Visualize/local Deploy using the same local health, workflow, checkpoint, explainability, dashboard, and runtime evidence.
+   - Continue module depth in thin frontend/backend slices before claiming full product readiness.
    - Keep hosted SaaS collaboration, remote managed inference, cloud telemetry, cloud model registries, and external connectors optional unless explicitly enabled.
 
 8. **Academic reproducibility workflow** - complete for current slice
@@ -121,6 +123,12 @@ Verification evidence for this slice: `npm run smoke:local-reproducibility`, `np
 **Backup/restore and migration proof** is complete for the current slice. Gateway routes now export a local appliance backup bundle and import it into a fresh local repository, carrying workflows, checkpoints, executions, published dashboards, Hub extension records, auth policy/directory, package/runtime metadata, local appliance settings, and data-estate artifact references/checksums. Restore validates the signed backup checksum, reports missing local data artifacts and checksum mismatches, rehydrates metadata state, and rejects tampered bundles.
 
 Verification evidence for this slice: `npm run smoke:local-migration`, `npm run validate:contracts`, repo-local-depot `julia --project=. tests/julia/runtests.jl`, `npm run doctor:debian`, `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+
+## Latest Completed Slice — 2026-06-17 Mock-Aligned Local Product Workflow Vertical
+
+**Mock-aligned local product workflow vertical first implementation** is complete for the frontend shell. The route shell now exposes Explorer, Data, Transform, ML Studio, Models, Visualize, Deploy, Hub, Monitor, and Settings; Explorer remains the workspace/canvas entry point; `/dashboard` links are still accepted through Visualize; and the new local workflow modules render shared local workspace evidence from health, workflow, checkpoints, executions, data-estate, explainability/model cards, dashboards, and local runtime handoff state.
+
+Verification evidence for this slice: `npm run test` and `npm run build`.
 
 
 ## Latest Completed Slice — 2026-06-03 Local Hardware Runtime

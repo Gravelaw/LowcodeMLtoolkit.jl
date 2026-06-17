@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-17`
 
 ## Work Done Till Date
+### Mock-Aligned Local Product Workflow Vertical (2026-06-17)
+
+- Added the first implementation slice for the mock-aligned local product workflow vertical.
+- Extended the existing frontend route shell from Canvas/Dashboard into Explorer, Data, Transform, ML Studio, Models, Visualize, Deploy, Hub, Monitor, and Settings.
+- Preserved `/dashboard` viewer compatibility by mapping dashboard deep links into the Visualize surface.
+- Wired Data, Transform, ML Studio, Models, and local-only Deploy views to shared local workspace state: gateway health, data estate zones/checksums, workflow graph, checkpoints, executions, explainability/model evidence, dashboards, and local runtime endpoints.
+- Added focused frontend coverage that walks Explorer -> Data -> Transform -> ML Studio -> Models -> Visualize -> Deploy in demo mode.
+
+### Gaps Pending
+
+- This is a frontend-shell vertical; deeper backend state mutation for data import, transform execution, experiment tracking, model registry CRUD, and deploy packaging remains open.
+- Hub, Monitor, and Settings already use shared state, but should be tightened further around the same product journey in follow-up slices.
+
+### Next Items To Implement
+
+- Add backend-backed product state/actions for the vertical, starting with Data import/profile and Transform run/history if product depth remains the priority.
+- Re-run full local-first gates after PR #11 is landed and this branch is rebased onto updated `main`.
+
 ### Backup/Restore And Migration Proof (2026-06-17)
 
 - Closed the backup/restore and migration lane after PR #10 landed.
