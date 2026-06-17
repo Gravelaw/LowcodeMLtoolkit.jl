@@ -26,6 +26,7 @@ import {
   type GatewayHubInstallRequest,
   type GatewayHubRegisterRequest,
   type GatewayMlExperimentRecord,
+  type GatewayModelRegistryRecord,
   type HubExtensionManifest,
   type GatewayNodeStateChangedEvent,
   type GatewayRealtimeNotification,
@@ -1546,6 +1547,59 @@ function buildDemoMlExperiment(
   };
 }
 
+function buildDemoModelRegistryRecord(
+  workflow: WorkflowDefinition,
+  health: GatewayHealthcheck | null,
+  evidence: GatewayHealthcheck["explainabilityEvidence"] | null,
+  experiment: GatewayMlExperimentRecord | null
+): GatewayModelRegistryRecord {
+  const modelCard = evidence?.modelCard;
+  const datasetCard = evidence?.datasetCard;
+  const modelId = experiment?.modelId ?? modelCard?.modelId ?? `${workflow.workflowId}-local-model`;
+  const metrics = experiment?.metrics ?? modelCard?.metrics ?? { mae: 0.18 };
+  const primaryMetricName = Object.keys(metrics)[0] ?? "metric";
+  return {
+    registryId: `model-${modelId}`,
+    modelId,
+    workflowId: workflow.workflowId,
+    workflowVersion: workflow.version,
+    checkpointTag: experiment?.checkpointTag ?? evidence?.checkpointTag ?? "local-demo-model",
+    experimentId: experiment?.experimentId ?? null,
+    executionId: experiment?.executionId ?? null,
+    modelKind: experiment?.modelKind ?? modelCard?.kind ?? "deterministic_local_baseline",
+    target: experiment?.target ?? modelCard?.target ?? "target",
+    status: "registered",
+    tags: ["local", "checkpointed"],
+    owner: "local-user",
+    primaryMetricName,
+    primaryMetricValue: Number(metrics[primaryMetricName] ?? 0),
+    datasetId: experiment?.datasetId ?? datasetCard?.datasetId ?? `${workflow.workflowId}-dataset`,
+    datasetChecksumSha256:
+      experiment?.datasetChecksumSha256 ?? datasetCard?.checksumSha256 ?? health?.dataEstateManifestChecksums[0]?.checksumSha256 ?? "demo-model",
+    artifactEvidence: [
+      {
+        kind: "model",
+        artifactRef: `local://models/${modelId}.json`,
+        checksumSha256: "demo-model"
+      },
+      {
+        kind: "dataset",
+        artifactRef: `local://data/curated/${experiment?.datasetId ?? datasetCard?.datasetId ?? `${workflow.workflowId}-dataset`}.arrow`,
+        checksumSha256: experiment?.datasetChecksumSha256 ?? datasetCard?.checksumSha256 ?? "demo-dataset"
+      },
+      {
+        kind: "config",
+        artifactRef: `local://models/${modelId}-config.json`,
+        checksumSha256: "demo-config"
+      }
+    ],
+    registeredAt: buildActionTimestampLabel(),
+    updatedAt: buildActionTimestampLabel(),
+    deploymentStatus: "not_deployed",
+    localOnly: true
+  };
+}
+
 function buildRealtimeRuntimeLabel(status: WorkflowStatus, executionHint: ExecutionHint): string {
   if (status === "streaming_active") {
     return "Realtime stream active";
@@ -1907,9 +1961,11 @@ function App() {
   const [isProfilingData, setIsProfilingData] = useState(false);
   const [isRunningTransform, setIsRunningTransform] = useState(false);
   const [isRunningMlExperiment, setIsRunningMlExperiment] = useState(false);
+  const [isRegisteringModel, setIsRegisteringModel] = useState(false);
   const [dataImportProfile, setDataImportProfile] = useState<GatewayDataImportProfile | null>(null);
   const [transformRunHistory, setTransformRunHistory] = useState<GatewayTransformRunRecord[]>([]);
   const [mlExperimentHistory, setMlExperimentHistory] = useState<GatewayMlExperimentRecord[]>([]);
+  const [modelRegistryRecords, setModelRegistryRecords] = useState<GatewayModelRegistryRecord[]>([]);
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
   const [connectionDraftDirection, setConnectionDraftDirection] = useState<ConnectionDraftDirection>("outgoing");
   const [connectionDraftPeerNodeId, setConnectionDraftPeerNodeId] = useState("");
@@ -2451,6 +2507,9 @@ function App() {
         .filter((item) => item.workflowId === workflow.workflowId)
         .slice(0, 3)
         .map((item) => buildDemoMlExperiment(workflow, item.id, health, explainabilityEvidence, item.status));
+  const visibleModelRegistryRecords = modelRegistryRecords.length > 0
+    ? modelRegistryRecords
+    : [buildDemoModelRegistryRecord(workflow, health, explainabilityEvidence, visibleMlExperiments[0] ?? null)];
   const localModelRows = mlPipelineNodes.length > 0 ? mlPipelineNodes : workflow.nodes.filter((node) => node.type === "bi.outlet");
   const latestCheckpoint = workspaceData.checkpoints[0] ?? null;
   const localGatewayUrl = health?.localServiceUrls.gateway ?? "http://127.0.0.1:8088";
@@ -2764,6 +2823,58 @@ function App() {
       setActionFeedback({ text: `ML experiment failed: ${message}`, tone: "error" });
     } finally {
       setIsRunningMlExperiment(false);
+    }
+  }
+
+  async function handleRegisterModel() {
+    setIsRegisteringModel(true);
+
+    try {
+      let workflowId = workflow.workflowId;
+      if (isDirty) {
+        const persistedWorkflowId = await persistWorkflow("save");
+        if (persistedWorkflowId === null) {
+          return;
+        }
+        workflowId = persistedWorkflowId;
+      }
+
+      if (gatewayBaseUrl.length === 0) {
+        const model = buildDemoModelRegistryRecord(workflow, health, explainabilityEvidence, visibleMlExperiments[0] ?? null);
+        setModelRegistryRecords((currentRecords) => [
+          model,
+          ...currentRecords.filter((item) => item.modelId !== model.modelId)
+        ]);
+        setActionFeedback({
+          text: `Demo model registered for ${workflowId}: ${model.modelId}.`,
+          tone: "demo"
+        });
+        return;
+      }
+
+      const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+      const response = await gatewayClient.registerWorkflowModel(workflowId, {
+        modelId: modelCard?.modelId ?? `${workflowId}-local-model`,
+        status: "registered",
+        tags: ["local", "checkpointed"],
+        owner: "local-user"
+      });
+      setModelRegistryRecords((currentRecords) => [
+        response.model,
+        ...currentRecords.filter((item) => item.modelId !== response.model.modelId)
+      ]);
+      setActionFeedback({
+        text: `Model registered for ${workflowId}: ${response.model.modelId}.`,
+        tone: "success"
+      });
+
+      const registry = await gatewayClient.listWorkflowModels(workflowId);
+      setModelRegistryRecords(registry.items);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to register model.";
+      setActionFeedback({ text: `Model registration failed: ${message}`, tone: "error" });
+    } finally {
+      setIsRegisteringModel(false);
     }
   }
 
@@ -4434,14 +4545,29 @@ function App() {
                       <p className="panel-detail">
                         Model rows are backed by workflow model ports, checkpoint tags, evidence cards, and local artifact paths.
                       </p>
+                      <div className="quick-add-list">
+                        <button
+                          className="secondary-action-button"
+                          disabled={isRegisteringModel}
+                          onClick={() => { void handleRegisterModel(); }}
+                          type="button"
+                        >
+                          {isRegisteringModel ? "Registering..." : "Register model"}
+                        </button>
+                      </div>
                     </div>
                     <div className="workspace-metrics">
-                      <ProductMetric label="Models" value={localModelRows.length} detail="workflow registry" />
+                      <ProductMetric label="Models" value={visibleModelRegistryRecords.length} detail="local registry" />
                       <ProductMetric label="Checkpoints" value={workspaceData.checkpoints.length} detail="local snapshots" />
-                      <ProductMetric label="Model kind" value={modelCard?.kind ?? "local"} detail={modelCard?.target ?? "target pending"} />
-                      <ProductMetric label="Drift" value="local" detail="monitor summary" />
+                      <ProductMetric label="Model kind" value={visibleModelRegistryRecords[0]?.modelKind ?? modelCard?.kind ?? "local"} detail={visibleModelRegistryRecords[0]?.target ?? modelCard?.target ?? "target pending"} />
+                      <ProductMetric label="Deployment" value={visibleModelRegistryRecords[0]?.deploymentStatus ?? "not_deployed"} detail="local registry" />
                     </div>
                   </div>
+                  {actionFeedback ? (
+                    <div className={`canvas-action-feedback is-${actionFeedback.tone}`} role="status">
+                      {actionFeedback.text}
+                    </div>
+                  ) : null}
                 </div>
               </section>
               <section className="secondary-grid dashboard-grid">
@@ -4451,12 +4577,12 @@ function App() {
                     <table className="repository-table">
                       <thead><tr><th>Model</th><th>Type</th><th>Status</th><th>Artifact</th></tr></thead>
                       <tbody>
-                        {localModelRows.map((node) => (
-                          <tr key={node.id}>
-                            <td>{node.name}</td>
-                            <td>{formatNodeType(node.type)}</td>
-                            <td>{validationByNodeId[node.id]?.label ?? "Ready"}</td>
-                            <td>{`${health?.dataEstateRoot ?? "local://data"}/models/${node.id}`}</td>
+                        {visibleModelRegistryRecords.map((model) => (
+                          <tr key={model.registryId}>
+                            <td>{model.modelId}</td>
+                            <td>{model.modelKind}</td>
+                            <td>{model.status}</td>
+                            <td>{model.artifactEvidence.find((item) => item.kind === "model")?.artifactRef ?? `local://models/${model.modelId}.json`}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -4464,10 +4590,11 @@ function App() {
                   </div>
                 </Panel>
                 <Panel className="rail-panel">
-                  <SectionTitle kicker="Lineage" title={modelCard?.modelId ?? "Model evidence"} detail="Artifact metadata is checkpointed and backup/restore aware." />
+                  <SectionTitle kicker="Lineage" title={visibleModelRegistryRecords[0]?.modelId ?? modelCard?.modelId ?? "Model evidence"} detail="Artifact metadata is checkpointed and backup/restore aware." />
                   <div className="inspector-stack">
-                    <div className="inspector-row"><strong>Checkpoint</strong><span>{explainabilityEvidence?.checkpointTag ?? latestCheckpoint?.tag ?? "pending"}</span></div>
-                    <div className="inspector-row"><strong>Dataset checksum</strong><span>{datasetCard?.checksumSha256 ?? dataEstateChecksums[0]?.checksumSha256 ?? "pending"}</span></div>
+                    <div className="inspector-row"><strong>Checkpoint</strong><span>{visibleModelRegistryRecords[0]?.checkpointTag ?? explainabilityEvidence?.checkpointTag ?? latestCheckpoint?.tag ?? "pending"}</span></div>
+                    <div className="inspector-row"><strong>Dataset checksum</strong><span>{visibleModelRegistryRecords[0]?.datasetChecksumSha256 ?? datasetCard?.checksumSha256 ?? dataEstateChecksums[0]?.checksumSha256 ?? "pending"}</span></div>
+                    <div className="inspector-row"><strong>Primary metric</strong><span>{visibleModelRegistryRecords[0] ? `${visibleModelRegistryRecords[0].primaryMetricName} ${visibleModelRegistryRecords[0].primaryMetricValue}` : "pending"}</span></div>
                     <div className="inspector-row"><strong>Backup/restore</strong><span>{health?.localBackupRestoreReady ? "included in local backup" : "pending proof"}</span></div>
                     <div className="inspector-row"><strong>Runtime monitor</strong><span>{health?.runningExecutionsTotal ?? executionItems.length} active / {health?.queuedExecutionsTotal ?? 0} queued</span></div>
                   </div>

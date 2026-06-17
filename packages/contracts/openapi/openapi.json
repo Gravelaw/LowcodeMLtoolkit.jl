@@ -1212,6 +1212,80 @@
           }
         }
       }
+    },
+    "/api/v1/workflows/{workflowId}/models/register": {
+      "post": {
+        "summary": "Register a local workflow model from experiment evidence",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelRegistryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Model registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelRegistryResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Workflow or model evidence not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}/models": {
+      "get": {
+        "summary": "List local model registry records for a workflow",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model registry records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelRegistryListResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Workflow not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5758,6 +5832,183 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MlExperimentRecord"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ModelRegistryArtifactEvidence": {
+        "type": "object",
+        "required": [
+          "kind",
+          "artifactRef",
+          "checksumSha256"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "type": "string"
+          },
+          "checksumSha256": {
+            "type": "string"
+          }
+        }
+      },
+      "ModelRegistryRecord": {
+        "type": "object",
+        "required": [
+          "registryId",
+          "modelId",
+          "workflowId",
+          "workflowVersion",
+          "checkpointTag",
+          "modelKind",
+          "target",
+          "status",
+          "tags",
+          "owner",
+          "primaryMetricName",
+          "primaryMetricValue",
+          "datasetId",
+          "datasetChecksumSha256",
+          "artifactEvidence",
+          "registeredAt",
+          "updatedAt",
+          "deploymentStatus",
+          "localOnly"
+        ],
+        "properties": {
+          "registryId": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "workflowVersion": {
+            "type": "string"
+          },
+          "checkpointTag": {
+            "type": "string"
+          },
+          "experimentId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "executionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "modelKind": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "owner": {
+            "type": "string"
+          },
+          "primaryMetricName": {
+            "type": "string"
+          },
+          "primaryMetricValue": {
+            "type": "number"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "datasetChecksumSha256": {
+            "type": "string"
+          },
+          "artifactEvidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelRegistryArtifactEvidence"
+            }
+          },
+          "registeredAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "deploymentStatus": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ModelRegistryRequest": {
+        "type": "object",
+        "properties": {
+          "modelId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "owner": {
+            "type": "string"
+          }
+        }
+      },
+      "ModelRegistryResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "model"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "registered"
+            ]
+          },
+          "model": {
+            "$ref": "#/components/schemas/ModelRegistryRecord"
+          }
+        }
+      },
+      "ModelRegistryListResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "count"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelRegistryRecord"
             }
           },
           "count": {

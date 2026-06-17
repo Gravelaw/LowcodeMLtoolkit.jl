@@ -8,6 +8,7 @@ import {
   type GatewayDataImportProfileRequest,
   type GatewayExecutionStatus,
   type GatewayMlExperimentRunRequest,
+  type GatewayModelRegistryRequest,
   type GatewayTransformRunRequest,
   type MilestoneCheckpointTag,
   type TransitionExecutionStatusRequest
@@ -46,6 +47,12 @@ const mlExperimentRunRequest: GatewayMlExperimentRunRequest = {
   algorithm: "deterministic_linear_baseline",
   flowVariables: { JULIAFLOW_GPU_DEVICE: "cpu" }
 };
+const modelRegistryRequest: GatewayModelRegistryRequest = {
+  modelId: "foundation-linear-baseline",
+  status: "registered",
+  tags: ["local", "checkpointed"],
+  owner: "local-user"
+};
 
 const client = createGatewayApiClient({
   baseUrl: "http://127.0.0.1:8088",
@@ -76,6 +83,8 @@ client.runWorkflowTransform("wf-foundation", transformRunRequest);
 client.getWorkflowTransformHistory("wf-foundation");
 client.runWorkflowMlExperiment("wf-foundation", mlExperimentRunRequest);
 client.getWorkflowMlExperimentHistory("wf-foundation");
+client.registerWorkflowModel("wf-foundation", modelRegistryRequest);
+client.listWorkflowModels("wf-foundation");
 
 gatewayEndpointPaths.workflowDetail("foundation/workflow");
 gatewayEndpointPaths.executionStatus("exec-1");
@@ -84,5 +93,7 @@ gatewayEndpointPaths.workflowTransformRun("wf-foundation");
 gatewayEndpointPaths.workflowTransformHistory("wf-foundation");
 gatewayEndpointPaths.workflowMlExperimentRun("wf-foundation");
 gatewayEndpointPaths.workflowMlExperimentHistory("wf-foundation");
+gatewayEndpointPaths.workflowModelRegister("wf-foundation");
+gatewayEndpointPaths.workflowModels("wf-foundation");
 gatewayExecutionStatuses satisfies readonly GatewayExecutionStatus[];
 milestoneTag satisfies MilestoneCheckpointTag;

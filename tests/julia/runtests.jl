@@ -1632,6 +1632,26 @@ end
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/ml/experiments"),
         )
+        model_register_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/models/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "status" => "registered",
+                        "tags" => ["local", "checkpointed", "reviewed"],
+                        "owner" => "local-user",
+                    ),
+                ),
+            ),
+        )
+        model_registry_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/workflows/wf-foundation/models"),
+        )
         hub_list_response = route_request(state, HTTP.Request("GET", "/api/v1/hub/extensions"))
         hub_install_response = route_request(
             state,
@@ -2844,6 +2864,20 @@ end
         ml_experiment_history_payload = JSON3.read(String(ml_experiment_history_response.body), Dict{String,Any})
         @test ml_experiment_history_payload["count"] >= 1
         @test ml_experiment_history_payload["items"][1]["workflowId"] == "wf-foundation"
+        @test model_register_response.status == 201
+        model_register_payload = JSON3.read(String(model_register_response.body), Dict{String,Any})
+        @test model_register_payload["status"] == "registered"
+        @test model_register_payload["model"]["workflowId"] == "wf-foundation"
+        @test model_register_payload["model"]["modelId"] == "foundation-linear-baseline"
+        @test model_register_payload["model"]["status"] == "registered"
+        @test "reviewed" in model_register_payload["model"]["tags"]
+        @test model_register_payload["model"]["primaryMetricName"] == "mae"
+        @test length(model_register_payload["model"]["artifactEvidence"]) >= 3
+        @test model_register_payload["model"]["localOnly"] == true
+        @test model_registry_response.status == 200
+        model_registry_payload = JSON3.read(String(model_registry_response.body), Dict{String,Any})
+        @test model_registry_payload["count"] >= 1
+        @test model_registry_payload["items"][1]["modelId"] == "foundation-linear-baseline"
         @test gpu_execute_response.status == 202
         @test gpu_execute_payload["status"] == "queued"
         @test gpu_execute_payload["dispatchLane"] == "gpu"

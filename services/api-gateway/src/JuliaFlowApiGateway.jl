@@ -2314,6 +2314,122 @@ function ml_experiment_history_response(state::GatewayState, workflow_id::Abstra
     return JSON3.write(Dict("items" => experiments, "count" => length(experiments)))
 end
 
+function model_registry_metric(model_card::AbstractDict)
+    metrics = model_card["metrics"]
+    preferred = ["mae", "accuracy", "auc", "r2", "loss"]
+    for name in preferred
+        if haskey(metrics, name)
+            return name, Float64(metrics[name])
+        end
+    end
+    for (key, value) in pairs(metrics)
+        return String(key), Float64(value)
+    end
+    return "metric", 0.0
+end
+
+function model_registry_payload(state::GatewayState, execution::GatewayExecution; request_body::AbstractDict = Dict{String,Any}())
+    haskey(state.workflows, execution.workflow_id) || error("workflow not found: $(execution.workflow_id)")
+    workflow = state.workflows[execution.workflow_id]
+    evidence = haskey(execution.metadata, "explainability_evidence") ?
+        execution.metadata["explainability_evidence"] :
+        gateway_explainability_evidence(state; checkpoint_tag = execution.checkpoint_tag)
+    model_card = evidence["modelCard"]
+    dataset_card = evidence["datasetCard"]
+    metric_name, metric_value = model_registry_metric(model_card)
+    model_id = haskey(request_body, "modelId") ? String(request_body["modelId"]) : String(model_card["modelId"])
+    now = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+    existing = haskey(execution.metadata, "model_registry_record") ? execution.metadata["model_registry_record"] : Dict{String,Any}()
+    tags = if haskey(request_body, "tags")
+        [String(tag) for tag in request_body["tags"]]
+    elseif haskey(existing, "tags")
+        [String(tag) for tag in existing["tags"]]
+    else
+        ["local", "checkpointed"]
+    end
+    registered_at = haskey(existing, "registeredAt") ? String(existing["registeredAt"]) : now
+
+    return Dict{String,Any}(
+        "registryId" => "model-" * model_id,
+        "modelId" => model_id,
+        "workflowId" => execution.workflow_id,
+        "workflowVersion" => workflow.version,
+        "checkpointTag" => execution.checkpoint_tag,
+        "experimentId" => "ml-" * execution.execution_id,
+        "executionId" => execution.execution_id,
+        "modelKind" => String(model_card["kind"]),
+        "target" => String(model_card["target"]),
+        "status" => haskey(request_body, "status") ? String(request_body["status"]) : String(get(existing, "status", "registered")),
+        "tags" => tags,
+        "owner" => haskey(request_body, "owner") ? String(request_body["owner"]) : String(get(existing, "owner", "local-user")),
+        "primaryMetricName" => metric_name,
+        "primaryMetricValue" => metric_value,
+        "datasetId" => String(dataset_card["datasetId"]),
+        "datasetChecksumSha256" => String(dataset_card["checksumSha256"]),
+        "artifactEvidence" => [
+            Dict{String,Any}(
+                "kind" => "model",
+                "artifactRef" => "local://models/$(model_id).json",
+                "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(model_card))))),
+            ),
+            Dict{String,Any}(
+                "kind" => "dataset",
+                "artifactRef" => "local://data/curated/$(String(dataset_card["datasetId"])).arrow",
+                "checksumSha256" => String(dataset_card["checksumSha256"]),
+            ),
+            Dict{String,Any}(
+                "kind" => "config",
+                "artifactRef" => "local://models/$(model_id)-config.json",
+                "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(model_card["config"]))))),
+            ),
+        ],
+        "registeredAt" => registered_at,
+        "updatedAt" => now,
+        "deploymentStatus" => String(get(existing, "deploymentStatus", "not_deployed")),
+        "localOnly" => true,
+    )
+end
+
+function latest_model_execution(state::GatewayState, workflow_id::AbstractString)
+    haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
+    matched = findfirst(
+        execution -> execution.workflow_id == workflow_id && haskey(execution.metadata, "explainability_evidence"),
+        reverse(state.executions),
+    )
+    matched === nothing && return nothing
+    matching = [execution for execution in reverse(state.executions) if execution.workflow_id == workflow_id && haskey(execution.metadata, "explainability_evidence")]
+    return isempty(matching) ? nothing : matching[1]
+end
+
+function model_register_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
+    execution = latest_model_execution(state, workflow_id)
+    execution === nothing && error("model evidence not found for workflow: $(workflow_id)")
+    record = model_registry_payload(state, execution; request_body = body)
+    execution.metadata["model_registry_record"] = record
+    save_execution!(state.repository, execution; producer = "api-gateway")
+    return JSON3.write(Dict("status" => "registered", "model" => record))
+end
+
+function model_registry_list_response(state::GatewayState, workflow_id::AbstractString)
+    haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
+    records = [
+        haskey(execution.metadata, "model_registry_record") ?
+            execution.metadata["model_registry_record"] :
+            model_registry_payload(state, execution)
+        for execution in reverse(state.executions)
+        if execution.workflow_id == workflow_id && haskey(execution.metadata, "explainability_evidence")
+    ]
+    seen = Set{String}()
+    deduped = Dict{String,Any}[]
+    for record in records
+        key = String(record["modelId"])
+        key in seen && continue
+        push!(seen, key)
+        push!(deduped, record)
+    end
+    return JSON3.write(Dict("items" => deduped, "count" => length(deduped)))
+end
+
 function local_backup_payload(
     state::GatewayState;
     notes::Union{Nothing,AbstractString} = nothing,
@@ -4555,6 +4671,17 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
         method == "GET" && length(segments) == 6 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:6] == ["ml", "experiments"] && begin
             require_permission!(state, request, "execution:read")
             return json_response(200, ml_experiment_history_response(state, segments[4]))
+        end
+        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:6] == ["models", "register"] && begin
+            require_permission!(state, request, "workflow:write"; resource_type = "workflow", resource_id = segments[4])
+            body = parse_request_body(request)
+            response = model_register_response!(state, segments[4], body)
+            append_audit_event!(state, request, "workflow.model.register"; target_type = "workflow", target_id = segments[4])
+            return json_response(201, response)
+        end
+        method == "GET" && length(segments) == 5 && segments[1:3] == ["api", "v1", "workflows"] && segments[5] == "models" && begin
+            require_permission!(state, request, "workflow:read"; resource_type = "workflow", resource_id = segments[4])
+            return json_response(200, model_registry_list_response(state, segments[4]))
         end
         method == "POST" && length(segments) == 5 && segments[1:3] == ["api", "v1", "workflows"] && segments[5] == "execute" && begin
             require_permission!(state, request, "workflow:execute"; resource_type = "workflow", resource_id = segments[4])
