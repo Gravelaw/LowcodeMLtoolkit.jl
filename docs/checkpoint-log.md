@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Backend-Backed Models Registry Actions — 2026-06-17
+
+### Work Done Till Date
+
+- Implemented the next backend-backed product-depth slice after ML Studio experiment actions.
+- Added workflow model register/list routes, contracts, OpenAPI schemas, typed client methods, and client fixture coverage.
+- Gateway model registry records persist into local execution metadata with checkpoint, model, dataset checksum, primary metric, tags, owner, deployment status, and local artifact references.
+- Models now registers models through the gateway when configured and preserves deterministic demo fallback with accessible action coverage.
+- Added Julia gateway assertions and frontend demo-mode coverage for the Models registry action.
+
+### Gaps Pending
+
+- Visualize checkpoint/export depth and local Deploy packaging remain open product-depth slices.
+- Richer registry filtering/search and deployment promotion UX remain future depth after the core local workflow actions close.
+
+### Next Items To Implement
+
+- Continue local product-depth with Visualize checkpoint/export before local Deploy packaging.
+- Keep `npm run validate:contracts`, Julia tests, frontend tests, `npm run test`, `npm run build`, control-doc sync, BRD traceability, and `git diff --check` in the gate set.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` Backend-Backed ML Studio Experiment Actions — 2026-06-17
 
 ### Work Done Till Date

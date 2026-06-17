@@ -21,6 +21,25 @@ Tracker always records 3 things:
 - Last updated: `2026-06-17`
 
 ## Work Done Till Date
+### Backend-Backed Models Registry Actions (2026-06-17)
+
+- Added the next product-depth slice after backend-backed ML Studio experiment actions.
+- Added workflow model register/list contracts, OpenAPI paths, typed gateway client methods, and client fixture coverage.
+- Added gateway `POST /api/v1/workflows/{workflowId}/models/register` and `GET /api/v1/workflows/{workflowId}/models` routes.
+- Model registry records are persisted into local execution metadata and carry checkpoint, model, dataset checksum, primary metric, tags, owner, deployment status, and local artifact evidence.
+- Updated Models to register models against the gateway when configured and use deterministic demo fallback otherwise.
+- Added Julia gateway route assertions and frontend demo smoke coverage for the Models registry action.
+
+### Gaps Pending
+
+- Visualize checkpoint/export depth and local Deploy packaging remain product-depth follow-ups.
+- Current model registry records use local execution/explainability evidence; richer registry search/filter UX can follow after Visualize and Deploy close.
+
+### Next Items To Implement
+
+- Continue the local product-depth path with Visualize checkpoint/export before local Deploy packaging.
+- Keep contracts, Julia tests, frontend tests, build, control-doc sync, BRD traceability, and `git diff --check` in the PR gate set.
+
 ### Backend-Backed ML Studio Experiment Actions (2026-06-17)
 
 - Added the next product-depth slice after backend-backed Data and Transform actions.

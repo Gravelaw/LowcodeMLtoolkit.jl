@@ -441,6 +441,9 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /Model Registry/i, level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Local model registry/i, level: 2 })).toBeInTheDocument();
     expect(screen.getByText(/Stored local models/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Register model/i }));
+    expect(screen.getByText(/Demo model registered/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/local:\/\/models\//i).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: /VisualizeDashboard builder and export/i }));
     expect(screen.getByRole("heading", { name: /Visualize/i, level: 1 })).toBeInTheDocument();

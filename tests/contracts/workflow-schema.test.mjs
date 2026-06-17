@@ -62,6 +62,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/transforms/history"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/ml/experiments/run"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/ml/experiments"]);
+  assert.ok(spec.paths["/api/v1/workflows/{workflowId}/models/register"]);
+  assert.ok(spec.paths["/api/v1/workflows/{workflowId}/models"]);
   assert.ok(spec.paths["/api/v1/dashboards/{dashboardId}"]);
   assert.ok(spec.paths["/api/v1/dashboards/{dashboardId}/charts/{chartId}/data"]);
   assert.ok(spec.paths["/api/v1/dashboards/{dashboardId}/charts/{chartId}/export.csv"]);
@@ -240,6 +242,10 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.MlExperimentRecord.properties.featureImportance);
   assert.ok(schemas.MlExperimentRecord.properties.artifactEvidence);
   assert.ok(schemas.MlExperimentHistoryResponse);
+  assert.ok(schemas.ModelRegistryResponse);
+  assert.ok(schemas.ModelRegistryRecord.properties.primaryMetricName);
+  assert.ok(schemas.ModelRegistryRecord.properties.artifactEvidence);
+  assert.ok(schemas.ModelRegistryListResponse);
   assert.ok(schemas.GatewayAuthContext);
   assert.deepEqual(schemas.GatewayAuthContext.properties.role.enum, ["owner", "editor", "viewer"]);
   assert.ok(schemas.GatewayAuthContext.properties.mode.enum.includes("oidc"));
