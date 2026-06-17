@@ -1,4 +1,4 @@
-import { Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
+import { ActionFeedbackStatus, Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
 import { localCode } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
 
@@ -21,7 +21,7 @@ export function DeployView({
         </div>
         <button type="button" className="jf-button primary" onClick={onPackage}>Package Local Endpoint</button>
       </section>
-      {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
+      <ActionFeedbackStatus feedback={feedback} />
 
       <Card title="Local Targets">
         <div className="source-grid">

@@ -1,4 +1,4 @@
-import { Card, DataTable, StatusPill } from "../components/ui";
+import { ActionFeedbackStatus, Card, DataTable, StatusPill } from "../components/ui";
 import { churnRows } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
 
@@ -20,7 +20,7 @@ export function VisualizeView({
         </div>
         <button type="button" className="jf-button primary" onClick={onExport}>Save Local Checkpoint</button>
       </section>
-      {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
+      <ActionFeedbackStatus feedback={feedback} />
 
       <Card title="Dataset And Columns">
         <ul className="column-list">

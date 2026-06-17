@@ -2285,3 +2285,26 @@ After any meaningful job:
 
 - Keep `npm run test:browser` in the frontend release gate.
 - Run the full repo gate set before PR completion, including contracts, Julia tests, frontend tests, build, control-doc sync, BRD traceability, and diff whitespace checks.
+
+---
+
+## Update: Local UI Browser Gate And Settings Appliance Controls — 2026-06-17
+
+### Work Done Till Date
+
+- Added `Improvement Plan.md` as the working goal artifact for the four follow-up improvements: CI browser gate, optional live local browser smoke, accessibility/responsive hardening, and Settings product-depth controls.
+- Updated CI so the web job installs Chromium and runs `npm run test:browser` after build and unit tests while leaving the Julia job independent.
+- Added `npm run test:browser:local`, `playwright.local.config.ts`, and an opt-in live local smoke spec that requires `JULIAFLOW_BROWSER_LIVE=1` before it checks a real gateway health response in the browser UI.
+- Hardened frontend accessibility with a named navigation landmark, active-page `aria-current`, and named polite action feedback live regions.
+- Expanded Settings into a local appliance control surface with concrete local paths, package environment and Julia executable evidence, CPU/memory/autosave controls, privacy/API-key local trust controls, backup retention, and `Create Local Snapshot` wired to existing local backup export with deterministic fallback.
+- Added focused unit and Playwright coverage for Settings controls, snapshot fallback, keyboard navigation, action feedback, desktop/mobile route journeys, and the optional live-smoke skip behavior.
+
+### Gaps Pending
+
+- The optional live browser smoke is intentionally not part of the default gate and requires a running local gateway plus `JULIAFLOW_BROWSER_LIVE=1`.
+- Provider/cloud deployment, external registries, and hardware-gated multi-GPU evidence remain optional or hardware-conditional and were not expanded by this slice.
+
+### Next Items To Implement
+
+- Finish final verification with control-doc sync, BRD traceability, whitespace diff checks, and any required Julia/contract gates before PR completion.
+- Use future product-depth work only for concrete local appliance workflows that remain thin, testable, and backed by existing local-first contracts.

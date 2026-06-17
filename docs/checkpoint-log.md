@@ -2520,3 +2520,26 @@ Each checkpoint entry must contain:
 
 - Keep Playwright browser automation in the release gate and expand it only around concrete local workflow regressions or accessibility findings.
 - Complete full PR verification with contracts, Julia tests, frontend tests, build, control-doc sync, BRD traceability, and diff whitespace checks.
+
+---
+
+## Checkpoint: Local UI Browser Gate And Settings Appliance Controls — 2026-06-17
+
+### Work Done Till Date
+
+- Captured the follow-up scope in `Improvement Plan.md`.
+- Promoted the mocked Playwright suite into CI by installing Chromium and running `npm run test:browser` in the web job.
+- Added an optional live browser smoke path through `npm run test:browser:local`, `playwright.local.config.ts`, and `tests/browser/local-live.spec.ts`; the spec skips unless `JULIAFLOW_BROWSER_LIVE=1` is set and then fails clearly if the gateway health endpoint is unavailable.
+- Added accessible action feedback live regions and a named sidebar navigation landmark while preserving route shell, runtime `juliaflow-config.js`, and deterministic demo fallback.
+- Expanded Settings with local workspace path controls, package/Julia runtime evidence, compute settings, privacy/API-key controls, backup retention, and a snapshot button wired through the existing local-backup export client when a gateway is configured.
+- Verified the implementation with focused frontend tests, root build, default desktop/mobile browser tests, optional live-smoke skip behavior, and root tests before control-doc validators.
+
+### Gaps Pending
+
+- Live local browser smoke success still depends on a running Julia gateway and is intentionally opt-in.
+- Provider/cloud compatibility and multi-GPU hardware closure remain outside this slice.
+
+### Next Items To Implement
+
+- Run `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, `git diff --check`, and any final repo gates before completion.
+- Keep browser assertions tied to concrete local user workflows instead of broad visual snapshots.

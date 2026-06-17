@@ -77,7 +77,9 @@ test("sidebar navigation reaches every redesigned local-only route", async ({ pa
 
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-  await expect(page.getByText("Security And API Keys")).toBeVisible();
+  await expect(page.getByText("Workspace Path Controls")).toBeVisible();
+  await expect(page.getByText("Privacy, Security, And API Keys")).toBeVisible();
+  await expect(page.getByText("Package Environment And Julia Runtime")).toBeVisible();
   await expect(page.getByText("Backup And Restore")).toBeVisible();
 });
 
@@ -105,6 +107,30 @@ test("backend-backed local actions use mocked gateway fixtures", async ({ page }
   await page.getByRole("button", { name: "Deploy" }).click();
   await page.getByRole("button", { name: /package local endpoint/i }).click();
   await expect(page.getByText("Gateway action completed locally.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: /create local snapshot/i }).click();
+  await expect(page.getByRole("status", { name: /action feedback/i })).toContainText("Gateway action completed locally.");
+});
+
+test("keyboard navigation and live feedback stay accessible", async ({ page }) => {
+  await expect(page.getByRole("navigation", { name: "JuliaFlow Local navigation" })).toBeVisible();
+  await expect(page.getByRole("main")).toBeVisible();
+
+  const dataButton = page.getByRole("button", { name: "Data", exact: true });
+  await dataButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Data", exact: true })).toBeVisible();
+  await expect(dataButton).toHaveAttribute("aria-current", "page");
+
+  await page.getByRole("button", { name: /import local data/i }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("status", { name: /action feedback/i })).toContainText("Gateway action completed locally.");
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByRole("checkbox", { name: /telemetry disabled/i })).toBeChecked();
+  await expect(page.getByLabel("CPU thread limit")).toBeVisible();
+  await expect(page.getByLabel("Backup retention")).toBeVisible();
 });
 
 async function mockGateway(page: Page) {
@@ -129,6 +155,19 @@ async function mockGateway(page: Page) {
     if (path === `/api/v1/workflows/${workflowId}/models/register` && method === "POST") return route.fulfill(json({ status: "registered", model: modelRegistry[0] }));
     if (path === `/api/v1/workflows/${workflowId}/deploy/packages`) return route.fulfill(json({ items: deployPackages, count: deployPackages.length }));
     if (path === `/api/v1/workflows/${workflowId}/deploy/package` && method === "POST") return route.fulfill(json({ status: "packaged", package: deployPackages[0] }));
+    if (path === "/api/v1/local-backups" && method === "POST") {
+      return route.fulfill(json({
+        status: "ok",
+        backup: {
+          backupId: "backup-browser-local",
+          createdAt: "2026-06-17T10:30:00Z",
+          schemaVersion: "juliaflow.backup.v1",
+          localProfile: localHealth.localProfile,
+          dataEstateRoot: localHealth.dataEstateRoot,
+          backupChecksumSha256: "4".repeat(64)
+        }
+      }));
+    }
     if (path === `/api/v1/workflows/${workflowId}/dashboards/${dashboardId}/checkpoint-export` && method === "POST") {
       return route.fulfill(json({ status: "exported", export: visualizeExports[0], checkpoint: checkpoints[0], dashboard: publishedDashboard, bundle: { bundleId: "bundle-churn-v3", createdAt: "2026-06-17T10:26:00Z", schemaVersion: "juliaflow.reproducibility.v1", workflow: localWorkflow, checkpoint: checkpoints[0], dataReferences: [], datasetCards: [], packageEnvironment: {}, runtimeConfig: {}, randomSeeds: {}, modelArtifact: { modelId: "churn_model_v1", artifactRef: "data/models/churn_model_v1.jls", checksumSha256: "c".repeat(64) }, metrics: {}, evaluationOutputs: {}, explainabilityOutputs: localHealth.explainabilityEvidence.explanation, notes: "local fixture", localOnly: true, bundleChecksumSha256: "3".repeat(64) } }));
     }

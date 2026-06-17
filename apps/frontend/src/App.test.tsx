@@ -83,7 +83,10 @@ describe("JuliaFlow local-only app redesign", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
-    expect(screen.getByText("Security And API Keys")).toBeInTheDocument();
+    expect(screen.getByText("Workspace Path Controls")).toBeInTheDocument();
+    expect(screen.getByText("Privacy, Security, And API Keys")).toBeInTheDocument();
+    expect(screen.getByLabelText("CPU thread limit")).toBeInTheDocument();
+    expect(screen.getByLabelText("Backup retention")).toBeInTheDocument();
   });
 
   it("runs redesigned actions through deterministic demo fallback without a gateway", () => {
@@ -112,6 +115,10 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
     fireEvent.click(screen.getByRole("button", { name: /package local endpoint/i }));
     expect(screen.getByText("Synthetic local deploy package displayed.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: /create local snapshot/i }));
+    expect(screen.getByRole("status", { name: /action feedback/i })).toHaveTextContent("Synthetic local backup snapshot prepared from fixture evidence.");
   });
 
   it("uses runtime gateway config before falling back to fixtures", async () => {
@@ -127,6 +134,19 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.includes("/models/register") && method === "POST") return json({ status: "registered", model: modelRegistry[0] });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
       if (url.includes("/deploy/packages")) return json({ items: deployPackages, count: deployPackages.length });
+      if (url.endsWith("/api/v1/local-backups") && method === "POST") {
+        return json({
+          status: "ok",
+          backup: {
+            backupId: "backup-unit-local",
+            createdAt: "2026-06-17T10:30:00Z",
+            schemaVersion: "juliaflow.backup.v1",
+            localProfile: localHealth.localProfile,
+            dataEstateRoot: localHealth.dataEstateRoot,
+            backupChecksumSha256: "4".repeat(64)
+          }
+        });
+      }
       if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
       return json({});
     });
@@ -138,6 +158,10 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: /register model/i }));
     await waitFor(() => expect(screen.getByText("Gateway action completed locally.")).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/models/register"), expect.objectContaining({ method: "POST" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: /create local snapshot/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/local-backups"), expect.objectContaining({ method: "POST" })));
   });
 });
 

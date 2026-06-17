@@ -311,6 +311,14 @@ Playwright is now a first-class browser gate via `npm run test:browser`, coverin
 
 Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- App.test.tsx`, `npm run build`, and `npm run test:browser`.
 
+## Latest Completed Slice — 2026-06-17 Local UI Browser Gate And Settings Appliance Controls
+
+**Local UI browser gate and Settings appliance controls are complete for the current product-readiness follow-up.** CI now installs Chromium and runs `npm run test:browser` in the web job after build/unit tests. The default browser gate stays fixture-backed and deterministic, while `npm run test:browser:local` adds an opt-in live local gateway smoke that only runs when `JULIAFLOW_BROWSER_LIVE=1` is set.
+
+The frontend now exposes action feedback through named polite live regions, the sidebar `nav` has a stable navigation landmark with active-page semantics, and Playwright covers keyboard navigation plus desktop/mobile local route journeys. Settings now shows concrete workspace paths, package environment and Julia executable evidence, compute controls, privacy/API-key trust-boundary controls, backup retention, and a `Create Local Snapshot` action that uses the existing local backup export endpoint when a gateway is configured and deterministic fallback otherwise.
+
+Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- --run`, `npm run build`, `npm run test:browser`, `npm run test:browser:local`, and `npm run test`. Control-doc sync, BRD traceability, and diff checks remain required before final completion.
+
 ## Required Skills By Lane
 
 - BRD/control docs: `juliaflow-control-loop`.

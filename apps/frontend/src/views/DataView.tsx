@@ -1,4 +1,4 @@
-import { Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
+import { ActionFeedbackStatus, Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
 import { churnRows, localCode } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
 
@@ -20,7 +20,7 @@ export function DataView({
         </div>
         <button type="button" className="jf-button primary" onClick={onImport}>Import Local Data</button>
       </section>
-      {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
+      <ActionFeedbackStatus feedback={feedback} />
 
       <Card title="Local Source Selector" eyebrow="Device only">
         <div className="source-grid">

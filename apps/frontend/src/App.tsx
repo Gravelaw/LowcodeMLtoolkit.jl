@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createGatewayClient } from "@juliaflow/contracts";
+import { ActionFeedbackStatus } from "./components/ui";
 import { Shell, pathForView, viewFromPath } from "./components/Shell";
 import {
   checkpoints,
@@ -288,7 +289,20 @@ function App() {
           />
         );
       case "settings":
-        return <SettingsView data={data} />;
+        return (
+          <SettingsView
+            data={data}
+            feedback={feedback.settings}
+            onCreateSnapshot={() =>
+              withGatewayFallback(
+                "settings",
+                () => client!.exportLocalBackup({ notes: "Settings local appliance snapshot", includeExecutions: true }),
+                () => setData((current) => ({ ...current, mode: "live" })),
+                "Synthetic local backup snapshot prepared from fixture evidence."
+              )
+            }
+          />
+        );
       case "explorer":
       default:
         return <ExplorerView data={data} />;
@@ -298,7 +312,7 @@ function App() {
   return (
     <Shell activeView={activeView} onNavigate={navigate} onPrimaryAction={() => setViewFeedback(activeView, "Local project template opened.", "info")}>
       {data.mode === "fallback" ? (
-        <p className="feedback info">Gateway unavailable. Running deterministic local demo fallback.</p>
+        <ActionFeedbackStatus feedback={{ label: "Gateway unavailable. Running deterministic local demo fallback.", tone: "info" }} />
       ) : null}
       {view}
     </Shell>

@@ -1,4 +1,4 @@
-import { Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
+import { ActionFeedbackStatus, Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
 import { localCode } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
 
@@ -21,7 +21,7 @@ export function TransformView({
         </div>
         <button type="button" className="jf-button primary" onClick={onRun}>Run Transform</button>
       </section>
-      {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
+      <ActionFeedbackStatus feedback={feedback} />
 
       <Card title="Visual Transform Pipeline" className="wide">
         <div className="pipeline">

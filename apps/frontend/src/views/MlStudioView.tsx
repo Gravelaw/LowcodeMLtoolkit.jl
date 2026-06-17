@@ -1,4 +1,4 @@
-import { Card, CodeBlock, DataTable, MetricCard, StatusPill } from "../components/ui";
+import { ActionFeedbackStatus, Card, CodeBlock, DataTable, MetricCard, StatusPill } from "../components/ui";
 import { localCode } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
 
@@ -21,7 +21,7 @@ export function MlStudioView({
         </div>
         <button type="button" className="jf-button primary" onClick={onRun}>Train New Model</button>
       </section>
-      {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
+      <ActionFeedbackStatus feedback={feedback} />
 
       <Card title="Algorithm Config">
         <div className="key-values">

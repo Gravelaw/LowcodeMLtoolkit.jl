@@ -51,7 +51,7 @@ export function Shell({
           <strong>JuliaFlow Local</strong>
         </div>
         <p className="brand-copy">Low code EDA and ML built for Julia. Runs 100% locally.</p>
-        <nav>
+        <nav aria-label="JuliaFlow Local navigation">
           {navItems.map((item) => (
             <button
               key={item.id}

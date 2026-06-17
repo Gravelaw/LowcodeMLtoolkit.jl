@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ActionFeedback } from "../types";
 
 export function Card({
   children,
@@ -128,5 +129,14 @@ export function Button({
     <button className={`jf-button ${variant}`} onClick={onClick} type="button" aria-label={ariaLabel}>
       {children}
     </button>
+  );
+}
+
+export function ActionFeedbackStatus({ feedback }: { feedback?: ActionFeedback }) {
+  if (!feedback) return null;
+  return (
+    <p className={`feedback ${feedback.tone}`} role="status" aria-live="polite" aria-label="action feedback">
+      {feedback.label}
+    </p>
   );
 }

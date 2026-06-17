@@ -1,4 +1,4 @@
-import { Card, DataTable, MetricCard, StatusPill } from "../components/ui";
+import { ActionFeedbackStatus, Card, DataTable, MetricCard, StatusPill } from "../components/ui";
 import type { ActionFeedback, AppData } from "../types";
 
 export function ModelsView({
@@ -20,7 +20,7 @@ export function ModelsView({
         </div>
         <button type="button" className="jf-button primary" onClick={onRegister}>Register Model</button>
       </section>
-      {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
+      <ActionFeedbackStatus feedback={feedback} />
 
       <Card title="Model Registry" className="wide">
         <DataTable
