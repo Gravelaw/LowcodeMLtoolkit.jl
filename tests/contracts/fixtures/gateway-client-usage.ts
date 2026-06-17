@@ -6,6 +6,7 @@ import {
   type CreateCheckpointRequest,
   type CreateWorkflowRequest,
   type GatewayDataImportProfileRequest,
+  type GatewayDeployPackageRequest,
   type GatewayExecutionStatus,
   type GatewayMlExperimentRunRequest,
   type GatewayModelRegistryRequest,
@@ -60,6 +61,13 @@ const visualizeCheckpointExportRequest: GatewayVisualizeCheckpointExportRequest 
   visibility: "workspace",
   notes: "typed client fixture"
 };
+const deployPackageRequest: GatewayDeployPackageRequest = {
+  modelId: "foundation-linear-baseline",
+  endpointPath: "/v1/predict",
+  host: "127.0.0.1",
+  port: 8000,
+  notes: "typed client fixture"
+};
 
 const client = createGatewayApiClient({
   baseUrl: "http://127.0.0.1:8088",
@@ -93,6 +101,8 @@ client.getWorkflowMlExperimentHistory("wf-foundation");
 client.registerWorkflowModel("wf-foundation", modelRegistryRequest);
 client.listWorkflowModels("wf-foundation");
 client.exportVisualizeCheckpoint("wf-foundation", "dashboard-foundation", visualizeCheckpointExportRequest);
+client.packageWorkflowDeploy("wf-foundation", deployPackageRequest);
+client.listWorkflowDeployPackages("wf-foundation");
 
 gatewayEndpointPaths.workflowDetail("foundation/workflow");
 gatewayEndpointPaths.executionStatus("exec-1");
@@ -104,5 +114,7 @@ gatewayEndpointPaths.workflowMlExperimentHistory("wf-foundation");
 gatewayEndpointPaths.workflowModelRegister("wf-foundation");
 gatewayEndpointPaths.workflowModels("wf-foundation");
 gatewayEndpointPaths.workflowVisualizeCheckpointExport("wf-foundation", "dashboard-foundation");
+gatewayEndpointPaths.workflowDeployPackage("wf-foundation");
+gatewayEndpointPaths.workflowDeployPackages("wf-foundation");
 gatewayExecutionStatuses satisfies readonly GatewayExecutionStatus[];
 milestoneTag satisfies MilestoneCheckpointTag;

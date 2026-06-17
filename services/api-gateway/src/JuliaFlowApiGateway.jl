@@ -2509,6 +2509,125 @@ function model_registry_list_response(state::GatewayState, workflow_id::Abstract
     return JSON3.write(Dict("items" => deduped, "count" => length(deduped)))
 end
 
+function local_deploy_service_code(model_id::AbstractString, endpoint_url::AbstractString, model_ref::AbstractString)
+    return """using Genie, JSON3
+
+const MODEL_PATH = "$(String(model_ref))"
+
+route("/v1/predict", method = POST) do
+    payload = JSON3.read(rawpayload())
+    return JSON3.write(Dict(
+        "modelId" => "$(String(model_id))",
+        "endpoint" => "$(String(endpoint_url))",
+        "localOnly" => true,
+        "payload" => payload,
+    ))
+end
+
+up(host = "127.0.0.1", port = 8000)
+"""
+end
+
+function deploy_package_records(execution::GatewayExecution)
+    raw_records = get(execution.metadata, "deploy_package_records", Any[])
+    return [Dict{String,Any}(String(key) => value for (key, value) in pairs(record)) for record in raw_records]
+end
+
+function deploy_package_payload!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
+    execution = latest_model_execution(state, workflow_id)
+    execution === nothing && error("model evidence not found for workflow: $(workflow_id)")
+    model_record = haskey(execution.metadata, "model_registry_record") ?
+        Dict{String,Any}(String(key) => value for (key, value) in pairs(execution.metadata["model_registry_record"])) :
+        model_registry_payload(state, execution)
+
+    if haskey(body, "modelId") && String(body["modelId"]) != String(model_record["modelId"])
+        model_record = model_registry_payload(state, execution; request_body = Dict{String,Any}("modelId" => String(body["modelId"])))
+    end
+
+    host = haskey(body, "host") ? String(body["host"]) : "127.0.0.1"
+    port = haskey(body, "port") ? Int(body["port"]) : 8000
+    endpoint_path = haskey(body, "endpointPath") ? String(body["endpointPath"]) : "/v1/predict"
+    startswith(endpoint_path, "/") || (endpoint_path = "/" * endpoint_path)
+    endpoint_url = "http://$(host):$(port)$(endpoint_path)"
+    package_id = "deploy-" * replace(string(uuid4()), "-" => "")
+    model_artifact = findfirst(item -> String(item["kind"]) == "model", model_record["artifactEvidence"])
+    model_ref = model_artifact === nothing ? "local://models/$(String(model_record["modelId"])).json" : String(model_record["artifactEvidence"][model_artifact]["artifactRef"])
+    service_code = local_deploy_service_code(String(model_record["modelId"]), endpoint_url, model_ref)
+    workflow_payload = JuliaFlowGatewayRepository.workflow_detail_payload(state.workflows[String(workflow_id)])
+    config_payload = Dict{String,Any}(
+        "endpointPath" => endpoint_path,
+        "host" => host,
+        "port" => port,
+        "checkpointTag" => model_record["checkpointTag"],
+        "notes" => haskey(body, "notes") ? String(body["notes"]) : "",
+    )
+    artifact_evidence = [
+        Dict{String,Any}(
+            "kind" => "workflow",
+            "artifactRef" => "local://workflows/$(String(workflow_id)).toml",
+            "checksumSha256" => artifact_checksum(workflow_payload),
+        ),
+        Dict{String,Any}(
+            "kind" => "service",
+            "artifactRef" => "local://deploy/packages/$(package_id)/service.jl",
+            "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(service_code)))),
+        ),
+        Dict{String,Any}(
+            "kind" => "config",
+            "artifactRef" => "local://deploy/packages/$(package_id)/juliaflow-deploy.json",
+            "checksumSha256" => artifact_checksum(config_payload),
+        ),
+    ]
+    append!(artifact_evidence, [Dict{String,Any}(String(key) => value for (key, value) in pairs(item)) for item in model_record["artifactEvidence"]])
+
+    package_record = Dict{String,Any}(
+        "packageId" => package_id,
+        "workflowId" => String(workflow_id),
+        "workflowVersion" => String(workflow_payload["version"]),
+        "modelId" => String(model_record["modelId"]),
+        "checkpointTag" => String(model_record["checkpointTag"]),
+        "endpointUrl" => endpoint_url,
+        "endpointPath" => endpoint_path,
+        "host" => host,
+        "port" => port,
+        "serviceRef" => "local://deploy/packages/$(package_id)/service.jl",
+        "packageRef" => "local://deploy/packages/$(package_id).json",
+        "packageChecksumSha256" => "",
+        "serviceCode" => service_code,
+        "runCommand" => "julia --project=. local-deploy/$(package_id)/service.jl",
+        "modelRegistryId" => get(model_record, "registryId", nothing),
+        "deploymentStatus" => "local_ready",
+        "artifactEvidence" => artifact_evidence,
+        "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
+        "localOnly" => true,
+    )
+    checksum_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(package_record))
+    delete!(checksum_payload, "packageChecksumSha256")
+    package_record["packageChecksumSha256"] = artifact_checksum(checksum_payload)
+
+    model_record["deploymentStatus"] = "local_ready"
+    model_record["updatedAt"] = package_record["createdAt"]
+    execution.metadata["model_registry_record"] = model_record
+    execution.metadata["deploy_package_records"] = [package_record, deploy_package_records(execution)...]
+    save_execution!(state.repository, execution; producer = "api-gateway")
+    return package_record
+end
+
+function deploy_package_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
+    package_record = deploy_package_payload!(state, workflow_id, body)
+    return JSON3.write(Dict("status" => "packaged", "package" => package_record))
+end
+
+function deploy_package_history_response(state::GatewayState, workflow_id::AbstractString)
+    haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
+    records = Dict{String,Any}[]
+    for execution in reverse(state.executions)
+        execution.workflow_id == workflow_id || continue
+        append!(records, deploy_package_records(execution))
+    end
+    return JSON3.write(Dict("items" => records, "count" => length(records)))
+end
+
 function local_backup_payload(
     state::GatewayState;
     notes::Union{Nothing,AbstractString} = nothing,
@@ -4771,6 +4890,18 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
         method == "GET" && length(segments) == 5 && segments[1:3] == ["api", "v1", "workflows"] && segments[5] == "models" && begin
             require_permission!(state, request, "workflow:read"; resource_type = "workflow", resource_id = segments[4])
             return json_response(200, model_registry_list_response(state, segments[4]))
+        end
+        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:6] == ["deploy", "package"] && begin
+            require_permission!(state, request, "workflow:write"; resource_type = "workflow", resource_id = segments[4])
+            require_permission!(state, request, "checkpoint:read")
+            body = parse_request_body(request)
+            response = deploy_package_response!(state, segments[4], body)
+            append_audit_event!(state, request, "workflow.deploy.package"; target_type = "workflow", target_id = segments[4])
+            return json_response(201, response)
+        end
+        method == "GET" && length(segments) == 6 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:6] == ["deploy", "packages"] && begin
+            require_permission!(state, request, "workflow:read"; resource_type = "workflow", resource_id = segments[4])
+            return json_response(200, deploy_package_history_response(state, segments[4]))
         end
         method == "POST" && length(segments) == 5 && segments[1:3] == ["api", "v1", "workflows"] && segments[5] == "execute" && begin
             require_permission!(state, request, "workflow:execute"; resource_type = "workflow", resource_id = segments[4])

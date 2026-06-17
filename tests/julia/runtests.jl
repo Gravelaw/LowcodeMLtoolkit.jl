@@ -1652,6 +1652,27 @@ end
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/models"),
         )
+        deploy_package_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/deploy/package",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "endpointPath" => "/v1/predict",
+                        "host" => "127.0.0.1",
+                        "port" => 8000,
+                        "notes" => "local deploy package proof",
+                    ),
+                ),
+            ),
+        )
+        deploy_package_history_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/workflows/wf-foundation/deploy/packages"),
+        )
         hub_list_response = route_request(state, HTTP.Request("GET", "/api/v1/hub/extensions"))
         hub_install_response = route_request(
             state,
@@ -2893,6 +2914,20 @@ end
         model_registry_payload = JSON3.read(String(model_registry_response.body), Dict{String,Any})
         @test model_registry_payload["count"] >= 1
         @test model_registry_payload["items"][1]["modelId"] == "foundation-linear-baseline"
+        @test deploy_package_response.status == 201
+        deploy_package_payload = JSON3.read(String(deploy_package_response.body), Dict{String,Any})
+        @test deploy_package_payload["status"] == "packaged"
+        @test deploy_package_payload["package"]["workflowId"] == "wf-foundation"
+        @test deploy_package_payload["package"]["modelId"] == "foundation-linear-baseline"
+        @test deploy_package_payload["package"]["endpointUrl"] == "http://127.0.0.1:8000/v1/predict"
+        @test deploy_package_payload["package"]["deploymentStatus"] == "local_ready"
+        @test length(deploy_package_payload["package"]["packageChecksumSha256"]) == 64
+        @test length(deploy_package_payload["package"]["artifactEvidence"]) >= 5
+        @test occursin("Genie", deploy_package_payload["package"]["serviceCode"])
+        @test deploy_package_history_response.status == 200
+        deploy_package_history_payload = JSON3.read(String(deploy_package_history_response.body), Dict{String,Any})
+        @test deploy_package_history_payload["count"] >= 1
+        @test deploy_package_history_payload["items"][1]["packageId"] == deploy_package_payload["package"]["packageId"]
         @test gpu_execute_response.status == 202
         @test gpu_execute_payload["status"] == "queued"
         @test gpu_execute_payload["dispatchLane"] == "gpu"

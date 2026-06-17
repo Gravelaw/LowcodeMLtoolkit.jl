@@ -956,6 +956,52 @@ export interface GatewayModelRegistryListResponse {
   count: number;
 }
 
+export interface GatewayDeployPackageArtifactEvidence {
+  kind: "workflow" | "model" | "dataset" | "service" | "config" | string;
+  artifactRef: string;
+  checksumSha256: string;
+}
+
+export interface GatewayDeployPackageRecord {
+  packageId: string;
+  workflowId: string;
+  workflowVersion: string;
+  modelId: string;
+  checkpointTag: string;
+  endpointUrl: string;
+  endpointPath: string;
+  host: string;
+  port: number;
+  serviceRef: string;
+  packageRef: string;
+  packageChecksumSha256: string;
+  serviceCode: string;
+  runCommand: string;
+  modelRegistryId?: string | null;
+  deploymentStatus: "local_ready" | "packaged" | "failed" | string;
+  artifactEvidence: GatewayDeployPackageArtifactEvidence[];
+  createdAt: string;
+  localOnly: boolean;
+}
+
+export interface GatewayDeployPackageRequest {
+  modelId?: string;
+  endpointPath?: string;
+  host?: string;
+  port?: number;
+  notes?: string;
+}
+
+export interface GatewayDeployPackageResponse {
+  status: "packaged";
+  package: GatewayDeployPackageRecord;
+}
+
+export interface GatewayDeployPackageHistoryResponse {
+  items: GatewayDeployPackageRecord[];
+  count: number;
+}
+
 export type HubExtensionPublisher = "official" | "partner";
 export type HubInstallState =
   | "available"
@@ -1409,6 +1455,10 @@ export const gatewayEndpointPaths = {
     `/api/v1/workflows/${encodeURIComponent(workflowId)}/models/register`,
   workflowModels: (workflowId: string) =>
     `/api/v1/workflows/${encodeURIComponent(workflowId)}/models`,
+  workflowDeployPackage: (workflowId: string) =>
+    `/api/v1/workflows/${encodeURIComponent(workflowId)}/deploy/package`,
+  workflowDeployPackages: (workflowId: string) =>
+    `/api/v1/workflows/${encodeURIComponent(workflowId)}/deploy/packages`,
   publishDashboard: (workflowId: string, dashboardId: string) =>
     `/api/v1/workflows/${encodeURIComponent(workflowId)}/dashboards/${encodeURIComponent(dashboardId)}/publish`,
   workflowVisualizeCheckpointExport: (workflowId: string, dashboardId: string) =>
@@ -1686,6 +1736,15 @@ export interface GatewayApiClient {
     workflowId: string,
     options?: GatewayRequestOptions
   ): Promise<GatewayModelRegistryListResponse>;
+  packageWorkflowDeploy(
+    workflowId: string,
+    request?: GatewayDeployPackageRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayDeployPackageResponse>;
+  listWorkflowDeployPackages(
+    workflowId: string,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayDeployPackageHistoryResponse>;
   listPublishedDashboards(
     workflowId: string,
     options?: GatewayRequestOptions
@@ -2009,6 +2068,20 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
       request<GatewayModelRegistryListResponse>(
         "GET",
         gatewayEndpointPaths.workflowModels(workflowId),
+        undefined,
+        requestOptions
+      ),
+    packageWorkflowDeploy: (workflowId, deployRequest, requestOptions) =>
+      request<GatewayDeployPackageResponse>(
+        "POST",
+        gatewayEndpointPaths.workflowDeployPackage(workflowId),
+        deployRequest ?? {},
+        requestOptions
+      ),
+    listWorkflowDeployPackages: (workflowId, requestOptions) =>
+      request<GatewayDeployPackageHistoryResponse>(
+        "GET",
+        gatewayEndpointPaths.workflowDeployPackages(workflowId),
         undefined,
         requestOptions
       ),

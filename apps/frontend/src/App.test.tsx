@@ -453,6 +453,10 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /Local Deploy/i, level: 1 })).toBeInTheDocument();
     expect(screen.getByText(/Local API handoff/i)).toBeInTheDocument();
     expect(screen.getByText(/Generated local Julia service/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Package local service/i }));
+    expect(screen.getByText(/Demo local deploy package ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/Package history/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/local:\/\/deploy\/packages/i).length).toBeGreaterThan(0);
   });
 
   it("lets authors drag canvas nodes to new positions", () => {

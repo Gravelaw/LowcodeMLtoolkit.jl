@@ -18,6 +18,8 @@ import {
   type GatewayAuthDirectory,
   type GatewayAuthPolicy,
   type GatewayDataImportProfile,
+  type GatewayDeployPackageRecord,
+  type GatewayDeployPackageResponse,
   type GatewayExecutorDataflowPolicy,
   type GatewayExecutorNodeResult,
   type GatewayExecutionStateChangedEvent,
@@ -1648,6 +1650,54 @@ function buildDemoVisualizeCheckpointExport(
   };
 }
 
+function buildDemoDeployPackage(
+  workflow: WorkflowDefinition,
+  model: GatewayModelRegistryRecord,
+  endpointUrl: string
+): GatewayDeployPackageRecord {
+  const packageId = `deploy-demo-${model.modelId}`;
+  const serviceCode = `using Genie, JSON3\nconst MODEL_PATH = "local://models/${model.modelId}.json"\nroute("/v1/predict", method = POST) do\n  payload = JSON3.read(rawpayload())\n  return JSON3.write(Dict("endpoint" => "${endpointUrl}", "localOnly" => true, "payload" => payload))\nend\nup(host = "127.0.0.1", port = 8000)`;
+  const packageChecksum = demoSha256(packageId);
+  return {
+    packageId,
+    workflowId: workflow.workflowId,
+    workflowVersion: workflow.version,
+    modelId: model.modelId,
+    checkpointTag: model.checkpointTag,
+    endpointUrl,
+    endpointPath: "/v1/predict",
+    host: "127.0.0.1",
+    port: 8000,
+    serviceRef: `local://deploy/packages/${packageId}/service.jl`,
+    packageRef: `local://deploy/packages/${packageId}.json`,
+    packageChecksumSha256: packageChecksum,
+    serviceCode,
+    runCommand: `julia --project=. local-deploy/${packageId}/service.jl`,
+    modelRegistryId: model.registryId,
+    deploymentStatus: "local_ready",
+    artifactEvidence: [
+      {
+        kind: "workflow",
+        artifactRef: `local://workflows/${workflow.workflowId}.toml`,
+        checksumSha256: demoSha256(workflow.workflowId)
+      },
+      {
+        kind: "service",
+        artifactRef: `local://deploy/packages/${packageId}/service.jl`,
+        checksumSha256: demoSha256(serviceCode)
+      },
+      {
+        kind: "config",
+        artifactRef: `local://deploy/packages/${packageId}/juliaflow-deploy.json`,
+        checksumSha256: packageChecksum
+      },
+      ...model.artifactEvidence
+    ],
+    createdAt: buildActionTimestampLabel(),
+    localOnly: true
+  };
+}
+
 function buildRealtimeRuntimeLabel(status: WorkflowStatus, executionHint: ExecutionHint): string {
   if (status === "streaming_active") {
     return "Realtime stream active";
@@ -2011,11 +2061,13 @@ function App() {
   const [isRunningMlExperiment, setIsRunningMlExperiment] = useState(false);
   const [isRegisteringModel, setIsRegisteringModel] = useState(false);
   const [isExportingVisualizeCheckpoint, setIsExportingVisualizeCheckpoint] = useState(false);
+  const [isPackagingDeploy, setIsPackagingDeploy] = useState(false);
   const [dataImportProfile, setDataImportProfile] = useState<GatewayDataImportProfile | null>(null);
   const [transformRunHistory, setTransformRunHistory] = useState<GatewayTransformRunRecord[]>([]);
   const [mlExperimentHistory, setMlExperimentHistory] = useState<GatewayMlExperimentRecord[]>([]);
   const [modelRegistryRecords, setModelRegistryRecords] = useState<GatewayModelRegistryRecord[]>([]);
   const [visualizeCheckpointExports, setVisualizeCheckpointExports] = useState<GatewayVisualizeCheckpointExportRecord[]>([]);
+  const [deployPackages, setDeployPackages] = useState<GatewayDeployPackageRecord[]>([]);
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
   const [connectionDraftDirection, setConnectionDraftDirection] = useState<ConnectionDraftDirection>("outgoing");
   const [connectionDraftPeerNodeId, setConnectionDraftPeerNodeId] = useState("");
@@ -2564,6 +2616,9 @@ function App() {
   const latestCheckpoint = workspaceData.checkpoints[0] ?? null;
   const localGatewayUrl = health?.localServiceUrls.gateway ?? "http://127.0.0.1:8088";
   const localDeployEndpoint = `${localGatewayUrl.replace(/\/$/, "")}/v1/predict`;
+  const visibleDeployPackages = deployPackages.length > 0
+    ? deployPackages
+    : [buildDemoDeployPackage(workflow, visibleModelRegistryRecords[0], localDeployEndpoint)];
 
   for (const connection of workflow.connections) {
     if (connection.sourceNodeId === selectedNode.id || connection.targetNodeId === selectedNode.id) {
@@ -2925,6 +2980,68 @@ function App() {
       setActionFeedback({ text: `Model registration failed: ${message}`, tone: "error" });
     } finally {
       setIsRegisteringModel(false);
+    }
+  }
+
+  async function handlePackageDeploy() {
+    setIsPackagingDeploy(true);
+
+    try {
+      let workflowId = workflow.workflowId;
+      if (isDirty) {
+        const persistedWorkflowId = await persistWorkflow("save");
+        if (persistedWorkflowId === null) {
+          return;
+        }
+        workflowId = persistedWorkflowId;
+      }
+
+      const activeModel = visibleModelRegistryRecords[0];
+      if (gatewayBaseUrl.length === 0) {
+        const deployPackage = buildDemoDeployPackage(workflow, activeModel, localDeployEndpoint);
+        setDeployPackages((currentPackages) => [
+          deployPackage,
+          ...currentPackages.filter((item) => item.packageId !== deployPackage.packageId)
+        ]);
+        setModelRegistryRecords((currentRecords) => [
+          { ...activeModel, deploymentStatus: "local_ready", updatedAt: deployPackage.createdAt },
+          ...currentRecords.filter((item) => item.modelId !== activeModel.modelId)
+        ]);
+        setActionFeedback({
+          text: `Demo local deploy package ready for ${workflowId}: ${deployPackage.packageId}.`,
+          tone: "demo"
+        });
+        return;
+      }
+
+      const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+      const response: GatewayDeployPackageResponse = await gatewayClient.packageWorkflowDeploy(workflowId, {
+        modelId: activeModel.modelId,
+        endpointPath: "/v1/predict",
+        host: "127.0.0.1",
+        port: 8000,
+        notes: "local deploy package"
+      });
+      setDeployPackages((currentPackages) => [
+        response.package,
+        ...currentPackages.filter((item) => item.packageId !== response.package.packageId)
+      ]);
+      setActionFeedback({
+        text: `Local deploy package ready for ${workflowId}: ${response.package.packageId}.`,
+        tone: "success"
+      });
+
+      const [packages, registry] = await Promise.all([
+        gatewayClient.listWorkflowDeployPackages(workflowId),
+        gatewayClient.listWorkflowModels(workflowId)
+      ]);
+      setDeployPackages(packages.items);
+      setModelRegistryRecords(registry.items);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to package local deploy handoff.";
+      setActionFeedback({ text: `Deploy packaging failed: ${message}`, tone: "error" });
+    } finally {
+      setIsPackagingDeploy(false);
     }
   }
 
@@ -4749,23 +4866,68 @@ function App() {
                       <ProductMetric label="Threads" value={health?.cpuThreadCount ?? 1} detail={health?.cpuSchedulerPolicy ?? "bounded"} />
                       <ProductMetric label="Mode" value="offline" detail="no provider target" />
                     </div>
+                    <div className="quick-add-list">
+                      <button
+                        className="primary-action-button"
+                        disabled={isPackagingDeploy}
+                        onClick={() => { void handlePackageDeploy(); }}
+                        type="button"
+                      >
+                        {isPackagingDeploy ? "Packaging..." : "Package local service"}
+                      </button>
+                    </div>
                   </div>
+                  {actionFeedback ? (
+                    <div className={`canvas-action-feedback is-${actionFeedback.tone}`} role="status">
+                      {actionFeedback.text}
+                    </div>
+                  ) : null}
                 </div>
               </section>
               <section className="secondary-grid dashboard-grid">
                 <Panel className="phase-panel">
                   <SectionTitle kicker="Package" title="Generated local Julia service" detail="The generated handoff references local artifacts and gateway endpoints." />
                   <div className="code-preview-block">
-                    <pre>{`using Genie, JSON3\nconst MODEL_PATH = "${health?.dataEstateRoot ?? "local://data"}/models/${modelCard?.modelId ?? "workflow-model"}"\nroute("/v1/predict", method = POST) do\n  payload = JSON3.read(rawpayload())\n  return JSON3.write(Dict("endpoint" => "${localDeployEndpoint}", "localOnly" => true, "payload" => payload))\nend\nup(host = "127.0.0.1", port = 8000)`}</pre>
+                    <pre>{visibleDeployPackages[0].serviceCode}</pre>
+                  </div>
+                  <div className="inspector-stack">
+                    <div className="inspector-row"><strong>Package</strong><span>{visibleDeployPackages[0].packageRef}</span></div>
+                    <div className="inspector-row"><strong>Checksum</strong><span>{visibleDeployPackages[0].packageChecksumSha256}</span></div>
+                    <div className="inspector-row"><strong>Run</strong><span>{visibleDeployPackages[0].runCommand}</span></div>
                   </div>
                 </Panel>
                 <Panel className="rail-panel">
                   <SectionTitle kicker="Runtime" title="Endpoint status" detail="Deploy evidence reuses local health, executions, and artifact state." />
                   <div className="inspector-stack">
-                    <div className="inspector-row"><strong>Primary endpoint</strong><span>{localDeployEndpoint}</span></div>
+                    <div className="inspector-row"><strong>Primary endpoint</strong><span>{visibleDeployPackages[0].endpointUrl}</span></div>
                     <div className="inspector-row"><strong>Gateway</strong><span>{localGatewayUrl}</span></div>
                     <div className="inspector-row"><strong>Requests</strong><span>{health?.executionCount ?? executionItems.length} recent local runs</span></div>
                     <div className="inspector-row"><strong>Artifacts</strong><span>{health?.dataEstateArtifactFormats?.join(", ") ?? "arrow_ipc, parquet"}</span></div>
+                    <div className="inspector-row"><strong>Deployment</strong><span>{visibleDeployPackages[0].deploymentStatus}</span></div>
+                  </div>
+                  <div className="checkpoint-policy">
+                    <h3>Package history</h3>
+                    <ul className="checkpoint-list">
+                      {visibleDeployPackages.slice(0, 4).map((deployPackage) => (
+                        <li key={deployPackage.packageId}>
+                          <strong>{deployPackage.packageId}</strong>
+                          <span>
+                            {deployPackage.modelId} · {deployPackage.artifactEvidence.length} artifacts · {deployPackage.packageChecksumSha256.slice(0, 12)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="checkpoint-policy">
+                    <h3>Package artifacts</h3>
+                    <ul className="checkpoint-list">
+                      {visibleDeployPackages[0].artifactEvidence.slice(0, 5).map((artifact) => (
+                        <li key={`${artifact.kind}-${artifact.artifactRef}`}>
+                          <strong>{artifact.kind}</strong>
+                          <span>{artifact.artifactRef}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </Panel>
               </section>
