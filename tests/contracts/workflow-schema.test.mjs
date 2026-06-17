@@ -64,6 +64,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/ml/experiments"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/models/register"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/models"]);
+  assert.ok(spec.paths["/api/v1/workflows/{workflowId}/deploy/package"]);
+  assert.ok(spec.paths["/api/v1/workflows/{workflowId}/deploy/packages"]);
   assert.ok(spec.paths["/api/v1/dashboards/{dashboardId}"]);
   assert.ok(spec.paths["/api/v1/dashboards/{dashboardId}/charts/{chartId}/data"]);
   assert.ok(spec.paths["/api/v1/dashboards/{dashboardId}/charts/{chartId}/export.csv"]);
@@ -350,6 +352,11 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.VisualizeCheckpointExportResponse.properties.checkpoint);
   assert.ok(schemas.VisualizeCheckpointExportResponse.properties.dashboard);
   assert.ok(schemas.VisualizeCheckpointExportResponse.properties.bundle);
+  assert.ok(schemas.DeployPackageRequest.properties.endpointPath);
+  assert.ok(schemas.DeployPackageRecord.properties.packageChecksumSha256);
+  assert.ok(schemas.DeployPackageRecord.properties.artifactEvidence);
+  assert.ok(schemas.DeployPackageResponse.properties.package);
+  assert.ok(schemas.DeployPackageHistoryResponse.properties.items);
   assert.ok(schemas.LocalBackupBundle);
   assert.ok(schemas.LocalBackupBundle.properties.dataEstate);
   assert.ok(schemas.LocalBackupBundle.properties.workflows);

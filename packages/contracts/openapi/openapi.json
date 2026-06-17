@@ -1320,6 +1320,80 @@
           }
         }
       }
+    },
+    "/api/v1/workflows/{workflowId}/deploy/package": {
+      "post": {
+        "summary": "Generate a local-only deployment package for a workflow model",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeployPackageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Local deployment package",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeployPackageResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Workflow or model evidence not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}/deploy/packages": {
+      "get": {
+        "summary": "List local deployment packages for a workflow",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Local deployment package history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeployPackageHistoryResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Workflow not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6176,6 +6250,170 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ModelRegistryRecord"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "DeployPackageArtifactEvidence": {
+        "type": "object",
+        "required": [
+          "kind",
+          "artifactRef",
+          "checksumSha256"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "type": "string"
+          },
+          "checksumSha256": {
+            "type": "string"
+          }
+        }
+      },
+      "DeployPackageRecord": {
+        "type": "object",
+        "required": [
+          "packageId",
+          "workflowId",
+          "workflowVersion",
+          "modelId",
+          "checkpointTag",
+          "endpointUrl",
+          "endpointPath",
+          "host",
+          "port",
+          "serviceRef",
+          "packageRef",
+          "packageChecksumSha256",
+          "serviceCode",
+          "runCommand",
+          "deploymentStatus",
+          "artifactEvidence",
+          "createdAt",
+          "localOnly"
+        ],
+        "properties": {
+          "packageId": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "workflowVersion": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "checkpointTag": {
+            "type": "string"
+          },
+          "endpointUrl": {
+            "type": "string"
+          },
+          "endpointPath": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "serviceRef": {
+            "type": "string"
+          },
+          "packageRef": {
+            "type": "string"
+          },
+          "packageChecksumSha256": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string"
+          },
+          "runCommand": {
+            "type": "string"
+          },
+          "modelRegistryId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "deploymentStatus": {
+            "type": "string"
+          },
+          "artifactEvidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeployPackageArtifactEvidence"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DeployPackageRequest": {
+        "type": "object",
+        "properties": {
+          "modelId": {
+            "type": "string"
+          },
+          "endpointPath": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "DeployPackageResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "package"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "packaged"
+            ]
+          },
+          "package": {
+            "$ref": "#/components/schemas/DeployPackageRecord"
+          }
+        }
+      },
+      "DeployPackageHistoryResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "count"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeployPackageRecord"
             }
           },
           "count": {

@@ -21,6 +21,28 @@ Tracker always records 3 things:
 - Last updated: `2026-06-17`
 
 ## Work Done Till Date
+### Backend-Backed Deploy Packaging Actions (2026-06-17)
+
+- Added the final planned product-depth slice after Visualize checkpoint/export actions.
+- Added workflow local deploy package contracts, OpenAPI paths, typed gateway client methods, and client fixture coverage.
+- Added gateway `POST /api/v1/workflows/{workflowId}/deploy/package` and `GET /api/v1/workflows/{workflowId}/deploy/packages` routes.
+- Deploy package records persist into local execution metadata and carry workflow/model/checkpoint IDs, endpoint URL, service/package refs, package checksum, generated Julia service code, run command, deployment status, and artifact evidence.
+- Packaging marks the associated model registry record `local_ready`.
+- Updated Deploy to package local services against the gateway when configured and use deterministic demo fallback otherwise.
+- Added Deploy package history and artifact evidence in the product view.
+- Added Julia gateway route assertions, typed-client contract coverage, OpenAPI assertions, and frontend demo smoke coverage.
+
+### Gaps Pending
+
+- The mock-aligned local product workflow now has backend-backed Data, Transform, ML Studio, Models, Visualize, and Deploy actions for the current local-first slice.
+- Provider/cloud deployment remains optional compatibility work and is not part of this local deploy package slice.
+- Richer deploy UX such as downloadable package archives or process supervision can follow only when tied to a concrete local workflow need.
+
+### Next Items To Implement
+
+- Finish PR verification/CI/review and merge once green.
+- After merge, audit the active BRD/control set for the next highest-value local-first gap instead of reopening provider deployment by default.
+
 ### Backend-Backed Visualize Checkpoint/Export Actions (2026-06-17)
 
 - Added the next product-depth slice after backend-backed Models registry actions.

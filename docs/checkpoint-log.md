@@ -20,6 +20,32 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Backend-Backed Deploy Packaging Actions — 2026-06-17
+
+### Work Done Till Date
+
+- Continued the mock-aligned local product-depth sequence after Visualize checkpoint/export actions.
+- Added workflow deploy package contracts, OpenAPI schemas, and typed gateway client support.
+- Added gateway routes that generate and list local-only deployment package records from workflow/model/checkpoint evidence.
+- Returned Deploy package records with endpoint URL, service/package refs, package checksum, generated Julia service code, run command, deployment status, local-only flag, and artifact evidence.
+- Persisted Deploy package history into local execution metadata and marked the related model registry record `local_ready`.
+- Wired Deploy to run the backend action when a gateway is configured and deterministic demo fallback when offline.
+- Added visible package history and artifact evidence in Deploy.
+- Added focused Julia route assertions, contract/OpenAPI assertions, typed-client fixture coverage, and frontend demo smoke coverage.
+
+### Gaps Pending
+
+- Current local product-depth sequence is closed for Data, Transform, ML Studio, Models, Visualize, and Deploy actions.
+- Provider/cloud deployment remains optional compatibility work outside this local-first package slice.
+- Downloadable package archives and process supervision can be future local UX depth if prioritized.
+
+### Next Items To Implement
+
+- Finish PR verification/CI/review and merge once green.
+- After merge, audit the BRD/control set for the next local-first gap rather than treating provider deployment as the default next item.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` Backend-Backed Visualize Checkpoint/Export Actions — 2026-06-17
 
 ### Work Done Till Date
