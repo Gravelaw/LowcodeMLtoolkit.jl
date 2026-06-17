@@ -25,6 +25,7 @@ import {
   type GatewayHubExtensionRecord,
   type GatewayHubInstallRequest,
   type GatewayHubRegisterRequest,
+  type GatewayMlExperimentRecord,
   type HubExtensionManifest,
   type GatewayNodeStateChangedEvent,
   type GatewayRealtimeNotification,
@@ -1489,6 +1490,62 @@ function buildDemoTransformRun(
   };
 }
 
+function buildDemoMlExperiment(
+  workflow: WorkflowDefinition,
+  executionId: string,
+  health: GatewayHealthcheck | null,
+  evidence: GatewayHealthcheck["explainabilityEvidence"] | null,
+  status: string = "accepted"
+): GatewayMlExperimentRecord {
+  const datasetCard = evidence?.datasetCard;
+  const modelCard = evidence?.modelCard;
+  const explanation = evidence?.explanation;
+  const datasetId = datasetCard?.datasetId ?? `${workflow.workflowId}-dataset`;
+  const modelId = modelCard?.modelId ?? `${workflow.workflowId}-local-model`;
+  const checkpointTag = evidence?.checkpointTag ?? "local-demo-ml";
+  return {
+    experimentId: `ml-${executionId}`,
+    workflowId: workflow.workflowId,
+    workflowVersion: workflow.version,
+    executionId,
+    checkpointTag,
+    status,
+    modelId,
+    modelKind: modelCard?.kind ?? "deterministic_local_baseline",
+    target: modelCard?.target ?? "target",
+    datasetId,
+    datasetChecksumSha256: datasetCard?.checksumSha256 ?? health?.dataEstateManifestChecksums[0]?.checksumSha256 ?? "demo-ml",
+    metrics: modelCard?.metrics ?? { mae: 0.18, accuracy: 0.91, auc: 0.96, loss: 0.22 },
+    featureImportance: explanation?.featureImportance ?? [
+      { feature: "amount", importance: 0.62 },
+      { feature: "region", importance: 0.28 },
+      { feature: "window", importance: 0.1 }
+    ],
+    hardwareBackend: health?.hardwareSelectedBackend ?? "cpu",
+    gpuReadinessStatus: health?.gpuReadinessStatus ?? "cpu_fallback",
+    artifactEvidence: [
+      {
+        kind: "dataset",
+        artifactRef: `local://data/curated/${datasetId}.arrow`,
+        checksumSha256: datasetCard?.checksumSha256 ?? "demo-dataset"
+      },
+      {
+        kind: "model",
+        artifactRef: `local://models/${modelId}.json`,
+        checksumSha256: "demo-model"
+      },
+      {
+        kind: "explanation",
+        artifactRef: `local://explainability/${executionId}/feature-importance.json`,
+        checksumSha256: "demo-explanation"
+      }
+    ],
+    startedAt: buildActionTimestampLabel(),
+    finishedAt: null,
+    localOnly: true
+  };
+}
+
 function buildRealtimeRuntimeLabel(status: WorkflowStatus, executionHint: ExecutionHint): string {
   if (status === "streaming_active") {
     return "Realtime stream active";
@@ -1849,8 +1906,10 @@ function App() {
   const [isRunningWorkflow, setIsRunningWorkflow] = useState(false);
   const [isProfilingData, setIsProfilingData] = useState(false);
   const [isRunningTransform, setIsRunningTransform] = useState(false);
+  const [isRunningMlExperiment, setIsRunningMlExperiment] = useState(false);
   const [dataImportProfile, setDataImportProfile] = useState<GatewayDataImportProfile | null>(null);
   const [transformRunHistory, setTransformRunHistory] = useState<GatewayTransformRunRecord[]>([]);
+  const [mlExperimentHistory, setMlExperimentHistory] = useState<GatewayMlExperimentRecord[]>([]);
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
   const [connectionDraftDirection, setConnectionDraftDirection] = useState<ConnectionDraftDirection>("outgoing");
   const [connectionDraftPeerNodeId, setConnectionDraftPeerNodeId] = useState("");
@@ -2386,6 +2445,12 @@ function App() {
       node.executionHint === "gpu_preferred" ||
       node.executionHint === "gpu_required"
   );
+  const visibleMlExperiments = mlExperimentHistory.length > 0
+    ? mlExperimentHistory
+    : executionItems
+        .filter((item) => item.workflowId === workflow.workflowId)
+        .slice(0, 3)
+        .map((item) => buildDemoMlExperiment(workflow, item.id, health, explainabilityEvidence, item.status));
   const localModelRows = mlPipelineNodes.length > 0 ? mlPipelineNodes : workflow.nodes.filter((node) => node.type === "bi.outlet");
   const latestCheckpoint = workspaceData.checkpoints[0] ?? null;
   const localGatewayUrl = health?.localServiceUrls.gateway ?? "http://127.0.0.1:8088";
@@ -2644,6 +2709,61 @@ function App() {
       setActionFeedback({ text: `Transform run failed: ${message}`, tone: "error" });
     } finally {
       setIsRunningTransform(false);
+    }
+  }
+
+  async function handleRunMlExperiment() {
+    setIsRunningMlExperiment(true);
+
+    try {
+      let workflowId = workflow.workflowId;
+      if (isDirty) {
+        const persistedWorkflowId = await persistWorkflow("run");
+        if (persistedWorkflowId === null) {
+          return;
+        }
+        workflowId = persistedWorkflowId;
+      }
+
+      if (gatewayBaseUrl.length === 0) {
+        const execution = buildDraftExecution(workflow, "Demo ML experiment", "running");
+        const experiment = buildDemoMlExperiment(workflow, execution.id, health, explainabilityEvidence, execution.status);
+        setExecutionItems((currentItems) => [execution, ...currentItems]);
+        setMlExperimentHistory((currentExperiments) => [
+          experiment,
+          ...currentExperiments.filter((item) => item.experimentId !== experiment.experimentId)
+        ]);
+        setActionFeedback({
+          text: `Demo ML experiment queued for ${workflowId}.`,
+          tone: "demo"
+        });
+        return;
+      }
+
+      const gatewayClient = createGatewayClient({ baseUrl: gatewayBaseUrl });
+      const response = await gatewayClient.runWorkflowMlExperiment(workflowId, {
+        datasetId: datasetCard?.datasetId ?? activeDataProfile.datasetId,
+        target: modelCard?.target ?? "target",
+        algorithm: modelCard?.kind ?? "deterministic_local_baseline"
+      });
+      const nextExecutionItem = buildExecutionRailItems([response.execution])[0];
+      setExecutionItems((currentItems) => mergeExecutionRailItem(currentItems, nextExecutionItem));
+      setMlExperimentHistory((currentExperiments) => [
+        response.experiment,
+        ...currentExperiments.filter((item) => item.experimentId !== response.experiment.experimentId)
+      ]);
+      setActionFeedback({
+        text: `ML experiment accepted for ${workflowId}: ${response.experiment.experimentId}.`,
+        tone: "success"
+      });
+
+      const history = await gatewayClient.getWorkflowMlExperimentHistory(workflowId);
+      setMlExperimentHistory(history.items);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to run ML experiment.";
+      setActionFeedback({ text: `ML experiment failed: ${message}`, tone: "error" });
+    } finally {
+      setIsRunningMlExperiment(false);
     }
   }
 
@@ -4213,6 +4333,16 @@ function App() {
                       <p className="panel-detail">
                         Training, explanation, and reproducibility evidence are shown together before model registry handoff.
                       </p>
+                      <div className="quick-add-list">
+                        <button
+                          className="secondary-action-button"
+                          disabled={isRunningMlExperiment}
+                          onClick={() => { void handleRunMlExperiment(); }}
+                          type="button"
+                        >
+                          {isRunningMlExperiment ? "Running..." : "Run experiment"}
+                        </button>
+                      </div>
                     </div>
                     <div className="workspace-metrics">
                       {Object.entries(modelCard?.metrics ?? { mae: 0.18, accuracy: 0.91, auc: 0.96, loss: 0.22 }).slice(0, 4).map(([metric, value]) => (
@@ -4220,6 +4350,11 @@ function App() {
                       ))}
                     </div>
                   </div>
+                  {actionFeedback ? (
+                    <div className={`canvas-action-feedback is-${actionFeedback.tone}`} role="status">
+                      {actionFeedback.text}
+                    </div>
+                  ) : null}
                 </div>
               </section>
 
@@ -4267,12 +4402,20 @@ function App() {
                   <div className="checkpoint-policy">
                     <h2>Experiment tracker</h2>
                     <ul className="checkpoint-list">
-                      {executionItems.slice(0, 4).map((item) => (
-                        <li key={item.id}>
-                          <strong>{item.id}</strong>
-                          <span>{item.status} / {item.planner}</span>
+                      {visibleMlExperiments.slice(0, 4).map((item) => (
+                        <li key={item.experimentId}>
+                          <strong>{item.experimentId}</strong>
+                          <span>
+                            {item.status} · {item.modelKind} · {item.artifactEvidence.length} local artifacts
+                          </span>
                         </li>
                       ))}
+                      {visibleMlExperiments.length === 0 ? (
+                        <li>
+                          <strong>No experiments yet</strong>
+                          <span>Run experiment to attach model, metric, and explanation evidence.</span>
+                        </li>
+                      ) : null}
                     </ul>
                   </div>
                 </Panel>

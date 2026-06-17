@@ -433,6 +433,9 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /ML Studio/i, level: 1 })).toBeInTheDocument();
     expect(screen.getByText(/On-device pipeline/i)).toBeInTheDocument();
     expect(screen.getByText(/Experiment tracker/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Run experiment/i }));
+    expect(screen.getByText(/Demo ML experiment queued/i)).toBeInTheDocument();
+    expect(screen.getByText(/local artifacts/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /ModelsLocal registry and artifacts/i }));
     expect(screen.getByRole("heading", { name: /Model Registry/i, level: 1 })).toBeInTheDocument();

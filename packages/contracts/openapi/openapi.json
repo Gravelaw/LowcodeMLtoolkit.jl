@@ -1138,6 +1138,80 @@
           }
         }
       }
+    },
+    "/api/v1/workflows/{workflowId}/ml/experiments/run": {
+      "post": {
+        "summary": "Run a local ML experiment and return model evidence",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MlExperimentRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "ML experiment accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MlExperimentRunResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Workflow not found or ML experiment failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}/ml/experiments": {
+      "get": {
+        "summary": "List local ML experiment history for a workflow",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ML experiment history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MlExperimentHistoryResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Workflow not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5497,6 +5571,193 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TransformRunRecord"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "MlExperimentArtifactEvidence": {
+        "type": "object",
+        "required": [
+          "kind",
+          "artifactRef",
+          "checksumSha256"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "type": "string"
+          },
+          "checksumSha256": {
+            "type": "string"
+          }
+        }
+      },
+      "MlExperimentRecord": {
+        "type": "object",
+        "required": [
+          "experimentId",
+          "workflowId",
+          "workflowVersion",
+          "executionId",
+          "checkpointTag",
+          "status",
+          "modelId",
+          "modelKind",
+          "target",
+          "datasetId",
+          "datasetChecksumSha256",
+          "metrics",
+          "featureImportance",
+          "hardwareBackend",
+          "gpuReadinessStatus",
+          "artifactEvidence",
+          "startedAt",
+          "localOnly"
+        ],
+        "properties": {
+          "experimentId": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "workflowVersion": {
+            "type": "string"
+          },
+          "executionId": {
+            "type": "string"
+          },
+          "checkpointTag": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "modelKind": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "datasetChecksumSha256": {
+            "type": "string"
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "featureImportance": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "feature",
+                "importance"
+              ],
+              "properties": {
+                "feature": {
+                  "type": "string"
+                },
+                "importance": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "hardwareBackend": {
+            "type": "string"
+          },
+          "gpuReadinessStatus": {
+            "type": "string"
+          },
+          "artifactEvidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlExperimentArtifactEvidence"
+            }
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "localOnly": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MlExperimentRunRequest": {
+        "type": "object",
+        "properties": {
+          "executionMode": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string"
+          },
+          "flowVariables": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "MlExperimentRunResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "execution",
+          "experiment"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted"
+            ]
+          },
+          "execution": {
+            "$ref": "#/components/schemas/GatewayExecutionRecord"
+          },
+          "experiment": {
+            "$ref": "#/components/schemas/MlExperimentRecord"
+          }
+        }
+      },
+      "MlExperimentHistoryResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "count"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlExperimentRecord"
             }
           },
           "count": {
