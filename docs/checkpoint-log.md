@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Backend-Backed ML Studio Experiment Actions — 2026-06-17
+
+### Work Done Till Date
+
+- Implemented the next backend-backed product-depth slice after Data import/profile and Transform run/history.
+- Added workflow ML experiment run/history routes, contracts, OpenAPI schemas, typed client methods, and client fixture coverage.
+- Gateway experiment records reuse local execution/checkpoint and explainability evidence to return dataset/model IDs, dataset checksum, metrics, feature importance, hardware backend, GPU readiness, and local artifact references.
+- ML Studio now runs experiments through the gateway when configured and preserves deterministic demo fallback with accessible action coverage.
+- Added Julia gateway assertions and frontend demo-mode coverage for the ML Studio action.
+
+### Gaps Pending
+
+- Models registry mutation, Visualize checkpoint/export depth, and local Deploy packaging remain open product-depth slices.
+- Richer MLJ training execution is still future depth beyond this deterministic local-evidence action.
+
+### Next Items To Implement
+
+- Continue local product-depth with Models registry mutation or Visualize checkpoint/export before local Deploy packaging.
+- Keep `npm run validate:contracts`, Julia tests, frontend tests, `npm run test`, `npm run build`, control-doc sync, BRD traceability, and `git diff --check` in the gate set.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` Mock-Aligned Local Product Workflow Vertical First Slice — 2026-06-17
 
 ### Work Done Till Date

@@ -2220,6 +2220,100 @@ function transform_history_response(state::GatewayState, workflow_id::AbstractSt
     return JSON3.write(Dict("items" => runs, "count" => length(runs)))
 end
 
+function ml_experiment_artifact_refs(execution::GatewayExecution, evidence::AbstractDict)
+    dataset_card = evidence["datasetCard"]
+    model_card = evidence["modelCard"]
+    explanation = evidence["explanation"]
+    return [
+        Dict{String,Any}(
+            "kind" => "dataset",
+            "artifactRef" => "local://data/curated/$(String(dataset_card["datasetId"])).arrow",
+            "checksumSha256" => String(dataset_card["checksumSha256"]),
+        ),
+        Dict{String,Any}(
+            "kind" => "model",
+            "artifactRef" => "local://models/$(String(model_card["modelId"])).json",
+            "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(model_card))))),
+        ),
+        Dict{String,Any}(
+            "kind" => "explanation",
+            "artifactRef" => "local://explainability/$(execution.execution_id)/feature-importance.json",
+            "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(explanation))))),
+        ),
+        Dict{String,Any}(
+            "kind" => "reproducibility_bundle",
+            "artifactRef" => "local://reproducibility/$(execution.checkpoint_tag)/bundle.json",
+            "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(evidence))))),
+        ),
+    ]
+end
+
+function ml_experiment_payload(state::GatewayState, execution::GatewayExecution; request_body::AbstractDict = Dict{String,Any}())
+    haskey(state.workflows, execution.workflow_id) || error("workflow not found: $(execution.workflow_id)")
+    workflow = state.workflows[execution.workflow_id]
+    evidence = haskey(execution.metadata, "explainability_evidence") ?
+        execution.metadata["explainability_evidence"] :
+        gateway_explainability_evidence(state; checkpoint_tag = execution.checkpoint_tag)
+    dataset_card = evidence["datasetCard"]
+    model_card = evidence["modelCard"]
+    explanation = evidence["explanation"]
+    health = JSON3.read(healthcheck(state), Dict{String,Any})
+    dataset_id = haskey(request_body, "datasetId") ? String(request_body["datasetId"]) : String(dataset_card["datasetId"])
+    target = haskey(request_body, "target") ? String(request_body["target"]) : String(model_card["target"])
+    model_kind = haskey(request_body, "algorithm") ? String(request_body["algorithm"]) : String(model_card["kind"])
+
+    return Dict{String,Any}(
+        "experimentId" => "ml-" * execution.execution_id,
+        "workflowId" => execution.workflow_id,
+        "workflowVersion" => workflow.version,
+        "executionId" => execution.execution_id,
+        "checkpointTag" => execution.checkpoint_tag,
+        "status" => execution.status,
+        "modelId" => String(model_card["modelId"]),
+        "modelKind" => model_kind,
+        "target" => target,
+        "datasetId" => dataset_id,
+        "datasetChecksumSha256" => String(dataset_card["checksumSha256"]),
+        "metrics" => model_card["metrics"],
+        "featureImportance" => explanation["featureImportance"],
+        "hardwareBackend" => String(health["hardwareSelectedBackend"]),
+        "gpuReadinessStatus" => String(health["gpuReadinessStatus"]),
+        "artifactEvidence" => ml_experiment_artifact_refs(execution, evidence),
+        "startedAt" => execution.started_at === nothing ? execution.created_at : execution.started_at,
+        "finishedAt" => execution.finished_at,
+        "localOnly" => true,
+    )
+end
+
+function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
+    flow_variable_values = haskey(body, "flowVariables") ? normalized_string_dict(body["flowVariables"]) : Dict{String,Any}()
+    execution_mode_override = haskey(body, "executionMode") ? String(body["executionMode"]) : nothing
+    execution = JSON3.read(
+        execution_accept_response(
+            state,
+            workflow_id;
+            flow_variable_values = flow_variable_values,
+            execution_mode_override = execution_mode_override,
+        ),
+        Dict{String,Any},
+    )
+    execution_id = String(execution["executionId"])
+    matched = findfirst(item -> item.execution_id == execution_id, state.executions)
+    matched === nothing && error("ML experiment execution not found: $(execution_id)")
+    experiment = ml_experiment_payload(state, state.executions[matched]; request_body = body)
+    return JSON3.write(Dict("status" => "accepted", "execution" => execution, "experiment" => experiment))
+end
+
+function ml_experiment_history_response(state::GatewayState, workflow_id::AbstractString)
+    haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
+    experiments = [
+        ml_experiment_payload(state, execution)
+        for execution in reverse(state.executions)
+        if execution.workflow_id == workflow_id && haskey(execution.metadata, "explainability_evidence")
+    ]
+    return JSON3.write(Dict("items" => experiments, "count" => length(experiments)))
+end
+
 function local_backup_payload(
     state::GatewayState;
     notes::Union{Nothing,AbstractString} = nothing,
@@ -4450,6 +4544,17 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
         method == "GET" && length(segments) == 6 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:6] == ["transforms", "history"] && begin
             require_permission!(state, request, "execution:read")
             return json_response(200, transform_history_response(state, segments[4]))
+        end
+        method == "POST" && length(segments) == 7 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:7] == ["ml", "experiments", "run"] && begin
+            require_permission!(state, request, "workflow:execute"; resource_type = "workflow", resource_id = segments[4])
+            body = parse_request_body(request)
+            response = ml_experiment_run_response!(state, segments[4], body)
+            append_audit_event!(state, request, "workflow.ml.experiment.run"; target_type = "workflow", target_id = segments[4])
+            return json_response(202, response)
+        end
+        method == "GET" && length(segments) == 6 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:6] == ["ml", "experiments"] && begin
+            require_permission!(state, request, "execution:read")
+            return json_response(200, ml_experiment_history_response(state, segments[4]))
         end
         method == "POST" && length(segments) == 5 && segments[1:3] == ["api", "v1", "workflows"] && segments[5] == "execute" && begin
             require_permission!(state, request, "workflow:execute"; resource_type = "workflow", resource_id = segments[4])

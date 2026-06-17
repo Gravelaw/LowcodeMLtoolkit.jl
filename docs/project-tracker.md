@@ -21,6 +21,25 @@ Tracker always records 3 things:
 - Last updated: `2026-06-17`
 
 ## Work Done Till Date
+### Backend-Backed ML Studio Experiment Actions (2026-06-17)
+
+- Added the next product-depth slice after backend-backed Data and Transform actions.
+- Added workflow ML experiment run/history contracts, OpenAPI paths, typed gateway client methods, and client fixture coverage.
+- Added gateway `POST /api/v1/workflows/{workflowId}/ml/experiments/run` and `GET /api/v1/workflows/{workflowId}/ml/experiments` routes.
+- Experiment records are tied to local execution/checkpoint state and explainability evidence: dataset/model IDs, dataset checksum, metrics, feature importance, hardware backend, GPU readiness, and local artifact references.
+- Updated ML Studio to run experiments against the gateway when configured and use deterministic demo fallback otherwise.
+- Added Julia gateway route assertions and frontend demo smoke coverage for the ML Studio experiment action.
+
+### Gaps Pending
+
+- Models registry mutation, Visualize checkpoint/export depth, and local Deploy packaging remain product-depth follow-ups.
+- Current experiment records are deterministic local evidence from execution/explainability state; richer MLJ training execution remains future depth work.
+
+### Next Items To Implement
+
+- Continue the local product-depth path with Models registry mutation or Visualize checkpoint/export depth before local Deploy packaging.
+- Keep contracts, Julia tests, frontend tests, build, control-doc sync, BRD traceability, and `git diff --check` in the PR gate set.
+
 ### Mock-Aligned Local Product Workflow Vertical (2026-06-17)
 
 - Added the first implementation slice for the mock-aligned local product workflow vertical.

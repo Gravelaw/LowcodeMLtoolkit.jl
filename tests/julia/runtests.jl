@@ -1612,6 +1612,26 @@ end
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/transforms/history"),
         )
+        ml_experiment_run_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/ml/experiments/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "executionMode" => "cpu_only",
+                        "datasetId" => "foundation-sales-sample",
+                        "target" => "amount",
+                        "algorithm" => "deterministic_linear_baseline",
+                    ),
+                ),
+            ),
+        )
+        ml_experiment_history_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/workflows/wf-foundation/ml/experiments"),
+        )
         hub_list_response = route_request(state, HTTP.Request("GET", "/api/v1/hub/extensions"))
         hub_install_response = route_request(
             state,
@@ -2809,6 +2829,21 @@ end
         transform_history_payload = JSON3.read(String(transform_history_response.body), Dict{String,Any})
         @test transform_history_payload["count"] >= 1
         @test transform_history_payload["items"][1]["workflowId"] == "wf-foundation"
+        @test ml_experiment_run_response.status == 202
+        ml_experiment_payload = JSON3.read(String(ml_experiment_run_response.body), Dict{String,Any})
+        @test ml_experiment_payload["status"] == "accepted"
+        @test ml_experiment_payload["experiment"]["workflowId"] == "wf-foundation"
+        @test ml_experiment_payload["experiment"]["datasetId"] == "foundation-sales-sample"
+        @test ml_experiment_payload["experiment"]["modelId"] == "foundation-linear-baseline"
+        @test ml_experiment_payload["experiment"]["target"] == "amount"
+        @test haskey(ml_experiment_payload["experiment"]["metrics"], "mae")
+        @test length(ml_experiment_payload["experiment"]["featureImportance"]) >= 1
+        @test length(ml_experiment_payload["experiment"]["artifactEvidence"]) >= 3
+        @test ml_experiment_payload["experiment"]["localOnly"] == true
+        @test ml_experiment_history_response.status == 200
+        ml_experiment_history_payload = JSON3.read(String(ml_experiment_history_response.body), Dict{String,Any})
+        @test ml_experiment_history_payload["count"] >= 1
+        @test ml_experiment_history_payload["items"][1]["workflowId"] == "wf-foundation"
         @test gpu_execute_response.status == 202
         @test gpu_execute_payload["status"] == "queued"
         @test gpu_execute_payload["dispatchLane"] == "gpu"

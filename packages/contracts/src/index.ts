@@ -826,6 +826,53 @@ export interface GatewayTransformHistoryResponse {
   count: number;
 }
 
+export interface GatewayMlExperimentArtifactEvidence {
+  kind: "dataset" | "model" | "explanation" | "reproducibility_bundle" | string;
+  artifactRef: string;
+  checksumSha256: string;
+}
+
+export interface GatewayMlExperimentRecord {
+  experimentId: string;
+  workflowId: string;
+  workflowVersion: string;
+  executionId: string;
+  checkpointTag: string;
+  status: GatewayExecutionStatus | string;
+  modelId: string;
+  modelKind: string;
+  target: string;
+  datasetId: string;
+  datasetChecksumSha256: string;
+  metrics: Record<string, number>;
+  featureImportance: Array<{ feature: string; importance: number }>;
+  hardwareBackend: string;
+  gpuReadinessStatus: string;
+  artifactEvidence: GatewayMlExperimentArtifactEvidence[];
+  startedAt: string;
+  finishedAt?: string | null;
+  localOnly: boolean;
+}
+
+export interface GatewayMlExperimentRunRequest {
+  executionMode?: ExecutionHint;
+  datasetId?: string;
+  target?: string;
+  algorithm?: string;
+  flowVariables?: Record<string, string | number | boolean>;
+}
+
+export interface GatewayMlExperimentRunResponse {
+  status: "accepted";
+  execution: GatewayExecutionRecord;
+  experiment: GatewayMlExperimentRecord;
+}
+
+export interface GatewayMlExperimentHistoryResponse {
+  items: GatewayMlExperimentRecord[];
+  count: number;
+}
+
 export type HubExtensionPublisher = "official" | "partner";
 export type HubInstallState =
   | "available"
@@ -1271,6 +1318,10 @@ export const gatewayEndpointPaths = {
     `/api/v1/workflows/${encodeURIComponent(workflowId)}/transforms/run`,
   workflowTransformHistory: (workflowId: string) =>
     `/api/v1/workflows/${encodeURIComponent(workflowId)}/transforms/history`,
+  workflowMlExperimentRun: (workflowId: string) =>
+    `/api/v1/workflows/${encodeURIComponent(workflowId)}/ml/experiments/run`,
+  workflowMlExperimentHistory: (workflowId: string) =>
+    `/api/v1/workflows/${encodeURIComponent(workflowId)}/ml/experiments`,
   publishDashboard: (workflowId: string, dashboardId: string) =>
     `/api/v1/workflows/${encodeURIComponent(workflowId)}/dashboards/${encodeURIComponent(dashboardId)}/publish`,
   hubExtensions: "/api/v1/hub/extensions",
@@ -1528,6 +1579,15 @@ export interface GatewayApiClient {
     workflowId: string,
     options?: GatewayRequestOptions
   ): Promise<GatewayTransformHistoryResponse>;
+  runWorkflowMlExperiment(
+    workflowId: string,
+    request?: GatewayMlExperimentRunRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayMlExperimentRunResponse>;
+  getWorkflowMlExperimentHistory(
+    workflowId: string,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayMlExperimentHistoryResponse>;
   listPublishedDashboards(
     workflowId: string,
     options?: GatewayRequestOptions
@@ -1817,6 +1877,20 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
       request<GatewayTransformHistoryResponse>(
         "GET",
         gatewayEndpointPaths.workflowTransformHistory(workflowId),
+        undefined,
+        requestOptions
+      ),
+    runWorkflowMlExperiment: (workflowId, experimentRequest, requestOptions) =>
+      request<GatewayMlExperimentRunResponse>(
+        "POST",
+        gatewayEndpointPaths.workflowMlExperimentRun(workflowId),
+        experimentRequest ?? {},
+        requestOptions
+      ),
+    getWorkflowMlExperimentHistory: (workflowId, requestOptions) =>
+      request<GatewayMlExperimentHistoryResponse>(
+        "GET",
+        gatewayEndpointPaths.workflowMlExperimentHistory(workflowId),
         undefined,
         requestOptions
       ),
