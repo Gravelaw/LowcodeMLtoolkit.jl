@@ -54,6 +54,7 @@ Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning
 17. [x] Backend-backed Models registry actions: workflow model register/list routes, contracts, frontend action, deterministic demo fallback, checkpoint/model/dataset/metric/artifact evidence, and focused gateway/frontend tests are implemented.
 18. [x] Backend-backed Visualize checkpoint/export actions: workflow dashboard checkpoint-export route, contracts, frontend action/history, deterministic demo fallback, checkpoint/dashboard/reproducibility artifact evidence, and focused gateway/frontend tests are implemented.
 19. [x] Backend-backed Deploy packaging actions: workflow local deploy package routes, contracts, frontend action/history, deterministic demo fallback, endpoint/package/checksum/service/artifact evidence, and focused gateway/frontend tests are implemented.
+20. [x] Mockup-aligned local-only UI redesign and browser automation: the frontend now uses the light JuliaFlow Local appliance shell across Explorer, Data, Transform, ML Studio, Models, Visualize, Deploy, and Settings, with deterministic local fixtures, preserved runtime gateway fallback, and Playwright desktop/mobile browser journeys.
 
 ## Optional Compatibility Backlog
 

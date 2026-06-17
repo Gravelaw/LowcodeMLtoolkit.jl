@@ -2498,3 +2498,25 @@ Each checkpoint entry must contain:
 
 - Finish PR #13 verification/CI/review and merge once green.
 - Continue product-depth implementation with ML Studio experiments or Models registry actions before packaging/deploy depth.
+
+---
+
+## Checkpoint: Mockup-Aligned Local UI And Browser Automation — 2026-06-17
+
+### Work Done Till Date
+
+- Replaced the dark glass frontend surface with the mockup-aligned JuliaFlow Local appliance shell, including left navigation, `100% Local` strip, compact white cards, purple actions, green local/privacy state, and consistent right-side detail panels.
+- Split frontend implementation into `App.tsx`, shared `components/`, deterministic `fixtures/local-fixtures.ts`, and dedicated `views/` route components.
+- Added deterministic local-only synthetic data for churn rows, data profiles, transform runs, ML experiments, model registry records, dashboard exports, deploy packages, local health, checkpoints, and generated Julia code snippets.
+- Added Playwright browser tests that intercept gateway API calls and verify desktop plus mobile-width journeys across Explorer, Data, Transform, ML Studio, Models, Visualize, Deploy, and Settings.
+- Preserved runtime gateway configuration and demo fallback behavior for offline UI operation.
+
+### Gaps Pending
+
+- Browser automation is fixture-backed by default; an optional live `dev:local` smoke path can be added later without becoming the default gate.
+- Provider/cloud compatibility and multi-GPU evidence remain optional or hardware-gated and were not expanded by this UI slice.
+
+### Next Items To Implement
+
+- Keep Playwright browser automation in the release gate and expand it only around concrete local workflow regressions or accessibility findings.
+- Complete full PR verification with contracts, Julia tests, frontend tests, build, control-doc sync, BRD traceability, and diff whitespace checks.
