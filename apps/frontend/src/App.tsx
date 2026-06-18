@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createGatewayClient } from "@juliaflow/contracts";
+import { GatewayClientError, createGatewayClient } from "@juliaflow/contracts";
 import { Shell, pathForView, viewFromPath } from "./components/Shell";
 import {
   checkpoints,
@@ -19,10 +19,12 @@ import {
 import type { ActionFeedback, AppData, AppView } from "./types";
 import type {
   GatewayHealthcheck,
+  GatewayRequestOptions,
   JuliaFlowRuntimeContract,
   JuliaFlowRuntimeMode,
   JuliaFlowUnavailableCapability,
-  JuliaFlowUnavailableState
+  JuliaFlowUnavailableState,
+  WorkspaceRole
 } from "@juliaflow/contracts";
 import { DataView } from "./views/DataView";
 import { DeployView } from "./views/DeployView";
@@ -36,6 +38,10 @@ import { VisualizeView } from "./views/VisualizeView";
 interface JuliaFlowRuntimeConfig {
   gatewayBaseUrl?: string;
   runtimeMode?: JuliaFlowRuntimeMode;
+  gatewayAuthToken?: string;
+  oidcAccessToken?: string;
+  workspaceId?: string;
+  workspaceRole?: WorkspaceRole;
 }
 
 declare global {
@@ -61,6 +67,35 @@ function normalizeRuntimeMode(value: unknown): JuliaFlowRuntimeMode {
 function getRuntimeMode(): JuliaFlowRuntimeMode {
   const runtimeMode = typeof window === "undefined" ? "" : window.__JULIAFLOW_CONFIG__?.runtimeMode;
   return normalizeRuntimeMode(runtimeMode ?? import.meta.env.VITE_JULIAFLOW_RUNTIME_MODE);
+}
+
+function getRuntimeConfigString(key: keyof JuliaFlowRuntimeConfig, envValue: unknown): string {
+  const runtimeValue = typeof window === "undefined" ? "" : window.__JULIAFLOW_CONFIG__?.[key];
+  const value = String(runtimeValue ?? envValue ?? "").trim();
+  return value;
+}
+
+function normalizeWorkspaceRole(value: unknown): WorkspaceRole | undefined {
+  const role = String(value ?? "").trim();
+  if (role === "owner" || role === "editor" || role === "viewer") return role;
+  return undefined;
+}
+
+function getGatewayAuthHeaders(): HeadersInit | undefined {
+  const token =
+    getRuntimeConfigString("gatewayAuthToken", import.meta.env.VITE_JULIAFLOW_GATEWAY_AUTH_TOKEN) ||
+    getRuntimeConfigString("oidcAccessToken", import.meta.env.VITE_JULIAFLOW_OIDC_ACCESS_TOKEN);
+  const workspaceId = getRuntimeConfigString("workspaceId", import.meta.env.VITE_JULIAFLOW_WORKSPACE_ID);
+  const workspaceRole = normalizeWorkspaceRole(
+    typeof window === "undefined"
+      ? import.meta.env.VITE_JULIAFLOW_WORKSPACE_ROLE
+      : window.__JULIAFLOW_CONFIG__?.workspaceRole ?? import.meta.env.VITE_JULIAFLOW_WORKSPACE_ROLE
+  );
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (workspaceId) headers["X-JuliaFlow-Workspace"] = workspaceId;
+  if (workspaceRole) headers["X-JuliaFlow-Workspace-Role"] = workspaceRole;
+  return Object.keys(headers).length > 0 ? headers : undefined;
 }
 
 function allowsFixtureSubstitution(mode: JuliaFlowRuntimeMode): boolean {
@@ -169,9 +204,23 @@ function prependUnique<TItem>(
   return [nextItem, ...items.filter((item) => getKey(item) !== nextKey)];
 }
 
+function isGatewayAuthError(error: unknown): boolean {
+  return error instanceof GatewayClientError && (error.status === 401 || error.status === 403);
+}
+
+function authUnavailableState(error: unknown): JuliaFlowUnavailableState {
+  const reason = error instanceof GatewayClientError ? error.message : "Gateway authentication failed.";
+  return unavailableState(
+    "auth",
+    reason,
+    "Configure gatewayAuthToken or oidcAccessToken in juliaflow-config.js, then retry."
+  );
+}
+
 function App() {
   const gatewayBaseUrl = useMemo(() => getGatewayBaseUrl(), []);
   const runtimeMode = useMemo(() => getRuntimeMode(), []);
+  const gatewayAuthHeaders = useMemo(() => getGatewayAuthHeaders(), []);
   const fixtureSubstitutionAllowed = allowsFixtureSubstitution(runtimeMode);
   const [activeView, setActiveView] = useState<AppView>(() => getInitialView());
   const [data, setData] = useState<AppData>(() =>
@@ -199,7 +248,8 @@ function App() {
       return;
     }
     const abort = new AbortController();
-    const client = createGatewayClient({ baseUrl: gatewayBaseUrl });
+    const client = createGatewayClient({ baseUrl: gatewayBaseUrl, headers: gatewayAuthHeaders });
+    const requestOptions = (signal: AbortSignal): GatewayRequestOptions => ({ signal });
 
     async function loadGatewayState() {
       try {
@@ -208,13 +258,13 @@ function App() {
         const fallbackValue = <TValue,>(value: TValue) =>
           fixtureSubstitutionAllowed ? value : Promise.reject(new Error("backend data required in release mode"));
         const [health, workflows, transforms, experiments, models, packages, dashboard] = await Promise.all([
-          client.healthcheck({ signal: abort.signal }),
-          client.listWorkflows({ signal: abort.signal }),
-          client.getWorkflowTransformHistory(workflowId, { signal: abort.signal }).catch(() => fallbackList(transformRuns)),
-          client.getWorkflowMlExperimentHistory(workflowId, { signal: abort.signal }).catch(() => fallbackList(mlExperiments)),
-          client.listWorkflowModels(workflowId, { signal: abort.signal }).catch(() => fallbackList(modelRegistry)),
-          client.listWorkflowDeployPackages(workflowId, { signal: abort.signal }).catch(() => fallbackList(deployPackages)),
-          client.getPublishedDashboard(dashboardId, undefined, { signal: abort.signal }).catch(() => fallbackValue(publishedDashboard))
+          client.healthcheck(requestOptions(abort.signal)),
+          client.listWorkflows(requestOptions(abort.signal)),
+          client.getWorkflowTransformHistory(workflowId, requestOptions(abort.signal)).catch(() => fallbackList(transformRuns)),
+          client.getWorkflowMlExperimentHistory(workflowId, requestOptions(abort.signal)).catch(() => fallbackList(mlExperiments)),
+          client.listWorkflowModels(workflowId, requestOptions(abort.signal)).catch(() => fallbackList(modelRegistry)),
+          client.listWorkflowDeployPackages(workflowId, requestOptions(abort.signal)).catch(() => fallbackList(deployPackages)),
+          client.getPublishedDashboard(dashboardId, undefined, requestOptions(abort.signal)).catch(() => fallbackValue(publishedDashboard))
         ]);
         if (!fixtureSubstitutionAllowed && workflows.items.length === 0) {
           setData(buildUnavailableData(runtimeMode, [
@@ -223,7 +273,7 @@ function App() {
           return;
         }
         const summary = workflows.items[0] ?? workflowSummary;
-        const metadata = await client.getWorkflow(summary.workflowId, { signal: abort.signal }).catch(() => fallbackValue(localWorkflow));
+        const metadata = await client.getWorkflow(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackValue(localWorkflow));
         const liveRuntime = health.runtime ?? runtimeContract(runtimeMode);
         setData({
           mode: "live",
@@ -242,10 +292,12 @@ function App() {
           checkpoints,
           dashboard
         });
-      } catch {
+      } catch (error) {
         if (!abort.signal.aborted) {
           setData(
-            fixtureSubstitutionAllowed
+            isGatewayAuthError(error)
+              ? buildUnavailableData(runtimeMode, [authUnavailableState(error)])
+              : fixtureSubstitutionAllowed
               ? { ...buildDemoData(runtimeMode), mode: "fallback" }
               : buildUnavailableData(runtimeMode, [
                   unavailableState("workflows", "The release gateway could not provide required live workspace data.")
@@ -257,7 +309,7 @@ function App() {
 
     void loadGatewayState();
     return () => abort.abort();
-  }, [fixtureSubstitutionAllowed, gatewayBaseUrl, runtimeMode]);
+  }, [fixtureSubstitutionAllowed, gatewayAuthHeaders, gatewayBaseUrl, runtimeMode]);
 
   function navigate(view: AppView) {
     setActiveView(view);
@@ -289,16 +341,18 @@ function App() {
       const result = await action();
       onSuccess(result);
       setViewFeedback(view, "Gateway action completed locally.");
-    } catch {
+    } catch (error) {
       setViewFeedback(
         view,
-        fixtureSubstitutionAllowed ? fallbackLabel : "Release mode did not substitute fixture results for this failed gateway action.",
-        fixtureSubstitutionAllowed ? "info" : "error"
+        isGatewayAuthError(error)
+          ? "Gateway authentication failed. Configure the local gateway token in Settings and retry."
+          : fixtureSubstitutionAllowed ? fallbackLabel : "Release mode did not substitute fixture results for this failed gateway action.",
+        isGatewayAuthError(error) ? "error" : fixtureSubstitutionAllowed ? "info" : "error"
       );
     }
   }
 
-  const client = gatewayBaseUrl ? createGatewayClient({ baseUrl: gatewayBaseUrl }) : null;
+  const client = gatewayBaseUrl ? createGatewayClient({ baseUrl: gatewayBaseUrl, headers: gatewayAuthHeaders }) : null;
 
   const view = (() => {
     switch (activeView) {

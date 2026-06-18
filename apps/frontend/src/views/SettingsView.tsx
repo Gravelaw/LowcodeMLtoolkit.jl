@@ -55,6 +55,12 @@ export function SettingsView({ data }: { data: AppData }) {
       </Card>
 
       <Card title="Security And API Keys" className="right-panel">
+        <div className="key-values compact">
+          <span>Gateway auth</span><strong>{data.health.authMode ?? "disabled"}</strong>
+          <span>Dev fallback</span><strong>{data.health.authDevFallback ? "active" : "off"}</strong>
+          <span>Runtime mode</span><strong>{data.runtimeMode}</strong>
+          <span>Fixture fallback</span><strong>{data.runtime.fixtureSubstitutionAllowed ? "allowed" : "blocked"}</strong>
+        </div>
         <ul className="check-list">
           <li>No cloud credentials required</li>
           <li>API keys stored only in local profile</li>

@@ -115,7 +115,13 @@ describe("JuliaFlow local-only app redesign", () => {
   });
 
   it("uses runtime gateway config before falling back to fixtures", async () => {
-    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "http://127.0.0.1:8088", runtimeMode: "development" };
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: "http://127.0.0.1:8088",
+      runtimeMode: "development",
+      gatewayAuthToken: "dev-secret",
+      workspaceId: "workspace-a",
+      workspaceRole: "editor"
+    };
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? "GET";
@@ -138,6 +144,34 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: /register model/i }));
     await waitFor(() => expect(screen.getByText("Gateway action completed locally.")).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/models/register"), expect.objectContaining({ method: "POST" }));
+    const registerCall = fetchMock.mock.calls.find(([input]) => String(input).includes("/models/register"));
+    expect(headerValue(registerCall?.[1], "authorization")).toBe("Bearer dev-secret");
+    expect(headerValue(registerCall?.[1], "x-juliaflow-workspace")).toBe("workspace-a");
+    expect(headerValue(registerCall?.[1], "x-juliaflow-workspace-role")).toBe("editor");
+  });
+
+  it("does not send auth headers when auth is disabled", async () => {
+    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "http://127.0.0.1:8088", runtimeMode: "development" };
+    const disabledHealth = { ...localHealth, authMode: "disabled", authDevFallback: false };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return json(disabledHealth);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
+      if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
+      if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
+      if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
+      if (url.includes("/deploy/packages")) return json({ items: deployPackages, count: deployPackages.length });
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    const healthCall = fetchMock.mock.calls.find(([input]) => String(input).endsWith("/health"));
+    expect(headerValue(healthCall?.[1], "authorization")).toBeNull();
+    expect(headerValue(healthCall?.[1], "x-juliaflow-workspace")).toBeNull();
   });
 
   it("does not silently substitute demo data in release mode when the gateway is absent", () => {
@@ -150,6 +184,21 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: /import local data/i }));
     expect(screen.getByText("Release mode requires the local gateway before this action can run.")).toBeInTheDocument();
     expect(screen.queryByText("Synthetic local profile loaded from fixture.")).not.toBeInTheDocument();
+  });
+
+  it("reports required-mode auth failures instead of falling back", async () => {
+    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "http://127.0.0.1:8088", runtimeMode: "release" };
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return json({ error: "auth token is required" }, 401);
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText("Release mode unavailable")).toHaveTextContent("auth token is required"));
+    expect(screen.getByLabelText("Release mode unavailable")).toHaveTextContent("Configure gatewayAuthToken or oidcAccessToken");
+    expect(screen.queryByText("Gateway unavailable. Running deterministic local demo fallback.")).not.toBeInTheDocument();
   });
 
   it("keeps empty backend lists empty in local-appliance mode", async () => {
@@ -189,11 +238,15 @@ describe("JuliaFlow local-only app redesign", () => {
   });
 });
 
-function json(payload: unknown) {
+function json(payload: unknown, status = 200) {
   return Promise.resolve(
     new Response(JSON.stringify(payload), {
-      status: 200,
+      status,
       headers: { "Content-Type": "application/json" }
     })
   );
+}
+
+function headerValue(init: RequestInit | undefined, key: string): string | null {
+  return new Headers(init?.headers).get(key);
 }
