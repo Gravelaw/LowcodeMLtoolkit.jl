@@ -24,16 +24,19 @@ JuliaFlow is a monorepo for a visual low-code analytics platform built in Julia.
 
 ## Tooling
 
-- Debian-compatible Linux shell
-- Node.js via native Linux/nvm Node; run `npm run doctor:debian` to verify
+- Native Windows PowerShell or Debian-compatible Linux shell
+- Node.js via native Windows Node or native Linux/nvm Node; run `npm run doctor:windows` or `npm run doctor:debian` to verify
 - npm workspaces used for bootstrap because `pnpm` is not installed in current environment
-- Julia LTS `1.10.x` via repo-local Juliaup (`.juliaup`) or another native Linux Julia compatible with `Project.toml`
+- Julia compatible with `Project.toml`, either on PATH or provided through `JULIAFLOW_JULIA_CMD`
+- Julia manifests are generated, not committed; use `npm run julia:instantiate` or `julia --project=. -e "using Pkg; Pkg.instantiate()"` from a fresh checkout
 
 ## Commands
 
 ```bash
 npm install
+npm run doctor:windows
 npm run doctor:debian
+npm run julia:instantiate
 npm run dev:frontend
 npm run build
 npm run test

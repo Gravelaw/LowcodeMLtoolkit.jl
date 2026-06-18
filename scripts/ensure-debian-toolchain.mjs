@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const LOCAL_JULIA = join(ROOT_DIR, ".juliaup", "bin", "julia");
 const args = new Set(process.argv.slice(2));
+const ALLOWED_PLATFORMS = new Set(["linux", "win32"]);
 
 function fail(message) {
   console.error(message);
@@ -21,19 +22,21 @@ function osRelease() {
   }
 }
 
-function assertDebianLinuxNode() {
-  if (process.platform !== "linux") {
-    fail("JuliaFlow JS tooling must run with native Debian/Linux Node.js.");
+function assertSupportedNode() {
+  if (!ALLOWED_PLATFORMS.has(process.platform)) {
+    fail("JuliaFlow JS tooling must run with native Debian/Linux Node.js or native Windows Node.js.");
   }
 
   const nodePath = process.execPath.replaceAll("\\", "/").toLowerCase();
-  if (nodePath.startsWith("/mnt/c/") || nodePath.includes("/program files/nodejs/")) {
+  if (process.platform === "linux" && nodePath.startsWith("/mnt/c/")) {
     fail(`JuliaFlow detected Windows Node.js interop: ${process.execPath}`);
   }
 
-  const release = osRelease().toLowerCase();
-  if (release && !release.includes("id=debian") && !release.includes("id_like=debian")) {
-    fail("JuliaFlow local development is currently provisioned for Debian-compatible Linux.");
+  if (process.platform === "linux") {
+    const release = osRelease().toLowerCase();
+    if (release && !release.includes("id=debian") && !release.includes("id_like=debian")) {
+      fail("JuliaFlow local development is currently provisioned for Debian-compatible Linux.");
+    }
   }
 }
 
@@ -60,12 +63,12 @@ function assertJulia() {
     encoding: "utf8"
   });
   if (result.status !== 0) {
-    fail(`JuliaFlow could not start Julia with ${command}. Install Julia LTS for Debian or set JULIAFLOW_JULIA_CMD.`);
+    fail(`JuliaFlow could not start Julia with ${command}. Install a Julia version compatible with Project.toml or set JULIAFLOW_JULIA_CMD.`);
   }
   process.stdout.write(result.stdout);
 }
 
-assertDebianLinuxNode();
+assertSupportedNode();
 if (args.has("--julia")) {
   assertJulia();
 }
