@@ -1361,6 +1361,22 @@ end
         @test occursin("\"status\":\"ok\"", healthcheck(state))
         @test occursin("\"localProfile\":\"single-user\"", healthcheck(state))
         health_payload = JSON3.read(healthcheck(state), Dict{String,Any})
+        @test health_payload["runtimeMode"] == "development"
+        @test health_payload["runtime"]["mode"] == "development"
+        @test health_payload["runtime"]["fixtureProvenance"] == "backend"
+        @test health_payload["runtime"]["fixtureSubstitutionAllowed"] == true
+        @test health_payload["fixtureSubstitutionAllowed"] == true
+        @test isempty(health_payload["unavailable"])
+        previous_runtime_mode = get(ENV, "JULIAFLOW_RUNTIME_MODE", nothing)
+        ENV["JULIAFLOW_RUNTIME_MODE"] = "release"
+        release_health_payload = JSON3.read(healthcheck(state), Dict{String,Any})
+        if previous_runtime_mode === nothing
+            delete!(ENV, "JULIAFLOW_RUNTIME_MODE")
+        else
+            ENV["JULIAFLOW_RUNTIME_MODE"] = previous_runtime_mode
+        end
+        @test release_health_payload["runtimeMode"] == "release"
+        @test release_health_payload["runtime"]["fixtureSubstitutionAllowed"] == false
         @test health_payload["metadataMode"] == "single-user"
         @test health_payload["metadataBackend"] == "file"
         @test health_payload["metadataReady"] == true

@@ -2304,3 +2304,25 @@ After any meaningful job:
 
 - Keep `npm run test:browser` in the frontend release gate.
 - Run the full repo gate set before PR completion, including contracts, Julia tests, frontend tests, build, control-doc sync, BRD traceability, and diff whitespace checks.
+
+---
+
+## Update: AKS-5 Stage 2 Release-Mode Boundary - 2026-06-18
+
+### Work Done Till Date
+
+- Added shared runtime-mode, fixture-provenance, fixture-substitution, and unavailable-state contracts for `demo`, `development`, `release`, and `local-appliance`.
+- Exposed the runtime contract from gateway `/health` with `JULIAFLOW_RUNTIME_MODE` support.
+- Extended frontend runtime config to honor `runtimeMode`; release/local-appliance mode now surfaces unavailable or empty backend states instead of silently substituting deterministic demo fixtures.
+- Added focused contract, Julia, and frontend tests for the release-mode boundary.
+
+### Gaps Pending
+
+- AKS-5 Stage 3 real save/run/monitor lifecycle remains pending.
+- Live-backend Playwright QA and the single fresh-checkout release verification script remain pending Stage 5 work.
+- `C:\Users\aksha\Documents\LowCodeJulia` still needs restoration as a real writable Git checkout; current implementation continues from the verified temp clone.
+
+### Next Items To Implement
+
+- Run the full Stage 2 verification gate and open the focused draft PR stacked after PR #20.
+- Start Stage 3: backend-backed Canvas save/run/monitor plus artifact-backed dashboard/explainability behavior.

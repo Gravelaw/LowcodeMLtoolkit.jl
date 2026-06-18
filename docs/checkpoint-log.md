@@ -2542,3 +2542,25 @@ Each checkpoint entry must contain:
 
 - Keep Playwright browser automation in the release gate and expand it only around concrete local workflow regressions or accessibility findings.
 - Complete full PR verification with contracts, Julia tests, frontend tests, build, control-doc sync, BRD traceability, and diff whitespace checks.
+
+---
+
+## Checkpoint: AKS-5 Stage 2 Release-Mode Boundary - 2026-06-18
+
+### Work Done Till Date
+
+- Added contract-first runtime mode support for `demo`, `development`, `release`, and `local-appliance`.
+- Added fixture provenance, fixture-substitution policy, and unavailable-state evidence to TypeScript contracts, OpenAPI, gateway health, and frontend app state.
+- Updated frontend runtime config so release/local-appliance mode reports missing gateway data and failed actions explicitly instead of using deterministic fixture substitutions.
+- Added focused frontend, contract, and Julia assertions for the release-mode boundary.
+
+### Gaps Pending
+
+- Stage 3 must still make Canvas save/run/monitor a true backend lifecycle.
+- Stage 5 must still add the fresh-checkout release verification script and live-backend Playwright smoke.
+- The temp clone remains the working implementation checkout until the Documents-folder Git checkout is restored.
+
+### Next Items To Implement
+
+- Complete the Stage 2 verification gate, commit, push, and open the focused draft PR.
+- Continue with backend-backed Canvas lifecycle and artifact-backed dashboard/explainability behavior.

@@ -829,10 +829,16 @@ function healthcheck(state::GatewayState)
     metadata = local_metadata_health(state, profile, appliance_home)
     hardware = local_hardware_runtime_profile(disk_status, gpu_registry)
     hub_cache = local_hub_cache_health(appliance_home, state.hub_extensions)
+    runtime = runtime_contract_payload()
     return JSON3.write(
         Dict(
             "service" => "api-gateway",
             "status" => "ok",
+            "runtime" => runtime,
+            "runtimeMode" => runtime["mode"],
+            "fixtureProvenance" => runtime["fixtureProvenance"],
+            "fixtureSubstitutionAllowed" => runtime["fixtureSubstitutionAllowed"],
+            "unavailable" => runtime["unavailable"],
             "localProfile" => profile,
             "localHome" => appliance_home,
             "metadataMode" => metadata["metadataMode"],
@@ -1043,6 +1049,27 @@ function gateway_auth_mode()
     mode = lowercase(strip(get(ENV, "JULIAFLOW_AUTH_MODE", "dev_token")))
     mode in ("disabled", "dev_token", "required", "oidc") || error("unsupported JULIAFLOW_AUTH_MODE: $(mode)")
     return mode
+end
+
+function juliaflow_runtime_mode()
+    mode = lowercase(strip(get(ENV, "JULIAFLOW_RUNTIME_MODE", "development")))
+    mode in ("demo", "development", "release", "local-appliance") || error("unsupported JULIAFLOW_RUNTIME_MODE: $(mode)")
+    return mode
+end
+
+function fixture_substitution_allowed(mode::AbstractString)
+    return mode in ("demo", "development")
+end
+
+function runtime_contract_payload(; unavailable = Vector{Dict{String,Any}}())
+    mode = juliaflow_runtime_mode()
+    substitution_allowed = fixture_substitution_allowed(mode)
+    return Dict{String,Any}(
+        "mode" => mode,
+        "fixtureProvenance" => substitution_allowed ? "backend" : "backend",
+        "fixtureSubstitutionAllowed" => substitution_allowed,
+        "unavailable" => unavailable,
+    )
 end
 
 function dev_auth_token()

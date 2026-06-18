@@ -135,6 +135,21 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.ExecuteWorkflowRequest.properties.executionMode);
   assert.ok(schemas.ExecuteWorkflowRequest.properties.flowVariables);
   assert.ok(schemas.GatewayHealthcheck.properties.realtimeTransport);
+  assert.ok(schemas.JuliaFlowRuntimeContract);
+  assert.deepEqual(schemas.JuliaFlowRuntimeContract.properties.mode.enum, [
+    "demo",
+    "development",
+    "release",
+    "local-appliance"
+  ]);
+  assert.ok(schemas.JuliaFlowUnavailableState);
+  assert.ok(schemas.GatewayHealthcheck.properties.runtime);
+  assert.ok(schemas.GatewayHealthcheck.properties.runtimeMode);
+  assert.ok(schemas.GatewayHealthcheck.properties.fixtureProvenance);
+  assert.ok(schemas.GatewayHealthcheck.properties.fixtureSubstitutionAllowed);
+  assert.ok(schemas.GatewayHealthcheck.properties.unavailable);
+  assert.ok(schemas.GatewayHealthcheck.required.includes("runtime"));
+  assert.ok(schemas.GatewayHealthcheck.required.includes("fixtureSubstitutionAllowed"));
   assert.ok(schemas.GatewayHealthcheck.properties.localProfile);
   assert.ok(schemas.GatewayHealthcheck.properties.localHome);
   assert.ok(schemas.GatewayHealthcheck.properties.metadataMode);

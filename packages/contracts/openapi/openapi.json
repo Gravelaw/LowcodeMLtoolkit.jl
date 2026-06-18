@@ -1639,11 +1639,95 @@
           }
         }
       },
+      "JuliaFlowUnavailableState": {
+        "type": "object",
+        "required": [
+          "capability",
+          "status",
+          "reason",
+          "recovery",
+          "fixtureSubstituted"
+        ],
+        "properties": {
+          "capability": {
+            "type": "string",
+            "enum": [
+              "workflows",
+              "workflowMetadata",
+              "executions",
+              "checkpoints",
+              "dashboards",
+              "hub",
+              "auth",
+              "explainability"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "empty",
+              "error",
+              "unavailable"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "recovery": {
+            "type": "string"
+          },
+          "fixtureSubstituted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "JuliaFlowRuntimeContract": {
+        "type": "object",
+        "required": [
+          "mode",
+          "fixtureProvenance",
+          "fixtureSubstitutionAllowed",
+          "unavailable"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "demo",
+              "development",
+              "release",
+              "local-appliance"
+            ]
+          },
+          "fixtureProvenance": {
+            "type": "string",
+            "enum": [
+              "fixture",
+              "backend",
+              "unavailable"
+            ]
+          },
+          "fixtureSubstitutionAllowed": {
+            "type": "boolean"
+          },
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JuliaFlowUnavailableState"
+            }
+          }
+        }
+      },
       "GatewayHealthcheck": {
         "type": "object",
         "required": [
           "service",
           "status",
+          "runtime",
+          "runtimeMode",
+          "fixtureProvenance",
+          "fixtureSubstitutionAllowed",
+          "unavailable",
           "localProfile",
           "localHome",
           "metadataMode",
@@ -1732,6 +1816,35 @@
           "status": {
             "type": "string",
             "const": "ok"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/JuliaFlowRuntimeContract"
+          },
+          "runtimeMode": {
+            "type": "string",
+            "enum": [
+              "demo",
+              "development",
+              "release",
+              "local-appliance"
+            ]
+          },
+          "fixtureProvenance": {
+            "type": "string",
+            "enum": [
+              "fixture",
+              "backend",
+              "unavailable"
+            ]
+          },
+          "fixtureSubstitutionAllowed": {
+            "type": "boolean"
+          },
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JuliaFlowUnavailableState"
+            }
           },
           "localProfile": {
             "type": "string",

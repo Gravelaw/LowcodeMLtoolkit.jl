@@ -8,6 +8,9 @@ import type {
   GatewayTransformRunRecord,
   GatewayVisualizeCheckpointExportRecord,
   GatewayWorkflowSummary,
+  JuliaFlowRuntimeContract,
+  JuliaFlowRuntimeMode,
+  JuliaFlowUnavailableState,
   PublishedDashboardDefinition,
   WorkflowDefinition
 } from "@juliaflow/contracts";
@@ -22,10 +25,13 @@ export type AppView =
   | "deploy"
   | "settings";
 
-export type DataMode = "demo" | "live" | "fallback";
+export type DataMode = "demo" | "live" | "fallback" | "unavailable";
 
 export interface AppData {
   mode: DataMode;
+  runtimeMode: JuliaFlowRuntimeMode;
+  runtime: JuliaFlowRuntimeContract;
+  unavailable: JuliaFlowUnavailableState[];
   health: GatewayHealthcheck;
   workflow: WorkflowDefinition;
   workflowSummary: GatewayWorkflowSummary;

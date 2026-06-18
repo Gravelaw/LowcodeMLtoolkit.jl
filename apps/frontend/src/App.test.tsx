@@ -40,7 +40,7 @@ describe("JuliaFlow local-only app redesign", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     window.history.pushState({}, "", "/");
-    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "" };
+    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "", runtimeMode: "demo" };
   });
 
   afterEach(() => {
@@ -115,7 +115,7 @@ describe("JuliaFlow local-only app redesign", () => {
   });
 
   it("uses runtime gateway config before falling back to fixtures", async () => {
-    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "http://127.0.0.1:8088" };
+    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "http://127.0.0.1:8088", runtimeMode: "development" };
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? "GET";
@@ -138,6 +138,54 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: /register model/i }));
     await waitFor(() => expect(screen.getByText("Gateway action completed locally.")).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/models/register"), expect.objectContaining({ method: "POST" }));
+  });
+
+  it("does not silently substitute demo data in release mode when the gateway is absent", () => {
+    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "", runtimeMode: "release" };
+
+    render(<App />);
+
+    expect(screen.getByLabelText("Release mode unavailable")).toHaveTextContent("No gatewayBaseUrl is configured");
+    fireEvent.click(screen.getByRole("button", { name: "Data" }));
+    fireEvent.click(screen.getByRole("button", { name: /import local data/i }));
+    expect(screen.getByText("Release mode requires the local gateway before this action can run.")).toBeInTheDocument();
+    expect(screen.queryByText("Synthetic local profile loaded from fixture.")).not.toBeInTheDocument();
+  });
+
+  it("keeps empty backend lists empty in local-appliance mode", async () => {
+    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "http://127.0.0.1:8088", runtimeMode: "local-appliance" };
+    const health = {
+      ...localHealth,
+      runtime: {
+        mode: "local-appliance",
+        fixtureProvenance: "backend",
+        fixtureSubstitutionAllowed: false,
+        unavailable: []
+      },
+      runtimeMode: "local-appliance",
+      fixtureProvenance: "backend",
+      fixtureSubstitutionAllowed: false,
+      unavailable: []
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return json(health);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
+      if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
+      if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
+      if (url.includes("/models")) return json({ items: [], count: 0 });
+      if (url.includes("/deploy/packages")) return json({ items: [], count: 0 });
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", workflowId: workflowSummary.workflowId, name: "Empty", version: 1, publishedAt: "2026-06-18T00:00:00Z", visibility: "workspace", binding: { outletNodeId: "dashboard", datasetKey: "empty", refreshMode: "manual" }, charts: [], datasets: {} });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    fireEvent.click(screen.getByRole("button", { name: "Transform" }));
+    expect(screen.queryByText("transform-2026-06-17-001")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Release mode unavailable")).not.toBeInTheDocument();
   });
 });
 
