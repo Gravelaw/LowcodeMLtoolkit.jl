@@ -18,9 +18,28 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-17`
+- Last updated: `2026-06-18`
 
 ## Work Done Till Date
+### AKS-5 Native Windows Bootstrap Compatibility Slice (2026-06-18)
+
+- Restored the release baseline from the GitHub repository in a temp clone after the local `C:\Users\aksha\Documents\LowCodeJulia` folder was confirmed stale and not a Git checkout.
+- Confirmed the remote baseline includes the modular frontend, Playwright browser gate, Offline Hub, reproducibility, backup/restore, and migration proof scripts.
+- Broadened the local toolchain guard so native Windows Node/Julia and Debian-native Node/Julia are supported, while WSL `/mnt/c` Windows Node interop remains blocked.
+- Added `npm run doctor:windows` and `npm run julia:instantiate` for the Windows-native bootstrap path and generated Julia manifest policy.
+- Added explicit `dev-local --skip-instantiate` semantics so `--no-deps` remains Docker-only and Julia dependency bypass is deliberate.
+
+### Gaps Pending
+
+- The requested Documents workspace still cannot be restored in place by shell commands in this session because shell writes under `C:\Users\aksha\Documents\LowCodeJulia` fail even though patch writes work; the implementation branch is therefore maintained from the verified temp clone.
+- Draft PR publication remains the handoff path for the staged AKS-5 branch.
+- Later AKS-5 release-mode/product behavior work remains staged behind this bootstrap compatibility slice.
+
+### Next Items To Implement
+
+- Push the AKS-5 branch and open a draft PR against `main`.
+- Continue Stage 2 release/demo mode separation and live-backend browser verification on top of the restored modular frontend baseline.
+
 ### Backend-Backed Deploy Packaging Actions (2026-06-17)
 
 - Added the final planned product-depth slice after Visualize checkpoint/export actions.

@@ -53,13 +53,13 @@ function arrow_ipc_base64_from_rows(rows::AbstractVector, context::NodeContext)
 end
 
 function rows_from_arrow_ipc_base64(encoded::AbstractString, context::NodeContext)
-    path = tempname() * ".arrow"
-    try
-        write(path, base64decode(String(encoded)))
-        return (rows = rows_from_arrow_dataframe_ref(path, context), schema = arrow_dataframe_schema(path))
-    finally
-        isfile(path) && rm(path; force = true)
-    end
+    decoded = base64decode(String(encoded))
+    length(decoded) <= limit_value(context, "max_ref_bytes", DEFAULT_MAX_REF_BYTES) || error("tabular ref exceeds byte limit")
+    table = Arrow.Table(IOBuffer(decoded))
+    frame = DataFrame(table)
+    rows = [Dict{String,Any}(String(name) => row[name] for name in names(frame)) for row in eachrow(frame)]
+    validate_input_rows(rows, context)
+    return (rows = rows, schema = names(frame))
 end
 
 function remote_object_store_transport(context::NodeContext, config)
@@ -308,11 +308,26 @@ function is_safe_relative_path(path::String)
     return !any(part -> part == "..", split(path, '/'; keepempty = false))
 end
 
+function normalized_storage_path(path::String)
+    normalized = normpath(path)
+    return Sys.iswindows() ? lowercase(normalized) : normalized
+end
+
+function path_with_separator(path::String)
+    normalized = normalized_storage_path(path)
+    separator = Base.Filesystem.path_separator
+    return endswith(normalized, separator) ? normalized : normalized * separator
+end
+
+function path_is_within(candidate::String, root::String)
+    return startswith(path_with_separator(candidate), path_with_separator(root))
+end
+
 function safe_storage_path(root::String, ref::String)
     relative = storage_relative_path(ref)
     root_abs = abspath(root)
     path_abs = abspath(joinpath(root_abs, relative))
-    startswith(path_abs * "/", root_abs * "/") || error("tabular ref path must stay within configured storage root")
+    path_is_within(path_abs, root_abs) || error("tabular ref path must stay within configured storage root")
     return path_abs
 end
 
@@ -331,7 +346,7 @@ function confine_real_path(root::String, path::String, message::String)
     candidate = isabspath(path) ? abspath(path) : abspath(joinpath(root_real, storage_relative_path(path)))
     reject_existing_symlink(candidate)
     resolved = ispath(candidate) ? realpath(candidate) : abspath(candidate)
-    startswith(resolved * "/", root_real * "/") || error(message)
+    path_is_within(resolved, root_real) || error(message)
     return resolved
 end
 
@@ -351,18 +366,18 @@ function confined_storage_write_path(root::String, ref::String)
             islink(next_path) && error("tabular sink path must not traverse a symlink")
             isdir(next_path) || error("tabular sink parent must be a directory")
             next_real = realpath(next_path)
-            startswith(next_real * "/", root_real * "/") || error("tabular sink path must stay within configured storage root")
+            path_is_within(next_real, root_real) || error("tabular sink path must stay within configured storage root")
             current = next_real
         else
             mkpath(next_path)
             current = realpath(next_path)
-            startswith(current * "/", root_real * "/") || error("tabular sink path must stay within configured storage root")
+            path_is_within(current, root_real) || error("tabular sink path must stay within configured storage root")
         end
     end
 
     final = joinpath(current, last(parts))
     reject_existing_symlink(final)
-    startswith(abspath(final) * "/", root_real * "/") || error("tabular sink path must stay within configured storage root")
+    path_is_within(abspath(final), root_real) || error("tabular sink path must stay within configured storage root")
     return final
 end
 
@@ -389,7 +404,7 @@ function ref_storage_path(ref::String, context::NodeContext)
     if ispath(path)
         root_real = root_realpath(String(root))
         resolved = realpath(path)
-        startswith(resolved * "/", root_real * "/") || error("tabular ref path must stay within configured storage root")
+        path_is_within(resolved, root_real) || error("tabular ref path must stay within configured storage root")
         return resolved
     end
     return path

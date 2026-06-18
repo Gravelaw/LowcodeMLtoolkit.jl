@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-5 Native Windows Bootstrap Compatibility - 2026-06-18
+
+### Work Done Till Date
+
+- Restored the release baseline from `Gravelaw/LowcodeMLtoolkit.jl` in a temp clone after confirming the active Documents folder is stale and lacks `.git`.
+- Confirmed the GitHub baseline contains the modular frontend views/components, Playwright browser test assets, Offline Hub, reproducibility, backup/restore, and migration scripts.
+- Updated the toolchain guard so native Windows Node is accepted alongside Debian-native Node, while WSL `/mnt/c` Windows Node interop remains rejected.
+- Added `doctor:windows`, `julia:instantiate`, and explicit `dev-local --skip-instantiate` behavior.
+- Documented the generated Julia manifest policy and Windows/Debian bootstrap commands.
+
+### Gaps Pending
+
+- In-place restoration of `C:\Users\aksha\Documents\LowCodeJulia` is blocked in this session because shell-level file and directory creation fails under that path; the staged branch work is happening from the verified temp clone.
+- Later AKS-5 child issues for release-mode separation, real vertical workflow proof, and full release pipeline remain queued.
+
+### Next Items To Implement
+
+- Push the staged AKS-5 branch and open the draft PR against `main`.
+- Continue with release/demo mode boundaries and live-backend browser verification.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` Backend-Backed Deploy Packaging Actions — 2026-06-17
 
 ### Work Done Till Date

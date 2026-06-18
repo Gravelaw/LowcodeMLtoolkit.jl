@@ -1,7 +1,7 @@
 # JuliaFlow Repository Guidance
 
-Project-local overlay for `/mnt/c/Users/aksha/OneDrive/Documents/LowCodeJulia`.
-Global Codex guidance owns engineering discipline, deterministic operations, Debian execution, failure escalation, skill-routing hygiene, verification posture, and git safety. Keep this file JuliaFlow-specific.
+Project-local overlay for `C:\Users\aksha\Documents\LowCodeJulia`.
+Global Codex guidance owns engineering discipline, deterministic operations, native Windows/Debian execution, failure escalation, skill-routing hygiene, verification posture, and git safety. Keep this file JuliaFlow-specific.
 
 ## Repo Shape
 
@@ -26,7 +26,9 @@ Prefer feature-oriented paths inside these areas over unrelated new root files.
 ## Commands
 
 - `npm install`
+- `npm run doctor:windows`
 - `npm run doctor:debian`
+- `npm run julia:instantiate`
 - `npm run dev:frontend`
 - `npm run build`
 - `npm run test`

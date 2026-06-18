@@ -34,6 +34,7 @@ function parseArgs(argv) {
     frontendPort: process.env.JULIAFLOW_FRONTEND_PORT ?? "5173",
     host: process.env.JULIAFLOW_LOCAL_HOST ?? "127.0.0.1",
     startDeps: true,
+    skipInstantiate: false,
     smoke: false,
     printConfig: false
   };
@@ -66,6 +67,8 @@ function parseArgs(argv) {
       options.host = arg.slice("--host=".length);
     } else if (arg === "--no-deps") {
       options.startDeps = false;
+    } else if (arg === "--skip-instantiate") {
+      options.skipInstantiate = true;
     } else if (arg === "--smoke") {
       options.smoke = true;
     } else if (arg === "--print-config") {
@@ -93,6 +96,7 @@ Options:
   --execution-port PORT   Execution service port, default 8090.
   --frontend-port PORT    Frontend port, default 5173.
   --no-deps               Do not start optional Docker Compose profile dependencies.
+  --skip-instantiate      Skip Julia Pkg.instantiate(); use only after dependencies are known installed.
   --smoke                 Start a bounded gateway smoke and exit after health/workflow checks.
   --print-config          Initialize local folders and print resolved config without starting services.
 `);
@@ -233,8 +237,9 @@ function spawnProcess(label, command, args, env) {
   return child;
 }
 
-function ensureJuliaDependencies(env) {
-  if (env.JULIAFLOW_SKIP_INSTANTIATE === "1") {
+function ensureJuliaDependencies(env, options) {
+  if (options.skipInstantiate || env.JULIAFLOW_SKIP_INSTANTIATE === "1") {
+    console.log("[dev:local] skipping Julia dependency instantiation");
     return;
   }
   console.log("[dev:local] ensuring Julia dependencies");
@@ -249,7 +254,7 @@ function ensureJuliaDependencies(env) {
     }
   );
   if (result.status !== 0) {
-    throw new Error("Julia dependency bootstrap failed; set JULIAFLOW_SKIP_INSTANTIATE=1 to bypass");
+    throw new Error("Julia dependency bootstrap failed; rerun after fixing Julia packages, or pass --skip-instantiate only when dependencies are already installed");
   }
 }
 
@@ -395,7 +400,7 @@ async function main() {
   }
 
   await startDeps(options.profile, options.startDeps);
-  ensureJuliaDependencies(env);
+  ensureJuliaDependencies(env, options);
 
   if (options.smoke) {
     await runSmoke(config, env);

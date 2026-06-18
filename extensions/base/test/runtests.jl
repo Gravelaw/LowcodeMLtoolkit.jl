@@ -592,7 +592,7 @@ end
         @test !isdir(joinpath(outside_dir, "new"))
         @test !isfile(joinpath(outside_dir, "new", "escape.json"))
     catch error
-        error isa IOError || rethrow(error)
+        error isa Base.IOError || rethrow(error)
         @info "Skipping symlink sink rejection check on filesystem without symlink support"
     end
 end
@@ -814,7 +814,7 @@ end
         )
         @test_throws ErrorException JuliaFlowBaseExtension.execute(FilterRowsNode, symlink_context)
     catch error
-        error isa IOError || rethrow(error)
+        error isa Base.IOError || rethrow(error)
         @info "Skipping symlink read rejection check on filesystem without symlink support"
     end
 
