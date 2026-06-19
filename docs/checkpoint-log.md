@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-5 Stage 5 Release Verification Implementation - 2026-06-19
+
+### Work Done Till Date
+
+- Added the Stage 5 release verification entrypoint `npm run verify:release` with deterministic summary/log artifacts and phase/failure classification.
+- Added `npm run smoke:live-backend-browser`, `playwright.live.config.ts`, and live-backend Playwright coverage for local-appliance release behavior.
+- Proved live gateway/frontend browser QA for no demo substitution, Data import, Explorer save/run, Monitor execution evidence, dashboard artifact rows/export, Settings/auth state, Offline Hub install, and reproducibility export.
+- Made the file-backed gateway path avoid Windows Application Control failures by disabling Julia package images/compiled modules in the live smoke and lazy-loading `LibPQ` only for PostgreSQL repositories.
+- Fixed frontend live state to use backend workflow/dashboard ids and de-duplicate dynamic dashboard table columns.
+
+### Gaps Pending
+
+- Full no-skip fresh-checkout `npm run verify:release` is still required before AKS-5 closure.
+- Stage 5 PR publication and CI evidence remain pending.
+
+### Next Items To Implement
+
+- Run full release verification after this control-doc update.
+- Push/open the focused Stage 5 PR and link final passing artifacts.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` AKS-5 Stage 3 Dashboard/Explainability Evidence Binding - 2026-06-19
 
 ### Work Done Till Date

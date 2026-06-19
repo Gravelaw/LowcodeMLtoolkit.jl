@@ -1,0 +1,128 @@
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+
+const root = process.cwd();
+const artifactRoot = join(root, "artifacts", "release-verification", "latest");
+const logRoot = join(artifactRoot, "logs");
+const startedAt = new Date().toISOString();
+const npmBin = process.platform === "win32" ? "npm.cmd" : "npm";
+const juliaBin = "julia";
+const gitBin = "git";
+
+const args = new Set(process.argv.slice(2));
+const skipped = {
+  install: args.has("--skip-install"),
+  julia: args.has("--skip-julia"),
+  smokes: args.has("--skip-smokes"),
+  browser: args.has("--skip-browser"),
+  controlDocs: args.has("--skip-control-docs")
+};
+
+const commands = [
+  { phase: "bootstrap", kind: "bootstrap", name: "npm-install", command: npmBin, args: ["install"], skip: skipped.install },
+  { phase: "bootstrap", kind: "bootstrap", name: "doctor-windows", command: npmBin, args: ["run", "doctor:windows"] },
+  { phase: "bootstrap", kind: "bootstrap", name: "julia-instantiate", command: npmBin, args: ["run", "julia:instantiate"], skip: skipped.julia },
+  { phase: "contracts", kind: "product", name: "validate-contracts", command: npmBin, args: ["run", "validate:contracts"] },
+  { phase: "frontend", kind: "product", name: "build", command: npmBin, args: ["run", "build"] },
+  { phase: "frontend", kind: "product", name: "test", command: npmBin, args: ["run", "test"] },
+  { phase: "julia", kind: "product", name: "julia-repo-tests", command: juliaBin, args: ["--project=.", "tests/julia/runtests.jl"], skip: skipped.julia },
+  { phase: "julia", kind: "product", name: "julia-base-extension-tests", command: juliaBin, args: ["--project=.", "extensions/base/test/runtests.jl"], skip: skipped.julia },
+  { phase: "local-smoke", kind: "runtime", name: "smoke-local-bootstrap", command: npmBin, args: ["run", "smoke:local-bootstrap"], skip: skipped.smokes },
+  { phase: "local-smoke", kind: "runtime", name: "smoke-local-data-estate", command: npmBin, args: ["run", "smoke:local-data-estate"], skip: skipped.smokes },
+  { phase: "local-smoke", kind: "runtime", name: "smoke-local-metadata", command: npmBin, args: ["run", "smoke:local-metadata"], skip: skipped.smokes },
+  { phase: "local-smoke", kind: "runtime", name: "smoke-local-hardware", command: npmBin, args: ["run", "smoke:local-hardware"], skip: skipped.smokes },
+  { phase: "local-smoke", kind: "runtime", name: "smoke-local-explainability", command: npmBin, args: ["run", "smoke:local-explainability"], skip: skipped.smokes },
+  { phase: "local-smoke", kind: "runtime", name: "smoke-local-offline-hub", command: npmBin, args: ["run", "smoke:local-offline-hub"], skip: skipped.smokes },
+  { phase: "local-smoke", kind: "runtime", name: "smoke-local-reproducibility", command: npmBin, args: ["run", "smoke:local-reproducibility"], skip: skipped.smokes },
+  { phase: "local-smoke", kind: "runtime", name: "smoke-local-migration", command: npmBin, args: ["run", "smoke:local-migration"], skip: skipped.smokes },
+  { phase: "browser", kind: "runtime", name: "smoke-live-backend-browser", command: npmBin, args: ["run", "smoke:live-backend-browser"], skip: skipped.browser },
+  { phase: "control-docs", kind: "control-docs", name: "validate-control-doc-sync", command: npmBin, args: ["run", "validate:control-doc-sync"], skip: skipped.controlDocs },
+  { phase: "control-docs", kind: "control-docs", name: "validate-brd-traceability", command: npmBin, args: ["run", "validate:brd-traceability"], skip: skipped.controlDocs },
+  { phase: "diff", kind: "product", name: "git-diff-check", command: gitBin, args: ["diff", "--check"] }
+];
+
+if (args.has("--list")) {
+  for (const item of commands) {
+    const status = item.skip ? "skip" : "run";
+    console.log(`${status}\t${item.phase}\t${item.name}\t${item.command} ${item.args.join(" ")}`);
+  }
+  process.exit(0);
+}
+
+rmSync(artifactRoot, { recursive: true, force: true });
+mkdirSync(logRoot, { recursive: true });
+
+const results = [];
+
+function writeSummary(status, extra = {}) {
+  const summary = {
+    status,
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    artifactRoot,
+    skipped,
+    results,
+    ...extra
+  };
+  writeFileSync(join(artifactRoot, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
+}
+
+for (const item of commands) {
+  if (item.skip) {
+    results.push({ name: item.name, phase: item.phase, status: "skipped" });
+    continue;
+  }
+
+  console.log(`[${item.phase}] ${item.name}: ${item.command} ${item.args.join(" ")}`);
+  const started = Date.now();
+  const shell = process.platform === "win32" && (item.command === "npm" || item.command.endsWith(".cmd"));
+  const result = spawnSync(item.command, item.args, {
+    cwd: root,
+    env: process.env,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    shell
+  });
+  const durationMs = Date.now() - started;
+  const log = [
+    `$ ${item.command} ${item.args.join(" ")}`,
+    `exitCode=${result.status}`,
+    "",
+    "----- stdout -----",
+    result.stdout ?? "",
+    "",
+    "----- stderr -----",
+    result.stderr ?? "",
+    "",
+    "----- spawn error -----",
+    result.error ? result.error.stack ?? result.error.message : "",
+    ""
+  ].join("\n");
+  writeFileSync(join(logRoot, `${item.name}.log`), log);
+
+  const entry = {
+    name: item.name,
+    phase: item.phase,
+    failureKind: item.kind,
+    status: result.status === 0 ? "passed" : "failed",
+    exitCode: result.status,
+    durationMs,
+    log: join("logs", `${item.name}.log`)
+  };
+  results.push(entry);
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+
+  if (result.status !== 0) {
+    writeSummary("failed", {
+      failedPhase: item.phase,
+      failedCommand: item.name,
+      failureKind: item.kind
+    });
+    process.exit(result.status ?? 1);
+  }
+}
+
+writeSummary("passed");
+console.log(`Release verification passed. Artifacts: ${artifactRoot}`);

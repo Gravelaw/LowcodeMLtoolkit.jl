@@ -10,6 +10,16 @@ function firstDisplayColumn(rows: Array<Record<string, unknown>>, fallback: stri
   return Object.keys(rows[0] ?? {}).find((key) => key !== fallback) ?? fallback;
 }
 
+function uniqueDisplayColumns(rows: Array<Record<string, unknown>>, candidates: string[]): string[] {
+  const rowColumns = Object.keys(rows[0] ?? {});
+  const selected: string[] = [];
+  for (const candidate of [...candidates, ...rowColumns]) {
+    if (candidate && !selected.includes(candidate)) selected.push(candidate);
+    if (selected.length === 3) break;
+  }
+  return selected.length > 0 ? selected : ["record"];
+}
+
 export function VisualizeView({
   data,
   onExport,
@@ -24,6 +34,7 @@ export function VisualizeView({
   const xField = primaryChart?.xField ?? firstDisplayColumn(rows, "customer_id");
   const yField = primaryChart?.yField ?? firstDisplayColumn(rows, "churn_risk");
   const idField = firstDisplayColumn(rows, xField);
+  const tableColumns = uniqueDisplayColumns(rows, [idField, xField, yField]);
 
   return (
     <div className="route-grid visualize-route">
@@ -55,9 +66,8 @@ export function VisualizeView({
         ) : (
           <DataTable
             columns={[
-              { key: idField, label: "Record" },
-              { key: xField, label: xField },
-              { key: yField, label: yField }
+              { key: tableColumns[0], label: "Record" },
+              ...tableColumns.slice(1).map((key) => ({ key, label: key }))
             ]}
             rows={rows.slice(0, 3)}
             getRowKey={(row, index) => `${String(row[idField] ?? "row")}-${index}`}

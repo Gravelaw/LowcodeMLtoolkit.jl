@@ -5,7 +5,6 @@ include(joinpath(@__DIR__, "..", "..", "execution-service", "src", "JuliaFlowExe
 using .JuliaFlowExecutionService
 using Dates
 using JSON3
-using LibPQ
 using UUIDs
 
 export GatewayCheckpoint,
@@ -212,6 +211,17 @@ end
 Base.@kwdef struct PostgreSQLGatewayRepository <: AbstractGatewayRepository
     connection_string::String
     schema::String = "public"
+end
+
+function libpq()
+    if !isdefined(@__MODULE__, :LibPQ)
+        @eval import LibPQ
+    end
+    return getfield(@__MODULE__, :LibPQ)
+end
+
+function execute(conn, statement::AbstractString, args...; kwargs...)
+    return libpq().execute(conn, statement, args...; kwargs...)
 end
 
 function workflow_metadata_payload(workflow::WorkflowDefinition)
@@ -1427,7 +1437,7 @@ function ensure_repository!(repo::FileGatewayRepository)
 end
 
 function connect(repo::PostgreSQLGatewayRepository)
-    return LibPQ.Connection(repo.connection_string)
+    return libpq().Connection(repo.connection_string)
 end
 
 function create_postgres_schema!(repo::PostgreSQLGatewayRepository)

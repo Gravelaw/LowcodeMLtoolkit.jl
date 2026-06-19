@@ -1,6 +1,6 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-06-18
+Last updated: 2026-06-19
 
 ## Current Phase
 
@@ -33,6 +33,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - AKS-5 Stage 2 release-mode boundary is implemented as a focused follow-up to the bootstrap PR: shared contracts now expose `demo` / `development` / `release` / `local-appliance` runtime mode, fixture provenance, fixture-substitution policy, and unavailable states; gateway `/health` advertises the same contract; the frontend runtime config honors `runtimeMode` plus gateway/OIDC auth token context; release/local-appliance mode reports unavailable or empty backend states instead of silently substituting demo fixture rows; and normal frontend gateway APIs propagate bearer/workspace auth headers with explicit auth failure UI.
 - AKS-5 Stage 3 first lifecycle slice is implemented in the modular frontend: Explorer saves workflows through the gateway update API, runs workflows through the gateway execution API, and Monitor renders backend execution records or explicit empty states without release-mode fixture substitution.
 - AKS-5 Stage 3 evidence binding is implemented in the modular frontend: Visualize renders published dashboard binding datasets instead of fixture rows, release/local-appliance mode shows explicit no-artifact-row states, and Monitor ties explainability evidence to the latest execution id, workflow id, dataset checksum, model artifact ref, metric, and explanation method.
+- AKS-5 Stage 5 release verification implementation is in progress: `npm run verify:release` provides one release gate with deterministic artifacts and failure classification, and `npm run smoke:live-backend-browser` passes against a local gateway/frontend in `local-appliance` mode. Full no-skip fresh-checkout verification remains open before AKS-5 closure.
 
 ## Active Development Order
 
@@ -317,6 +318,12 @@ Verification evidence for this slice: `npm --workspace @juliaflow/frontend run t
 **AKS-5 Stage 3 dashboard/explainability evidence binding is complete for the modular frontend slice.** Visualize now renders rows from the published dashboard binding dataset and reports an explicit no-artifact-row state when release/local-appliance gateways return dashboards without persisted dataset rows. Monitor now renders executed-run explainability evidence from the latest execution record, including execution id, workflow id, dataset checksum prefix, model artifact ref, primary metric, and explanation method.
 
 Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- App.test.tsx` and `npm run build`. Remaining AKS-5 work moves to Stage 5: live-backend browser QA and the single fresh-checkout release verification pipeline.
+
+## Latest In-Progress Slice - 2026-06-19 AKS-5 Stage 5 Release Verification
+
+**AKS-5 Stage 5 release verification implementation** now has a scriptable release gate and live-backend browser smoke. The verifier writes `artifacts/release-verification/latest/summary.json` plus per-command logs, separates bootstrap/product/runtime/control-doc failures, and runs bootstrap, contracts, frontend, Julia, local smoke, browser, control-doc, and diff gates unless explicitly skipped. The live browser smoke starts a local file-backed gateway and Vite frontend on isolated ports, verifies release/local-appliance UI behavior without demo substitution, and covers workflow save/run, Monitor, dashboard rows/export, Settings/auth state, deterministic Offline Hub install, and reproducibility export.
+
+Verification evidence so far: `npm run smoke:live-backend-browser`, `npm run build`, `npm run test`, and `npm run verify:release -- --skip-install --skip-julia --skip-smokes --skip-browser` reaching the expected control-doc sync gate before this documentation update. Full no-skip fresh-checkout `npm run verify:release` remains pending.
 
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 

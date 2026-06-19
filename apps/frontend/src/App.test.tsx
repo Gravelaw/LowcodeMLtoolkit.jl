@@ -144,6 +144,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
       if (url.endsWith("/api/v1/executions")) return json({ items: executionRecords, count: executionRecords.length });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models/register") && method === "POST") return json({ status: "registered", model: modelRegistry[0] });
@@ -190,6 +191,7 @@ describe("JuliaFlow local-only app redesign", () => {
         return json({ workflowId: workflowSummary.workflowId, name: workflowSummary.name, version: "1.0.1", status: "updated" });
       }
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
@@ -222,6 +224,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
       if (url.endsWith("/api/v1/executions")) return json({ items: executionRecords, count: executionRecords.length });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
@@ -286,6 +289,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
       if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [] });
       if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
       if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
       if (url.includes("/models")) return json({ items: [], count: 0 });
