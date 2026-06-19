@@ -36,6 +36,16 @@ export const churnRows: DatasetRow[] = [
 export const localHealth: GatewayHealthcheck = {
   service: "api-gateway",
   status: "ok",
+  runtime: {
+    mode: "demo",
+    fixtureProvenance: "fixture",
+    fixtureSubstitutionAllowed: true,
+    unavailable: []
+  },
+  runtimeMode: "demo",
+  fixtureProvenance: "fixture",
+  fixtureSubstitutionAllowed: true,
+  unavailable: [],
   localProfile: "single-user",
   localHome: "/Users/alexj/JuliaFlowLocal",
   metadataMode: "single-user",

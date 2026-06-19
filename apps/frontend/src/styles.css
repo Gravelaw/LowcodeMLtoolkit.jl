@@ -736,6 +736,15 @@ meter {
   color: var(--blue);
 }
 
+.empty-state {
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  background: #f8fafc;
+}
+
 @media (max-width: 980px) {
   .local-shell {
     grid-template-columns: 1fr;

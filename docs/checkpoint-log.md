@@ -2542,3 +2542,26 @@ Each checkpoint entry must contain:
 
 - Keep Playwright browser automation in the release gate and expand it only around concrete local workflow regressions or accessibility findings.
 - Complete full PR verification with contracts, Julia tests, frontend tests, build, control-doc sync, BRD traceability, and diff whitespace checks.
+
+---
+
+## Checkpoint: AKS-5 Stage 2 Release-Mode Boundary - 2026-06-18
+
+### Work Done Till Date
+
+- Added contract-first runtime mode support for `demo`, `development`, `release`, and `local-appliance`.
+- Added fixture provenance, fixture-substitution policy, and unavailable-state evidence to TypeScript contracts, OpenAPI, gateway health, and frontend app state.
+- Updated frontend runtime config so release/local-appliance mode reports missing gateway data, protected-gateway auth failures, and failed actions explicitly instead of using deterministic fixture substitutions.
+- Wired gateway/OIDC bearer token, workspace id, and workspace role config through the normal frontend gateway client so workflows, execution actions, Hub/admin/auth APIs, dashboard publish/read, and existing share/workspace-token paths inherit one auth context.
+- Added focused frontend, contract, and Julia assertions for the release-mode boundary.
+
+### Gaps Pending
+
+- Stage 3 must still make Canvas save/run/monitor a true backend lifecycle.
+- Stage 5 must still add the fresh-checkout release verification script and live-backend Playwright smoke.
+- PR #20 has merged; PR #21 is retargeted to `main`. The primary Documents checkout is restored as a readable Git checkout, but this Codex process still cannot write `.git` lock files because restored `.git` ACLs block metadata writes, so verification and branch updates use fresh temp clones.
+
+### Next Items To Implement
+
+- Keep PR #21 current on `main`, verify Stage 2 gates after each change, and mark it ready after final review.
+- Continue with backend-backed Canvas lifecycle and artifact-backed dashboard/explainability behavior.

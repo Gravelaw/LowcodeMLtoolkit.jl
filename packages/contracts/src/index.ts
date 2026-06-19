@@ -46,6 +46,32 @@ export type StreamingWatermarkMode = "processing_time" | "event_time";
 export type StreamLifecycleStatus = "idle" | "starting" | "active" | "paused" | "stopped";
 
 export type GatewayAuthMode = "disabled" | "dev_token" | "required" | "dev_fallback" | "oidc";
+export type JuliaFlowRuntimeMode = "demo" | "development" | "release" | "local-appliance";
+export type JuliaFlowFixtureProvenance = "fixture" | "backend" | "unavailable";
+export type JuliaFlowUnavailableCapability =
+  | "workflows"
+  | "workflowMetadata"
+  | "executions"
+  | "checkpoints"
+  | "dashboards"
+  | "hub"
+  | "auth"
+  | "explainability";
+
+export interface JuliaFlowUnavailableState {
+  capability: JuliaFlowUnavailableCapability;
+  status: "empty" | "error" | "unavailable";
+  reason: string;
+  recovery: string;
+  fixtureSubstituted: boolean;
+}
+
+export interface JuliaFlowRuntimeContract {
+  mode: JuliaFlowRuntimeMode;
+  fixtureProvenance: JuliaFlowFixtureProvenance;
+  fixtureSubstitutionAllowed: boolean;
+  unavailable: JuliaFlowUnavailableState[];
+}
 export type WorkspaceRole = "owner" | "editor" | "viewer";
 export type ResourcePermission =
   | "workflow:read"
@@ -431,6 +457,11 @@ export interface GatewayExplainabilityEvidence { status: "ready" | "pending"; ge
 export interface GatewayHealthcheck {
   service: "api-gateway";
   status: "ok";
+  runtime: JuliaFlowRuntimeContract;
+  runtimeMode: JuliaFlowRuntimeMode;
+  fixtureProvenance: JuliaFlowFixtureProvenance;
+  fixtureSubstitutionAllowed: boolean;
+  unavailable: JuliaFlowUnavailableState[];
   localProfile: "single-user" | "lab-team" | "s3-compatible-local" | "developer";
   localHome: string;
   metadataMode: "single-user" | "lab-team";

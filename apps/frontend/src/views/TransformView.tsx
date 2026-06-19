@@ -66,16 +66,20 @@ export function TransformView({
       </Card>
 
       <Card title="Preview Tables" className="wide">
-        <DataTable
-          columns={[
-            { key: "nodeId", label: "Node" },
-            { key: "nodeType", label: "Type" },
-            { key: "rowCount", label: "Rows" },
-            { key: "artifactRefs", label: "Artifacts", render: (row) => String(row.artifactRefs).replace(",", ", ") }
-          ]}
-          rows={latest.nodeResults}
-          getRowKey={(row) => String(row.nodeId)}
-        />
+        {latest ? (
+          <DataTable
+            columns={[
+              { key: "nodeId", label: "Node" },
+              { key: "nodeType", label: "Type" },
+              { key: "rowCount", label: "Rows" },
+              { key: "artifactRefs", label: "Artifacts", render: (row) => String(row.artifactRefs).replace(",", ", ") }
+            ]}
+            rows={latest.nodeResults}
+            getRowKey={(row) => String(row.nodeId)}
+          />
+        ) : (
+          <p className="empty-state">No transform run artifacts have been returned by the backend yet.</p>
+        )}
       </Card>
 
       <Card title="Generated Julia Code" className="wide">

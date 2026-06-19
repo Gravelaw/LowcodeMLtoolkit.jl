@@ -1,6 +1,6 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-06-17
+Last updated: 2026-06-18
 
 ## Current Phase
 
@@ -30,6 +30,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Backup/restore and migration proof is complete for the current local-first slice: gateway export/import routes produce a checksum-protected local appliance bundle with workflows, checkpoints, executions, published dashboards, Hub records, auth policy/directory, package/runtime metadata, settings, and data-estate artifact references/checksums; restore rehydrates metadata into a fresh store, reports missing local artifacts and checksum mismatches, and rejects tampered bundles; `smoke:local-migration` verifies the migration path.
 - Mock-aligned local product workflow vertical first implementation slice is complete for the frontend shell: Explorer, Data, Transform, ML Studio, Models, Visualize, and local-only Deploy are wired through shared local workspace state and tested end to end in demo mode.
 - Backend-backed product-depth actions are complete for Data import/profile, Transform run/history, ML Studio experiment run/history, Models registry register/list, Visualize checkpoint/export, and local Deploy packaging, with contracts, gateway routes, frontend actions, deterministic demo fallback, and local evidence tests.
+- AKS-5 Stage 2 release-mode boundary is implemented as a focused follow-up to the bootstrap PR: shared contracts now expose `demo` / `development` / `release` / `local-appliance` runtime mode, fixture provenance, fixture-substitution policy, and unavailable states; gateway `/health` advertises the same contract; the frontend runtime config honors `runtimeMode` plus gateway/OIDC auth token context; release/local-appliance mode reports unavailable or empty backend states instead of silently substituting demo fixture rows; and normal frontend gateway APIs propagate bearer/workspace auth headers with explicit auth failure UI.
 
 ## Active Development Order
 
