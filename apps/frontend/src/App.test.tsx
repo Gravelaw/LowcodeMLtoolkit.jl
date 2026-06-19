@@ -76,6 +76,8 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Visualize" }));
     expect(screen.getByRole("heading", { name: "Visualize" })).toBeInTheDocument();
     expect(screen.getByText("Local Save And Export Actions")).toBeInTheDocument();
+    expect(screen.getByText("Artifact Rows")).toBeInTheDocument();
+    expect(screen.getByText("C-1001")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
     expect(screen.getByRole("heading", { name: "Deploy" })).toBeInTheDocument();
@@ -84,6 +86,9 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Monitor" }));
     expect(screen.getByRole("heading", { name: "Execution Monitor" })).toBeInTheDocument();
     expect(screen.getAllByText("exec-local-churn-001").length).toBeGreaterThan(0);
+    expect(screen.getByText("Executed Explainability Evidence")).toBeInTheDocument();
+    expect(screen.getByText("bbbbbbbbbbbb")).toBeInTheDocument();
+    expect(screen.getByText("data/models/churn_model_v1.jls")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
@@ -297,6 +302,10 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Monitor" }));
     expect(screen.getByText("No backend execution records are available for this workspace yet. Run the workflow from Explorer after the local gateway is ready.")).toBeInTheDocument();
     expect(screen.queryByText("exec-local-churn-001")).not.toBeInTheDocument();
+    expect(screen.getByText("No executed-run explainability evidence is attached to the latest execution.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Visualize" }));
+    expect(screen.getByText("No artifact-backed dashboard rows are available for this published dashboard. Run the workflow and publish a dashboard snapshot with persisted dataset rows.")).toBeInTheDocument();
+    expect(screen.queryByText("C-1001")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Release mode unavailable")).not.toBeInTheDocument();
   });
 });

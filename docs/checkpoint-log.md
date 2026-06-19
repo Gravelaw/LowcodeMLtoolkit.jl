@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-5 Stage 3 Dashboard/Explainability Evidence Binding - 2026-06-19
+
+### Work Done Till Date
+
+- Bound Visualize dashboard rows to the published dashboard binding dataset instead of direct local fixture rows.
+- Added explicit no-artifact-row states for release/local-appliance dashboards without persisted dataset rows.
+- Added Monitor executed-run explainability evidence tied to the latest execution id, workflow id, dataset checksum prefix, model artifact ref, metric, and explanation method.
+- Added focused frontend tests for artifact-backed dashboard rows, local-appliance no-data behavior, and execution-tied explainability evidence.
+
+### Gaps Pending
+
+- Stage 5 live-backend browser QA remains pending.
+- Fresh-checkout release verification script/CI job remains pending.
+
+### Next Items To Implement
+
+- Implement the AKS-5 Stage 5 release verification pipeline.
+- Add live-backend browser QA for setup/import, authoring, run, Monitor, dashboard publish/view/export, Hub install, Settings/auth state, reproducibility export, and no false demo-backed UI.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` AKS-5 Stage 3 Save/Run/Monitor Lifecycle - 2026-06-19
 
 ### Work Done Till Date
