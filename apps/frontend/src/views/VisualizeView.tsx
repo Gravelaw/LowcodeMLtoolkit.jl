@@ -1,6 +1,14 @@
 import { Card, DataTable, StatusPill } from "../components/ui";
-import { churnRows } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
+
+function datasetRows(data: AppData) {
+  const datasetKey = data.dashboard.binding.datasetKey;
+  return data.dashboard.datasets?.[datasetKey] ?? [];
+}
+
+function firstDisplayColumn(rows: Array<Record<string, unknown>>, fallback: string): string {
+  return Object.keys(rows[0] ?? {}).find((key) => key !== fallback) ?? fallback;
+}
 
 export function VisualizeView({
   data,
@@ -11,6 +19,12 @@ export function VisualizeView({
   onExport: () => void;
   feedback?: ActionFeedback;
 }) {
+  const rows = datasetRows(data);
+  const primaryChart = data.dashboard.charts[0];
+  const xField = primaryChart?.xField ?? firstDisplayColumn(rows, "customer_id");
+  const yField = primaryChart?.yField ?? firstDisplayColumn(rows, "churn_risk");
+  const idField = firstDisplayColumn(rows, xField);
+
   return (
     <div className="route-grid visualize-route">
       <section className="page-title">
@@ -32,29 +46,34 @@ export function VisualizeView({
 
       <Card title="Dashboard Builder" className="wide dashboard-canvas">
         <div className="chart-grid">
-          <div className="chart-card"><strong>Churn Risk By Contract</strong><div className="bar-chart" /></div>
-          <div className="chart-card"><strong>Retention Trend</strong><div className="line-chart" /></div>
-          <div className="chart-card"><strong>Local Metric</strong><span className="big-number">12,500</span><small>rows in local profile</small></div>
+          <div className="chart-card"><strong>{primaryChart?.title ?? "No chart configured"}</strong><div className="bar-chart" /></div>
+          <div className="chart-card"><strong>{data.dashboard.name}</strong><div className="line-chart" /></div>
+          <div className="chart-card"><strong>Artifact Rows</strong><span className="big-number">{rows.length.toLocaleString()}</span><small>{data.dashboard.binding.datasetKey}</small></div>
         </div>
-        <DataTable
-          columns={[
-            { key: "customer_id", label: "Customer" },
-            { key: "contract_type", label: "Contract" },
-            { key: "churn_risk", label: "Risk" }
-          ]}
-          rows={churnRows.slice(0, 3)}
-          getRowKey={(row) => row.customer_id}
-        />
+        {rows.length === 0 ? (
+          <p className="empty-state">No artifact-backed dashboard rows are available for this published dashboard. Run the workflow and publish a dashboard snapshot with persisted dataset rows.</p>
+        ) : (
+          <DataTable
+            columns={[
+              { key: idField, label: "Record" },
+              { key: xField, label: xField },
+              { key: yField, label: yField }
+            ]}
+            rows={rows.slice(0, 3)}
+            getRowKey={(row, index) => `${String(row[idField] ?? "row")}-${index}`}
+          />
+        )}
       </Card>
 
       <Card title="Chart Properties" className="right-panel">
         <div className="key-values">
-          <span>Chart</span><strong>Risk Distribution</strong>
-          <span>X Field</span><strong>contract_type</strong>
-          <span>Y Field</span><strong>churn_risk</strong>
+          <span>Chart</span><strong>{primaryChart?.title ?? "No chart configured"}</strong>
+          <span>X Field</span><strong>{xField}</strong>
+          <span>Y Field</span><strong>{yField}</strong>
+          <span>Dataset</span><strong>{data.dashboard.binding.datasetKey}</strong>
           <span>Refresh</span><strong>Manual local</strong>
         </div>
-        <StatusPill tone="green">Local export enabled</StatusPill>
+        <StatusPill tone={rows.length > 0 ? "green" : "neutral"}>{rows.length > 0 ? "Artifact rows ready" : "No artifact rows"}</StatusPill>
       </Card>
 
       <Card title="Local Save And Export Actions" className="wide">

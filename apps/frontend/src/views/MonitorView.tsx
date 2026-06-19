@@ -12,9 +12,22 @@ function formatNodes(nodes: string[]): string {
   return nodes.length > 0 ? nodes.join(", ") : "None";
 }
 
+function modelArtifactRefs(data: AppData): string[] {
+  const latestExecution = data.executions[0];
+  const nodeRefs = latestExecution?.executorState?.nodeResults
+    ?.filter((result) => result.outputKind === "node" && result.nodeType.includes("ml"))
+    .flatMap((result) => result.outputRefs) ?? [];
+  return nodeRefs.length > 0 ? nodeRefs : data.modelRegistry[0]?.artifactEvidence.map((artifact) => artifact.artifactRef) ?? [];
+}
+
 export function MonitorView({ data }: { data: AppData }) {
   const latestExecution = data.executions[0];
   const nodeResults = latestExecution?.executorState?.nodeResults ?? [];
+  const explainability = latestExecution?.explainabilityEvidence;
+  const artifactRefs = modelArtifactRefs(data);
+  const primaryMetric = explainability
+    ? Object.entries(explainability.modelCard.metrics)[0]
+    : undefined;
 
   return (
     <div className="route-grid monitor-route">
@@ -70,6 +83,21 @@ export function MonitorView({ data }: { data: AppData }) {
               </li>
             ))}
           </ul>
+        )}
+      </Card>
+
+      <Card title="Executed Explainability Evidence" className="wide">
+        {latestExecution && explainability ? (
+          <div className="key-values">
+            <span>Execution</span><strong>{latestExecution.executionId}</strong>
+            <span>Workflow</span><strong>{explainability.workflowId}</strong>
+            <span>Dataset Checksum</span><strong>{explainability.datasetCard.checksumSha256.slice(0, 12)}</strong>
+            <span>Model Artifact</span><strong>{artifactRefs[0] ?? "No model artifact ref"}</strong>
+            <span>Metric</span><strong>{primaryMetric ? `${primaryMetric[0]} ${primaryMetric[1]}` : "No metric"}</strong>
+            <span>Explanation</span><strong>{explainability.explanation.method}</strong>
+          </div>
+        ) : (
+          <p className="empty-state">No executed-run explainability evidence is attached to the latest execution.</p>
         )}
       </Card>
     </div>

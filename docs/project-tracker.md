@@ -2350,3 +2350,25 @@ After any meaningful job:
 
 - Complete the dashboard artifact-backed dataset path for Stage 3.
 - Complete executed-run explainability evidence binding and then expand live-backend browser QA.
+
+---
+
+## Update: AKS-5 Stage 3 Dashboard/Explainability Evidence Binding - 2026-06-19
+
+### Work Done Till Date
+
+- Continued from the merged Stage 3 lifecycle branch on `akshayjain00/aks-5-stage-3-dashboard-explainability-evidence`.
+- Updated Visualize so dashboard rows come from the published dashboard binding dataset rather than direct local fixture rows.
+- Added release/local-appliance no-artifact-row behavior when a backend dashboard has no persisted dataset rows.
+- Updated Monitor to render executed-run explainability evidence from the latest execution record, including execution id, workflow id, dataset checksum prefix, model artifact ref, primary metric, and explanation method.
+- Added focused frontend coverage for artifact-backed dashboard rows, no-data release behavior, and executed-run explainability evidence.
+
+### Gaps Pending
+
+- Stage 5 live-backend browser QA remains pending.
+- The single fresh-checkout release verification script/CI job remains pending before AKS-5 closure.
+
+### Next Items To Implement
+
+- Build the Stage 5 release verification pipeline and live-backend browser smoke.
+- Keep PRs focused and do not mark AKS-5 closed until fresh-checkout verification evidence exists.

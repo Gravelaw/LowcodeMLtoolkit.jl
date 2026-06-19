@@ -32,6 +32,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Backend-backed product-depth actions are complete for Data import/profile, Transform run/history, ML Studio experiment run/history, Models registry register/list, Visualize checkpoint/export, and local Deploy packaging, with contracts, gateway routes, frontend actions, deterministic demo fallback, and local evidence tests.
 - AKS-5 Stage 2 release-mode boundary is implemented as a focused follow-up to the bootstrap PR: shared contracts now expose `demo` / `development` / `release` / `local-appliance` runtime mode, fixture provenance, fixture-substitution policy, and unavailable states; gateway `/health` advertises the same contract; the frontend runtime config honors `runtimeMode` plus gateway/OIDC auth token context; release/local-appliance mode reports unavailable or empty backend states instead of silently substituting demo fixture rows; and normal frontend gateway APIs propagate bearer/workspace auth headers with explicit auth failure UI.
 - AKS-5 Stage 3 first lifecycle slice is implemented in the modular frontend: Explorer saves workflows through the gateway update API, runs workflows through the gateway execution API, and Monitor renders backend execution records or explicit empty states without release-mode fixture substitution.
+- AKS-5 Stage 3 evidence binding is implemented in the modular frontend: Visualize renders published dashboard binding datasets instead of fixture rows, release/local-appliance mode shows explicit no-artifact-row states, and Monitor ties explainability evidence to the latest execution id, workflow id, dataset checksum, model artifact ref, metric, and explanation method.
 
 ## Active Development Order
 
@@ -309,7 +310,13 @@ Verification evidence for this slice: `npm run doctor:windows`, `npm run validat
 
 **AKS-5 Stage 3 save/run/monitor lifecycle is complete for the first thin slice.** The modular frontend now treats Explorer as a real workflow lifecycle entry point: Save calls the gateway workflow update API, Run calls the gateway execution API and records the returned execution id, and the new Monitor route renders backend execution records, latest execution status, completed-node evidence, and explicit no-execution empty states. Release/local-appliance mode keeps empty execution lists empty instead of substituting fixture executions, while demo/development modes keep deterministic fixture behavior where allowed.
 
-Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- App.test.tsx`. Remaining AKS-5 Stage 3 work: bind dashboard chart/export data to persisted execution artifact datasets and tie explainability evidence to the executed workflow, dataset checksum, model artifact, metrics, and generated explanation output.
+Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- App.test.tsx`. The dashboard artifact-row and executed-run explainability follow-up is tracked in the next Stage 3 slice below.
+
+## Latest Completed Slice - 2026-06-19 AKS-5 Stage 3 Dashboard/Explainability Evidence Binding
+
+**AKS-5 Stage 3 dashboard/explainability evidence binding is complete for the modular frontend slice.** Visualize now renders rows from the published dashboard binding dataset and reports an explicit no-artifact-row state when release/local-appliance gateways return dashboards without persisted dataset rows. Monitor now renders executed-run explainability evidence from the latest execution record, including execution id, workflow id, dataset checksum prefix, model artifact ref, primary metric, and explanation method.
+
+Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- App.test.tsx` and `npm run build`. Remaining AKS-5 work moves to Stage 5: live-backend browser QA and the single fresh-checkout release verification pipeline.
 
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 
