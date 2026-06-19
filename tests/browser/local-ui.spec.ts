@@ -4,6 +4,7 @@ import {
   dashboardId,
   dataProfile,
   deployPackages,
+  executionRecords,
   localHealth,
   localWorkflow,
   mlExperiments,
@@ -116,7 +117,9 @@ async function mockGateway(page: Page) {
 
     if (path === "/health") return route.fulfill(json(localHealth));
     if (path === "/api/v1/workflows") return route.fulfill(json({ items: [workflowSummary] }));
+    if (path === "/api/v1/executions") return route.fulfill(json({ items: executionRecords }));
     if (path === `/api/v1/workflows/${workflowId}`) return route.fulfill(json(localWorkflow));
+    if (path === `/api/v1/workflows/${workflowId}/dashboards`) return route.fulfill(json({ items: [publishedDashboard] }));
     if (path === `/api/v1/workflows/${workflowId}/transforms/history`) return route.fulfill(json({ items: transformRuns, count: transformRuns.length }));
     if (path === `/api/v1/workflows/${workflowId}/transforms/run` && method === "POST") {
       return route.fulfill(json({ status: "accepted", execution: { executionId: "exec-transform", workflowId, workflowVersion: "1.0.0", checkpointTag: transformRuns[0].checkpointTag, status: "completed", mode: "batch", plan: [], stages: [], nodeCount: 5, connectionCount: 5, createdAt: transformRuns[0].startedAt, updatedAt: transformRuns[0].finishedAt, statusHistory: [] }, run: transformRuns[0] }));

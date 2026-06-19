@@ -14,7 +14,6 @@ import {
   publishedDashboard,
   transformRuns,
   visualizeExports,
-  workflowId,
   workflowSummary
 } from "./fixtures/local-fixtures";
 import type { ActionFeedback, AppData, AppView } from "./types";
@@ -25,6 +24,7 @@ import type {
   JuliaFlowRuntimeMode,
   JuliaFlowUnavailableCapability,
   JuliaFlowUnavailableState,
+  PublishedDashboardDefinition,
   WorkspaceRole
 } from "@juliaflow/contracts";
 import { DataView } from "./views/DataView";
@@ -182,7 +182,13 @@ function buildUnavailableData(
     runtime,
     unavailable,
     health: withRuntimeHealth(localHealth, runtime),
-    executions: []
+    executions: [],
+    transformRuns: [],
+    mlExperiments: [],
+    modelRegistry: [],
+    deployPackages: [],
+    visualizeExports: [],
+    dashboard: dashboardFromWorkflow(localWorkflow, workflowSummary)
   };
 }
 
@@ -197,6 +203,36 @@ function workflowMetadataToDefinition(metadata: unknown): typeof localWorkflow {
     return metadata as typeof localWorkflow;
   }
   return localWorkflow;
+}
+
+function workflowDashboardId(workflow: typeof localWorkflow): string | undefined {
+  return workflow.dashboards?.[0]?.dashboardId;
+}
+
+function dashboardFromWorkflow(
+  workflow: typeof localWorkflow,
+  summary: typeof workflowSummary
+): PublishedDashboardDefinition {
+  const source = workflow.dashboards?.[0];
+  return {
+    dashboardId: source?.dashboardId ?? `${summary.workflowId}-dashboard`,
+    workflowId: summary.workflowId,
+    name: source?.name ?? `${summary.name} Dashboard`,
+    version: 0,
+    publishedAt: "",
+    visibility: "workspace",
+    binding: source?.binding ?? publishedDashboard.binding,
+    charts: source?.charts ?? [],
+    datasets: {}
+  };
+}
+
+function activeWorkflowId(data: AppData): string {
+  return data.workflowSummary.workflowId;
+}
+
+function activeDashboardId(data: AppData): string {
+  return data.dashboard.dashboardId || workflowDashboardId(data.workflow) || dashboardId;
 }
 
 function prependUnique<TItem>(
@@ -261,15 +297,10 @@ function App() {
           fixtureSubstitutionAllowed ? { items, count: items.length } : Promise.reject(new Error("backend data required in release mode"));
         const fallbackValue = <TValue,>(value: TValue) =>
           fixtureSubstitutionAllowed ? value : Promise.reject(new Error("backend data required in release mode"));
-        const [health, workflows, executions, transforms, experiments, models, packages, dashboard] = await Promise.all([
+        const [health, workflows, executions] = await Promise.all([
           client.healthcheck(requestOptions(abort.signal)),
           client.listWorkflows(requestOptions(abort.signal)),
-          client.listExecutions(requestOptions(abort.signal)).catch(() => fallbackList(executionRecords)),
-          client.getWorkflowTransformHistory(workflowId, requestOptions(abort.signal)).catch(() => fallbackList(transformRuns)),
-          client.getWorkflowMlExperimentHistory(workflowId, requestOptions(abort.signal)).catch(() => fallbackList(mlExperiments)),
-          client.listWorkflowModels(workflowId, requestOptions(abort.signal)).catch(() => fallbackList(modelRegistry)),
-          client.listWorkflowDeployPackages(workflowId, requestOptions(abort.signal)).catch(() => fallbackList(deployPackages)),
-          client.getPublishedDashboard(dashboardId, undefined, requestOptions(abort.signal)).catch(() => fallbackValue(publishedDashboard))
+          client.listExecutions(requestOptions(abort.signal)).catch(() => fallbackList(executionRecords))
         ]);
         if (!fixtureSubstitutionAllowed && workflows.items.length === 0) {
           setData(buildUnavailableData(runtimeMode, [
@@ -279,6 +310,23 @@ function App() {
         }
         const summary = workflows.items[0] ?? workflowSummary;
         const metadata = await client.getWorkflow(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackValue(localWorkflow));
+        const workflow = workflowMetadataToDefinition(metadata);
+        const [transforms, experiments, models, packages, dashboards] = await Promise.all([
+          client.getWorkflowTransformHistory(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(transformRuns)),
+          client.getWorkflowMlExperimentHistory(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(mlExperiments)),
+          client.listWorkflowModels(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(modelRegistry)),
+          client.listWorkflowDeployPackages(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(deployPackages)),
+          client.listPublishedDashboards(summary.workflowId, requestOptions(abort.signal)).catch(() =>
+            fixtureSubstitutionAllowed
+              ? { items: [publishedDashboard] }
+              : { items: [] }
+          )
+        ]);
+        const dashboard =
+          dashboards.items[0] ??
+          (fixtureSubstitutionAllowed
+            ? await client.getPublishedDashboard(dashboardId, undefined, requestOptions(abort.signal)).catch(() => fallbackValue(publishedDashboard))
+            : dashboardFromWorkflow(workflow, summary));
         const liveRuntime = health.runtime ?? runtimeContract(runtimeMode);
         setData({
           mode: "live",
@@ -286,7 +334,7 @@ function App() {
           runtime: liveRuntime,
           unavailable: liveRuntime.unavailable,
           health: withRuntimeHealth(health, liveRuntime),
-          workflow: workflowMetadataToDefinition(metadata),
+          workflow,
           workflowSummary: summary,
           dataProfile,
           executions: executions.items.length > 0 || !fixtureSubstitutionAllowed ? executions.items : executionRecords,
@@ -385,7 +433,7 @@ function App() {
             onRun={() =>
               withGatewayFallback(
                 "transform",
-                () => client!.runWorkflowTransform(workflowId, {}),
+                () => client!.runWorkflowTransform(activeWorkflowId(data), {}),
                 (response) => setData((current) => ({
                   ...current,
                   transformRuns: prependUnique(current.transformRuns, response.run, (item) => item.runId),
@@ -404,7 +452,7 @@ function App() {
             onRun={() =>
               withGatewayFallback(
                 "ml-studio",
-                () => client!.runWorkflowMlExperiment(workflowId, { datasetId: "customer-churn-local", target: "churn", algorithm: "MLJ.XGBoostClassifier" }),
+                () => client!.runWorkflowMlExperiment(activeWorkflowId(data), { datasetId: "customer-churn-local", target: "churn", algorithm: "MLJ.XGBoostClassifier" }),
                 (response) => setData((current) => ({
                   ...current,
                   mlExperiments: prependUnique(current.mlExperiments, response.experiment, (item) => item.experimentId),
@@ -423,7 +471,7 @@ function App() {
             onRegister={() =>
               withGatewayFallback(
                 "models",
-                () => client!.registerWorkflowModel(workflowId, { modelId: "Churn Prediction", owner: "julia_user", tags: ["churn", "local"] }),
+                () => client!.registerWorkflowModel(activeWorkflowId(data), { modelId: "Churn Prediction", owner: "julia_user", tags: ["churn", "local"] }),
                 (response) => setData((current) => ({
                   ...current,
                   modelRegistry: prependUnique(current.modelRegistry, response.model, (item) => item.registryId),
@@ -442,7 +490,7 @@ function App() {
             onExport={() =>
               withGatewayFallback(
                 "visualize",
-                () => client!.exportVisualizeCheckpoint(workflowId, dashboardId, { checkpointTag: "cp/dashboard-v3", visibility: "workspace" }),
+                () => client!.exportVisualizeCheckpoint(activeWorkflowId(data), activeDashboardId(data), { checkpointTag: "cp/dashboard-v3", visibility: "workspace" }),
                 (response) => setData((current) => ({
                   ...current,
                   visualizeExports: prependUnique(current.visualizeExports, response.export, (item) => item.exportId),
@@ -462,7 +510,7 @@ function App() {
             onPackage={() =>
               withGatewayFallback(
                 "deploy",
-                () => client!.packageWorkflowDeploy(workflowId, { modelId: "Churn Prediction", endpointPath: "/predict/churn", host: "127.0.0.1", port: 8099 }),
+                () => client!.packageWorkflowDeploy(activeWorkflowId(data), { modelId: "Churn Prediction", endpointPath: "/predict/churn", host: "127.0.0.1", port: 8099 }),
                 (response) => setData((current) => ({
                   ...current,
                   deployPackages: prependUnique(current.deployPackages, response.package, (item) => item.packageId),

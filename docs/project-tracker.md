@@ -18,9 +18,30 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-18`
+- Last updated: `2026-06-19`
 
 ## Work Done Till Date
+### AKS-5 Stage 5 Release Verification Implementation (2026-06-19)
+
+- Added `npm run verify:release` as the single release verification entrypoint with deterministic logs/summary artifacts under `artifacts/release-verification/latest`.
+- The verifier classifies bootstrap, product, runtime, control-doc, and diff failures and runs install, doctor, contracts, build, tests, Julia tests, local smokes, live browser smoke, control-doc validators, and `git diff --check` unless explicitly skipped.
+- Added `npm run smoke:live-backend-browser` with a local gateway, Vite frontend, Playwright live config, and release/local-appliance browser coverage.
+- The live smoke verifies no false demo fallback, Data import, Explorer save/run, Monitor execution records, dashboard rows/export, Settings/auth state, deterministic Offline Hub install, and reproducibility bundle export.
+- Hardened Windows execution by disabling Julia compiled modules/package images for the live smoke, making `LibPQ` lazy so file-backed gateway runs do not load PostgreSQL binary artifacts, installing Playwright Chromium, and killing spawned process trees on cleanup.
+- Adjusted frontend live loading to use backend workflow/dashboard ids instead of fixture ids and de-duplicate dynamic Visualize table columns.
+
+### Gaps Pending
+
+- Full no-skip fresh-checkout `npm run verify:release` remains pending before AKS-5 can be marked complete.
+- Julia tests and local smoke suite still need a full release verifier pass on the final Stage 5 PR branch after control docs are updated.
+- GitHub PR publication/CI evidence remains pending for this Stage 5 branch.
+
+### Next Items To Implement
+
+- Re-run `npm run verify:release` without skip flags from a fresh checkout or clean temp clone.
+- Link passing release verification artifacts in `docs/brd-traceability.md` before closing AKS-5.
+- Push the Stage 5 branch and open/update the draft PR after local gates pass.
+
 ### AKS-5 Native Windows Bootstrap Compatibility Slice (2026-06-18)
 
 - Restored the release baseline from the GitHub repository in a temp clone after the local `C:\Users\aksha\Documents\LowCodeJulia` folder was confirmed stale and not a Git checkout.
