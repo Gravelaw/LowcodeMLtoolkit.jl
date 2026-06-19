@@ -3,6 +3,7 @@ import type {
   GatewayCheckpointRecord,
   GatewayDataImportProfile,
   GatewayDeployPackageRecord,
+  GatewayExecutionRecord,
   GatewayHealthcheck,
   GatewayMlExperimentRecord,
   GatewayModelRegistryRecord,
@@ -266,6 +267,59 @@ export const transformRuns: GatewayTransformRunRecord[] = [
     ],
     artifactEvidence: [{ nodeId: "features", artifactRefs: ["data/features/churn_features.parquet", "data/features/churn_features.arrow"] }],
     localOnly: true
+  }
+];
+
+export const executionRecords: GatewayExecutionRecord[] = [
+  {
+    executionId: "exec-local-churn-001",
+    workflowId,
+    workflowVersion: "1.0.0",
+    checkpointTag: "cp/local-churn-2026-06-17",
+    status: "completed",
+    mode: "batch",
+    plan: ["source", "profile", "features", "train", "dashboard"],
+    stages: [["source"], ["profile"], ["features"], ["train", "dashboard"]],
+    nodeCount: localWorkflow.nodes.length,
+    connectionCount: localWorkflow.connections.length,
+    createdAt: "2026-06-17T10:08:00Z",
+    updatedAt: "2026-06-17T10:15:41Z",
+    queuedAt: "2026-06-17T10:08:01Z",
+    startedAt: "2026-06-17T10:08:04Z",
+    finishedAt: "2026-06-17T10:15:41Z",
+    statusHistory: [
+      { status: "accepted", at: "2026-06-17T10:08:00Z", message: "Gateway accepted local churn workflow run." },
+      { status: "running", at: "2026-06-17T10:08:04Z", message: "Worker started CPU-local execution." },
+      { status: "completed", at: "2026-06-17T10:15:41Z", message: "Execution completed with local artifacts." }
+    ],
+    executorState: {
+      status: "completed",
+      currentStageIndex: 4,
+      stageCount: 4,
+      activeNodeIds: [],
+      completedNodeIds: ["source", "profile", "features", "train", "dashboard"],
+      completedStageIndexes: [0, 1, 2, 3],
+      workerId: "local-cpu-worker",
+      bounded: true,
+      stageResults: [
+        { stageIndex: 0, nodeIds: ["source"], status: "completed" },
+        { stageIndex: 1, nodeIds: ["profile"], status: "completed" },
+        { stageIndex: 2, nodeIds: ["features"], status: "completed" },
+        { stageIndex: 3, nodeIds: ["train", "dashboard"], status: "completed" }
+      ],
+      nodeResults: [
+        { nodeId: "source", nodeType: "source.local_csv", status: "executed", outputKind: "node", rowCount: 12500, outputRefs: ["data/raw/customer-churn-local.arrow"] },
+        { nodeId: "features", nodeType: "transform.feature_engineer", status: "executed", outputKind: "node", rowCount: 12500, outputRefs: ["data/features/churn_features.parquet"] },
+        { nodeId: "train", nodeType: "ml.xgboost", status: "executed", outputKind: "node", rowCount: 1, outputRefs: ["data/models/churn_model_v1.jls"] },
+        { nodeId: "dashboard", nodeType: "bi.dashboard", status: "executed", outputKind: "bi_outlet", rowCount: 12500, outputRefs: ["data/dashboards/churn_v3.json"] }
+      ]
+    },
+    explainabilityEvidence: localHealth.explainabilityEvidence,
+    dispatchLane: "cpu",
+    dispatchWorkerPool: "local-cpu",
+    dispatchIsolationMode: "shared",
+    dispatchSchedulerPolicy: "shared_cpu",
+    dispatchPlacementReason: "Local appliance CPU fallback is deterministic for the demo fixture."
   }
 ];
 

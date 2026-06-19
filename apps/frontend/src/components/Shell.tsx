@@ -9,6 +9,7 @@ const navItems: Array<{ id: AppView; label: string; path: string }> = [
   { id: "ml-studio", label: "ML Studio", path: "/ml-studio" },
   { id: "models", label: "Models", path: "/models" },
   { id: "deploy", label: "Deploy", path: "/deploy" },
+  { id: "monitor", label: "Monitor", path: "/monitor" },
   { id: "settings", label: "Settings", path: "/settings" }
 ];
 
@@ -23,6 +24,7 @@ export function viewFromPath(pathname: string): AppView {
   if (pathname.startsWith("/ml-studio")) return "ml-studio";
   if (pathname.startsWith("/models")) return "models";
   if (pathname.startsWith("/deploy")) return "deploy";
+  if (pathname.startsWith("/monitor")) return "monitor";
   if (pathname.startsWith("/settings")) return "settings";
   return "explorer";
 }

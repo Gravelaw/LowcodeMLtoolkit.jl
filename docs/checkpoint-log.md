@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-5 Stage 3 Save/Run/Monitor Lifecycle - 2026-06-19
+
+### Work Done Till Date
+
+- Added the first Stage 3 workflow lifecycle slice to the modular frontend.
+- Explorer now exposes Save Workflow and Run Workflow actions backed by gateway workflow update and execution APIs.
+- Frontend state loads execution records from the gateway and appends returned run execution ids without inventing release-mode placeholders.
+- Added a Monitor route for backend execution records, latest execution status, completed-node evidence, and explicit no-execution states.
+- Added focused frontend coverage for route navigation, demo fallback lifecycle labels, gateway save/run calls, and local-appliance empty execution records.
+
+### Gaps Pending
+
+- Dashboard chart/export data still needs persisted execution artifact dataset binding.
+- Explainability evidence still needs executed workflow, dataset checksum, model artifact, metric, and generated explanation output binding.
+- Full AKS-5 release verification and live-backend browser QA remain pending.
+
+### Next Items To Implement
+
+- Implement artifact-backed dashboard datasets for Stage 3.
+- Bind explainability evidence to the executed workflow run before claiming Stage 3 complete.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` AKS-5 Native Windows Bootstrap Compatibility - 2026-06-18
 
 ### Work Done Till Date

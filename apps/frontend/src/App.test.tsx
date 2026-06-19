@@ -10,7 +10,7 @@ import {
   formatPortSummary,
   portTypeCounts
 } from "./sample-workflow";
-import { dataProfile, deployPackages, mlExperiments, modelRegistry, transformRuns, workflowSummary } from "./fixtures/local-fixtures";
+import { dataProfile, deployPackages, executionRecords, mlExperiments, modelRegistry, transformRuns, workflowSummary } from "./fixtures/local-fixtures";
 import { localHealth } from "./fixtures/local-fixtures";
 
 expect.extend(matchers);
@@ -81,6 +81,10 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByRole("heading", { name: "Deploy" })).toBeInTheDocument();
     expect(screen.getByText("Generated Julia API Code")).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole("button", { name: "Monitor" }));
+    expect(screen.getByRole("heading", { name: "Execution Monitor" })).toBeInTheDocument();
+    expect(screen.getAllByText("exec-local-churn-001").length).toBeGreaterThan(0);
+
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByText("Security And API Keys")).toBeInTheDocument();
@@ -88,6 +92,12 @@ describe("JuliaFlow local-only app redesign", () => {
 
   it("runs redesigned actions through deterministic demo fallback without a gateway", () => {
     render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /save workflow/i }));
+    expect(screen.getByText("Workflow save stayed in deterministic demo mode.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /run workflow/i }));
+    expect(screen.getByText("Workflow run stayed in deterministic demo mode.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Data" }));
     fireEvent.click(screen.getByRole("button", { name: /import local data/i }));
@@ -127,6 +137,7 @@ describe("JuliaFlow local-only app redesign", () => {
       const method = init?.method ?? "GET";
       if (url.endsWith("/health")) return json(localHealth);
       if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: executionRecords, count: executionRecords.length });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
@@ -150,6 +161,53 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(headerValue(registerCall?.[1], "x-juliaflow-workspace-role")).toBe("editor");
   });
 
+  it("saves, runs, and monitors a workflow through the gateway lifecycle", async () => {
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: "http://127.0.0.1:8088",
+      runtimeMode: "development"
+    };
+    const nextExecution = {
+      ...executionRecords[0],
+      executionId: "exec-live-run-002",
+      status: "accepted",
+      createdAt: "2026-06-19T09:00:00Z",
+      updatedAt: "2026-06-19T09:00:00Z",
+      statusHistory: [{ status: "accepted", at: "2026-06-19T09:00:00Z", message: "Gateway accepted workflow run." }]
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url.endsWith("/health")) return json(localHealth);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/execute`) && method === "POST") return json(nextExecution);
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`) && method === "PUT") {
+        return json({ workflowId: workflowSummary.workflowId, name: workflowSummary.name, version: "1.0.1", status: "updated" });
+      }
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
+      if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
+      if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
+      if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
+      if (url.includes("/deploy/packages")) return json({ items: deployPackages, count: deployPackages.length });
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    fireEvent.click(screen.getByRole("button", { name: /save workflow/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(`/api/v1/workflows/${workflowSummary.workflowId}`), expect.objectContaining({ method: "PUT" })));
+    expect(screen.getByText("Gateway action completed locally.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /run workflow/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(`/api/v1/workflows/${workflowSummary.workflowId}/execute`), expect.objectContaining({ method: "POST" })));
+
+    fireEvent.click(screen.getByRole("button", { name: "Monitor" }));
+    await waitFor(() => expect(screen.getAllByText("exec-live-run-002").length).toBeGreaterThan(0));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(`/api/v1/workflows/${workflowSummary.workflowId}/execute`), expect.objectContaining({ method: "POST" }));
+  });
+
   it("does not send auth headers when auth is disabled", async () => {
     window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "http://127.0.0.1:8088", runtimeMode: "development" };
     const disabledHealth = { ...localHealth, authMode: "disabled", authDevFallback: false };
@@ -157,6 +215,7 @@ describe("JuliaFlow local-only app redesign", () => {
       const url = String(input);
       if (url.endsWith("/health")) return json(disabledHealth);
       if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: executionRecords, count: executionRecords.length });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
@@ -220,6 +279,7 @@ describe("JuliaFlow local-only app redesign", () => {
       const url = String(input);
       if (url.endsWith("/health")) return json(health);
       if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
       if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
       if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
@@ -234,6 +294,9 @@ describe("JuliaFlow local-only app redesign", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
     fireEvent.click(screen.getByRole("button", { name: "Transform" }));
     expect(screen.queryByText("transform-2026-06-17-001")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Monitor" }));
+    expect(screen.getByText("No backend execution records are available for this workspace yet. Run the workflow from Explorer after the local gateway is ready.")).toBeInTheDocument();
+    expect(screen.queryByText("exec-local-churn-001")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Release mode unavailable")).not.toBeInTheDocument();
   });
 });

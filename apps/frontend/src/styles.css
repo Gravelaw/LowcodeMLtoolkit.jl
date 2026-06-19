@@ -237,6 +237,13 @@ button {
   color: var(--muted);
 }
 
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .title-icon {
   color: var(--purple);
   font-family: "IBM Plex Mono", monospace;
