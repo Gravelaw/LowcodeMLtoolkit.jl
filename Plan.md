@@ -31,6 +31,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - Mock-aligned local product workflow vertical first implementation slice is complete for the frontend shell: Explorer, Data, Transform, ML Studio, Models, Visualize, and local-only Deploy are wired through shared local workspace state and tested end to end in demo mode.
 - Backend-backed product-depth actions are complete for Data import/profile, Transform run/history, ML Studio experiment run/history, Models registry register/list, Visualize checkpoint/export, and local Deploy packaging, with contracts, gateway routes, frontend actions, deterministic demo fallback, and local evidence tests.
 - AKS-5 Stage 2 release-mode boundary is implemented as a focused follow-up to the bootstrap PR: shared contracts now expose `demo` / `development` / `release` / `local-appliance` runtime mode, fixture provenance, fixture-substitution policy, and unavailable states; gateway `/health` advertises the same contract; the frontend runtime config honors `runtimeMode` plus gateway/OIDC auth token context; release/local-appliance mode reports unavailable or empty backend states instead of silently substituting demo fixture rows; and normal frontend gateway APIs propagate bearer/workspace auth headers with explicit auth failure UI.
+- AKS-5 Stage 3 first lifecycle slice is implemented in the modular frontend: Explorer saves workflows through the gateway update API, runs workflows through the gateway execution API, and Monitor renders backend execution records or explicit empty states without release-mode fixture substitution.
 
 ## Active Development Order
 
@@ -303,6 +304,12 @@ Verification evidence for this slice: `npm run doctor:debian`, `npm run smoke:lo
 **AKS-5 bootstrap compatibility is complete for the first staged PR slice.** The restored GitHub baseline contains the modular frontend, Playwright browser gate, Offline Hub, reproducibility, and backup/restore scripts. The toolchain guard now allows native Windows Node alongside Debian-native Node, while still rejecting WSL `/mnt/c` Windows Node interop. `dev-local` now has an explicit `--skip-instantiate` flag so `--no-deps` remains Docker-only, and the generated Julia manifest policy is documented through `npm run julia:instantiate`.
 
 Verification evidence for this slice: `npm run doctor:windows`, `npm run validate:contracts`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+
+## Latest Completed Slice - 2026-06-19 AKS-5 Stage 3 Save/Run/Monitor Lifecycle
+
+**AKS-5 Stage 3 save/run/monitor lifecycle is complete for the first thin slice.** The modular frontend now treats Explorer as a real workflow lifecycle entry point: Save calls the gateway workflow update API, Run calls the gateway execution API and records the returned execution id, and the new Monitor route renders backend execution records, latest execution status, completed-node evidence, and explicit no-execution empty states. Release/local-appliance mode keeps empty execution lists empty instead of substituting fixture executions, while demo/development modes keep deterministic fixture behavior where allowed.
+
+Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- App.test.tsx`. Remaining AKS-5 Stage 3 work: bind dashboard chart/export data to persisted execution artifact datasets and tie explainability evidence to the executed workflow, dataset checksum, model artifact, metrics, and generated explanation output.
 
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 

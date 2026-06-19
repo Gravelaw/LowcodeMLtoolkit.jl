@@ -6,6 +6,7 @@ import {
   dashboardId,
   dataProfile,
   deployPackages,
+  executionRecords,
   localHealth,
   localWorkflow,
   mlExperiments,
@@ -31,6 +32,7 @@ import { DeployView } from "./views/DeployView";
 import { ExplorerView } from "./views/ExplorerView";
 import { MlStudioView } from "./views/MlStudioView";
 import { ModelsView } from "./views/ModelsView";
+import { MonitorView } from "./views/MonitorView";
 import { SettingsView } from "./views/SettingsView";
 import { TransformView } from "./views/TransformView";
 import { VisualizeView } from "./views/VisualizeView";
@@ -159,6 +161,7 @@ function buildDemoData(runtimeMode: JuliaFlowRuntimeMode = "demo"): AppData {
     workflowSummary,
     dataProfile,
     transformRuns,
+    executions: executionRecords,
     mlExperiments,
     modelRegistry,
     deployPackages,
@@ -178,7 +181,8 @@ function buildUnavailableData(
     mode: "unavailable",
     runtime,
     unavailable,
-    health: withRuntimeHealth(localHealth, runtime)
+    health: withRuntimeHealth(localHealth, runtime),
+    executions: []
   };
 }
 
@@ -257,9 +261,10 @@ function App() {
           fixtureSubstitutionAllowed ? { items, count: items.length } : Promise.reject(new Error("backend data required in release mode"));
         const fallbackValue = <TValue,>(value: TValue) =>
           fixtureSubstitutionAllowed ? value : Promise.reject(new Error("backend data required in release mode"));
-        const [health, workflows, transforms, experiments, models, packages, dashboard] = await Promise.all([
+        const [health, workflows, executions, transforms, experiments, models, packages, dashboard] = await Promise.all([
           client.healthcheck(requestOptions(abort.signal)),
           client.listWorkflows(requestOptions(abort.signal)),
+          client.listExecutions(requestOptions(abort.signal)).catch(() => fallbackList(executionRecords)),
           client.getWorkflowTransformHistory(workflowId, requestOptions(abort.signal)).catch(() => fallbackList(transformRuns)),
           client.getWorkflowMlExperimentHistory(workflowId, requestOptions(abort.signal)).catch(() => fallbackList(mlExperiments)),
           client.listWorkflowModels(workflowId, requestOptions(abort.signal)).catch(() => fallbackList(modelRegistry)),
@@ -284,6 +289,7 @@ function App() {
           workflow: workflowMetadataToDefinition(metadata),
           workflowSummary: summary,
           dataProfile,
+          executions: executions.items.length > 0 || !fixtureSubstitutionAllowed ? executions.items : executionRecords,
           transformRuns: transforms.items.length > 0 || !fixtureSubstitutionAllowed ? transforms.items : transformRuns,
           mlExperiments: experiments.items.length > 0 || !fixtureSubstitutionAllowed ? experiments.items : mlExperiments,
           modelRegistry: models.items.length > 0 || !fixtureSubstitutionAllowed ? models.items : modelRegistry,
@@ -467,11 +473,47 @@ function App() {
             }
           />
         );
+      case "monitor":
+        return <MonitorView data={data} />;
       case "settings":
         return <SettingsView data={data} />;
       case "explorer":
       default:
-        return <ExplorerView data={data} />;
+        return (
+          <ExplorerView
+            data={data}
+            feedback={feedback.explorer}
+            onSave={() =>
+              withGatewayFallback(
+                "explorer",
+                () => client!.updateWorkflow(data.workflowSummary.workflowId, { workflow: data.workflow }),
+                (response) => setData((current) => ({
+                  ...current,
+                  workflowSummary: {
+                    ...current.workflowSummary,
+                    workflowId: response.workflowId,
+                    name: response.name,
+                    version: response.version
+                  },
+                  mode: "live"
+                })),
+                "Workflow save stayed in deterministic demo mode."
+              )
+            }
+            onRun={() =>
+              withGatewayFallback(
+                "explorer",
+                () => client!.executeWorkflow(data.workflowSummary.workflowId),
+                (execution) => setData((current) => ({
+                  ...current,
+                  executions: prependUnique(current.executions, execution, (item) => item.executionId),
+                  mode: "live"
+                })),
+                "Workflow run stayed in deterministic demo mode."
+              )
+            }
+          />
+        );
     }
   })();
 

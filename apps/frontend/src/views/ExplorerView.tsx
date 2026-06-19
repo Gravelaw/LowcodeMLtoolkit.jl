@@ -1,9 +1,20 @@
 import { Card, DataTable, MetricCard, StatusPill } from "../components/ui";
 import { projectFiles } from "../fixtures/local-fixtures";
-import type { AppData } from "../types";
+import type { ActionFeedback, AppData } from "../types";
 
-export function ExplorerView({ data }: { data: AppData }) {
+export function ExplorerView({
+  data,
+  feedback,
+  onSave,
+  onRun
+}: {
+  data: AppData;
+  feedback?: ActionFeedback;
+  onSave: () => void;
+  onRun: () => void;
+}) {
   const health = data.health;
+  const latestExecution = data.executions[0];
   return (
     <div className="route-grid explorer-route">
       <section className="page-title">
@@ -12,16 +23,29 @@ export function ExplorerView({ data }: { data: AppData }) {
           <h1>Local Workspace Overview</h1>
           <p>Everything runs on your machine. No data leaves your device.</p>
         </div>
-        <button type="button" className="jf-button secondary">Open Workspace</button>
+        <div className="button-row">
+          <button type="button" className="jf-button secondary" onClick={onSave}>Save Workflow</button>
+          <button type="button" className="jf-button primary" onClick={onRun}>Run Workflow</button>
+        </div>
       </section>
+      {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
 
       <div className="metrics-row">
         <MetricCard label="CPU Usage" value="28%" detail={`${health.cpuThreadCount} local threads`} />
         <MetricCard label="RAM Usage" value="6.2 GB" detail="39% of 16 GB" tone="blue" />
         <MetricCard label="Disk Space" value="212 GB" detail="300 GB free" />
-        <MetricCard label="Local Datasets" value="18" detail="Arrow and Parquet" tone="green" />
-        <MetricCard label="Local Models" value="24" detail="stored on disk" tone="purple" />
+        <MetricCard label="Executions" value={String(data.executions.length)} detail={latestExecution?.status ?? "backend records"} tone="green" />
+        <MetricCard label="Workflow Nodes" value={String(data.workflow.nodes.length)} detail={data.workflowSummary.version} tone="purple" />
       </div>
+
+      <Card title="Workflow Lifecycle" eyebrow={data.workflowSummary.workflowId}>
+        <div className="key-values">
+          <span>Name</span><strong>{data.workflowSummary.name}</strong>
+          <span>Version</span><strong>{data.workflowSummary.version}</strong>
+          <span>Latest Execution</span><strong>{latestExecution?.executionId ?? "No backend execution yet"}</strong>
+          <span>Status</span><strong>{latestExecution?.status ?? "not run"}</strong>
+        </div>
+      </Card>
 
       <Card title="Local Project Browser" eyebrow="~/JuliaFlowLocal/Projects">
         <DataTable

@@ -2326,3 +2326,27 @@ After any meaningful job:
 
 - Keep PR #21 current on `main`, verify Stage 2 gates after each change, and mark it ready after final review.
 - Start Stage 3: backend-backed Canvas save/run/monitor plus artifact-backed dashboard/explainability behavior.
+
+---
+
+## Update: AKS-5 Stage 3 Save/Run/Monitor Lifecycle - 2026-06-19
+
+### Work Done Till Date
+
+- Continued from `main` after PR #21 merge on branch `akshayjain00/aks-5-stage-3-real-workflow-lifecycle`.
+- Added Explorer workflow lifecycle actions: Save calls the gateway workflow update API, and Run calls the gateway workflow execution API.
+- Added execution records to frontend state and gateway loading, using `/api/v1/executions` when a gateway is configured.
+- Added a Monitor route that renders backend execution records, latest execution status, completed-node evidence, and explicit no-execution empty states.
+- Preserved fixture substitution only where runtime mode permits it; release/local-appliance mode keeps empty execution lists empty.
+- Added focused frontend coverage for Monitor navigation, demo fallback save/run labels, gateway save/run calls, and local-appliance empty execution records.
+
+### Gaps Pending
+
+- Dashboard chart/export data is not yet bound to persisted execution artifact datasets.
+- Explainability evidence still needs executed-workflow/dataset-checksum/model-artifact/metric/output binding for Stage 3 closure.
+- Live-backend browser QA and the single fresh-checkout release verification job remain Stage 5 work.
+
+### Next Items To Implement
+
+- Complete the dashboard artifact-backed dataset path for Stage 3.
+- Complete executed-run explainability evidence binding and then expand live-backend browser QA.

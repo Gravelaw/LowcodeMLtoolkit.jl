@@ -2,6 +2,7 @@ import type {
   GatewayCheckpointRecord,
   GatewayDataImportProfile,
   GatewayDeployPackageRecord,
+  GatewayExecutionRecord,
   GatewayHealthcheck,
   GatewayMlExperimentRecord,
   GatewayModelRegistryRecord,
@@ -23,6 +24,7 @@ export type AppView =
   | "models"
   | "visualize"
   | "deploy"
+  | "monitor"
   | "settings";
 
 export type DataMode = "demo" | "live" | "fallback" | "unavailable";
@@ -37,6 +39,7 @@ export interface AppData {
   workflowSummary: GatewayWorkflowSummary;
   dataProfile: GatewayDataImportProfile;
   transformRuns: GatewayTransformRunRecord[];
+  executions: GatewayExecutionRecord[];
   mlExperiments: GatewayMlExperimentRecord[];
   modelRegistry: GatewayModelRegistryRecord[];
   deployPackages: GatewayDeployPackageRecord[];
