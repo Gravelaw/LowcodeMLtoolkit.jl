@@ -56,6 +56,12 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByRole("heading", { name: /local workspace overview/i })).toBeInTheDocument();
     expect(screen.getByText("Privacy & Security (Local-First)")).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole("button", { name: "+ New Project" }));
+    expect(screen.getByRole("dialog", { name: "Create New Project" })).toBeInTheDocument();
+    expect(screen.getByText("Creates a local workspace scaffold using the current appliance profile and sample workflow template.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Create Local Project" }));
+    expect(screen.getByText("Local project scaffold is ready in the configured workspace.")).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "Data" }));
     expect(screen.getByRole("heading", { name: "Data" })).toBeInTheDocument();
     expect(screen.getByText("C-1001")).toBeInTheDocument();
@@ -307,6 +313,9 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("No backend execution records are available for this workspace yet. Run the workflow from Explorer after the local gateway is ready.")).toBeInTheDocument();
     expect(screen.queryByText("exec-local-churn-001")).not.toBeInTheDocument();
     expect(screen.getByText("No executed-run explainability evidence is attached to the latest execution.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "ML Studio" }));
+    expect(screen.getByText("No backend ML experiment records are available for this workspace yet. Train a model after the local gateway is ready, then this screen will show algorithm settings, metrics, feature importance, hardware evidence, and reproducibility details.")).toBeInTheDocument();
+    expect(screen.queryByText("experiment-local-churn-001")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Visualize" }));
     expect(screen.getByText("No artifact-backed dashboard rows are available for this published dashboard. Run the workflow and publish a dashboard snapshot with persisted dataset rows.")).toBeInTheDocument();
     expect(screen.queryByText("C-1001")).not.toBeInTheDocument();

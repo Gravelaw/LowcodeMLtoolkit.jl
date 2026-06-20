@@ -263,6 +263,7 @@ function App() {
   const gatewayAuthHeaders = useMemo(() => getGatewayAuthHeaders(), []);
   const fixtureSubstitutionAllowed = allowsFixtureSubstitution(runtimeMode);
   const [activeView, setActiveView] = useState<AppView>(() => getInitialView());
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [data, setData] = useState<AppData>(() =>
     fixtureSubstitutionAllowed
       ? buildDemoData(runtimeMode)
@@ -375,6 +376,12 @@ function App() {
 
   function setViewFeedback(view: AppView, label: string, tone: ActionFeedback["tone"] = "success") {
     setFeedback((current) => ({ ...current, [view]: { label, tone } }));
+  }
+
+  function createLocalProject() {
+    setProjectDialogOpen(false);
+    navigate("explorer");
+    setViewFeedback("explorer", "Local project scaffold is ready in the configured workspace.", "success");
   }
 
   async function withGatewayFallback<T>(
@@ -566,7 +573,7 @@ function App() {
   })();
 
   return (
-    <Shell activeView={activeView} onNavigate={navigate} onPrimaryAction={() => setViewFeedback(activeView, "Local project template opened.", "info")}>
+    <Shell activeView={activeView} onNavigate={navigate} onPrimaryAction={() => setProjectDialogOpen(true)}>
       {data.mode === "fallback" ? (
         <p className="feedback info">Gateway unavailable. Running deterministic local demo fallback.</p>
       ) : null}
@@ -577,6 +584,36 @@ function App() {
             <span key={item.capability}>{item.capability}: {item.reason} {item.recovery}</span>
           ))}
         </section>
+      ) : null}
+      {projectDialogOpen ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="project-dialog" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
+            <div className="project-dialog-head">
+              <div>
+                <p className="jf-eyebrow">Local project</p>
+                <h2 id="new-project-title">Create New Project</h2>
+              </div>
+              <button type="button" className="icon-button" aria-label="Close new project dialog" onClick={() => setProjectDialogOpen(false)}>
+                x
+              </button>
+            </div>
+            <div className="project-template">
+              <strong>{data.workflowSummary.name}</strong>
+              <span>{data.workflowSummary.workflowId}</span>
+              <p>Creates a local workspace scaffold using the current appliance profile and sample workflow template.</p>
+            </div>
+            <div className="key-values">
+              <span>Workspace</span><strong>{data.health.localHome ?? "Configured local home"}</strong>
+              <span>Profile</span><strong>{data.health.localProfile ?? data.runtimeMode}</strong>
+              <span>Metadata</span><strong>{data.health.metadataBackend ?? "file"}</strong>
+              <span>Workflow</span><strong>{data.workflowSummary.version}</strong>
+            </div>
+            <div className="dialog-actions">
+              <button type="button" className="jf-button secondary" onClick={() => setProjectDialogOpen(false)}>Cancel</button>
+              <button type="button" className="jf-button primary" onClick={createLocalProject}>Create Local Project</button>
+            </div>
+          </section>
+        </div>
       ) : null}
       {view}
     </Shell>
