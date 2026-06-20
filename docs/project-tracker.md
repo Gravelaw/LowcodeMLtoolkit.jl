@@ -18,9 +18,28 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-19`
+- Last updated: `2026-06-20`
 
 ## Work Done Till Date
+### AKS-13 Live Workflow Metadata Recovery (2026-06-20)
+
+- Updated release/local-appliance workflow loading so backend workflow detail must include workflow id, nodes, connections, flow variables, graph layout metadata, and runtime metadata before rendering live canvas/pipeline state.
+- In required modes, incomplete workflow metadata now produces an explicit unavailable state with recovery guidance instead of substituting the demo workflow or synthetic canvas nodes.
+- Kept demo/development behavior compatible with deterministic fixture fallback for offline demos and local development.
+- Updated Transform to show workflow metadata recovery guidance when no backend workflow nodes are available.
+- Added focused frontend coverage for incomplete local-appliance metadata and preserved empty backend list behavior with complete workflow metadata.
+- Verification passed: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run test`, `npm run build`, `npm run validate:contracts`, and `npm run smoke:live-backend-browser`.
+
+### Gaps Pending
+
+- Provider/cloud deployment and hardware-gated GPU work remain optional compatibility work unless explicitly reprioritized.
+- The live browser smoke passed, but the Julia HTTP server still prints connection-cancel teardown noise after Playwright finishes; this is not a failing gate.
+
+### Next Items To Implement
+
+- Push this AKS-13 branch and open the draft PR after local verification/doc sync passes.
+- Keep `artifacts/release-verification/live-backend-browser` as live UI evidence for PR and Linear cleanup.
+
 ### AKS-5 Stage 5 Release Verification Implementation (2026-06-19)
 
 - Added `npm run verify:release` as the single release verification entrypoint with deterministic logs/summary artifacts under `artifacts/release-verification/latest`.

@@ -10,10 +10,32 @@ import {
   formatPortSummary,
   portTypeCounts
 } from "./sample-workflow";
-import { dataProfile, deployPackages, executionRecords, mlExperiments, modelRegistry, transformRuns, workflowSummary } from "./fixtures/local-fixtures";
-import { localHealth } from "./fixtures/local-fixtures";
+import {
+  deployPackages,
+  executionRecords,
+  localHealth,
+  localWorkflow,
+  mlExperiments,
+  modelRegistry,
+  publishedDashboard,
+  transformRuns,
+  workflowSummary
+} from "./fixtures/local-fixtures";
 
 expect.extend(matchers);
+
+const backendWorkflow = {
+  ...localWorkflow,
+  graph: {
+    revision: workflowSummary.graphRevision,
+    nodeLayouts: localWorkflow.nodes.map((node, index) => ({
+      nodeId: node.id,
+      x: 36 + index * 192,
+      y: 44,
+      width: 176
+    }))
+  }
+};
 
 describe("sample workflow helpers", () => {
   it("maps workflow metadata and helper outputs", () => {
@@ -143,7 +165,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith("/health")) return json(localHealth);
       if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
       if (url.endsWith("/api/v1/executions")) return json({ items: executionRecords, count: executionRecords.length });
-      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
@@ -190,7 +212,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`) && method === "PUT") {
         return json({ workflowId: workflowSummary.workflowId, name: workflowSummary.name, version: "1.0.1", status: "updated" });
       }
-      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(localWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
@@ -288,7 +310,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith("/health")) return json(health);
       if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
       if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
-      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [] });
       if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
       if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
@@ -311,6 +333,40 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("No artifact-backed dashboard rows are available for this published dashboard. Run the workflow and publish a dashboard snapshot with persisted dataset rows.")).toBeInTheDocument();
     expect(screen.queryByText("C-1001")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Release mode unavailable")).not.toBeInTheDocument();
+  });
+
+  it("reports incomplete workflow metadata in local-appliance mode instead of rendering fixture canvas state", async () => {
+    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "http://127.0.0.1:8088", runtimeMode: "local-appliance" };
+    const health = {
+      ...localHealth,
+      runtime: {
+        mode: "local-appliance",
+        fixtureProvenance: "backend",
+        fixtureSubstitutionAllowed: false,
+        unavailable: []
+      },
+      runtimeMode: "local-appliance",
+      fixtureProvenance: "backend",
+      fixtureSubstitutionAllowed: false,
+      unavailable: []
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return json(health);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.getByLabelText("Release mode unavailable")).toHaveTextContent("incomplete workflow metadata"));
+    expect(screen.getByLabelText("Release mode unavailable")).toHaveTextContent("Re-import or save the workflow");
+    fireEvent.click(screen.getByRole("button", { name: "Transform" }));
+    expect(screen.getByText("Workflow metadata is unavailable. Re-import or save the workflow through the local gateway before rendering the live transform canvas.")).toBeInTheDocument();
+    expect(screen.queryByText("churn.csv")).not.toBeInTheDocument();
   });
 });
 

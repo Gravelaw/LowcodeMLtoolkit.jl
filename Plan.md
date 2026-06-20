@@ -1,6 +1,6 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-06-19
+Last updated: 2026-06-20
 
 ## Current Phase
 
@@ -33,7 +33,8 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - AKS-5 Stage 2 release-mode boundary is implemented as a focused follow-up to the bootstrap PR: shared contracts now expose `demo` / `development` / `release` / `local-appliance` runtime mode, fixture provenance, fixture-substitution policy, and unavailable states; gateway `/health` advertises the same contract; the frontend runtime config honors `runtimeMode` plus gateway/OIDC auth token context; release/local-appliance mode reports unavailable or empty backend states instead of silently substituting demo fixture rows; and normal frontend gateway APIs propagate bearer/workspace auth headers with explicit auth failure UI.
 - AKS-5 Stage 3 first lifecycle slice is implemented in the modular frontend: Explorer saves workflows through the gateway update API, runs workflows through the gateway execution API, and Monitor renders backend execution records or explicit empty states without release-mode fixture substitution.
 - AKS-5 Stage 3 evidence binding is implemented in the modular frontend: Visualize renders published dashboard binding datasets instead of fixture rows, release/local-appliance mode shows explicit no-artifact-row states, and Monitor ties explainability evidence to the latest execution id, workflow id, dataset checksum, model artifact ref, metric, and explanation method.
-- AKS-5 Stage 5 release verification implementation is in progress: `npm run verify:release` provides one release gate with deterministic artifacts and failure classification, and `npm run smoke:live-backend-browser` passes against a local gateway/frontend in `local-appliance` mode. Full no-skip fresh-checkout verification remains open before AKS-5 closure.
+- AKS-5 Stage 5 release verification is complete for the current release-readiness closure path: `npm run verify:release` provides one release gate with deterministic artifacts and failure classification, full no-skip release verification passes with evidence at `artifacts/release-verification/latest/summary.json`, and `npm run smoke:live-backend-browser` passes against a local gateway/frontend in `local-appliance` mode.
+- AKS-13 live workflow metadata recovery is complete for the current frontend slice: release/local-appliance mode treats incomplete workflow metadata as an explicit unavailable/recovery state instead of rendering fixture canvas nodes, while demo/development fallback behavior remains preserved.
 
 ## Active Development Order
 
@@ -319,13 +320,19 @@ Verification evidence for this slice: `npm --workspace @juliaflow/frontend run t
 
 Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- App.test.tsx` and `npm run build`. Remaining AKS-5 work moves to Stage 5: live-backend browser QA and the single fresh-checkout release verification pipeline.
 
-## Latest In-Progress Slice - 2026-06-19 AKS-5 Stage 5 Release Verification
+## Latest Completed Slice - 2026-06-19 AKS-5 Stage 5 Release Verification
 
 **AKS-5 Stage 5 release verification implementation** now has a scriptable release gate and live-backend browser smoke. The verifier writes `artifacts/release-verification/latest/summary.json` plus per-command logs, separates bootstrap/product/runtime/control-doc failures, and runs bootstrap, contracts, frontend, Julia, local smoke, browser, control-doc, and diff gates unless explicitly skipped. The live browser smoke starts a local file-backed gateway and Vite frontend on isolated ports, verifies release/local-appliance UI behavior without demo substitution, and covers workflow save/run, Monitor, dashboard rows/export, Settings/auth state, deterministic Offline Hub install, and reproducibility export.
 
 The Docker/PostgreSQL blocker is resolved for the current Windows Codex session. `docker info` now works on the Docker Desktop `desktop-linux` context, `npm run smoke:local-metadata` passes through both single-user file metadata and lab-team PostgreSQL metadata, and the release verifier plus npm Julia helper scripts now run Julia phases with the repo-local `.julia-depot` so Windows application-control policy does not load blocked DLLs from `C:\Users\aksha\.julia\compiled`. The PostgreSQL repository imports `LibPQ` at module load to avoid Julia 1.12 world-age failures during gateway startup.
 
 Verification evidence for this slice: `npm run smoke:live-backend-browser`, `npm run smoke:local-metadata`, `npm run build`, `npm run test`, and full no-skip `npm run verify:release` with passing summary at `artifacts/release-verification/latest/summary.json`. The release verifier passed bootstrap, contracts, frontend, Julia repo tests, base extension tests, all local smokes, live-backend browser smoke, control-doc sync, BRD traceability, and `git diff --check`.
+
+## Latest Completed Slice - 2026-06-20 AKS-13 Live Workflow Metadata Recovery
+
+**AKS-13 live workflow metadata recovery** is complete for the current frontend slice. Release/local-appliance workflow loading now validates backend workflow detail before rendering the live canvas path and reports incomplete metadata as an unavailable state with recovery guidance instead of substituting fixture workflow nodes. Demo/development modes still keep deterministic fixture fallback for offline demos.
+
+Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run test`, `npm run build`, `npm run validate:contracts`, and `npm run smoke:live-backend-browser` with artifacts at `artifacts/release-verification/live-backend-browser`.
 
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 
