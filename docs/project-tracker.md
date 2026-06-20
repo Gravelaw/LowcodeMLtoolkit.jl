@@ -2393,3 +2393,27 @@ After any meaningful job:
 
 - Build the Stage 5 release verification pipeline and live-backend browser smoke.
 - Keep PRs focused and do not mark AKS-5 closed until fresh-checkout verification evidence exists.
+
+---
+
+## Update: AKS-5 Stage 5 Release Verification Blocker Burn-Down - 2026-06-20
+
+### Work Done Till Date
+
+- Confirmed Docker Desktop daemon access now works from Codex via the `desktop-linux` context; `docker info` and Docker Compose are reachable.
+- Fixed the lab-team PostgreSQL metadata smoke blocker by importing `LibPQ` at gateway repository module load, avoiding Julia 1.12 world-age failures during `LibPQ.Connection`, result iteration, and connection cleanup.
+- Aligned `scripts/smoke-local-metadata.mjs` with other local smokes so standalone Julia repository checks use the repo-local `.julia-depot` instead of the user-global compiled cache.
+- Aligned `scripts/verify-release.mjs` direct Julia phases with the repo-local Julia command/depot, avoiding the Windows application-control block on `C:\Users\aksha\.julia\compiled\v1.12\TimeZonesRecipesBaseExt\Nhpny_ZEv1y.dll`.
+- Verified `npm run smoke:local-metadata` passes for single-user file metadata and Docker PostgreSQL lab-team metadata.
+- Ran no-skip `npm run verify:release`; it passed bootstrap, contracts, frontend build/test, Julia repo tests, base extension tests, all local smokes, and live-backend browser smoke before failing at `validate-control-doc-sync` because this code slice needed documentation updates.
+- Reran full no-skip `npm run verify:release` after control-doc synchronization; it passed with summary evidence at `artifacts/release-verification/latest/summary.json`.
+
+### Gaps Pending
+
+- No Docker/PostgreSQL release-verification blocker remains in the current Codex session.
+- Follow-up is PR/Linear reconciliation and review, not additional blocker diagnosis.
+
+### Next Items To Implement
+
+- Update Linear AKS-5/AKS-10 and PR evidence with `artifacts/release-verification/latest/summary.json`.
+- Keep the repo-local Julia depot pattern in future release-verification subprocesses so user-global compiled cache policy does not affect release gates.

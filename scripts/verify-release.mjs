@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -7,8 +7,13 @@ const artifactRoot = join(root, "artifacts", "release-verification", "latest");
 const logRoot = join(artifactRoot, "logs");
 const startedAt = new Date().toISOString();
 const npmBin = process.platform === "win32" ? "npm.cmd" : "npm";
-const juliaBin = "julia";
+const localJulia = join(root, ".juliaup", "bin", "julia");
+const juliaBin = process.env.JULIAFLOW_JULIA_CMD ?? (existsSync(localJulia) ? localJulia : "julia");
 const gitBin = "git";
+const juliaEnv = {
+  JULIAUP_DEPOT_PATH: process.env.JULIAUP_DEPOT_PATH ?? join(root, ".juliaup"),
+  JULIA_DEPOT_PATH: process.env.JULIA_DEPOT_PATH ?? join(root, ".julia-depot")
+};
 
 const args = new Set(process.argv.slice(2));
 const skipped = {
@@ -79,7 +84,7 @@ for (const item of commands) {
   const shell = process.platform === "win32" && (item.command === "npm" || item.command.endsWith(".cmd"));
   const result = spawnSync(item.command, item.args, {
     cwd: root,
-    env: process.env,
+    env: item.command === juliaBin ? { ...process.env, ...juliaEnv } : process.env,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
     shell

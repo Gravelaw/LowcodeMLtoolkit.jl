@@ -1,14 +1,27 @@
 #!/usr/bin/env node
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT_DIR = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const LOCAL_JULIA = join(ROOT_DIR, ".juliaup", "bin", "julia");
 const keepHome = process.env.JULIAFLOW_KEEP_SMOKE_HOME === "1";
 const postgresUrl = process.env.JULIAFLOW_DATABASE_URL ?? "postgresql://juliaflow:juliaflow@127.0.0.1:5432/juliaflow";
 const schema = process.env.JULIAFLOW_DATABASE_SCHEMA ?? `juliaflow_smoke_${process.pid}`;
+
+function juliaCommand() {
+  return process.env.JULIAFLOW_JULIA_CMD ?? (existsSync(LOCAL_JULIA) ? LOCAL_JULIA : "julia");
+}
+
+function withJuliaEnv(env) {
+  return {
+    ...env,
+    JULIAUP_DEPOT_PATH: env.JULIAUP_DEPOT_PATH ?? join(ROOT_DIR, ".juliaup"),
+    JULIA_DEPOT_PATH: env.JULIA_DEPOT_PATH ?? join(ROOT_DIR, ".julia-depot")
+  };
+}
 
 function assertSafeSchemaName(schemaName) {
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(schemaName)) {
@@ -45,23 +58,23 @@ function runDevLocalSmoke(profile, home, gatewayPort, extraArgs = [], extraEnv =
 }
 
 function runRepositorySmoke(backend, home, storeName, extraEnv = {}) {
-  run("julia", ["--project=.", "scripts/smoke-local-metadata.jl"], {
+  run(juliaCommand(), ["--project=.", "scripts/smoke-local-metadata.jl"], withJuliaEnv({
     JULIAFLOW_HOME: home,
     JULIAFLOW_STORE_ROOT: join(home, "metadata", storeName),
     JULIAFLOW_METADATA_SMOKE_BACKEND: backend,
     ...extraEnv
-  });
+  }));
 }
 
 function cleanupPostgresSchema(schemaName) {
   assertSafeSchemaName(schemaName);
-  run("julia", ["--project=.", "scripts/smoke-local-metadata.jl"], {
+  run(juliaCommand(), ["--project=.", "scripts/smoke-local-metadata.jl"], withJuliaEnv({
     JULIAFLOW_METADATA_SMOKE_BACKEND: "postgres-cleanup",
     JULIAFLOW_DATABASE_URL: postgresUrl,
     JULIAFLOW_DATABASE_SCHEMA: schemaName,
     JULIAFLOW_TEST_POSTGRES_URL: postgresUrl,
     JULIAFLOW_TEST_POSTGRES_SCHEMA: schemaName
-  });
+  }));
 }
 
 const singleUserHome = process.env.JULIAFLOW_SINGLE_USER_SMOKE_HOME ?? mkdtempSync(join(tmpdir(), "juliaflow-metadata-single-"));

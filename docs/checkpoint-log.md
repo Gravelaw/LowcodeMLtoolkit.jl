@@ -2631,3 +2631,24 @@ Each checkpoint entry must contain:
 
 - Keep PR #21 current on `main`, verify Stage 2 gates after each change, and mark it ready after final review.
 - Continue with backend-backed Canvas lifecycle and artifact-backed dashboard/explainability behavior.
+
+---
+
+## Checkpoint: AKS-5 Stage 5 Release Verification Blocker Burn-Down - 2026-06-20
+
+### Work Done Till Date
+
+- Docker Desktop access from Codex is restored on the `desktop-linux` context; `docker info` and Compose work from `D:\Julia Project`.
+- `smoke:local-metadata` now passes the Docker PostgreSQL lab-team path. The gateway repository imports `LibPQ` normally at module load instead of lazily importing it mid-call, which removes Julia 1.12 world-age failures in PostgreSQL gateway startup.
+- `smoke-local-metadata.mjs` and `verify-release.mjs` now use the repo-local Julia command/depot for standalone Julia subprocesses, avoiding blocked user-global compiled DLLs under `C:\Users\aksha\.julia\compiled`.
+- No-skip `npm run verify:release` passed bootstrap, contracts, frontend, Julia tests, local smokes, and live-backend browser smoke before stopping at the expected control-doc sync gate for this code/doc slice.
+- After control-doc synchronization, full no-skip `npm run verify:release` passed and wrote `artifacts/release-verification/latest/summary.json`.
+
+### Gaps Pending
+
+- No Docker/PostgreSQL blocker remains for the current release gate.
+- PR/Linear evidence still needs to reference the passing summary and live browser artifacts.
+
+### Next Items To Implement
+
+- Use `artifacts/release-verification/latest/summary.json` plus live browser artifacts as final AKS-5/AKS-10 evidence in PR/Linear cleanup.
