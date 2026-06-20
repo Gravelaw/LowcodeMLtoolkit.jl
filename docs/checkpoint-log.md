@@ -2784,6 +2784,28 @@ Each checkpoint entry must contain:
 
 ### Next Items To Implement
 
-- Run final control gates and diff check.
-- Open the AKS-25 PR and link it to Linear.
-- Start AKS-26 after AKS-25 merges.
+- Continue with AKS-26 EDA and ML diagnostic visualization.
+
+---
+
+## Checkpoint: AKS-26 EDA And ML Diagnostics Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Started `codex/aks-26-eda-ml-diagnostics` after AKS-25 merged to `main`.
+- Reworked Visualize into EDA, Dashboard, Model Diagnostics, and Experiment Compare modes.
+- Fed EDA from AKS-25 profile fields, quick plots, quality checks, target/readiness, missingness, outliers, and role metadata.
+- Preserved local dashboard checkpoint/export and artifact-backed dashboard row behavior.
+- Added ML diagnostic and experiment comparison views from existing ML experiment/model evidence.
+- Verified with focused frontend tests and production build.
+
+### Gaps Pending
+
+- AKS-26 PR, CI, merge, and Linear closure remain pending.
+- Persisted diagnostic artifact API can be added later only if backend-owned diagnostic storage becomes required.
+
+### Next Items To Implement
+
+- Run final gates and diff check.
+- Open and merge the AKS-26 PR after green CI.
+- Confirm Linear has no open LowCodeML backlog issues.

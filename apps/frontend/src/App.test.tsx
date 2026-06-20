@@ -148,6 +148,16 @@ describe("JuliaFlow local-only app redesign", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Visualize" }));
     expect(screen.getByRole("heading", { name: "Visualize" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "EDA" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("EDA Overview")).toBeInTheDocument();
+    expect(screen.getByText("Distribution And Target Checks")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Model Diagnostics" }));
+    expect(screen.getByText("ROC, Precision-Recall, And Calibration")).toBeInTheDocument();
+    expect(screen.getByText("Confusion Matrix And Thresholds")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Experiment Compare" }));
+    expect(screen.getByText("Experiment Comparison")).toBeInTheDocument();
+    expect(screen.getByText("Bias And Variance Review")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Dashboard" }));
     expect(screen.getByText("Local Save And Export Actions")).toBeInTheDocument();
     expect(screen.getByText("Artifact Rows")).toBeInTheDocument();
     expect(screen.getByText("C-1001")).toBeInTheDocument();
@@ -246,6 +256,7 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("Synthetic model registry detail displayed.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Visualize" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Dashboard" }));
     fireEvent.click(screen.getByRole("button", { name: /save local checkpoint/i }));
     expect(screen.getByText("Synthetic dashboard checkpoint export displayed.")).toBeInTheDocument();
 
@@ -501,6 +512,7 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("No backend ML experiment records are available for this workspace yet. Train a model after the local gateway is ready, then this screen will show algorithm settings, metrics, feature importance, hardware evidence, and reproducibility details.")).toBeInTheDocument();
     expect(screen.queryByText("experiment-local-churn-001")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Visualize" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Dashboard" }));
     expect(screen.getByText("No artifact-backed dashboard rows are available for this published dashboard. Run the workflow and publish a dashboard snapshot with persisted dataset rows.")).toBeInTheDocument();
     expect(screen.queryByText("C-1001")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Models" }));
