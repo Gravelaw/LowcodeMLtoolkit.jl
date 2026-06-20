@@ -43,8 +43,8 @@ Priority order:
 
 ## Current Repo Change Buckets
 
-- `apps/frontend/src/App.tsx`, `apps/frontend/src/styles.css`, and `apps/frontend/src/App.test.tsx`: local `+ New Project` dialog first slice. This addresses `UI-REVIEW-001` only; `UI-REVIEW-002` remains open because name, description, folder picking, validation, and real scaffolding are not implemented.
-- `apps/frontend/src/views/MlStudioView.tsx` and `apps/frontend/src/App.test.tsx`: local empty-state guard for missing ML experiment records. This addresses the immediate blank-screen failure in `UI-REVIEW-011`, but route-level error boundaries and full live-payload hardening remain open.
+- `apps/frontend/src/App.tsx`, `apps/frontend/src/components/Shell.tsx`, `apps/frontend/src/views/ExplorerView.tsx`, `apps/frontend/src/styles.css`, `apps/frontend/src/types.ts`, and `apps/frontend/src/App.test.tsx`: AKS-23 first implementation slice. This addresses `UI-REVIEW-001`, implements typed project name/description/folder path validation for `UI-REVIEW-002`, records scaffolded project artifacts in the Explorer project browser, and gives the Grid/Share/Help/Profile top-bar controls useful local-first dialogs for `UI-REVIEW-007`. Native folder picking and filesystem-backed scaffolding remain open.
+- `apps/frontend/src/views/MlStudioView.tsx` and `apps/frontend/src/App.test.tsx`: local empty-state and partial-metric guards for missing or incomplete ML experiment records. This addresses the immediate blank-screen failures found under `UI-REVIEW-011`, but route-level error boundaries and full live-payload hardening remain open.
 - `docs/manual-ui-review-backlog.md`: this manual-review backlog. Keep it as discovery/planning evidence until Linear tickets are created.
 - `apps/frontend/public/juliaflow-config.js`: temporary live browser testing override to point at `http://127.0.0.1:18088` and `local-appliance`. This should be reverted before a normal product PR unless we intentionally want to change the default shipped runtime from demo to local appliance.
 
@@ -52,27 +52,27 @@ Priority order:
 
 ### UI-REVIEW-001 - `+ New Project` Needs A Real Dialog
 
-- Status: implemented locally, not yet ticketed
+- Status: implemented locally, tracked by `AKS-23`
 - Module: global top bar / Explorer entry point
 - Annotated element: `+ New Project`
 - Page: `http://127.0.0.1:15173/`
 - Problem: clicking `+ New Project` only showed inline feedback and did not open a concrete project-creation surface.
 - Expected behavior: clicking `+ New Project` should open a dialog where the user can see where the project will be created and choose whether to proceed.
-- Notes: local implementation now adds a `Create New Project` dialog with project template, workspace, profile, metadata backend, workflow version, `Cancel`, and `Create Local Project` actions. Keep this item in the backlog until we decide whether to make/close a Linear ticket for the already-applied local fix.
+- Notes: local implementation now adds a `Create New Project` dialog with project template, workspace, profile, metadata backend, workflow version, `Cancel`, and `Create Local Project` actions. `AKS-23` carries the broader project-creation and shell-action follow-up.
 
 ### UI-REVIEW-002 - New Project Dialog Needs Project Name, Description, And Folder Path Inputs
 
-- Status: backlog
+- Status: partially implemented locally, tracked by `AKS-23`
 - Module: global top bar / New Project dialog
 - Annotated element: `Create New Project` dialog
 - Page: `http://127.0.0.1:15173/`
 - Problem: the dialog shows the current template/workspace metadata, but the user cannot enter a new project name, add a project description, or choose/specify where the project will be created.
 - Expected behavior: the dialog should let the user enter a project name, add a short project description, and specify the target folder path for the new local project.
-- Notes: folder path selection should be explicit and local-first. The eventual implementation should decide whether to support typed paths only, a native folder picker, recent locations, validation for invalid/unwritable paths, and collision handling when the target folder already exists.
+- Notes: local implementation now supports typed project name, required description, typed local folder path, reserved-character/path-traversal/collision validation, workflow rename, and in-memory scaffold artifact rows in Explorer. Native folder picking, filesystem-backed scaffold creation, writable-path checks, recent locations, and gateway persistence remain open.
 
 ### UI-REVIEW-003 - Explorer Hardware Metrics Must Poll Live Hardware State
 
-- Status: backlog
+- Status: partially implemented locally, tracked by `AKS-23`
 - Module: Explorer / Local Workspace Overview
 - Annotated element: CPU Usage, RAM Usage, and Disk Space metric cards
 - Page: `http://127.0.0.1:15173/`
@@ -124,6 +124,7 @@ Priority order:
   - `?`: should open contextual help for the current module, including what the screen shows, common actions, and links to local docs.
   - Avatar: should open a local profile/workspace menu with profile, auth mode, local home, settings shortcut, and possibly sign-out/lock actions if auth is enabled.
 - Notes: these actions should be tied to concrete local-first workflows and should avoid placeholder toasts. Consider grouping this into one Linear epic with separate child tickets per top-bar action if the scope grows.
+- Local implementation: Grid opens a module launcher, Share opens local export/share actions, Help opens workspace guidance with Settings shortcut, and the avatar opens local profile/runtime details. Deeper export execution, contextual per-module docs, and auth-aware profile actions remain open if `AKS-23` scope expands.
 
 ### UI-REVIEW-008 - Local Compute Settings Must Be Functional And Reflected In Workflows
 
@@ -178,7 +179,7 @@ Priority order:
 - Module: global route shell / ML Studio / all modules
 - Observed page: `http://127.0.0.1:15173/visualize`
 - Problem: while assessing the current app state, the browser showed a blank screen even though the frontend and gateway ports were still listening. The runtime error came from `MlStudioView` reading `experiment.modelKind` when live local-appliance data had no ML experiment records.
-- Immediate local fix: `ML Studio` now renders a `No ML Experiments Yet` empty state when the backend returns an empty experiment list, and the existing local-appliance empty-list regression test now covers this route.
+- Immediate local fix: `ML Studio` now renders a `No ML Experiments Yet` empty state when the backend returns an empty experiment list, displays `n/a` for missing optional metrics instead of crashing, and the existing local-appliance empty-list regression test now covers this route.
 - Expected behavior: every module should handle empty or incomplete live backend payloads with an actionable unavailable/empty state. A single module card or route should not be able to blank the whole shell.
 - Follow-up needed: add route-level error boundaries around module views, review all module views for first-item assumptions, and align unavailable-state copy with runtime mode so release/local-appliance modes show recovery guidance instead of demo fixture content.
 

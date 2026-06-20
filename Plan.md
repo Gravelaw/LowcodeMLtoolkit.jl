@@ -334,6 +334,12 @@ Verification evidence for this slice: `npm run smoke:live-backend-browser`, `npm
 
 Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run test`, `npm run build`, `npm run validate:contracts`, and `npm run smoke:live-backend-browser` with artifacts at `artifacts/release-verification/live-backend-browser`.
 
+## Latest Active Slice - 2026-06-20 AKS-23 Project Creation And Shell Actions
+
+**AKS-23 project creation and global shell actions are in progress.** The current frontend slice expands the New Project dialog from template confirmation into editable project name, description, and local folder path inputs with validation, updates the active workflow identity, records scaffolded project artifacts in Explorer, and gives Grid, Share, Help, and Profile top-bar controls concrete local-first dialogs. The slice also hardens ML Studio against incomplete live experiment metrics found during browser sanity.
+
+Verification evidence for this in-progress slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `git diff --check`, and a local Playwright/Edge sanity pass against `/`, `/ml-studio`, and `/visualize`. Full AKS-23 closure still needs native folder picking or filesystem-backed scaffold persistence if product review requires it.
+
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 
 **Backend-backed Data and Transform product actions are complete for the current local product-depth slice.** Gateway routes now support local data import/profile evidence and workflow transform run/history evidence backed by local appliance health, workflow nodes, execution state, and deterministic local artifact refs. Shared contracts/OpenAPI expose typed client methods, and the Data/Transform views call those actions while preserving demo fallback, runtime `juliaflow-config.js`, route compatibility, accessible selectors, and local-first behavior.

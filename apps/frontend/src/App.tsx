@@ -12,11 +12,12 @@ import {
   mlExperiments,
   modelRegistry,
   publishedDashboard,
+  projectFiles,
   transformRuns,
   visualizeExports,
   workflowSummary
 } from "./fixtures/local-fixtures";
-import type { ActionFeedback, AppData, AppView } from "./types";
+import type { ActionFeedback, AppData, AppView, LocalProjectArtifact } from "./types";
 import type {
   GatewayHealthcheck,
   GatewayRequestOptions,
@@ -168,7 +169,8 @@ function buildDemoData(runtimeMode: JuliaFlowRuntimeMode = "demo"): AppData {
     deployPackages,
     visualizeExports,
     checkpoints,
-    dashboard: publishedDashboard
+    dashboard: publishedDashboard,
+    projectFiles
   };
 }
 
@@ -279,6 +281,80 @@ function activeDashboardId(data: AppData): string {
   return data.dashboard.dashboardId || workflowDashboardId(data.workflow) || dashboardId;
 }
 
+type UtilityDialog = "grid" | "share" | "help" | "profile" | null;
+
+interface ProjectFormState {
+  name: string;
+  description: string;
+  folderPath: string;
+}
+
+const moduleLaunchItems: Array<{ id: AppView; label: string; summary: string }> = [
+  { id: "explorer", label: "Explorer", summary: "Project overview, local artifacts, and run controls" },
+  { id: "data", label: "Data", summary: "Import, profile, and local data estate evidence" },
+  { id: "transform", label: "Transform", summary: "Feature and transformation pipeline work" },
+  { id: "ml-studio", label: "ML Studio", summary: "Training, metrics, and model evidence" },
+  { id: "visualize", label: "Visualize", summary: "Dashboards, checkpoints, and visual evidence" },
+  { id: "settings", label: "Settings", summary: "Runtime, auth, and local appliance settings" }
+];
+
+const invalidProjectNamePattern = /[<>:"/\\|?*]/;
+
+function projectRoot(health: GatewayHealthcheck): string {
+  const localHome = String(health.localHome ?? "").trim();
+  return localHome ? `${localHome.replace(/[\\/]$/, "")}/Projects` : "~/JuliaFlowLocal/Projects";
+}
+
+function slugifyProjectName(name: string): string {
+  const slug = name
+    .trim()
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return slug || "Local_Project";
+}
+
+function projectPathFor(root: string, name: string): string {
+  const separator = root.includes("\\") && !root.includes("/") ? "\\" : "/";
+  return `${root.replace(/[\\/]+$/, "")}${separator}${slugifyProjectName(name)}`;
+}
+
+function isLocalPath(path: string): boolean {
+  return /^(~[\\/]|[A-Za-z]:[\\/]|\\\\|\/)/.test(path);
+}
+
+function normalizeProjectPath(path: string): string {
+  return path.trim().replace(/[\\/]+$/, "");
+}
+
+function validateProjectForm(form: ProjectFormState, data: AppData): string | null {
+  const name = form.name.trim();
+  const folderPath = normalizeProjectPath(form.folderPath);
+  if (name.length < 3) return "Project name must be at least 3 characters.";
+  if (invalidProjectNamePattern.test(name)) return "Project name cannot include path or reserved filename characters.";
+  if (!form.description.trim()) return "Project description is required.";
+  if (!folderPath) return "Folder path is required.";
+  if (!isLocalPath(folderPath)) return "Folder path must be an absolute local path or a home-relative path.";
+  if (/\.\.(?:[\\/]|$)/.test(folderPath)) return "Folder path cannot contain parent-directory traversal.";
+  const normalizedTarget = folderPath.replace(/\\/g, "/").toLowerCase();
+  const existingRoots = new Set((data.projectFiles ?? []).map((file) => String(file.path).split(/[\\/]/)[0].toLowerCase()));
+  const targetParts = normalizedTarget.split("/");
+  const targetFolderName = targetParts[targetParts.length - 1] ?? "";
+  if (existingRoots.has(slugifyProjectName(name).toLowerCase()) || existingRoots.has(targetFolderName)) {
+    return "A project with this folder name already exists in the local project browser.";
+  }
+  return null;
+}
+
+function scaffoldProjectFiles(form: ProjectFormState, workflowId: string): LocalProjectArtifact[] {
+  const root = slugifyProjectName(form.name);
+  return [
+    { path: `${root}/Project.toml`, size: "scaffold", status: "created" },
+    { path: `${root}/README.md`, size: "description", status: "created" },
+    { path: `${root}/workflows/${workflowId}.toml`, size: "template", status: "created" },
+    { path: `${root}/data/raw/.gitkeep`, size: "0 B", status: "ready" }
+  ];
+}
+
 function prependUnique<TItem>(
   items: TItem[],
   nextItem: TItem,
@@ -308,6 +384,7 @@ function App() {
   const fixtureSubstitutionAllowed = allowsFixtureSubstitution(runtimeMode);
   const [activeView, setActiveView] = useState<AppView>(() => getInitialView());
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+  const [utilityDialog, setUtilityDialog] = useState<UtilityDialog>(null);
   const [data, setData] = useState<AppData>(() =>
     fixtureSubstitutionAllowed
       ? buildDemoData(runtimeMode)
@@ -315,6 +392,12 @@ function App() {
           unavailableState("workflows", "Release mode is waiting for backend workflow metadata before rendering live workspace data.")
         ])
   );
+  const [projectForm, setProjectForm] = useState<ProjectFormState>(() => ({
+    name: workflowSummary.name,
+    description: "Creates a local workspace scaffold using the current appliance profile and sample workflow template.",
+    folderPath: projectPathFor(projectRoot(localHealth), workflowSummary.name)
+  }));
+  const [projectFormError, setProjectFormError] = useState("");
   const [feedback, setFeedback] = useState<Partial<Record<AppView, ActionFeedback>>>({});
 
   useEffect(() => {
@@ -396,7 +479,8 @@ function App() {
           deployPackages: packages.items.length > 0 || !fixtureSubstitutionAllowed ? packages.items : deployPackages,
           visualizeExports,
           checkpoints,
-          dashboard
+          dashboard,
+          projectFiles
         });
       } catch (error) {
         if (!abort.signal.aborted) {
@@ -429,10 +513,50 @@ function App() {
     setFeedback((current) => ({ ...current, [view]: { label, tone } }));
   }
 
+  function openProjectDialog() {
+    setProjectForm({
+      name: data.workflowSummary.name,
+      description: "Creates a local workspace scaffold using the current appliance profile and sample workflow template.",
+      folderPath: projectPathFor(projectRoot(data.health), data.workflowSummary.name)
+    });
+    setProjectFormError("");
+    setProjectDialogOpen(true);
+  }
+
   function createLocalProject() {
+    const validationError = validateProjectForm(projectForm, data);
+    if (validationError) {
+      setProjectFormError(validationError);
+      return;
+    }
+    const name = projectForm.name.trim();
+    const projectSlug = slugifyProjectName(name);
+    const workflowId = `wf-${projectSlug.toLowerCase().replace(/_/g, "-")}`;
+    const targetPath = normalizeProjectPath(projectForm.folderPath);
+    const createdFiles = scaffoldProjectFiles(projectForm, workflowId);
+    setData((current) => ({
+      ...current,
+      workflow: {
+        ...current.workflow,
+        workflowId,
+        name
+      },
+      workflowSummary: {
+        ...current.workflowSummary,
+        workflowId,
+        name,
+        version: "0.1.0"
+      },
+      projectFiles: [...createdFiles, ...(current.projectFiles ?? [])]
+    }));
     setProjectDialogOpen(false);
     navigate("explorer");
-    setViewFeedback("explorer", "Local project scaffold is ready in the configured workspace.", "success");
+    setViewFeedback("explorer", `Local project scaffold created at ${targetPath}.`, "success");
+  }
+
+  function setUtilityFeedback(label: string, tone: ActionFeedback["tone"] = "success") {
+    setUtilityDialog(null);
+    setViewFeedback(activeView, label, tone);
   }
 
   async function withGatewayFallback<T>(
@@ -624,7 +748,15 @@ function App() {
   })();
 
   return (
-    <Shell activeView={activeView} onNavigate={navigate} onPrimaryAction={() => setProjectDialogOpen(true)}>
+    <Shell
+      activeView={activeView}
+      onNavigate={navigate}
+      onPrimaryAction={openProjectDialog}
+      onGridAction={() => setUtilityDialog("grid")}
+      onShareAction={() => setUtilityDialog("share")}
+      onHelpAction={() => setUtilityDialog("help")}
+      onProfileAction={() => setUtilityDialog("profile")}
+    >
       {data.mode === "fallback" ? (
         <p className="feedback info">Gateway unavailable. Running deterministic local demo fallback.</p>
       ) : null}
@@ -653,6 +785,35 @@ function App() {
               <span>{data.workflowSummary.workflowId}</span>
               <p>Creates a local workspace scaffold using the current appliance profile and sample workflow template.</p>
             </div>
+            <div className="form-grid">
+              <label>
+                <span>Project name</span>
+                <input
+                  value={projectForm.name}
+                  onChange={(event) => setProjectForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                    folderPath: projectPathFor(projectRoot(data.health), event.target.value)
+                  }))}
+                />
+              </label>
+              <label>
+                <span>Description</span>
+                <textarea
+                  value={projectForm.description}
+                  rows={3}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, description: event.target.value }))}
+                />
+              </label>
+              <label>
+                <span>Folder path</span>
+                <input
+                  value={projectForm.folderPath}
+                  onChange={(event) => setProjectForm((current) => ({ ...current, folderPath: event.target.value }))}
+                />
+              </label>
+            </div>
+            {projectFormError ? <p className="feedback error">{projectFormError}</p> : null}
             <div className="key-values">
               <span>Workspace</span><strong>{data.health.localHome ?? "Configured local home"}</strong>
               <span>Profile</span><strong>{data.health.localProfile ?? data.runtimeMode}</strong>
@@ -663,6 +824,77 @@ function App() {
               <button type="button" className="jf-button secondary" onClick={() => setProjectDialogOpen(false)}>Cancel</button>
               <button type="button" className="jf-button primary" onClick={createLocalProject}>Create Local Project</button>
             </div>
+          </section>
+        </div>
+      ) : null}
+      {utilityDialog ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="project-dialog utility-dialog" role="dialog" aria-modal="true" aria-labelledby="utility-dialog-title">
+            <div className="project-dialog-head">
+              <div>
+                <p className="jf-eyebrow">Local workspace</p>
+                <h2 id="utility-dialog-title">
+                  {utilityDialog === "grid" ? "Module Launcher" : utilityDialog === "share" ? "Local Export And Share" : utilityDialog === "help" ? "Workspace Help" : "Local Profile"}
+                </h2>
+              </div>
+              <button type="button" className="icon-button" aria-label="Close utility dialog" onClick={() => setUtilityDialog(null)}>
+                x
+              </button>
+            </div>
+            {utilityDialog === "grid" ? (
+              <div className="module-grid">
+                {moduleLaunchItems.map((item) => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={activeView === item.id ? "module-tile active" : "module-tile"}
+                    onClick={() => {
+                      setUtilityDialog(null);
+                      navigate(item.id);
+                    }}
+                  >
+                    <strong>{item.label}</strong>
+                    <span>{item.summary}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {utilityDialog === "share" ? (
+              <div className="utility-stack">
+                <div className="key-values">
+                  <span>Project bundle</span><strong>{slugifyProjectName(data.workflowSummary.name)}.juliaflow-bundle.json</strong>
+                  <span>Local path</span><strong>{projectRoot(data.health)}</strong>
+                  <span>Mode</span><strong>{data.runtimeMode}</strong>
+                </div>
+                <div className="dialog-actions">
+                  <button type="button" className="jf-button secondary" onClick={() => setUtilityFeedback("Local project path is ready to copy from the share panel.", "info")}>Copy Path</button>
+                  <button type="button" className="jf-button primary" onClick={() => setUtilityFeedback("Local reproducibility bundle export queued for this workspace.")}>Prepare Bundle</button>
+                </div>
+              </div>
+            ) : null}
+            {utilityDialog === "help" ? (
+              <div className="utility-stack">
+                <p className="empty-state">This local workspace runs without cloud sync. Use Explorer to save or run the workflow, Data to inspect local datasets, ML Studio for training, and Visualize for checkpointed dashboard evidence.</p>
+                <div className="dialog-actions">
+                  <button type="button" className="jf-button secondary" onClick={() => { setUtilityDialog(null); navigate("settings"); }}>Open Settings</button>
+                  <button type="button" className="jf-button primary" onClick={() => setUtilityDialog(null)}>Done</button>
+                </div>
+              </div>
+            ) : null}
+            {utilityDialog === "profile" ? (
+              <div className="utility-stack">
+                <div className="key-values">
+                  <span>Initials</span><strong>AJ</strong>
+                  <span>Profile</span><strong>{data.health.localProfile ?? "single-user"}</strong>
+                  <span>Auth</span><strong>{data.health.authMode ?? "disabled"}</strong>
+                  <span>Home</span><strong>{data.health.localHome}</strong>
+                </div>
+                <div className="dialog-actions">
+                  <button type="button" className="jf-button secondary" onClick={() => { setUtilityDialog(null); navigate("settings"); }}>Profile Settings</button>
+                  <button type="button" className="jf-button primary" onClick={() => setUtilityDialog(null)}>Done</button>
+                </div>
+              </div>
+            ) : null}
           </section>
         </div>
       ) : null}
