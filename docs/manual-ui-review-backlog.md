@@ -171,7 +171,7 @@ Priority order:
 - Candidate Kaggle test datasets:
   - `barun2104/telecom-churn` (`telecom_churn.csv`, about 129 KB): small binary classification dataset for import, profiling, target selection, feature typing, transform, ML training, model evidence, and dashboard checks.
   - `abbas829/global-superstore-sales-dataset` (`Global Superstore.csv`, about 12.4 MB): transactional sales dataset for larger CSV import, DuckDB querying, date/category/numeric profiling, aggregations, visualization, export, and performance checks.
-- Notes: AKS-25 implementation now uses deterministic telecom churn and Global Superstore fixture metadata instead of committing large raw Kaggle downloads. Current branch adds contract/gateway/frontend evidence for active dataset, read mode, local artifacts, backend semantics, quality checks, feature roles, and next actions; final status remains pending PR review/merge.
+- Notes: AKS-25 / PR #33 now uses deterministic telecom churn and Global Superstore fixture metadata instead of committing large raw Kaggle downloads. The merged slice adds contract/gateway/frontend evidence for active dataset, read mode, local artifacts, backend semantics, quality checks, feature roles, and next actions.
 
 ### UI-REVIEW-011 - Module Routes Need Empty Live States And Route-Level Crash Containment
 
@@ -185,7 +185,7 @@ Priority order:
 
 ### UI-REVIEW-012 - Visualize Must Support EDA And ML Diagnostic Workflows, Not Just Dashboard Snapshots
 
-- Status: in progress on `AKS-26`
+- Status: closed by `AKS-26` / PR #34
 - Module: Visualize / Data / ML Studio
 - Annotated element: full `Visualize` page
 - Page: `http://127.0.0.1:15173/visualize`
@@ -207,7 +207,7 @@ Priority order:
   - Data should feed EDA directly after import/profile, and ML Studio should feed diagnostics after training.
   - Dashboard export should remain, but it should be only one workflow, not the whole visualization story.
 - Verification needed: inspect current gateway/contracts for available profile, experiment, metric, and dashboard payloads. Add or extend contracts only if existing payloads cannot represent EDA chart specs and ML diagnostic artifacts.
-- Notes: AKS-26 branch now turns Visualize into a multi-mode EDA, dashboard, diagnostics, and experiment comparison workspace fed by AKS-25 data profiles and ML experiment evidence. Final status remains pending PR review/merge.
+- Notes: AKS-26 / PR #34 turns Visualize into a multi-mode EDA, dashboard, diagnostics, and experiment comparison workspace fed by AKS-25 data profiles and ML experiment evidence. PR #34 passed `web` and `julia` CI and merged as `2827ff0`.
 
 ## Pending Annotations
 
