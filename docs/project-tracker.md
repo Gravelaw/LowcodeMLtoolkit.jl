@@ -2551,7 +2551,7 @@ After any meaningful job:
 
 ### Next Items To Implement
 
-- Continue with AKS-26 EDA and ML diagnostic visualization.
+- Close AKS-26 in Linear and confirm no open LowCodeML backlog issues remain.
 
 ---
 
@@ -2565,15 +2565,16 @@ After any meaningful job:
 - Preserved dashboard rows, chart properties, checkpoint/export actions, and no-artifact dashboard empty states.
 - Added model diagnostic surfaces for ROC/PR/calibration, confusion matrix, threshold review, and feature importance from ML experiment evidence.
 - Added experiment comparison for model, dataset, hardware, AUC/F1, learning curve, residual/error distribution, and drift/model registry linkage.
-- Verified the slice so far with focused frontend tests and production build.
+- Added EDA correlation, outlier, and segment-slice review surfaces.
+- Merged PR #34 as `2827ff0` after green `web` and `julia` CI.
+- Verified the slice with focused frontend tests, production build, control-doc sync, BRD traceability, and diff check.
 
 ### Gaps Pending
 
-- Final control gates, PR, CI, merge, and Linear closure remain pending.
+- Linear AKS-26 closure remains pending until this final control-doc closure update lands.
 - Deeper persisted diagnostic artifact contracts can follow only if later backend requirements need diagnostics stored independently of existing profile/experiment/dashboard evidence.
 
 ### Next Items To Implement
 
-- Run final gates and diff check.
-- Open and merge the AKS-26 PR after green CI.
+- Merge this closure-doc update.
 - Move AKS-26 to Done and confirm no open LowCodeML backlog issues remain.

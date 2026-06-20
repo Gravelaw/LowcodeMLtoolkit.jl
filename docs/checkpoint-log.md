@@ -2779,12 +2779,11 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-25 PR, CI, merge, and Linear closure remain pending.
 - Full external Kaggle download/import UX remains future depth; this slice uses committed deterministic fixture metadata.
 
 ### Next Items To Implement
 
-- Continue with AKS-26 EDA and ML diagnostic visualization.
+- AKS-26 EDA and ML diagnostic visualization is the follow-on closure slice.
 
 ---
 
@@ -2797,15 +2796,16 @@ Each checkpoint entry must contain:
 - Fed EDA from AKS-25 profile fields, quick plots, quality checks, target/readiness, missingness, outliers, and role metadata.
 - Preserved local dashboard checkpoint/export and artifact-backed dashboard row behavior.
 - Added ML diagnostic and experiment comparison views from existing ML experiment/model evidence.
-- Verified with focused frontend tests and production build.
+- Added EDA correlation, outlier, and segment-slice review surfaces.
+- Merged PR #34 as `2827ff0` after green `web` and `julia` CI.
+- Verified with focused frontend tests, production build, control-doc sync, BRD traceability, and diff check.
 
 ### Gaps Pending
 
-- AKS-26 PR, CI, merge, and Linear closure remain pending.
+- Linear AKS-26 closure remains pending until this final control-doc closure update lands.
 - Persisted diagnostic artifact API can be added later only if backend-owned diagnostic storage becomes required.
 
 ### Next Items To Implement
 
-- Run final gates and diff check.
-- Open and merge the AKS-26 PR after green CI.
+- Merge this closure-doc update.
 - Confirm Linear has no open LowCodeML backlog issues.

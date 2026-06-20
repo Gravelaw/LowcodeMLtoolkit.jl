@@ -346,29 +346,29 @@ Verification evidence for this slice: `npm --workspace @juliaflow/frontend run t
 
 Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, `git diff --check`, and local Playwright/Edge browser sanity on `/`, `/ml-studio`, `/models`, `/deploy`, and `/visualize`.
 
-## Latest Active Slice - 2026-06-20 AKS-24 Explorer System Health And Artifacts
+## Completed Slice - 2026-06-20 AKS-24 Explorer System Health And Artifacts
 
-**AKS-24 first slice is in progress for Explorer live health and artifact UX.** Explorer now uses the existing gateway `/health` contract for a promoted System Health area, polls gateway-backed health every 5 seconds, keeps deterministic fixture health in demo mode, and marks health stale without discarding the last known values when polling fails. The duplicate static CPU/RAM/Disk placards are removed, the generic privacy/security card is replaced by project-specific local trust boundary evidence, the Local Project Browser is grouped into a hierarchical artifact view with path-copy actions, and Local Compute is explicitly read-only runtime-health evidence with a Settings link.
+**AKS-24 first slice is merged for Explorer live health and artifact UX.** Explorer now uses the existing gateway `/health` contract for a promoted System Health area, polls gateway-backed health every 5 seconds, keeps deterministic fixture health in demo mode, and marks health stale without discarding the last known values when polling fails. The duplicate static CPU/RAM/Disk placards are removed, the generic privacy/security card is replaced by project-specific local trust boundary evidence, the Local Project Browser is grouped into a hierarchical artifact view with path-copy actions, and Local Compute is explicitly read-only runtime-health evidence with a Settings link.
 
-Verification evidence for this slice so far: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, browser sanity on `/`, `/settings`, and `/data`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`. AKS-24 remains open because functional compute settings persistence, runtime propagation, and execution evidence are planned as the second AKS-24 PR.
+Verification evidence for this slice: PR #30 GitHub checks, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, browser sanity on `/`, `/settings`, and `/data`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`. AKS-24 later closed fully with the compute settings runtime slice.
 
-## Latest Active Slice - 2026-06-20 AKS-24 Compute Settings Runtime
+## Completed Slice - 2026-06-20 AKS-24 Compute Settings Runtime
 
 **AKS-24 second slice is merged.** The gateway now exposes contract-first compute settings through `GET/PUT /api/v1/settings/compute`, persists settings under the local metadata root, reflects applied settings in `healthcheck`, and attaches `computeSettingsApplied` plus dispatch policy evidence to workflow executions without overwriting GPU/stream dispatch metadata. Settings now lets users edit backend, CPU worker concurrency, memory limit, GPU preference, and BLAS thread count, then saves those settings through the gateway or stages them locally in demo mode.
 
 Verification evidence for this slice: PR #32 GitHub `web` and `julia` checks, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run validate:contracts`, `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`, and `npm run build`. The direct `julia --project=. tests/julia/runtests.jl` command is still blocked by Windows application-control policy against the user-global compiled cache, so repo-local Julia verification uses the project wrapper.
 
-## Latest Active Slice - 2026-06-20 AKS-25 Data Estate Workflow
+## Completed Slice - 2026-06-20 AKS-25 Data Estate Workflow
 
 **AKS-25 is merged.** The Data import/profile contract now carries active read-mode, source options, artifact lineage, quality checks, field roles, workflow readiness, quick EDA plots, and preview rows. The gateway local-data import/profile response returns deterministic telecom churn and Global Superstore fixture evidence with CSV, Arrow IPC, Parquet, and DuckDB semantics. The Data route now supports dataset switching, read-mode switching, profile refresh, lineage, quality/readiness, and quick EDA evidence instead of static source cards.
 
 Verification evidence: PR #33 GitHub `web` and `julia` checks, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run validate:contracts`, `npm run build`, and `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`.
 
-## Latest Active Slice - 2026-06-20 AKS-26 EDA And ML Diagnostics
+## Latest Closed Slice - 2026-06-20 AKS-26 EDA And ML Diagnostics
 
-**AKS-26 is in progress on `codex/aks-26-eda-ml-diagnostics`.** Visualize now starts as a multi-mode workspace with EDA, Dashboard, Model Diagnostics, and Experiment Compare tabs. EDA consumes AKS-25 data profile fields, quality checks, target/readiness, and quick plots; dashboard checkpoint/export remains available; diagnostics show ROC/PR/calibration, confusion matrix, threshold, and feature-importance surfaces from ML experiment evidence; experiment comparison summarizes model, dataset, hardware, AUC/F1, learning-curve, residual, and drift-link views.
+**AKS-26 is closed by PR #34 (`2827ff0`).** Visualize now starts as a multi-mode workspace with EDA, Dashboard, Model Diagnostics, and Experiment Compare tabs. EDA consumes AKS-25 data profile fields, quality checks, target/readiness, quick plots, correlation/outlier review, and segment slices; dashboard checkpoint/export remains available; diagnostics show ROC/PR/calibration, confusion matrix, threshold, and feature-importance surfaces from ML experiment evidence; experiment comparison summarizes model, dataset, hardware, AUC/F1, learning-curve, residual, and drift-link views.
 
-Verification evidence so far: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx` and `npm run build`. AKS-26 remains open until final gates, PR review/CI/merge, and Linear closure complete.
+Verification evidence: PR #34 `web` and `julia` checks passed; local gates passed with `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`. Linear AKS-26 is ready for Done closure after this control-doc closure update.
 
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 
