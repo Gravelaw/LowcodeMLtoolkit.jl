@@ -76,8 +76,13 @@ export function TransformView({
   const [selectedNodeId, setSelectedNodeId] = useState(data.workflow.nodes.find((node) => node.id === "features")?.id ?? data.workflow.nodes[0]?.id ?? "");
   const [query, setQuery] = useState("");
   const [validationStatus, setValidationStatus] = useState<"valid" | "warning">("valid");
+  const [nodeConfigs, setNodeConfigs] = useState<Record<string, { strategy: string; output: string }>>({});
   const latest = data.transformRuns[0];
   const selectedNode = data.workflow.nodes.find((node) => node.id === selectedNodeId) ?? data.workflow.nodes[0];
+  const selectedConfig = nodeConfigs[selectedNodeId] ?? {
+    strategy: String(selectedNode?.config?.strategy ?? "median"),
+    output: String(selectedNode?.config?.output ?? "features")
+  };
   const beforeRows = data.dataProfile.previewRows ?? [];
   const afterRows = afterPreviewRows(beforeRows);
   const filteredPalette = paletteGroups.map((group) => ({
@@ -88,6 +93,27 @@ export function TransformView({
   function onConnect(connection: Connection) {
     setEdges((current) => addEdge({ ...connection, animated: true }, current));
     setValidationStatus("warning");
+  }
+
+  function updateSelectedConfig(nextConfig: Partial<{ strategy: string; output: string }>) {
+    setNodeConfigs((current) => ({
+      ...current,
+      [selectedNodeId]: {
+        ...selectedConfig,
+        ...nextConfig
+      }
+    }));
+    setValidationStatus("warning");
+  }
+
+  function validatePipeline() {
+    const hasDisconnectedEdit = nodes.length > 1 && edges.length === 0;
+    setValidationStatus(hasDisconnectedEdit ? "warning" : "valid");
+  }
+
+  function runPipeline() {
+    validatePipeline();
+    onRun();
   }
 
   function addPaletteNode(label: string, group: string) {
@@ -120,10 +146,10 @@ export function TransformView({
           <p>Customer 360 Prep Pipeline. Build and run local feature pipelines with lineage, preview tables, and generated Julia transforms.</p>
         </div>
         <div className="button-row">
-          <button type="button" className="jf-button secondary" onClick={() => setValidationStatus(nodes.length > 0 ? "valid" : "warning")}>
+          <button type="button" className="jf-button secondary" onClick={validatePipeline}>
             Validate
           </button>
-          <button type="button" className="jf-button primary" onClick={onRun}>Run Transform</button>
+          <button type="button" className="jf-button primary" onClick={runPipeline}>Run Transform</button>
         </div>
       </section>
       {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
@@ -174,7 +200,23 @@ export function TransformView({
           <span>Node</span><strong>{selectedNode?.name ?? selectedNodeId}</strong>
           <span>Type</span><strong>{selectedNode?.type ?? "custom.palette_node"}</strong>
           <span>Execution</span><strong>{selectedNode?.executionHint ?? "cpu_only"}</strong>
-          <span>Config</span><strong>{JSON.stringify(selectedNode?.config ?? { strategy: "median", output: "features" })}</strong>
+          <span>Strategy</span><strong>{selectedConfig.strategy}</strong>
+          <span>Output</span><strong>{selectedConfig.output}</strong>
+        </div>
+        <div className="control-panel-grid">
+          <label>
+            <span>Strategy</span>
+            <select value={selectedConfig.strategy} onChange={(event) => updateSelectedConfig({ strategy: event.target.value })}>
+              <option value="median">Median</option>
+              <option value="mode">Mode</option>
+              <option value="one_hot">One hot</option>
+              <option value="standardize">Standardize</option>
+            </select>
+          </label>
+          <label>
+            <span>Output column prefix</span>
+            <input value={selectedConfig.output} onChange={(event) => updateSelectedConfig({ output: event.target.value })} />
+          </label>
         </div>
       </Card>
 
@@ -183,7 +225,7 @@ export function TransformView({
           <div>
             <StatusPill tone={validationStatus === "valid" ? "green" : "orange"}>{validationStatus}</StatusPill>
             <strong>{validationStatus === "valid" ? "Pipeline is locally valid" : "Unsaved canvas edits detected"}</strong>
-            <span>{latest?.validation?.messages.join(" ") ?? "Validate before run to persist the canvas configuration."}</span>
+            <span>{validationStatus === "valid" ? latest?.validation?.messages.join(" ") ?? "Pipeline canvas is connected." : "Validate before run to persist the canvas configuration."}</span>
           </div>
           <div>
             <StatusPill tone={latest?.status === "completed" ? "green" : "orange"}>{latest?.status ?? "not run"}</StatusPill>
@@ -264,6 +306,7 @@ export function TransformView({
       <Card title="Logs" className="wide">
         <CodeBlock label="transform.log">{`[info] selected node: ${selectedNode?.id ?? selectedNodeId}
 [info] validation: ${validationStatus}
+[info] selected config: ${JSON.stringify(selectedConfig)}
 [info] latest run status: ${latest?.status ?? "not-run"}
 [info] output: data/features/churn_features.parquet`}</CodeBlock>
       </Card>

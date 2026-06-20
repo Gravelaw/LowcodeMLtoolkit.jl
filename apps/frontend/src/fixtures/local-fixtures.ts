@@ -51,7 +51,9 @@ function plotlyChartSpec({
   data,
   summary,
   sourceLabel,
-  height = 240
+  height = 240,
+  status,
+  staleReason
 }: {
   chartId: string;
   title: string;
@@ -60,13 +62,15 @@ function plotlyChartSpec({
   summary: string;
   sourceLabel: string;
   height?: number;
+  status?: GatewayInteractiveChartSpec["status"];
+  staleReason?: string;
 }): GatewayInteractiveChartSpec {
   return {
     chartId,
     title,
     renderer: "plotly",
     kind,
-    status: "ready",
+    status: status ?? "ready",
     data,
     layout: {
       height,
@@ -80,6 +84,7 @@ function plotlyChartSpec({
     config: { displaylogo: false, responsive: true },
     source: { label: sourceLabel, localOnly: true, updatedAt: chartTimestamp },
     summary,
+    staleReason,
     export: { fileName: chartId, png: true, html: true }
   };
 }
@@ -107,6 +112,8 @@ const workspaceCharts: GatewayInteractiveChartSpec[] = [
     kind: "line",
     sourceLabel: "Fixture data estate",
     summary: "Disk usage trend generated from managed local data estate evidence.",
+    status: "stale",
+    staleReason: "Disk evidence is older than the latest workspace health poll.",
     data: [{ type: "scatter", mode: "lines+markers", x: ["-25m", "-20m", "-15m", "-10m", "-5m", "now"], y: [36, 37, 38, 39, 40, 41], line: { color: "#2563eb", width: 3 } }]
   })
 ];

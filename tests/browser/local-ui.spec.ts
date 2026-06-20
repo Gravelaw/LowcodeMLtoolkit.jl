@@ -116,6 +116,7 @@ test("Explorer Data Transform mock parity screenshots and interactions", async (
 
   await expect(page.getByRole("heading", { name: "Local Workspace Overview" })).toBeVisible();
   await expect(page.locator('[data-chart-id="workspace-cpu-trend"] .svg-container')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Stale local evidence")).toBeVisible();
   await page.screenshot({ path: join(screenshotDir, "explorer.png"), fullPage: true });
 
   await page.getByRole("button", { name: "Data" }).click();
@@ -126,6 +127,10 @@ test("Explorer Data Transform mock parity screenshots and interactions", async (
   await page.getByRole("button", { name: "table" }).click();
   await expect(page.getByText("C-1001")).toBeVisible();
   await expect(page.getByText("C-1002")).not.toBeVisible();
+  await page.getByRole("button", { name: "sampling" }).click();
+  await page.getByLabel("Preview sample").selectOption("2");
+  await page.getByRole("button", { name: "table" }).click();
+  await expect(page.getByText("C-1003")).not.toBeVisible();
   await page.screenshot({ path: join(screenshotDir, "data.png"), fullPage: true });
 
   await page.getByRole("button", { name: "Transform", exact: true }).click();
@@ -134,6 +139,10 @@ test("Explorer Data Transform mock parity screenshots and interactions", async (
   await page.getByText("Feature Engineering").first().click();
   const transformSettings = page.locator(".right-panel").filter({ hasText: "Transform Settings" });
   await expect(transformSettings.getByText("transform.feature_engineer")).toBeVisible();
+  await transformSettings.getByLabel("Output column prefix").fill("encoded_features");
+  await expect(page.getByText("Unsaved canvas edits detected")).toBeVisible();
+  await page.getByRole("button", { name: "Validate" }).click();
+  await expect(page.getByText("Pipeline is locally valid")).toBeVisible();
   await page.screenshot({ path: join(screenshotDir, "transform.png"), fullPage: true });
 });
 

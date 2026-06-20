@@ -158,8 +158,11 @@ export function ExplorerView({
       </Card>
 
       <Card title="Local Project Browser" eyebrow={workspaceSummary?.projectRoot ?? health.dataEstateRoot}>
+        <p className="workspace-state-line">
+          Source: <strong>{workspaceSummary ? "gateway workspace summary" : "local fixture fallback"}</strong> | Artifacts: <strong>{artifacts.length}</strong>
+        </p>
         <div className="artifact-tree" aria-label="Local project artifact hierarchy">
-          {artifactGroups.map((group) => (
+          {artifactGroups.length > 0 ? artifactGroups.map((group) => (
             <section key={group.folder} className="artifact-group">
               <div className="artifact-folder">
                 <strong>{group.folder}</strong>
@@ -174,7 +177,7 @@ export function ExplorerView({
                         <strong>{name}</strong>
                         <span>{artifact.path}</span>
                       </div>
-                      <small>{artifactKind(artifact.path, artifact.kind)} / {artifact.size}</small>
+                      <small>{artifactKind(artifact.path, artifact.kind)} / {artifact.size} / {artifact.localOnly === false ? "external" : "local"}</small>
                       <StatusPill tone="green">{artifact.status}</StatusPill>
                       <button type="button" className="jf-button ghost" onClick={() => onCopyArtifactPath(artifact.path)}>Copy Path</button>
                       <button type="button" className="jf-button ghost" disabled title="Native reveal requires desktop shell integration.">
@@ -185,7 +188,7 @@ export function ExplorerView({
                 })}
               </ul>
             </section>
-          ))}
+          )) : <p className="empty-state">No local project artifacts were returned by the gateway. Save or run the workflow to materialize local evidence.</p>}
         </div>
       </Card>
 

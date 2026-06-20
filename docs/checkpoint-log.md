@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-29 Through AKS-35 Parity Hardening - 2026-06-20
+
+### Work Done Till Date
+
+- Merged PR #37 and started the AKS-29 through AKS-35 follow-up branch from updated `main`.
+- Added `docs/aks-30-35-implementation-plan.md` with per-task plans for AKS-30, AKS-31, AKS-32, AKS-33, AKS-34, and AKS-35.
+- Added shared chart readiness/export utilities and updated the Plotly renderer for ready/stale/empty/error states.
+- Added stale chart fixture evidence and coverage.
+- Hardened Explorer with workspace source state, artifact count/locality, and no-artifact empty state.
+- Hardened Data with active source state, disabled-source reasons, sample-size preview mutation, and readiness text wrapping evidence.
+- Hardened Transform with editable node strategy/output settings, unsaved-edit warning state, validation recovery, and config logging.
+- Added focused unit and browser coverage for chart readiness, stale chart evidence, Data sampling, and Transform config validation.
+
+### Gaps Pending
+
+- Real Data connector handlers for SQLite/PostgreSQL/MySQL/USB/drop remain future gateway work.
+- Persisted Transform pipeline editing beyond local UI state remains future contract/gateway work.
+- Final live-backend smoke, control-doc validators, PR publication, and Linear updates remain pending.
+
+### Next Items To Implement
+
+- Run the final verification set, including live-backend smoke and control-doc validators.
+- Push the branch, open a draft PR, update Linear AKS-28 through AKS-35, and link the PR evidence.
+
 ## Checkpoint: `cp/02-alpha-core` Explorer/Data/Transform Mock Parity - 2026-06-20
 
 ### Work Done Till Date

@@ -36,6 +36,7 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 - AKS-5 Stage 5 release verification is complete for the current release-readiness closure path: `npm run verify:release` provides one release gate with deterministic artifacts and failure classification, full no-skip release verification passes with evidence at `artifacts/release-verification/latest/summary.json`, and `npm run smoke:live-backend-browser` passes against a local gateway/frontend in `local-appliance` mode.
 - AKS-13 live workflow metadata recovery is complete for the current frontend slice: release/local-appliance mode treats incomplete workflow metadata as an explicit unavailable/recovery state instead of rendering fixture canvas nodes, while demo/development fallback behavior remains preserved.
 - Explorer/Data/Transform mock-parity and interactive local analytics are implemented for the current product-depth slice: Julia/gateway responses now expose Plotly-compatible local chart specs, Explorer uses gateway-backed workspace summaries and artifact evidence, Data has functional local source/read/filter/sort/profile/lineage states, and Transform uses React Flow for an editable node canvas with settings, validation, history, Julia code, logs, before/after preview, and Plotly metric evidence.
+- AKS-29 through AKS-35 follow-up hardening is implemented for the current branch: each task has a recorded plan, shared chart readiness is factored into a reusable utility, Explorer exposes workspace/artifact source state, Data source/sampling/readiness behavior is visible and wrapped, Transform node settings are editable with validation evidence, and browser coverage exercises chart stale state, Data sampling, and Transform config validation.
 
 ## Active Development Order
 
@@ -341,6 +342,12 @@ Verification evidence for this slice: `npm --workspace @juliaflow/frontend run t
 **Explorer/Data/Transform mock-parity and interactive local analytics** are complete for this focused product-depth slice. Contracts now include local interactive Plotly chart specs, Julia/gateway responses attach workspace, data-profile, and transform-run chart evidence, Explorer renders gateway-backed workspace summaries and artifact trees, Data exposes functional local sources, tabs, filter/sort/read-mode/profile/lineage state, and Transform uses React Flow for node-edge editing with settings, validation, run/history, before/after preview, generated Julia code, logs, artifact output, and local metric charts. Linear tracks the follow-up backlog under AKS-28 with child issues AKS-29 through AKS-35.
 
 Verification evidence for this slice: `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`, `npm run test:browser -- tests/browser/local-ui.spec.ts`, `npm run smoke:live-backend-browser`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
+
+## Latest Completed Slice - 2026-06-20 AKS-29 Through AKS-35 Parity Hardening
+
+**AKS-29 through AKS-35 parity hardening** is complete for this branch. `docs/aks-30-35-implementation-plan.md` records the per-task plan for AKS-30 through AKS-35 before closure. The implementation factors chart readiness/export behavior into a shared utility, adds stale chart evidence handling, exposes Explorer workspace/artifact source state and empty artifact behavior, makes Data active source and sampling state visible, keeps unsupported sources disabled with reasons, preserves wrapped ML Readiness text, and makes Transform node strategy/output settings editable with validation/log evidence.
+
+Verification evidence for this slice: `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `npm run test:browser -- tests/browser/local-ui.spec.ts`, `npm run smoke:live-backend-browser`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
 
 ## Latest Completed Slice - 2026-06-20 AKS-23 Project Creation And Shell Actions
 

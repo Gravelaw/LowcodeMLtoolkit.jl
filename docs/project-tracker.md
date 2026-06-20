@@ -21,6 +21,28 @@ Tracker always records 3 things:
 - Last updated: `2026-06-20`
 
 ## Work Done Till Date
+### AKS-29 Through AKS-35 Parity Hardening (2026-06-20)
+
+- Merged PR #37 into `main` and started the follow-up branch from the updated baseline.
+- Recorded per-task plans for AKS-30 through AKS-35 in `docs/aks-30-35-implementation-plan.md` before closing implementation evidence.
+- Implemented AKS-29 chart foundation hardening with shared chart readiness/export helpers for ready, stale, empty, and error specs.
+- Implemented AKS-30 Explorer hardening with workspace summary source evidence, artifact count, artifact locality, and no-artifact empty state.
+- Implemented AKS-31 and AKS-35 Data hardening with active source state, disabled-source reasons, sample-size preview mutation, and wrapped readiness text.
+- Implemented AKS-32 Transform hardening with editable node strategy/output settings, unsaved-edit warning state, validation recovery, and config evidence in logs.
+- Implemented AKS-34 browser coverage for stale chart evidence, Data sampling, Transform config editing, validation state, and desktop/mobile screenshots.
+- Verification passed so far: `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `npm run test:browser -- tests/browser/local-ui.spec.ts`, and `git diff --check`.
+
+### Gaps Pending
+
+- Unsupported Data connectors remain disabled until separate gateway handlers are implemented.
+- Persisted Transform pipeline editing beyond local view state remains future product depth.
+- Final PR publication, CI, live-backend smoke, control-doc sync, and Linear state updates remain pending for this branch.
+
+### Next Items To Implement
+
+- Run `npm run smoke:live-backend-browser`, control-doc validators, and final diff checks.
+- Push the branch, open a draft PR, and update Linear AKS-28 through AKS-35 with the PR and verification evidence.
+
 ### Explorer/Data/Transform Mock Parity And Interactive Local Analytics (2026-06-20)
 
 - Created Linear parent AKS-28 and child issues AKS-29 through AKS-35 for shared chart foundation, Explorer parity, Data parity, Transform parity, gateway/contracts, visual QA, and the Data ML Readiness text-overlap bug.

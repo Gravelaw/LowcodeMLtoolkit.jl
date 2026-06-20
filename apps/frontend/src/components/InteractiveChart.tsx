@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GatewayInteractiveChartSpec } from "@juliaflow/contracts";
+import { canRenderChart, chartFileName, chartReadiness, chartStatusLabel, escapeHtml } from "./chart-utils";
 
 type PlotlyRuntime = {
   newPlot: (
@@ -16,10 +17,6 @@ function isJsdomRuntime() {
   return typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("jsdom");
 }
 
-function chartFileName(spec: GatewayInteractiveChartSpec, extension: string) {
-  return `${spec.export?.fileName ?? spec.chartId}.${extension}`;
-}
-
 function downloadTextFile(fileName: string, contents: string, type: string) {
   const blob = new Blob([contents], { type });
   const url = URL.createObjectURL(blob);
@@ -28,14 +25,6 @@ function downloadTextFile(fileName: string, contents: string, type: string) {
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 export function InteractiveChart({
@@ -51,6 +40,7 @@ export function InteractiveChart({
   const plotlyRef = useRef<PlotlyRuntime | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [error, setError] = useState("");
+  const readiness = chartReadiness(spec);
 
   const config = useMemo(
     () => ({
@@ -63,11 +53,12 @@ export function InteractiveChart({
 
   useEffect(() => {
     const element = chartRef.current;
-    if (!spec || !element || spec.status !== "ready" || spec.data.length === 0) return undefined;
+    if (!canRenderChart(spec) || !element) return undefined;
     if (isJsdomRuntime()) {
       setState("ready");
       return undefined;
     }
+    const activeSpec = spec as GatewayInteractiveChartSpec;
 
     let canceled = false;
     setState("loading");
@@ -78,7 +69,7 @@ export function InteractiveChart({
         if (canceled || !chartRef.current) return;
         const runtime = ((module as { default?: PlotlyRuntime }).default ?? module) as PlotlyRuntime;
         plotlyRef.current = runtime;
-        return runtime.newPlot(chartRef.current, spec.data, spec.layout, config);
+        return runtime.newPlot(chartRef.current, activeSpec.data, activeSpec.layout, config);
       })
       .then(() => {
         if (!canceled) setState("ready");
@@ -98,7 +89,7 @@ export function InteractiveChart({
   }, [config, spec]);
 
   async function exportPng() {
-    if (!chartRef.current || !plotlyRef.current || !spec) return;
+    if (!chartRef.current || !plotlyRef.current || !spec || spec.export?.png === false) return;
     const imageUrl = await plotlyRef.current.toImage(chartRef.current, {
       format: "png",
       width: 1200,
@@ -111,7 +102,7 @@ export function InteractiveChart({
   }
 
   async function exportHtml() {
-    if (!spec) return;
+    if (!spec || spec.export?.html === false) return;
     const escaped = JSON.stringify(spec).replace(/</g, "\\u003c");
     let imageMarkup = "";
     if (chartRef.current && plotlyRef.current && state === "ready") {
@@ -135,11 +126,11 @@ export function InteractiveChart({
     return <p className="empty-state">No chart evidence is attached to this local payload yet.</p>;
   }
 
-  if (spec.status === "empty" || spec.data.length === 0) {
+  if (readiness === "empty" || readiness === "error") {
     return (
-      <div className={`interactive-chart empty ${className}`.trim()}>
+      <div className={`interactive-chart empty ${className}`.trim()} data-chart-id={spec.chartId}>
         <strong>{spec.title}</strong>
-        <p>{spec.emptyReason ?? "No local data is available for this chart."}</p>
+        <p>{readiness === "error" ? spec.emptyReason ?? "The local chart spec could not be rendered." : spec.emptyReason ?? "No local data is available for this chart."}</p>
       </div>
     );
   }
@@ -151,11 +142,12 @@ export function InteractiveChart({
           <strong>{spec.title}</strong>
           <span>{spec.source.label}</span>
         </div>
+        <span className={`chart-status ${readiness}`}>{chartStatusLabel(spec)}</span>
         <div className="chart-actions">
-          <button type="button" className="jf-button ghost" onClick={exportPng} disabled={state !== "ready"}>
+          <button type="button" className="jf-button ghost" onClick={exportPng} disabled={state !== "ready" || spec.export?.png === false}>
             PNG
           </button>
-          <button type="button" className="jf-button ghost" onClick={() => void exportHtml()}>
+          <button type="button" className="jf-button ghost" onClick={() => void exportHtml()} disabled={spec.export?.html === false}>
             HTML
           </button>
         </div>
@@ -170,6 +162,7 @@ export function InteractiveChart({
         {state === "loading" ? <span>Loading local chart...</span> : null}
         {isJsdomRuntime() ? <span>{spec.summary}</span> : null}
       </div>
+      {readiness === "stale" ? <p className="chart-warning">{spec.staleReason ?? "This chart is using stale local evidence."}</p> : null}
       <p className="chart-summary">{state === "error" ? error : spec.summary}</p>
     </figure>
   );
