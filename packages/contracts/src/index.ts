@@ -72,6 +72,29 @@ export interface JuliaFlowRuntimeContract {
   fixtureSubstitutionAllowed: boolean;
   unavailable: JuliaFlowUnavailableState[];
 }
+
+export type GatewayComputeBackend = "cpu" | "cuda" | "simulated_cuda";
+export type GatewayGpuPreference = "auto" | "cpu_fallback" | "cuda_required";
+
+export interface GatewayComputeSettings {
+  selectedBackend: GatewayComputeBackend;
+  cpuWorkerConcurrency: number;
+  cpuMemoryLimitBytes: number;
+  gpuPreference: GatewayGpuPreference;
+  blasThreadCount: number;
+  schedulerPolicy: "bounded_threads";
+  source: "default" | "profile" | "request";
+  updatedAt: string;
+}
+
+export interface UpdateGatewayComputeSettingsRequest {
+  selectedBackend?: GatewayComputeBackend;
+  cpuWorkerConcurrency?: number;
+  cpuMemoryLimitBytes?: number;
+  gpuPreference?: GatewayGpuPreference;
+  blasThreadCount?: number;
+}
+
 export type WorkspaceRole = "owner" | "editor" | "viewer";
 export type ResourcePermission =
   | "workflow:read"
@@ -516,6 +539,7 @@ export interface GatewayHealthcheck {
   gpuSimulatedDeviceCount: number;
   gpuTotalVramBytes: number;
   gpuDeviceSummaries: GatewayGpuDeviceSummary[];
+  computeSettings: GatewayComputeSettings;
   explainabilityEvidence: GatewayExplainabilityEvidence;
   hubCacheRoot: string;
   hubArtifactStorePath: string;
@@ -1433,6 +1457,7 @@ function dashboardChartPath(
 
 export const gatewayEndpointPaths = {
   health: "/health",
+  computeSettings: "/api/v1/settings/compute",
   workflows: "/api/v1/workflows",
   importWorkflow: "/api/v1/workflows/import",
   workflowDetail: (workflowId: string) => `/api/v1/workflows/${encodeURIComponent(workflowId)}`,
@@ -1683,6 +1708,11 @@ export interface GatewayRealtimeClient {
 
 export interface GatewayApiClient {
   healthcheck(options?: GatewayRequestOptions): Promise<GatewayHealthcheck>;
+  getComputeSettings(options?: GatewayRequestOptions): Promise<GatewayComputeSettings>;
+  updateComputeSettings(
+    request: UpdateGatewayComputeSettingsRequest,
+    options?: GatewayRequestOptions
+  ): Promise<GatewayComputeSettings>;
   listWorkflows(options?: GatewayRequestOptions): Promise<GatewayListResponse<GatewayWorkflowSummary>>;
   createWorkflow(
     request: CreateWorkflowRequest,
@@ -1948,6 +1978,10 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
   return {
     healthcheck: (requestOptions) =>
       request<GatewayHealthcheck>("GET", gatewayEndpointPaths.health, undefined, requestOptions),
+    getComputeSettings: (requestOptions) =>
+      request<GatewayComputeSettings>("GET", gatewayEndpointPaths.computeSettings, undefined, requestOptions),
+    updateComputeSettings: (settings, requestOptions) =>
+      request<GatewayComputeSettings>("PUT", gatewayEndpointPaths.computeSettings, settings, requestOptions),
     listWorkflows: (requestOptions) =>
       request<GatewayListResponse<GatewayWorkflowSummary>>(
         "GET",

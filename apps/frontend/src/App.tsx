@@ -26,6 +26,7 @@ import type {
   JuliaFlowUnavailableCapability,
   JuliaFlowUnavailableState,
   PublishedDashboardDefinition,
+  UpdateGatewayComputeSettingsRequest,
   WorkflowDefinition,
   WorkspaceRole
 } from "@juliaflow/contracts";
@@ -727,6 +728,55 @@ function App() {
     }
   }
 
+  function applyComputeSettingsToHealth(settings: typeof data.health.computeSettings) {
+    setData((current) => ({
+      ...current,
+      health: {
+        ...current.health,
+        computeSettings: settings,
+        hardwareSelectedBackend: settings.selectedBackend,
+        cpuWorkerConcurrency: settings.cpuWorkerConcurrency,
+        cpuMemoryLimitBytes: settings.cpuMemoryLimitBytes,
+        cpuSchedulerPolicy: settings.schedulerPolicy,
+        gpuReadinessStatus: settings.selectedBackend === "cpu" ? "cpu_fallback" : current.health.gpuReadinessStatus,
+        gpuCudaStatus: settings.selectedBackend === "cuda" ? current.health.gpuCudaStatus : "not_requested"
+      },
+      healthLastUpdatedAt: new Date().toISOString(),
+      healthStale: false
+    }));
+  }
+
+  async function saveComputeSettings(request: UpdateGatewayComputeSettingsRequest) {
+    if (!client) {
+      applyComputeSettingsToHealth({
+        ...data.health.computeSettings,
+        ...request,
+        selectedBackend: request.selectedBackend ?? data.health.computeSettings.selectedBackend,
+        cpuWorkerConcurrency: request.cpuWorkerConcurrency ?? data.health.computeSettings.cpuWorkerConcurrency,
+        cpuMemoryLimitBytes: request.cpuMemoryLimitBytes ?? data.health.computeSettings.cpuMemoryLimitBytes,
+        gpuPreference: request.gpuPreference ?? data.health.computeSettings.gpuPreference,
+        blasThreadCount: request.blasThreadCount ?? data.health.computeSettings.blasThreadCount,
+        source: "request",
+        updatedAt: new Date().toISOString()
+      });
+      setViewFeedback("settings", "Compute settings staged locally for this demo workspace.", "info");
+      return;
+    }
+    try {
+      const settings = await client.updateComputeSettings(request);
+      applyComputeSettingsToHealth(settings);
+      setViewFeedback("settings", "Compute settings saved to the local gateway profile.");
+    } catch (error) {
+      setViewFeedback(
+        "settings",
+        isGatewayAuthError(error)
+          ? "Gateway authentication failed. Configure the local gateway token and retry."
+          : "Compute settings could not be saved by the local gateway.",
+        "error"
+      );
+    }
+  }
+
   async function withGatewayFallback<T>(
     view: AppView,
     action: () => Promise<T>,
@@ -874,7 +924,7 @@ function App() {
       case "monitor":
         return <MonitorView data={data} />;
       case "settings":
-        return <SettingsView data={data} />;
+        return <SettingsView data={data} feedback={feedback.settings} onSaveComputeSettings={saveComputeSettings} />;
       case "explorer":
       default:
         return (

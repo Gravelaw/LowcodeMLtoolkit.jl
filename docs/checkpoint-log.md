@@ -2742,3 +2742,26 @@ Each checkpoint entry must contain:
 
 - Publish the draft AKS-24 PR.
 - Start AKS-24 compute settings after the Explorer UX PR is reviewed.
+
+---
+
+## Checkpoint: AKS-24 Compute Settings Runtime Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Added contract/client support for `GatewayComputeSettings`.
+- Added gateway `GET/PUT /api/v1/settings/compute` routes with local metadata file persistence.
+- Reflected compute settings into health and workflow execution metadata.
+- Added editable Settings controls for backend, CPU worker concurrency, memory limit, GPU preference, and BLAS thread count.
+- Preserved existing GPU/stream dispatch metadata while attaching compute settings evidence to executions.
+- Verified with focused frontend tests, contract validation, repo-local Julia tests, and production build.
+
+### Gaps Pending
+
+- Stacked PR must wait for PR #30 or be retargeted after PR #30 merges.
+- External worker hot-reload remains future runtime depth if product review requires live process reconfiguration beyond gateway-dispatched evidence.
+
+### Next Items To Implement
+
+- Finish browser sanity and control gates.
+- Publish the stacked draft PR for compute settings.

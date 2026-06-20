@@ -128,14 +128,14 @@ Priority order:
 
 ### UI-REVIEW-008 - Local Compute Settings Must Be Functional And Reflected In Workflows
 
-- Status: backlog, planned for AKS-24 second slice
+- Status: implemented in AKS-24 second slice, pending review
 - Module: Explorer / Local Compute and Settings / Compute And Autosave
 - Annotated element: `Local Compute` card
 - Page: `http://127.0.0.1:15173/`
 - Problem: the `Local Compute` card displays compute backend, threads, BLAS, and GPU/CPU fallback values, but it is unclear whether these are connected to Settings or whether changing Settings affects application performance or data-science workflows.
 - Expected behavior: compute-related settings should be configurable in Settings, reflected back in Explorer, and applied to relevant workflow execution paths such as transforms, ML training, model registration, and runtime scheduling.
 - Verification needed: confirm whether current Settings controls mutate any persisted runtime configuration, whether the gateway/workers consume that configuration, and whether workflow execution records show the selected backend/thread/GPU/BLAS policy.
-- Notes: first AKS-24 slice makes the Explorer compute card explicitly read from runtime health and links to Settings. The second AKS-24 slice should add contract/gateway settings persistence, runtime propagation, and execution evidence before AKS-24 can close.
+- Notes: second AKS-24 slice adds a contract-first `GatewayComputeSettings` surface, gateway `GET/PUT /api/v1/settings/compute`, file-backed local metadata persistence, health reflection, Settings controls, and execution metadata evidence through `computeSettingsApplied`. Unsupported GPU choices still surface fallback/unavailable health state instead of pretending hardware exists.
 
 ### UI-REVIEW-009 - Data Local Source Selector Needs Clear Backend Semantics And Real Switching
 
