@@ -106,6 +106,16 @@ export const localHealth: GatewayHealthcheck = {
   gpuSimulatedDeviceCount: 0,
   gpuTotalVramBytes: 0,
   gpuDeviceSummaries: [],
+  computeSettings: {
+    selectedBackend: "cpu",
+    cpuWorkerConcurrency: 4,
+    cpuMemoryLimitBytes: 6_000_000_000,
+    gpuPreference: "cpu_fallback",
+    blasThreadCount: 16,
+    schedulerPolicy: "bounded_threads",
+    source: "default",
+    updatedAt: "2026-06-17T10:00:00Z"
+  },
   explainabilityEvidence: {
     status: "ready",
     generatedAt: "2026-06-17T10:00:00Z",

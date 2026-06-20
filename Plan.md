@@ -352,6 +352,12 @@ Verification evidence for this slice: `npm --workspace @juliaflow/frontend run t
 
 Verification evidence for this slice so far: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, browser sanity on `/`, `/settings`, and `/data`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`. AKS-24 remains open because functional compute settings persistence, runtime propagation, and execution evidence are planned as the second AKS-24 PR.
 
+## Latest Active Slice - 2026-06-20 AKS-24 Compute Settings Runtime
+
+**AKS-24 second slice is in progress on a stacked branch after PR #30.** The gateway now exposes contract-first compute settings through `GET/PUT /api/v1/settings/compute`, persists settings under the local metadata root, reflects applied settings in `healthcheck`, and attaches `computeSettingsApplied` plus dispatch policy evidence to workflow executions without overwriting GPU/stream dispatch metadata. Settings now lets users edit backend, CPU worker concurrency, memory limit, GPU preference, and BLAS thread count, then saves those settings through the gateway or stages them locally in demo mode.
+
+Verification evidence for this slice so far: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run validate:contracts`, `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`, and `npm run build`. The direct `julia --project=. tests/julia/runtests.jl` command is still blocked by Windows application-control policy against the user-global compiled cache, so repo-local Julia verification uses the project wrapper.
+
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 
 **Backend-backed Data and Transform product actions are complete for the current local product-depth slice.** Gateway routes now support local data import/profile evidence and workflow transform run/history evidence backed by local appliance health, workflow nodes, execution state, and deterministic local artifact refs. Shared contracts/OpenAPI expose typed client methods, and the Data/Transform views call those actions while preserving demo fallback, runtime `juliaflow-config.js`, route compatibility, accessible selectors, and local-first behavior.

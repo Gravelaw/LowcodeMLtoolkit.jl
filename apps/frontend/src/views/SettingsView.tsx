@@ -1,8 +1,53 @@
+import { useEffect, useState } from "react";
+import type { GatewayComputeSettings, UpdateGatewayComputeSettingsRequest } from "@juliaflow/contracts";
 import { Card, DataTable, StatusPill } from "../components/ui";
-import type { AppData } from "../types";
+import type { ActionFeedback, AppData } from "../types";
 
-export function SettingsView({ data }: { data: AppData }) {
+function memoryGb(bytes: number): number {
+  return Math.max(1, Math.round(bytes / 1_000_000_000));
+}
+
+function toBytes(gb: number): number {
+  return Math.max(1, Math.round(gb)) * 1_000_000_000;
+}
+
+function draftFromSettings(settings: GatewayComputeSettings) {
+  return {
+    selectedBackend: settings.selectedBackend,
+    cpuWorkerConcurrency: String(settings.cpuWorkerConcurrency),
+    cpuMemoryLimitGb: String(memoryGb(settings.cpuMemoryLimitBytes)),
+    gpuPreference: settings.gpuPreference,
+    blasThreadCount: String(settings.blasThreadCount)
+  };
+}
+
+export function SettingsView({
+  data,
+  feedback,
+  onSaveComputeSettings
+}: {
+  data: AppData;
+  feedback?: ActionFeedback;
+  onSaveComputeSettings: (request: UpdateGatewayComputeSettingsRequest) => void;
+}) {
   const latestCheckpointTag = data.checkpoints[0]?.tag ?? "No checkpoint yet";
+  const computeSettings = data.health.computeSettings;
+  const [draft, setDraft] = useState(() => draftFromSettings(computeSettings));
+
+  useEffect(() => {
+    setDraft(draftFromSettings(computeSettings));
+  }, [computeSettings]);
+
+  function saveComputeSettings() {
+    onSaveComputeSettings({
+      selectedBackend: draft.selectedBackend,
+      cpuWorkerConcurrency: Number(draft.cpuWorkerConcurrency),
+      cpuMemoryLimitBytes: toBytes(Number(draft.cpuMemoryLimitGb)),
+      gpuPreference: draft.gpuPreference,
+      blasThreadCount: Number(draft.blasThreadCount)
+    });
+  }
+
   return (
     <div className="route-grid settings-route">
       <section className="page-title">
@@ -10,8 +55,9 @@ export function SettingsView({ data }: { data: AppData }) {
           <h1>Settings</h1>
           <p>Configure the local appliance profile, packages, runtime, security, API keys, and backup evidence.</p>
         </div>
-        <button type="button" className="jf-button primary">Save Local Settings</button>
+        <button type="button" className="jf-button primary" onClick={saveComputeSettings}>Save Local Settings</button>
       </section>
+      {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
 
       <Card title="Local Workspace Profile">
         <div className="key-values">
@@ -47,11 +93,65 @@ export function SettingsView({ data }: { data: AppData }) {
       </Card>
 
       <Card title="Compute And Autosave">
+        <div className="settings-form">
+          <label>
+            <span>Backend</span>
+            <select
+              value={draft.selectedBackend}
+              onChange={(event) => setDraft((current) => ({ ...current, selectedBackend: event.target.value as GatewayComputeSettings["selectedBackend"] }))}
+            >
+              <option value="cpu">CPU</option>
+              <option value="cuda">CUDA GPU</option>
+              <option value="simulated_cuda">Simulated CUDA</option>
+            </select>
+          </label>
+          <label>
+            <span>Worker concurrency</span>
+            <input
+              type="number"
+              min={1}
+              max={data.health.cpuThreadCount}
+              value={draft.cpuWorkerConcurrency}
+              onChange={(event) => setDraft((current) => ({ ...current, cpuWorkerConcurrency: event.target.value }))}
+            />
+          </label>
+          <label>
+            <span>Memory limit (GB)</span>
+            <input
+              type="number"
+              min={1}
+              max={memoryGb(data.health.totalMemoryBytes)}
+              value={draft.cpuMemoryLimitGb}
+              onChange={(event) => setDraft((current) => ({ ...current, cpuMemoryLimitGb: event.target.value }))}
+            />
+          </label>
+          <label>
+            <span>GPU preference</span>
+            <select
+              value={draft.gpuPreference}
+              onChange={(event) => setDraft((current) => ({ ...current, gpuPreference: event.target.value as GatewayComputeSettings["gpuPreference"] }))}
+            >
+              <option value="auto">Auto</option>
+              <option value="cpu_fallback">CPU fallback</option>
+              <option value="cuda_required">CUDA required</option>
+            </select>
+          </label>
+          <label>
+            <span>BLAS threads</span>
+            <input
+              type="number"
+              min={1}
+              max={data.health.cpuThreadCount}
+              value={draft.blasThreadCount}
+              onChange={(event) => setDraft((current) => ({ ...current, blasThreadCount: event.target.value }))}
+            />
+          </label>
+        </div>
         <div className="key-values">
-          <span>Backend</span><strong>{data.health.hardwareSelectedBackend}</strong>
-          <span>Threads</span><strong>{data.health.cpuThreadCount}</strong>
-          <span>GPU</span><strong>{data.health.gpuReadinessStatus}</strong>
-          <span>Autosave</span><strong>30 seconds</strong>
+          <span>Applied backend</span><strong>{data.health.hardwareSelectedBackend}</strong>
+          <span>Applied concurrency</span><strong>{data.health.cpuWorkerConcurrency}</strong>
+          <span>Applied memory limit</span><strong>{memoryGb(data.health.cpuMemoryLimitBytes)} GB</strong>
+          <span>Settings source</span><strong>{computeSettings.source}</strong>
         </div>
       </Card>
 
