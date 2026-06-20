@@ -63,6 +63,10 @@ describe("JuliaFlow local-only app redesign", () => {
     vi.restoreAllMocks();
     window.history.pushState({}, "", "/");
     window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "", runtimeMode: "demo" };
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: undefined
+    });
   });
 
   afterEach(() => {
@@ -147,6 +151,53 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByText("Security And API Keys")).toBeInTheDocument();
+  });
+
+  it("writes project scaffold files when a target folder is granted", async () => {
+    const writes: Array<{ path: string; content: string }> = [];
+    const close = vi.fn(async () => undefined);
+
+    function directoryHandle(path = "Browser_Project") {
+      return {
+        name: path,
+        getDirectoryHandle: vi.fn(async (name: string) => directoryHandle(`${path}/${name}`)),
+        getFileHandle: vi.fn(async (name: string) => ({
+          createWritable: vi.fn(async () => ({
+            write: vi.fn(async (content: string) => {
+              writes.push({ path: `${path}/${name}`, content });
+            }),
+            close
+          }))
+        }))
+      };
+    }
+
+    const rootDirectory = directoryHandle("Browser_Project");
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: vi.fn(async () => rootDirectory)
+    });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ New Project" }));
+    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Browser Project" } });
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Filesystem scaffold test" } });
+    fireEvent.change(screen.getByLabelText("Folder path"), { target: { value: "/Users/alexj/JuliaFlowLocal/Projects/Browser_Project" } });
+    fireEvent.click(screen.getByRole("button", { name: "Choose Target Folder" }));
+    await screen.findByText("Write access granted: Browser_Project");
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Local Project" }));
+
+    await waitFor(() => expect(writes.map((write) => write.path)).toEqual([
+      "Browser_Project/Project.toml",
+      "Browser_Project/README.md",
+      "Browser_Project/workflows/wf-browser-project.toml",
+      "Browser_Project/data/raw/.gitkeep"
+    ]));
+    expect(writes.find((write) => write.path.endsWith("README.md"))?.content).toContain("Filesystem scaffold test");
+    expect(close).toHaveBeenCalledTimes(4);
+    expect(screen.getByText("Local project scaffold written to Browser_Project.")).toBeInTheDocument();
   });
 
   it("runs redesigned actions through deterministic demo fallback without a gateway", () => {

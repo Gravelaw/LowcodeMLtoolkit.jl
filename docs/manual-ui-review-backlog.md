@@ -43,7 +43,7 @@ Priority order:
 
 ## Current Repo Change Buckets
 
-- `apps/frontend/src/App.tsx`, `apps/frontend/src/components/Shell.tsx`, `apps/frontend/src/views/ExplorerView.tsx`, `apps/frontend/src/styles.css`, `apps/frontend/src/types.ts`, and `apps/frontend/src/App.test.tsx`: AKS-23 first implementation slice. This addresses `UI-REVIEW-001`, implements typed project name/description/folder path validation for `UI-REVIEW-002`, records scaffolded project artifacts in the Explorer project browser, and gives the Grid/Share/Help/Profile top-bar controls useful local-first dialogs for `UI-REVIEW-007`. Native folder picking and filesystem-backed scaffolding remain open.
+- `apps/frontend/src/App.tsx`, `apps/frontend/src/components/Shell.tsx`, `apps/frontend/src/views/ExplorerView.tsx`, `apps/frontend/src/styles.css`, `apps/frontend/src/types.ts`, and `apps/frontend/src/App.test.tsx`: AKS-23 implementation slice. This addresses `UI-REVIEW-001`, implements typed project name/description/folder path validation plus browser-granted target-folder scaffold writes for `UI-REVIEW-002`, records scaffolded project artifacts in the Explorer project browser, and gives the Grid/Share/Help/Profile top-bar controls useful local-first dialogs for `UI-REVIEW-007`. A gateway-native scaffold endpoint remains optional if service-owned typed-path writes are required later.
 - `apps/frontend/src/views/MlStudioView.tsx` and `apps/frontend/src/App.test.tsx`: local empty-state and partial-metric guards for missing or incomplete ML experiment records. This addresses the immediate blank-screen failures found under `UI-REVIEW-011`, but route-level error boundaries and full live-payload hardening remain open.
 - `docs/manual-ui-review-backlog.md`: this manual-review backlog. Keep it as discovery/planning evidence until Linear tickets are created.
 - `apps/frontend/public/juliaflow-config.js`: temporary live browser testing override to point at `http://127.0.0.1:18088` and `local-appliance`. This should be reverted before a normal product PR unless we intentionally want to change the default shipped runtime from demo to local appliance.
@@ -62,17 +62,17 @@ Priority order:
 
 ### UI-REVIEW-002 - New Project Dialog Needs Project Name, Description, And Folder Path Inputs
 
-- Status: partially implemented locally, tracked by `AKS-23`
+- Status: implemented locally, tracked by `AKS-23`
 - Module: global top bar / New Project dialog
 - Annotated element: `Create New Project` dialog
 - Page: `http://127.0.0.1:15173/`
 - Problem: the dialog shows the current template/workspace metadata, but the user cannot enter a new project name, add a project description, or choose/specify where the project will be created.
 - Expected behavior: the dialog should let the user enter a project name, add a short project description, and specify the target folder path for the new local project.
-- Notes: local implementation now supports typed project name, required description, typed local folder path, reserved-character/path-traversal/collision validation, workflow rename, and in-memory scaffold artifact rows in Explorer. Native folder picking, filesystem-backed scaffold creation, writable-path checks, recent locations, and gateway persistence remain open.
+- Notes: local implementation now supports typed project name, required description, typed local folder path, reserved-character/path-traversal/collision validation, browser target-folder grants where supported, filesystem scaffold writes through the File System Access API, workflow rename, and scaffold artifact rows in Explorer. Typed paths remain a staged fallback when the browser cannot grant write access. A gateway-native scaffold endpoint and recent-location history can be added later if required.
 
 ### UI-REVIEW-003 - Explorer Hardware Metrics Must Poll Live Hardware State
 
-- Status: partially implemented locally, tracked by `AKS-23`
+- Status: backlog
 - Module: Explorer / Local Workspace Overview
 - Annotated element: CPU Usage, RAM Usage, and Disk Space metric cards
 - Page: `http://127.0.0.1:15173/`
@@ -112,7 +112,7 @@ Priority order:
 
 ### UI-REVIEW-007 - Top-Bar Utility Buttons Need Purposeful Actions Or Dialogs
 
-- Status: backlog
+- Status: implemented locally, tracked by `AKS-23`
 - Module: global top bar
 - Annotated element: `Grid`, `Share`, `?`, and avatar buttons
 - Page: `http://127.0.0.1:15173/`

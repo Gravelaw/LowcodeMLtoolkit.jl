@@ -302,6 +302,15 @@ button {
   resize: vertical;
 }
 
+.folder-access-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -931,7 +940,8 @@ meter {
   }
 
   .local-status,
-  .top-actions {
+  .top-actions,
+  .folder-access-row {
     flex-wrap: wrap;
   }
 

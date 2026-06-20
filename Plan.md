@@ -336,9 +336,9 @@ Verification evidence for this slice: `npm --workspace @juliaflow/frontend run t
 
 ## Latest Active Slice - 2026-06-20 AKS-23 Project Creation And Shell Actions
 
-**AKS-23 project creation and global shell actions are in progress.** The current frontend slice expands the New Project dialog from template confirmation into editable project name, description, and local folder path inputs with validation, updates the active workflow identity, records scaffolded project artifacts in Explorer, and gives Grid, Share, Help, and Profile top-bar controls concrete local-first dialogs. The slice also hardens ML Studio against incomplete live experiment metrics found during browser sanity.
+**AKS-23 project creation and global shell actions are ready for review.** The current frontend slice expands the New Project dialog from template confirmation into editable project name, description, typed local folder path inputs, native target-folder grants through the browser File System Access API, scaffold file writes for granted folders, workflow identity updates, and Explorer scaffold artifact rows. Grid, Share, Help, and Profile top-bar controls now open concrete local-first dialogs. The slice also hardens ML Studio against incomplete live experiment metrics found during browser sanity.
 
-Verification evidence for this in-progress slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `git diff --check`, and a local Playwright/Edge sanity pass against `/`, `/ml-studio`, and `/visualize`. Full AKS-23 closure still needs native folder picking or filesystem-backed scaffold persistence if product review requires it.
+Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `git diff --check`, and a local Playwright/Edge sanity pass against `/`, `/ml-studio`, and `/visualize`. A future gateway-native scaffold endpoint can still be added if the product needs service-owned writes from typed paths, but the browser path now supports real local file creation after explicit folder permission.
 
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 
