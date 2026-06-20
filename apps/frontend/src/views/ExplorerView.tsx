@@ -1,5 +1,4 @@
 import { Card, DataTable, MetricCard, StatusPill } from "../components/ui";
-import { projectFiles } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
 
 export function ExplorerView({
@@ -54,7 +53,7 @@ export function ExplorerView({
             { key: "size", label: "Size" },
             { key: "status", label: "Status", render: (row) => <StatusPill tone="green">{String(row.status)}</StatusPill> }
           ]}
-          rows={projectFiles}
+          rows={data.projectFiles}
           getRowKey={(row) => String(row.path)}
         />
       </Card>

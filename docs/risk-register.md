@@ -50,5 +50,6 @@ Next implementation lane: local-first GA proof after the BRD v0.4.1 product-surf
 10. Mock-aligned product workflow vertical: current backend-backed local product-depth sequence and browser-gated local UI redesign are closed; future burn-down should target concrete usability gaps, not optional provider deployment.
 11. AKS-5 Stage 3 lifecycle/evidence: Explorer save/run, Monitor execution records, dashboard artifact-backed rows, no-data states, and executed-run explainability evidence are implemented in the modular frontend.
 12. AKS-5 Stage 5 release gate: live-backend browser QA, Docker PostgreSQL metadata smoke, and the single release-verification entrypoint are implemented and verified by full no-skip `npm run verify:release`.
-13. Frontend/module depth and runtime policy: continue `R-FE-001` and `R-RUNTIME-001` only when they serve the local-first workflow.
-14. Control-doc drift guard: keep `R-DOC-001` mitigated by running `npm run validate:control-doc-sync` before completion claims.
+13. AKS-23 project creation and shell actions: frontend slice reduces product-surface risk by replacing inert New Project/Grid/Share/Help/Profile controls with validated local-first dialogs, browser-granted target-folder scaffold file writes, and Explorer scaffold artifact evidence; a gateway-native scaffold endpoint remains optional if service-owned typed-path writes are needed later.
+14. Frontend/module depth and runtime policy: continue `R-FE-001` and `R-RUNTIME-001` only when they serve the local-first workflow.
+15. Control-doc drift guard: keep `R-DOC-001` mitigated by running `npm run validate:control-doc-sync` before completion claims.

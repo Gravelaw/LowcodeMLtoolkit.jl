@@ -63,6 +63,10 @@ describe("JuliaFlow local-only app redesign", () => {
     vi.restoreAllMocks();
     window.history.pushState({}, "", "/");
     window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "", runtimeMode: "demo" };
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: undefined
+    });
   });
 
   afterEach(() => {
@@ -80,9 +84,35 @@ describe("JuliaFlow local-only app redesign", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "+ New Project" }));
     expect(screen.getByRole("dialog", { name: "Create New Project" })).toBeInTheDocument();
-    expect(screen.getByText("Creates a local workspace scaffold using the current appliance profile and sample workflow template.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Description")).toHaveValue(
+      "Creates a local workspace scaffold using the current appliance profile and sample workflow template."
+    );
+    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "A" } });
     fireEvent.click(screen.getByRole("button", { name: "Create Local Project" }));
-    expect(screen.getByText("Local project scaffold is ready in the configured workspace.")).toBeInTheDocument();
+    expect(screen.getByText("Project name must be at least 3 characters.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Foundation PoC" } });
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Local churn analysis workspace" } });
+    fireEvent.change(screen.getByLabelText("Folder path"), { target: { value: "/Users/alexj/JuliaFlowLocal/Projects/Foundation_PoC" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create Local Project" }));
+    expect(screen.getByText("Local project scaffold created at /Users/alexj/JuliaFlowLocal/Projects/Foundation_PoC.")).toBeInTheDocument();
+    expect(screen.getByText("Foundation_PoC/Project.toml")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open grid menu" }));
+    expect(screen.getByRole("dialog", { name: "Module Launcher" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close utility dialog" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Open share panel" }));
+    expect(screen.getByRole("dialog", { name: "Local Export And Share" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Prepare Bundle" }));
+    expect(screen.getByText("Local reproducibility bundle export queued for this workspace.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open help" }));
+    expect(screen.getByRole("dialog", { name: "Workspace Help" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Open local profile" }));
+    expect(screen.getByRole("dialog", { name: "Local Profile" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Data" }));
     expect(screen.getByRole("heading", { name: "Data" })).toBeInTheDocument();
@@ -121,6 +151,53 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByText("Security And API Keys")).toBeInTheDocument();
+  });
+
+  it("writes project scaffold files when a target folder is granted", async () => {
+    const writes: Array<{ path: string; content: string }> = [];
+    const close = vi.fn(async () => undefined);
+
+    function directoryHandle(path = "Browser_Project") {
+      return {
+        name: path,
+        getDirectoryHandle: vi.fn(async (name: string) => directoryHandle(`${path}/${name}`)),
+        getFileHandle: vi.fn(async (name: string) => ({
+          createWritable: vi.fn(async () => ({
+            write: vi.fn(async (content: string) => {
+              writes.push({ path: `${path}/${name}`, content });
+            }),
+            close
+          }))
+        }))
+      };
+    }
+
+    const rootDirectory = directoryHandle("Browser_Project");
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: vi.fn(async () => rootDirectory)
+    });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ New Project" }));
+    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Browser Project" } });
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Filesystem scaffold test" } });
+    fireEvent.change(screen.getByLabelText("Folder path"), { target: { value: "/Users/alexj/JuliaFlowLocal/Projects/Browser_Project" } });
+    fireEvent.click(screen.getByRole("button", { name: "Choose Target Folder" }));
+    await screen.findByText("Write access granted: Browser_Project");
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Local Project" }));
+
+    await waitFor(() => expect(writes.map((write) => write.path)).toEqual([
+      "Browser_Project/Project.toml",
+      "Browser_Project/README.md",
+      "Browser_Project/workflows/wf-browser-project.toml",
+      "Browser_Project/data/raw/.gitkeep"
+    ]));
+    expect(writes.find((write) => write.path.endsWith("README.md"))?.content).toContain("Filesystem scaffold test");
+    expect(close).toHaveBeenCalledTimes(4);
+    expect(screen.getByText("Local project scaffold written to Browser_Project.")).toBeInTheDocument();
   });
 
   it("runs redesigned actions through deterministic demo fallback without a gateway", () => {

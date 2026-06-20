@@ -46,9 +46,16 @@ export interface AppData {
   visualizeExports: GatewayVisualizeCheckpointExportRecord[];
   checkpoints: GatewayCheckpointRecord[];
   dashboard: PublishedDashboardDefinition;
+  projectFiles: LocalProjectArtifact[];
 }
 
 export interface ActionFeedback {
   label: string;
   tone: "info" | "success" | "error";
+}
+
+export interface LocalProjectArtifact {
+  path: string;
+  size: string;
+  status: string;
 }

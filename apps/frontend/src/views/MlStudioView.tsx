@@ -2,6 +2,10 @@ import { Card, CodeBlock, DataTable, MetricCard, StatusPill } from "../component
 import { localCode } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
 
+function formatMetric(value: unknown): string {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(3) : "n/a";
+}
+
 export function MlStudioView({
   data,
   onRun,
@@ -54,10 +58,10 @@ export function MlStudioView({
       </Card>
 
       <div className="metrics-row compact">
-        <MetricCard label="AUC" value={experiment.metrics.auc.toFixed(3)} detail="validation fold" />
-        <MetricCard label="F1 Score" value={experiment.metrics.f1.toFixed(3)} detail="threshold 0.42" tone="blue" />
-        <MetricCard label="Precision" value={experiment.metrics.precision.toFixed(3)} detail="local test split" tone="green" />
-        <MetricCard label="Recall" value={experiment.metrics.recall.toFixed(3)} detail="local test split" tone="orange" />
+        <MetricCard label="AUC" value={formatMetric(experiment.metrics.auc)} detail="validation fold" />
+        <MetricCard label="F1 Score" value={formatMetric(experiment.metrics.f1)} detail="threshold 0.42" tone="blue" />
+        <MetricCard label="Precision" value={formatMetric(experiment.metrics.precision)} detail="local test split" tone="green" />
+        <MetricCard label="Recall" value={formatMetric(experiment.metrics.recall)} detail="local test split" tone="orange" />
       </div>
 
       <Card title="ROC, Confusion, Feature Importance" className="wide">

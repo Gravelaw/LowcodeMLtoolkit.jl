@@ -2437,3 +2437,27 @@ After any meaningful job:
 
 - Update Linear AKS-5/AKS-10 and PR evidence with `artifacts/release-verification/latest/summary.json`.
 - Keep the repo-local Julia depot wrapper pattern in future npm-visible Julia subprocesses so user-global compiled cache policy does not affect release gates.
+
+---
+
+## Update: AKS-23 Project Creation And Shell Actions First Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Continued from the manual UI review backlog on branch `codex/aks-23-project-shell-actions`.
+- Expanded `+ New Project` into a project-creation dialog with editable project name, required description, typed local folder path, reserved-character/path-traversal/collision validation, workflow identity updates, and scaffold artifact rows shown in Explorer.
+- Added browser-native target-folder selection through the File System Access API and writes `Project.toml`, `README.md`, workflow TOML, and `data/raw/.gitkeep` into the granted local folder.
+- Wired top-bar `Grid`, `Share`, `?`, and avatar controls to local-first dialogs for module launching, local export/share actions, workspace help, and profile/runtime details.
+- Moved Explorer project artifact rows into shared app state so created project scaffolds are reflected immediately.
+- Hardened ML Studio metric rendering so incomplete live experiment metric payloads display `n/a` instead of blanking the route.
+
+### Gaps Pending
+
+- Service-owned project scaffold creation from typed paths remains optional future work if product review requires gateway-side writes instead of browser-granted folder writes.
+- Top-bar Share currently queues local bundle intent in the frontend; deeper export execution should connect to the reproducibility/backup endpoints in a later slice.
+- AKS-27 still needs route-level error boundaries and a full first-item assumption sweep across modules.
+
+### Next Items To Implement
+
+- Review PR #28 for the AKS-23 project creation and shell-action slice.
+- After PR #28 review, move AKS-23 to Done if browser-granted local scaffold writes satisfy acceptance; otherwise add a follow-up gateway scaffold endpoint for service-owned typed-path writes.

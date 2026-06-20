@@ -33,12 +33,20 @@ export function Shell({
   activeView,
   children,
   onNavigate,
-  onPrimaryAction
+  onPrimaryAction,
+  onGridAction,
+  onShareAction,
+  onHelpAction,
+  onProfileAction
 }: {
   activeView: AppView;
   children: React.ReactNode;
   onNavigate: (view: AppView) => void;
   onPrimaryAction: () => void;
+  onGridAction: () => void;
+  onShareAction: () => void;
+  onHelpAction: () => void;
+  onProfileAction: () => void;
 }) {
   return (
     <div className="local-shell">
@@ -86,10 +94,10 @@ export function Shell({
           </div>
           <div className="top-actions">
             <Button variant="primary" onClick={onPrimaryAction}>+ New Project</Button>
-            <Button ariaLabel="Open grid menu">Grid</Button>
-            <Button ariaLabel="Open share panel">Share</Button>
-            <Button ariaLabel="Open help">?</Button>
-            <span className="avatar">AJ</span>
+            <Button ariaLabel="Open grid menu" onClick={onGridAction}>Grid</Button>
+            <Button ariaLabel="Open share panel" onClick={onShareAction}>Share</Button>
+            <Button ariaLabel="Open help" onClick={onHelpAction}>?</Button>
+            <button type="button" className="avatar" aria-label="Open local profile" onClick={onProfileAction}>AJ</button>
           </div>
         </header>
         {children}

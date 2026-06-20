@@ -2673,3 +2673,26 @@ Each checkpoint entry must contain:
 ### Next Items To Implement
 
 - Use `artifacts/release-verification/latest/summary.json` plus live browser artifacts as final AKS-5/AKS-10 evidence in PR/Linear cleanup.
+
+---
+
+## Checkpoint: AKS-23 Project Creation And Shell Actions First Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Added editable project name, description, and typed local folder path inputs to the `Create New Project` dialog.
+- Added validation for short names, reserved filename characters, missing descriptions, non-local paths, parent traversal, and visible project-folder collisions.
+- Updated the active workflow name/id and Explorer project artifact state when a local scaffold is created.
+- Added browser-granted target-folder selection and scaffold file writes for `Project.toml`, `README.md`, workflow TOML, and `data/raw/.gitkeep`.
+- Wired Grid, Share, Help, and avatar controls to local-first dialogs instead of inert buttons.
+- Hardened ML Studio against incomplete metric payloads found during browser sanity.
+
+### Gaps Pending
+
+- Project creation writes files through browser-granted folder handles; service-owned gateway scaffold creation from typed paths remains optional future work.
+- Route-level error boundaries remain open under AKS-27.
+
+### Next Items To Implement
+
+- Use PR #28 to review the AKS-23 first slice.
+- Decide whether browser-granted local scaffold writes satisfy AKS-23 or whether a gateway scaffold endpoint is required before closure.
