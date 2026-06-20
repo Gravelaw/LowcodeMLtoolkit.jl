@@ -2696,3 +2696,24 @@ Each checkpoint entry must contain:
 
 - Use PR #28 to review the AKS-23 first slice.
 - Decide whether browser-granted local scaffold writes satisfy AKS-23 or whether a gateway scaffold endpoint is required before closure.
+
+---
+
+## Checkpoint: AKS-27 Route Resilience First Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Added route-level crash containment for module views so a failed route renders an unavailable state instead of blanking the full app shell.
+- Made shared table rendering tolerant of missing row arrays.
+- Added explicit empty states for Models and Deploy when live backend lists are empty.
+- Guarded Settings backup checkpoint rendering.
+- Extended local-appliance frontend coverage across empty Transform, Monitor, ML Studio, Visualize, Models, Deploy, and Settings routes.
+- Captured local Playwright/Edge browser sanity for Explorer, ML Studio, Models, Deploy, and Visualize routes.
+
+### Gaps Pending
+
+- A future per-card boundary can be added if product review wants individual cards to isolate failures inside a route.
+
+### Next Items To Implement
+
+- Update PR #29/Linear with final AKS-27 evidence.

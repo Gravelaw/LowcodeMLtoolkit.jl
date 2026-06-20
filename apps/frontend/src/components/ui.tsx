@@ -69,11 +69,11 @@ export function StatusPill({
 
 export function DataTable<TItem extends object>({
   columns,
-  rows,
+  rows = [],
   getRowKey
 }: {
   columns: Array<{ key: keyof TItem | string; label: string; render?: (row: TItem) => ReactNode }>;
-  rows: TItem[];
+  rows?: TItem[];
   getRowKey: (row: TItem, index: number) => string;
 }) {
   return (

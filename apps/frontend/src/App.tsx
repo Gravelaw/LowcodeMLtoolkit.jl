@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useState } from "react";
 import { GatewayClientError, createGatewayClient } from "@juliaflow/contracts";
 import { Shell, pathForView, viewFromPath } from "./components/Shell";
 import {
@@ -38,6 +38,7 @@ import { MonitorView } from "./views/MonitorView";
 import { SettingsView } from "./views/SettingsView";
 import { TransformView } from "./views/TransformView";
 import { VisualizeView } from "./views/VisualizeView";
+import type { ReactNode } from "react";
 
 interface JuliaFlowRuntimeConfig {
   gatewayBaseUrl?: string;
@@ -298,6 +299,35 @@ function activeDashboardId(data: AppData): string {
 }
 
 type UtilityDialog = "grid" | "share" | "help" | "profile" | null;
+
+class RouteErrorBoundary extends Component<
+  { activeView: AppView; children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidUpdate(previousProps: { activeView: AppView }) {
+    if (previousProps.activeView !== this.props.activeView && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <section className="route-error" role="alert">
+          <h1>{this.props.activeView.replace("-", " ")} unavailable</h1>
+          <p>This module could not render the current live workspace payload. Use another module, retry after the local gateway refreshes, or check Settings for runtime status.</p>
+        </section>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface ProjectFormState {
   name: string;
@@ -1010,7 +1040,9 @@ function App() {
           </section>
         </div>
       ) : null}
-      {view}
+      <RouteErrorBoundary activeView={activeView}>
+        {view}
+      </RouteErrorBoundary>
     </Shell>
   );
 }

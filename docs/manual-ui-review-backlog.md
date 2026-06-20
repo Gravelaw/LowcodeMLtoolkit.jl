@@ -175,11 +175,11 @@ Priority order:
 
 ### UI-REVIEW-011 - Module Routes Need Empty Live States And Route-Level Crash Containment
 
-- Status: partially implemented locally, not ticketed
+- Status: partially implemented locally, tracked by `AKS-27`
 - Module: global route shell / ML Studio / all modules
 - Observed page: `http://127.0.0.1:15173/visualize`
 - Problem: while assessing the current app state, the browser showed a blank screen even though the frontend and gateway ports were still listening. The runtime error came from `MlStudioView` reading `experiment.modelKind` when live local-appliance data had no ML experiment records.
-- Immediate local fix: `ML Studio` now renders a `No ML Experiments Yet` empty state when the backend returns an empty experiment list, displays `n/a` for missing optional metrics instead of crashing, and the existing local-appliance empty-list regression test now covers this route.
+- Immediate local fix: `ML Studio` now renders a `No ML Experiments Yet` empty state when the backend returns an empty experiment list, displays `n/a` for missing optional metrics instead of crashing, and the existing local-appliance empty-list regression test now covers this route. AKS-27 now also adds route-level crash containment, shared table row guards, and empty-state coverage for Models, Deploy, Settings, Transform, Monitor, Visualize, and ML Studio.
 - Expected behavior: every module should handle empty or incomplete live backend payloads with an actionable unavailable/empty state. A single module card or route should not be able to blank the whole shell.
 - Follow-up needed: add route-level error boundaries around module views, review all module views for first-item assumptions, and align unavailable-state copy with runtime mode so release/local-appliance modes show recovery guidance instead of demo fixture content.
 
