@@ -842,12 +842,56 @@ export interface GatewayDataImportProfileRequest {
   sourceUri?: string;
   format?: "csv" | "json" | "parquet" | "arrow_ipc" | string;
   targetZone?: string;
+  readMode?: "csv" | "arrow_ipc" | "parquet" | "duckdb" | string;
 }
 
 export interface GatewayDataProfileField {
   name: string;
   type: string;
   quality: string;
+  role?: "id" | "feature" | "label" | "timestamp" | "sensitive" | "ignored" | "derived" | string;
+  missingCount?: number;
+  distinctCount?: number;
+  outlierCount?: number;
+}
+
+export interface GatewayDataSourceOption {
+  mode: "csv" | "arrow_ipc" | "parquet" | "duckdb" | string;
+  label: string;
+  path: string;
+  status: "active" | "ready" | "pending" | "unavailable" | string;
+  semantics: string;
+}
+
+export interface GatewayDataLineageArtifact {
+  stage: "raw" | "profiled" | "processed" | "features" | "query" | string;
+  artifactRef: string;
+  format: "csv" | "arrow_ipc" | "parquet" | "duckdb" | string;
+  checksumSha256: string;
+  rowCount: number;
+}
+
+export interface GatewayDataQualityCheck {
+  checkId: string;
+  label: string;
+  status: "passed" | "warning" | "failed" | string;
+  detail: string;
+}
+
+export interface GatewayDataWorkflowReadiness {
+  targetColumn: string;
+  trainTestSplit: string;
+  leakageWarnings: string[];
+  downstreamReady: boolean;
+  recommendedNextAction: string;
+}
+
+export interface GatewayDataQuickPlot {
+  plotId: string;
+  title: string;
+  kind: "histogram" | "bar" | "line" | "target_balance" | string;
+  field: string;
+  values: Array<{ label: string; value: number }>;
 }
 
 export interface GatewayDataImportProfile {
@@ -866,6 +910,13 @@ export interface GatewayDataImportProfile {
   duckdbStatus: "ready" | "pending" | string;
   importedAt: string;
   localOnly: boolean;
+  activeReadMode?: string;
+  sourceOptions?: GatewayDataSourceOption[];
+  lineageArtifacts?: GatewayDataLineageArtifact[];
+  qualityChecks?: GatewayDataQualityCheck[];
+  workflowReadiness?: GatewayDataWorkflowReadiness;
+  quickPlots?: GatewayDataQuickPlot[];
+  previewRows?: Array<Record<string, string | number | boolean | null>>;
 }
 
 export interface GatewayDataImportProfileResponse {

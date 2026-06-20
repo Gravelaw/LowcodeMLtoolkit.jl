@@ -36,7 +36,8 @@ const transitionRequest: TransitionExecutionStatusRequest = {
 const dataProfileRequest: GatewayDataImportProfileRequest = {
   datasetId: "contracts-profile",
   sourceUri: "local://data/raw/contracts.csv",
-  targetZone: "raw"
+  targetZone: "raw",
+  readMode: "duckdb"
 };
 const transformRunRequest: GatewayTransformRunRequest = {
   executionMode: "cpu_only",

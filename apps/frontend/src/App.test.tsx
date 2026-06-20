@@ -18,6 +18,7 @@ import {
   mlExperiments,
   modelRegistry,
   publishedDashboard,
+  superstoreDataProfile,
   transformRuns,
   workflowSummary
 } from "./fixtures/local-fixtures";
@@ -122,6 +123,15 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Data" }));
     expect(screen.getByRole("heading", { name: "Data" })).toBeInTheDocument();
     expect(screen.getByText("C-1001")).toBeInTheDocument();
+    expect(screen.getByText("Dataset Catalog")).toBeInTheDocument();
+    expect(screen.getByText("Read Mode Selector")).toBeInTheDocument();
+    expect(screen.getByText("Artifact Lineage")).toBeInTheDocument();
+    expect(screen.getByText("ML Readiness")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /global-superstore-local/i }));
+    expect(screen.getAllByText("CA-2016-152156").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("profit").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /duckdb query view/i }));
+    expect(screen.getByText("Synthetic duckdb profile loaded from fixture.")).toBeInTheDocument();
     expect(screen.getByText("Generated Julia Code")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Transform" }));
@@ -220,8 +230,8 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("Workflow run stayed in deterministic demo mode.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Data" }));
-    fireEvent.click(screen.getByRole("button", { name: /import local data/i }));
-    expect(screen.getByText("Synthetic local profile loaded from fixture.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /re-profile active dataset/i }));
+    expect(screen.getByText("Synthetic csv profile loaded from fixture.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Transform" }));
     fireEvent.click(screen.getByRole("button", { name: /run transform/i }));
@@ -258,6 +268,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith("/health")) return json(localHealth);
       if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
       if (url.endsWith("/api/v1/executions")) return json({ items: executionRecords, count: executionRecords.length });
+      if (url.endsWith("/api/v1/local-data/import") && method === "POST") return json({ status: "profiled", profile: superstoreDataProfile });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
@@ -280,6 +291,19 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(headerValue(registerCall?.[1], "authorization")).toBe("Bearer dev-secret");
     expect(headerValue(registerCall?.[1], "x-juliaflow-workspace")).toBe("workspace-a");
     expect(headerValue(registerCall?.[1], "x-juliaflow-workspace-role")).toBe("editor");
+
+    fireEvent.click(screen.getByRole("button", { name: "Data" }));
+    fireEvent.click(screen.getByRole("button", { name: /global-superstore-local/i }));
+    fireEvent.click(screen.getByRole("button", { name: /duckdb query view/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8088/api/v1/local-data/import",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("\"readMode\":\"duckdb\"")
+      })
+    ));
+    await waitFor(() => expect(screen.getByText("Gateway action completed locally.")).toBeInTheDocument());
+    expect(screen.getAllByText("CA-2016-152156").length).toBeGreaterThan(0);
   });
 
   it("polls gateway health and preserves stale values when refresh fails", async () => {
@@ -414,9 +438,9 @@ describe("JuliaFlow local-only app redesign", () => {
 
     expect(screen.getByLabelText("Release mode unavailable")).toHaveTextContent("No gatewayBaseUrl is configured");
     fireEvent.click(screen.getByRole("button", { name: "Data" }));
-    fireEvent.click(screen.getByRole("button", { name: /import local data/i }));
+    fireEvent.click(screen.getByRole("button", { name: /re-profile active dataset/i }));
     expect(screen.getByText("Release mode requires the local gateway before this action can run.")).toBeInTheDocument();
-    expect(screen.queryByText("Synthetic local profile loaded from fixture.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Synthetic csv profile loaded from fixture.")).not.toBeInTheDocument();
   });
 
   it("reports required-mode auth failures instead of falling back", async () => {

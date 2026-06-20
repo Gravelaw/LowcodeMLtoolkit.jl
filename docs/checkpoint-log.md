@@ -2758,10 +2758,32 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- Stacked PR must wait for PR #30 or be retargeted after PR #30 merges.
+- PR #32 replaced closed stacked PR #31 and merged after PR #30.
 - External worker hot-reload remains future runtime depth if product review requires live process reconfiguration beyond gateway-dispatched evidence.
 
 ### Next Items To Implement
 
-- Finish browser sanity and control gates.
-- Publish the stacked draft PR for compute settings.
+- Continue with AKS-25 Data estate workflow.
+
+---
+
+## Checkpoint: AKS-25 Data Estate Workflow Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Started `codex/aks-25-data-estate-workflow` after AKS-24 merged to `main`.
+- Added contract/OpenAPI fields for active read mode, source options, artifact lineage, quality checks, field roles, workflow readiness, quick EDA plots, and preview rows.
+- Extended gateway local-data import/profile evidence for telecom churn and Global Superstore local fixture profiles with CSV, Arrow IPC, Parquet, and DuckDB semantics.
+- Reworked Data into a workflow surface for dataset switching, read-mode switching, preview/profile evidence, lineage, quality checks, ML readiness, and quick EDA checks.
+- Verified with focused frontend tests, contract validation, production build, and repo-local Julia gateway tests.
+
+### Gaps Pending
+
+- AKS-25 PR, CI, merge, and Linear closure remain pending.
+- Full external Kaggle download/import UX remains future depth; this slice uses committed deterministic fixture metadata.
+
+### Next Items To Implement
+
+- Run final control gates and diff check.
+- Open the AKS-25 PR and link it to Linear.
+- Start AKS-26 after AKS-25 merges.

@@ -139,7 +139,7 @@ Priority order:
 
 ### UI-REVIEW-009 - Data Local Source Selector Needs Clear Backend Semantics And Real Switching
 
-- Status: backlog
+- Status: in progress on `AKS-25`
 - Module: Data / Local Source Selector
 - Annotated element: `Local Source Selector`
 - Page: `http://127.0.0.1:15173/data`
@@ -150,7 +150,7 @@ Priority order:
 
 ### UI-REVIEW-010 - Data Dashboard Needs A Complete Data Science And Data Engineering Workflow
 
-- Status: backlog
+- Status: in progress on `AKS-25`
 - Module: Data dashboard
 - Annotated element: full `Data` page
 - Page: `http://127.0.0.1:15173/data`
@@ -171,7 +171,7 @@ Priority order:
 - Candidate Kaggle test datasets:
   - `barun2104/telecom-churn` (`telecom_churn.csv`, about 129 KB): small binary classification dataset for import, profiling, target selection, feature typing, transform, ML training, model evidence, and dashboard checks.
   - `abbas829/global-superstore-sales-dataset` (`Global Superstore.csv`, about 12.4 MB): transactional sales dataset for larger CSV import, DuckDB querying, date/category/numeric profiling, aggregations, visualization, export, and performance checks.
-- Notes: use these two datasets as acceptance fixtures for the end-to-end workflow. The Data dashboard should make it obvious which dataset is active, which local artifacts were created, which backend/read mode is active, and what next action the user can take.
+- Notes: AKS-25 implementation now uses deterministic telecom churn and Global Superstore fixture metadata instead of committing large raw Kaggle downloads. Current branch adds contract/gateway/frontend evidence for active dataset, read mode, local artifacts, backend semantics, quality checks, feature roles, and next actions; final status remains pending PR review/merge.
 
 ### UI-REVIEW-011 - Module Routes Need Empty Live States And Route-Level Crash Containment
 

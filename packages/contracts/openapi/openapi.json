@@ -5702,6 +5702,9 @@
           },
           "targetZone": {
             "type": "string"
+          },
+          "readMode": {
+            "type": "string"
           }
         }
       },
@@ -5721,6 +5724,21 @@
           },
           "quality": {
             "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "missingCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "distinctCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "outlierCount": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -5817,6 +5835,178 @@
           },
           "localOnly": {
             "type": "boolean"
+          },
+          "activeReadMode": {
+            "type": "string"
+          },
+          "sourceOptions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "mode",
+                "label",
+                "path",
+                "status",
+                "semantics"
+              ],
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "semantics": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "lineageArtifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "stage",
+                "artifactRef",
+                "format",
+                "checksumSha256",
+                "rowCount"
+              ],
+              "properties": {
+                "stage": {
+                  "type": "string"
+                },
+                "artifactRef": {
+                  "type": "string"
+                },
+                "format": {
+                  "type": "string"
+                },
+                "checksumSha256": {
+                  "type": "string"
+                },
+                "rowCount": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "qualityChecks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "checkId",
+                "label",
+                "status",
+                "detail"
+              ],
+              "properties": {
+                "checkId": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "workflowReadiness": {
+            "type": "object",
+            "required": [
+              "targetColumn",
+              "trainTestSplit",
+              "leakageWarnings",
+              "downstreamReady",
+              "recommendedNextAction"
+            ],
+            "properties": {
+              "targetColumn": {
+                "type": "string"
+              },
+              "trainTestSplit": {
+                "type": "string"
+              },
+              "leakageWarnings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "downstreamReady": {
+                "type": "boolean"
+              },
+              "recommendedNextAction": {
+                "type": "string"
+              }
+            }
+          },
+          "quickPlots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "plotId",
+                "title",
+                "kind",
+                "field",
+                "values"
+              ],
+              "properties": {
+                "plotId": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "field": {
+                  "type": "string"
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "label",
+                      "value"
+                    ],
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "previewRows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
           }
         }
       },

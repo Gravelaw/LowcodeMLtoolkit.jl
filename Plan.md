@@ -354,9 +354,15 @@ Verification evidence for this slice so far: `npm --workspace @juliaflow/fronten
 
 ## Latest Active Slice - 2026-06-20 AKS-24 Compute Settings Runtime
 
-**AKS-24 second slice is in progress on a stacked branch after PR #30.** The gateway now exposes contract-first compute settings through `GET/PUT /api/v1/settings/compute`, persists settings under the local metadata root, reflects applied settings in `healthcheck`, and attaches `computeSettingsApplied` plus dispatch policy evidence to workflow executions without overwriting GPU/stream dispatch metadata. Settings now lets users edit backend, CPU worker concurrency, memory limit, GPU preference, and BLAS thread count, then saves those settings through the gateway or stages them locally in demo mode.
+**AKS-24 second slice is merged.** The gateway now exposes contract-first compute settings through `GET/PUT /api/v1/settings/compute`, persists settings under the local metadata root, reflects applied settings in `healthcheck`, and attaches `computeSettingsApplied` plus dispatch policy evidence to workflow executions without overwriting GPU/stream dispatch metadata. Settings now lets users edit backend, CPU worker concurrency, memory limit, GPU preference, and BLAS thread count, then saves those settings through the gateway or stages them locally in demo mode.
 
-Verification evidence for this slice so far: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run validate:contracts`, `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`, and `npm run build`. The direct `julia --project=. tests/julia/runtests.jl` command is still blocked by Windows application-control policy against the user-global compiled cache, so repo-local Julia verification uses the project wrapper.
+Verification evidence for this slice: PR #32 GitHub `web` and `julia` checks, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run validate:contracts`, `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`, and `npm run build`. The direct `julia --project=. tests/julia/runtests.jl` command is still blocked by Windows application-control policy against the user-global compiled cache, so repo-local Julia verification uses the project wrapper.
+
+## Latest Active Slice - 2026-06-20 AKS-25 Data Estate Workflow
+
+**AKS-25 is in progress on `codex/aks-25-data-estate-workflow`.** The Data import/profile contract now carries active read-mode, source options, artifact lineage, quality checks, field roles, workflow readiness, quick EDA plots, and preview rows. The gateway local-data import/profile response returns deterministic telecom churn and Global Superstore fixture evidence with CSV, Arrow IPC, Parquet, and DuckDB semantics. The Data route now supports dataset switching, read-mode switching, profile refresh, lineage, quality/readiness, and quick EDA evidence instead of static source cards.
+
+Verification evidence so far: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run validate:contracts`, `npm run build`, and `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`. AKS-25 remains open until PR review/CI/merge and final control gates complete.
 
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 
