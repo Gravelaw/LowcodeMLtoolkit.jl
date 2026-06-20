@@ -275,6 +275,8 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(chartStatusLabel(stale)).toBe("Stale local evidence");
     expect(chartReadiness(undefined)).toBe("empty");
     expect(canRenderChart({ ...ready!, status: "empty", data: [] })).toBe(false);
+    expect(chartReadiness({ ...ready!, status: "stale", data: [] })).toBe("empty");
+    expect(canRenderChart({ ...ready!, status: "stale", data: [] })).toBe(false);
   });
 
   it("updates Data sampling and Transform node config state", () => {
@@ -294,6 +296,10 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByDisplayValue("encoded_features")).toBeInTheDocument();
     expect(screen.getAllByText(/encoded_features/).length).toBeGreaterThan(1);
     expect(screen.getByText("Unsaved canvas edits detected")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Trim Text" }));
+    expect(screen.getAllByText("Trim Text").length).toBeGreaterThan(1);
+    expect(screen.getByText("custom.palette_node")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("trim_text")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Validate" }));
     expect(screen.getByText("Pipeline is locally valid")).toBeInTheDocument();
   });

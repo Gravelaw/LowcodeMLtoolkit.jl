@@ -2621,3 +2621,28 @@ After any meaningful job:
 
 - Merge this closure-doc update.
 - Move AKS-26 to Done and confirm no open LowCodeML backlog issues remain.
+
+---
+
+## Update: Codex Review Required Fixes - 2026-06-20
+
+### Work Done Till Date
+
+- Reviewed Outlook/GitHub Codex bot findings and compared them against current `main`.
+- Fixed stale chart readiness so zero-trace stale specs show empty state instead of mounting/exporting blank Plotly charts.
+- Fixed Transform React Flow state to reset when the live workflow identity changes.
+- Preserved metadata and settings for palette-created Transform nodes.
+- Fixed gateway workspace summary disk usage to use managed data-estate `usedBytes`.
+- Replaced hard-coded churn workspace artifacts with summaries derived from actual local data-estate files.
+- Generated DuckDB binding SQL with an absolute managed-root Parquet glob and refreshed managed generated files when content changes.
+- Made Postgres metadata readiness follow the actual repository backend instead of only the selected local profile.
+- Added bounded Postgres readiness waiting after `docker compose up -d` for `dev:local --profile lab-team`.
+
+### Gaps Pending
+
+- Control-doc sync must be rerun after this tracker/checkpoint update.
+- No new product capability is claimed; this is a review-fix hardening slice.
+
+### Next Items To Implement
+
+- Rerun verification gates and open/merge the review-fix PR after checks pass.

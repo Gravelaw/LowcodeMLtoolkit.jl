@@ -2856,3 +2856,21 @@ Each checkpoint entry must contain:
 
 - Merge this closure-doc update.
 - Confirm Linear has no open LowCodeML backlog issues.
+
+---
+
+## Checkpoint: Codex Review Required Fixes - 2026-06-20
+
+### Work Done Till Date
+
+- Implemented required Codex review fixes for chart readiness, Transform workflow resync, palette-node metadata, workspace summary disk/artifact evidence, DuckDB root-bound SQL, Postgres metadata readiness, and lab-team Postgres startup readiness.
+- Added focused frontend assertions and Julia healthcheck assertions for the changed behavior.
+- Verification already passed for focused frontend tests, Julia gateway/runtime tests, contract validation, production build, browser local UI checks, and BRD traceability before the final control-doc rerun.
+
+### Gaps Pending
+
+- Final `npm run validate:control-doc-sync`, `git diff --check`, and optional PR/CI evidence remain before closure.
+
+### Next Items To Implement
+
+- Rerun the final gates, then publish the review-fix branch for review.

@@ -1396,6 +1396,11 @@ end
         @test health_payload["dataEstateCleanupStatus"] == "ready"
         @test health_payload["dataEstateBackupStatus"] == "ready"
         @test health_payload["dataEstateDuckdbStatus"] == "ready"
+        duckdb_query = read(String(health_payload["dataEstateDuckdbQueryPath"]), String)
+        @test occursin(replace(String(health_payload["dataEstateRoot"]), "\\" => "/"), duckdb_query)
+        @test !occursin("read_parquet('processed/**/*.parquet')", duckdb_query)
+        @test health_payload["workspaceSummary"]["diskUsedBytes"] == health_payload["dataEstateUsedBytes"]
+        @test all(!occursin("churn_model_v1", String(artifact["path"])) for artifact in health_payload["workspaceSummary"]["artifacts"])
         @test health_payload["hardwareProfileStatus"] == "ready"
         @test health_payload["hardwareSelectedBackend"] in ["cpu", "cuda", "simulated_cuda"]
         @test health_payload["cpuSchedulerPolicy"] == "bounded_threads"

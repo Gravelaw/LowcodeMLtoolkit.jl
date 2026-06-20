@@ -265,8 +265,40 @@ function startDeps(profile, startDeps) {
   const services = profile === "lab-team" ? ["postgres"] : ["minio"];
   const child = spawnProcess("compose", "docker", ["compose", "-f", "infra/docker/compose.dev.yml", "up", "-d", ...services], process.env);
   return new Promise((resolvePromise, rejectPromise) => {
-    child.on("exit", (code) => (code === 0 ? resolvePromise() : rejectPromise(new Error(`docker compose exited with ${code}`))));
+    child.on("exit", async (code) => {
+      if (code !== 0) {
+        rejectPromise(new Error(`docker compose exited with ${code}`));
+        return;
+      }
+      try {
+        if (profile === "lab-team") {
+          await waitForPostgres();
+        }
+        resolvePromise();
+      } catch (error) {
+        rejectPromise(error);
+      }
+    });
   });
+}
+
+async function waitForPostgres(timeoutMs = 30000) {
+  const started = Date.now();
+  let lastError = null;
+  while (Date.now() - started < timeoutMs) {
+    const result = spawnSync(
+      "docker",
+      ["compose", "-f", "infra/docker/compose.dev.yml", "exec", "-T", "postgres", "pg_isready", "-U", "juliaflow", "-d", "juliaflow"],
+      { cwd: ROOT_DIR, env: process.env, stdio: "pipe", shell: false }
+    );
+    if (result.status === 0) {
+      console.log("[dev:local] postgres ready");
+      return;
+    }
+    lastError = new Error(String(result.stderr || result.stdout || `pg_isready exited with ${result.status}`).trim());
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 500));
+  }
+  throw new Error(`Timed out waiting for Postgres readiness: ${lastError?.message ?? "pg_isready did not succeed"}`);
 }
 
 async function waitForJson(url, timeoutMs) {

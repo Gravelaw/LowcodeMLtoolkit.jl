@@ -401,6 +401,12 @@ Verification evidence for this slice: `npm --workspace @juliaflow/frontend run t
 
 ## Required Skills By Lane
 
+## Latest Review Fix Slice - 2026-06-20 Codex Review Required Fixes
+
+**Codex review required fixes are implemented for the current Explorer/Data/Transform and local appliance follow-up branch.** The slice fixes stale-empty chart classification, React Flow Transform resync on workflow identity changes, palette-created node settings retention, managed data-estate disk usage in workspace summary, local artifact summaries derived from actual data-estate files, root-bound DuckDB query SQL generation, Postgres metadata readiness based on the actual repository backend, and bounded Postgres readiness waiting for `dev:local --profile lab-team`.
+
+Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`, `npm run validate:contracts`, `npm run build`, `npm run test:browser -- tests/browser/local-ui.spec.ts`, and `npm run validate:brd-traceability`. `npm run validate:control-doc-sync` initially failed as expected before this control-doc update and must pass before closure.
+
 - BRD/control docs: `juliaflow-control-loop`.
 - Local-first GA: `juliaflow-local-first-appliance`.
 - Julia services/runtime/nodes: `juliaflow-julia-development`.

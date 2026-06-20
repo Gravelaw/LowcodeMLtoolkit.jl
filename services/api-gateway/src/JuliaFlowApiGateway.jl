@@ -565,7 +565,7 @@ function local_metadata_health(state::GatewayState, profile::AbstractString, hom
 
     if backend == "postgres"
         schema_status = "ready"
-        metadata_ready = local_profile_dependency_status(profile, :postgres) == "configured"
+        metadata_ready = state.repository isa PostgreSQLGatewayRepository
     else
         get(ENV, "JULIAFLOW_APPLIANCE_BOOTSTRAP", "0") == "1" && mkpath(metadata_root)
         metadata_ready = isdir(metadata_root) && local_zone_writable(metadata_root)
@@ -749,7 +749,7 @@ end
 function ensure_managed_data_estate_file(path::AbstractString, content::AbstractString)
     get(ENV, "JULIAFLOW_APPLIANCE_BOOTSTRAP", "0") == "1" || return
     mkpath(dirname(path))
-    isfile(path) || write(path, content)
+    (!isfile(path) || read(path, String) != content) && write(path, content)
 end
 
 function file_sha256(path::AbstractString)
@@ -786,10 +786,11 @@ function local_data_estate_management(root::AbstractString, zones)
     quota_bytes = local_data_estate_quota_bytes()
     backup_root = joinpath(root, "_backups")
     duckdb_query_path = local_data_estate_duckdb_query_path(root)
+    processed_glob = replace(joinpath(root, "processed", "**", "*.parquet"), "\\" => "/")
     ensure_managed_data_estate_file(
         duckdb_query_path,
         "-- JuliaFlow local data estate DuckDB query binding\n" *
-        "SELECT count(*) AS row_count FROM read_parquet('processed/**/*.parquet');\n",
+        "SELECT count(*) AS row_count FROM read_parquet('$(replace(processed_glob, "'" => "''"))');\n",
     )
     get(ENV, "JULIAFLOW_APPLIANCE_BOOTSTRAP", "0") == "1" && mkpath(backup_root)
     manifests = [
@@ -968,6 +969,32 @@ function local_artifact_kind(path::AbstractString)
     return "artifact"
 end
 
+function local_artifact_size_label(bytes::Integer)
+    bytes < 1024 && return "$(bytes) B"
+    units = ("KB", "MB", "GB", "TB")
+    value = Float64(bytes)
+    unit_index = 0
+    while value >= 1024 && unit_index < length(units)
+        value /= 1024
+        unit_index += 1
+    end
+    return "$(round(value; digits = value >= 10 ? 1 : 2)) $(units[unit_index])"
+end
+
+function workspace_artifact_summaries(data_root::AbstractString)
+    records = local_data_estate_artifact_records(data_root)
+    return [
+        Dict{String,Any}(
+            "path" => String(record["relativePath"]),
+            "kind" => local_artifact_kind(String(record["relativePath"])),
+            "size" => local_artifact_size_label(Int64(record["sizeBytes"])),
+            "status" => get(record, "present", false) == true ? "local" : "missing",
+            "localOnly" => true,
+        )
+        for record in records
+    ]
+end
+
 function workspace_summary_payload(
     state::GatewayState,
     appliance_home::AbstractString,
@@ -980,31 +1007,14 @@ function workspace_summary_payload(
     ram_free = Int64(Sys.free_memory())
     ram_used = max(Int64(0), ram_total - ram_free)
     disk_total = Int64(get(data_estate, "quotaBytes", 0))
-    disk_free = Int64(get(disk_status, "freeBytes", 0))
-    disk_used = max(Int64(0), disk_total - disk_free)
+    disk_used = max(Int64(0), Int64(get(data_estate, "usedBytes", 0)))
     active_jobs = count(execution -> execution.status in ("queued", "running", "accepted"), state.executions)
     worker_concurrency = max(1, Int(get(hardware, "cpuWorkerConcurrency", 1)))
     cpu_usage = min(96, max(4, round(Int, 18 + (active_jobs / worker_concurrency) * 50)))
     workflow_names = [String(workflow.name) for workflow in values(state.workflows)]
     project_name = isempty(workflow_names) ? "Local_Workspace" : replace(first(workflow_names), r"[^A-Za-z0-9]+" => "_")
     project_root = "$(appliance_home)/Projects/$(project_name)"
-    artifact_paths = [
-        "$(project_name)/Project.toml",
-        "$(project_name)/data/raw/churn.csv",
-        "$(project_name)/data/features/churn_features.parquet",
-        "$(project_name)/models/churn_model_v1.jls",
-        "$(project_name)/results/metrics.json",
-    ]
-    artifacts = [
-        Dict{String,Any}(
-            "path" => path,
-            "kind" => local_artifact_kind(path),
-            "size" => index == 1 ? "2.1 KB" : index == 2 ? "25.1 GB" : index == 3 ? "18.7 MB" : index == 4 ? "87.6 MB" : "3.1 KB",
-            "status" => index == 1 ? "local" : index == 2 ? "profiled" : index == 3 ? "materialized" : index == 4 ? "registered" : "checkpointed",
-            "localOnly" => true,
-        )
-        for (index, path) in enumerate(artifact_paths)
-    ]
+    artifacts = workspace_artifact_summaries(data_root)
     executions = reverse(state.executions)
     activities = [
         Dict{String,Any}(

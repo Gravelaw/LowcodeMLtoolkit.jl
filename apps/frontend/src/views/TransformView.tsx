@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Background,
   Controls,
@@ -23,6 +23,14 @@ const paletteGroups = [
   { group: "Combine", items: ["Join Tables", "Union", "Append"] },
   { group: "Aggregate", items: ["Group And Aggregate", "Pivot", "Window Aggregate"] }
 ];
+
+type PaletteNodeMetadata = {
+  id: string;
+  name: string;
+  type: string;
+  executionHint: string;
+  config?: Record<string, unknown>;
+};
 
 function workflowNodesToFlowNodes(data: AppData): Node[] {
   return data.workflow.nodes.map((node, index) => ({
@@ -77,8 +85,10 @@ export function TransformView({
   const [query, setQuery] = useState("");
   const [validationStatus, setValidationStatus] = useState<"valid" | "warning">("valid");
   const [nodeConfigs, setNodeConfigs] = useState<Record<string, { strategy: string; output: string }>>({});
+  const [paletteNodes, setPaletteNodes] = useState<Record<string, PaletteNodeMetadata>>({});
   const latest = data.transformRuns[0];
-  const selectedNode = data.workflow.nodes.find((node) => node.id === selectedNodeId) ?? data.workflow.nodes[0];
+  const workflowIdentity = `${data.workflow.workflowId}:${data.workflow.nodes.map((node) => node.id).join(",")}:${data.workflow.connections.map((connection) => `${connection.sourceNodeId}->${connection.targetNodeId}`).join(",")}`;
+  const selectedNode = data.workflow.nodes.find((node) => node.id === selectedNodeId) ?? paletteNodes[selectedNodeId];
   const selectedConfig = nodeConfigs[selectedNodeId] ?? {
     strategy: String(selectedNode?.config?.strategy ?? "median"),
     output: String(selectedNode?.config?.output ?? "features")
@@ -89,6 +99,15 @@ export function TransformView({
     ...group,
     items: group.items.filter((item) => item.toLowerCase().includes(query.toLowerCase()) || group.group.toLowerCase().includes(query.toLowerCase()))
   })).filter((group) => group.items.length > 0);
+
+  useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+    setPaletteNodes({});
+    setNodeConfigs({});
+    setSelectedNodeId(data.workflow.nodes.find((node) => node.id === "features")?.id ?? data.workflow.nodes[0]?.id ?? "");
+    setValidationStatus("valid");
+  }, [workflowIdentity, initialNodes, initialEdges, setEdges, setNodes, data.workflow.nodes]);
 
   function onConnect(connection: Connection) {
     setEdges((current) => addEdge({ ...connection, animated: true }, current));
@@ -118,6 +137,16 @@ export function TransformView({
 
   function addPaletteNode(label: string, group: string) {
     const id = `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${nodes.length + 1}`;
+    const metadata: PaletteNodeMetadata = {
+      id,
+      name: label,
+      type: "custom.palette_node",
+      executionHint: "cpu_only",
+      config: {
+        strategy: group,
+        output: label.toLowerCase().replace(/[^a-z0-9]+/g, "_")
+      }
+    };
     setNodes((current) => [
       ...current,
       {
@@ -134,6 +163,14 @@ export function TransformView({
         }
       }
     ]);
+    setPaletteNodes((current) => ({ ...current, [id]: metadata }));
+    setNodeConfigs((current) => ({
+      ...current,
+      [id]: {
+        strategy: String(metadata.config?.strategy ?? "custom"),
+        output: String(metadata.config?.output ?? "features")
+      }
+    }));
     setSelectedNodeId(id);
     setValidationStatus("warning");
   }
@@ -197,7 +234,7 @@ export function TransformView({
 
       <Card title="Transform Settings" className="right-panel">
         <div className="key-values wrap-values">
-          <span>Node</span><strong>{selectedNode?.name ?? selectedNodeId}</strong>
+          <span>Node</span><strong>{selectedNode?.name ?? (selectedNodeId || "No node selected")}</strong>
           <span>Type</span><strong>{selectedNode?.type ?? "custom.palette_node"}</strong>
           <span>Execution</span><strong>{selectedNode?.executionHint ?? "cpu_only"}</strong>
           <span>Strategy</span><strong>{selectedConfig.strategy}</strong>
