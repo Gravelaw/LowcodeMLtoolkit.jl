@@ -185,7 +185,7 @@ Priority order:
 
 ### UI-REVIEW-012 - Visualize Must Support EDA And ML Diagnostic Workflows, Not Just Dashboard Snapshots
 
-- Status: backlog
+- Status: in progress on `AKS-26`
 - Module: Visualize / Data / ML Studio
 - Annotated element: full `Visualize` page
 - Page: `http://127.0.0.1:15173/visualize`
@@ -207,7 +207,7 @@ Priority order:
   - Data should feed EDA directly after import/profile, and ML Studio should feed diagnostics after training.
   - Dashboard export should remain, but it should be only one workflow, not the whole visualization story.
 - Verification needed: inspect current gateway/contracts for available profile, experiment, metric, and dashboard payloads. Add or extend contracts only if existing payloads cannot represent EDA chart specs and ML diagnostic artifacts.
-- Notes: acceptance should include at least the churn classification dataset and the Superstore transactional dataset from `UI-REVIEW-010`, with EDA charts generated before modeling and model diagnostic charts generated after training.
+- Notes: AKS-26 branch now turns Visualize into a multi-mode EDA, dashboard, diagnostics, and experiment comparison workspace fed by AKS-25 data profiles and ML experiment evidence. Final status remains pending PR review/merge.
 
 ## Pending Annotations
 

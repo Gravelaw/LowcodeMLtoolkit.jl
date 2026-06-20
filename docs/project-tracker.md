@@ -2551,6 +2551,29 @@ After any meaningful job:
 
 ### Next Items To Implement
 
-- Run final control gates and diff check.
-- Open the AKS-25 PR and link it to Linear.
-- After merge, move AKS-25 to Done and start AKS-26.
+- Continue with AKS-26 EDA and ML diagnostic visualization.
+
+---
+
+## Update: AKS-26 EDA And ML Diagnostics Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Started `codex/aks-26-eda-ml-diagnostics` from updated `main` after AKS-25 merged.
+- Reworked Visualize into EDA, Dashboard, Model Diagnostics, and Experiment Compare modes.
+- Fed EDA from AKS-25 data profile evidence: field roles, missingness, outliers, quality checks, target/readiness, and quick plots.
+- Preserved dashboard rows, chart properties, checkpoint/export actions, and no-artifact dashboard empty states.
+- Added model diagnostic surfaces for ROC/PR/calibration, confusion matrix, threshold review, and feature importance from ML experiment evidence.
+- Added experiment comparison for model, dataset, hardware, AUC/F1, learning curve, residual/error distribution, and drift/model registry linkage.
+- Verified the slice so far with focused frontend tests and production build.
+
+### Gaps Pending
+
+- Final control gates, PR, CI, merge, and Linear closure remain pending.
+- Deeper persisted diagnostic artifact contracts can follow only if later backend requirements need diagnostics stored independently of existing profile/experiment/dashboard evidence.
+
+### Next Items To Implement
+
+- Run final gates and diff check.
+- Open and merge the AKS-26 PR after green CI.
+- Move AKS-26 to Done and confirm no open LowCodeML backlog issues remain.

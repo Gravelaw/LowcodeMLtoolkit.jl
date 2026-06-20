@@ -360,9 +360,15 @@ Verification evidence for this slice: PR #32 GitHub `web` and `julia` checks, `n
 
 ## Latest Active Slice - 2026-06-20 AKS-25 Data Estate Workflow
 
-**AKS-25 is in progress on `codex/aks-25-data-estate-workflow`.** The Data import/profile contract now carries active read-mode, source options, artifact lineage, quality checks, field roles, workflow readiness, quick EDA plots, and preview rows. The gateway local-data import/profile response returns deterministic telecom churn and Global Superstore fixture evidence with CSV, Arrow IPC, Parquet, and DuckDB semantics. The Data route now supports dataset switching, read-mode switching, profile refresh, lineage, quality/readiness, and quick EDA evidence instead of static source cards.
+**AKS-25 is merged.** The Data import/profile contract now carries active read-mode, source options, artifact lineage, quality checks, field roles, workflow readiness, quick EDA plots, and preview rows. The gateway local-data import/profile response returns deterministic telecom churn and Global Superstore fixture evidence with CSV, Arrow IPC, Parquet, and DuckDB semantics. The Data route now supports dataset switching, read-mode switching, profile refresh, lineage, quality/readiness, and quick EDA evidence instead of static source cards.
 
-Verification evidence so far: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run validate:contracts`, `npm run build`, and `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`. AKS-25 remains open until PR review/CI/merge and final control gates complete.
+Verification evidence: PR #33 GitHub `web` and `julia` checks, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run validate:contracts`, `npm run build`, and `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`.
+
+## Latest Active Slice - 2026-06-20 AKS-26 EDA And ML Diagnostics
+
+**AKS-26 is in progress on `codex/aks-26-eda-ml-diagnostics`.** Visualize now starts as a multi-mode workspace with EDA, Dashboard, Model Diagnostics, and Experiment Compare tabs. EDA consumes AKS-25 data profile fields, quality checks, target/readiness, and quick plots; dashboard checkpoint/export remains available; diagnostics show ROC/PR/calibration, confusion matrix, threshold, and feature-importance surfaces from ML experiment evidence; experiment comparison summarizes model, dataset, hardware, AUC/F1, learning-curve, residual, and drift-link views.
+
+Verification evidence so far: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx` and `npm run build`. AKS-26 remains open until final gates, PR review/CI/merge, and Linear closure complete.
 
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 
