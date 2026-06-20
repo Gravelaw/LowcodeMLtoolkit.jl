@@ -25,6 +25,7 @@ import type {
   JuliaFlowUnavailableCapability,
   JuliaFlowUnavailableState,
   PublishedDashboardDefinition,
+  WorkflowDefinition,
   WorkspaceRole
 } from "@juliaflow/contracts";
 import { DataView } from "./views/DataView";
@@ -171,46 +172,89 @@ function buildDemoData(runtimeMode: JuliaFlowRuntimeMode = "demo"): AppData {
   };
 }
 
+function workflowUnavailableDefinition(summary: typeof workflowSummary = workflowSummary): WorkflowDefinition {
+  return {
+    version: summary.version,
+    workflowId: summary.workflowId,
+    name: summary.name,
+    nodes: [],
+    connections: [],
+    flowVariables: [],
+    graph: {
+      revision: summary.graphRevision ?? 0,
+      nodeLayouts: []
+    },
+    dashboards: [],
+    runtime: {
+      runMode: summary.runMode ?? "batch"
+    }
+  };
+}
+
 function buildUnavailableData(
   runtimeMode: JuliaFlowRuntimeMode,
-  unavailable: JuliaFlowUnavailableState[]
+  unavailable: JuliaFlowUnavailableState[],
+  summary: typeof workflowSummary = workflowSummary
 ): AppData {
   const runtime = runtimeContract(runtimeMode, unavailable);
+  const base = buildDemoData(runtimeMode);
+  const workflow = allowsFixtureSubstitution(runtimeMode) ? base.workflow : workflowUnavailableDefinition(summary);
   return {
-    ...buildDemoData(runtimeMode),
+    ...base,
     mode: "unavailable",
     runtime,
     unavailable,
     health: withRuntimeHealth(localHealth, runtime),
+    workflow,
+    workflowSummary: summary,
     executions: [],
     transformRuns: [],
     mlExperiments: [],
     modelRegistry: [],
     deployPackages: [],
     visualizeExports: [],
-    dashboard: dashboardFromWorkflow(localWorkflow, workflowSummary)
+    dashboard: dashboardFromWorkflow(workflow, summary)
   };
 }
 
-function workflowMetadataToDefinition(metadata: unknown): typeof localWorkflow {
+type WorkflowMetadataResult =
+  | { ok: true; workflow: WorkflowDefinition }
+  | { ok: false; reason: string; recovery: string };
+
+function workflowMetadataToDefinition(metadata: unknown, workflowId: string): WorkflowMetadataResult {
   if (
     metadata &&
     typeof metadata === "object" &&
     "workflowId" in metadata &&
+    (metadata as { workflowId?: unknown }).workflowId === workflowId &&
     "nodes" in metadata &&
-    Array.isArray((metadata as { nodes?: unknown[] }).nodes)
+    Array.isArray((metadata as { nodes?: unknown[] }).nodes) &&
+    (metadata as { nodes?: unknown[] }).nodes!.length > 0 &&
+    "connections" in metadata &&
+    Array.isArray((metadata as { connections?: unknown[] }).connections) &&
+    "flowVariables" in metadata &&
+    Array.isArray((metadata as { flowVariables?: unknown[] }).flowVariables) &&
+    "graph" in metadata &&
+    typeof (metadata as { graph?: unknown }).graph === "object" &&
+    Array.isArray((metadata as { graph?: { nodeLayouts?: unknown[] } }).graph?.nodeLayouts) &&
+    "runtime" in metadata &&
+    typeof (metadata as { runtime?: unknown }).runtime === "object"
   ) {
-    return metadata as typeof localWorkflow;
+    return { ok: true, workflow: metadata as WorkflowDefinition };
   }
-  return localWorkflow;
+  return {
+    ok: false,
+    reason: `The gateway returned incomplete workflow metadata for ${workflowId}.`,
+    recovery: "Re-import or save the workflow so the gateway returns nodes, connections, flow variables, graph layout, and runtime metadata before rendering the live canvas."
+  };
 }
 
-function workflowDashboardId(workflow: typeof localWorkflow): string | undefined {
+function workflowDashboardId(workflow: WorkflowDefinition): string | undefined {
   return workflow.dashboards?.[0]?.dashboardId;
 }
 
 function dashboardFromWorkflow(
-  workflow: typeof localWorkflow,
+  workflow: WorkflowDefinition,
   summary: typeof workflowSummary
 ): PublishedDashboardDefinition {
   const source = workflow.dashboards?.[0];
@@ -310,7 +354,14 @@ function App() {
         }
         const summary = workflows.items[0] ?? workflowSummary;
         const metadata = await client.getWorkflow(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackValue(localWorkflow));
-        const workflow = workflowMetadataToDefinition(metadata);
+        const workflowResult = workflowMetadataToDefinition(metadata, summary.workflowId);
+        if (!workflowResult.ok && !fixtureSubstitutionAllowed) {
+          setData(buildUnavailableData(runtimeMode, [
+            unavailableState("workflows", workflowResult.reason, workflowResult.recovery)
+          ], summary));
+          return;
+        }
+        const workflow = workflowResult.ok ? workflowResult.workflow : localWorkflow;
         const [transforms, experiments, models, packages, dashboards] = await Promise.all([
           client.getWorkflowTransformHistory(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(transformRuns)),
           client.getWorkflowMlExperimentHistory(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(mlExperiments)),

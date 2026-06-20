@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-13 Live Workflow Metadata Recovery - 2026-06-20
+
+### Work Done Till Date
+
+- Completed the AKS-13 frontend recovery slice after PR #25 release verification closure.
+- Release/local-appliance workflow loading now validates backend workflow detail before rendering live canvas/pipeline state.
+- Incomplete workflow metadata now reports an unavailable workflow state with recovery guidance instead of substituting fixture workflow nodes.
+- Demo/development fixture fallback remains available for offline demos and local development.
+- Transform renders explicit workflow metadata recovery guidance when required-mode workflow nodes are unavailable.
+- Verification passed: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run test`, `npm run build`, `npm run validate:contracts`, and `npm run smoke:live-backend-browser`.
+
+### Gaps Pending
+
+- Provider/cloud deployment and hardware-gated GPU proof remain optional compatibility work unless reprioritized.
+- The live smoke exits successfully but still prints Julia HTTP connection-cancel teardown noise after Playwright completes.
+
+### Next Items To Implement
+
+- Open the AKS-13 draft PR and link `artifacts/release-verification/live-backend-browser` as live UI evidence.
+- Run `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check` before final PR handoff.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-5 Stage 5 Release Verification Implementation - 2026-06-19
 
 ### Work Done Till Date

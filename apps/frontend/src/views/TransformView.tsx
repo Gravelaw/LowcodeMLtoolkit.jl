@@ -24,15 +24,19 @@ export function TransformView({
       {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
 
       <Card title="Visual Transform Pipeline" className="wide">
-        <div className="pipeline">
-          {data.workflow.nodes.map((node, index) => (
-            <div className="pipeline-node" key={node.id}>
-              <span>{index + 1}</span>
-              <strong>{node.name}</strong>
-              <small>{node.type}</small>
-            </div>
-          ))}
-        </div>
+        {data.workflow.nodes.length > 0 ? (
+          <div className="pipeline">
+            {data.workflow.nodes.map((node, index) => (
+              <div className="pipeline-node" key={node.id}>
+                <span>{index + 1}</span>
+                <strong>{node.name}</strong>
+                <small>{node.type}</small>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-state">Workflow metadata is unavailable. Re-import or save the workflow through the local gateway before rendering the live transform canvas.</p>
+        )}
       </Card>
 
       <Card title="Transform Library">
