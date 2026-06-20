@@ -2,6 +2,7 @@ import { Card, DataTable, StatusPill } from "../components/ui";
 import type { AppData } from "../types";
 
 export function SettingsView({ data }: { data: AppData }) {
+  const latestCheckpointTag = data.checkpoints[0]?.tag ?? "No checkpoint yet";
   return (
     <div className="route-grid settings-route">
       <section className="page-title">
@@ -74,7 +75,7 @@ export function SettingsView({ data }: { data: AppData }) {
         <div className="key-values">
           <span>Backup root</span><strong>{data.health.dataEstateBackupRoot}</strong>
           <span>Status</span><strong>{data.health.dataEstateBackupStatus}</strong>
-          <span>Last checkpoint</span><strong>{data.checkpoints[0].tag}</strong>
+          <span>Last checkpoint</span><strong>{latestCheckpointTag}</strong>
           <span>Reproducibility</span><strong>bundle ready</strong>
         </div>
       </Card>

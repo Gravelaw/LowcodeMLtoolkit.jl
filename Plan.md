@@ -340,6 +340,12 @@ Verification evidence for this slice: `npm --workspace @juliaflow/frontend run t
 
 Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `git diff --check`, and a local Playwright/Edge sanity pass against `/`, `/ml-studio`, and `/visualize`. A future gateway-native scaffold endpoint can still be added if the product needs service-owned writes from typed paths, but the browser path now supports real local file creation after explicit folder permission.
 
+## Latest Active Slice - 2026-06-20 AKS-27 Route Resilience
+
+**AKS-27 route resilience is in progress.** The current frontend slice adds a route-level error boundary around module views so one route failure renders an actionable unavailable state without blanking the global shell. It also hardens live empty states for Models, Deploy, Settings, and shared tables so empty or partial backend payloads no longer require first records to exist.
+
+Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, `git diff --check`, and local Playwright/Edge browser sanity on `/`, `/ml-studio`, `/models`, `/deploy`, and `/visualize`.
+
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 
 **Backend-backed Data and Transform product actions are complete for the current local product-depth slice.** Gateway routes now support local data import/profile evidence and workflow transform run/history evidence backed by local appliance health, workflow nodes, execution state, and deterministic local artifact refs. Shared contracts/OpenAPI expose typed client methods, and the Data/Transform views call those actions while preserving demo fallback, runtime `juliaflow-config.js`, route compatibility, accessible selectors, and local-first behavior.

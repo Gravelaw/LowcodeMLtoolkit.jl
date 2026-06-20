@@ -418,6 +418,14 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Visualize" }));
     expect(screen.getByText("No artifact-backed dashboard rows are available for this published dashboard. Run the workflow and publish a dashboard snapshot with persisted dataset rows.")).toBeInTheDocument();
     expect(screen.queryByText("C-1001")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Models" }));
+    expect(screen.getByText("No backend model registry records are available for this workspace yet. Register a model after training completes.")).toBeInTheDocument();
+    expect(screen.queryByText("model-local-churn-001")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
+    expect(screen.getByText("No backend deploy package records are available yet. Package a local endpoint after a model is registered.")).toBeInTheDocument();
+    expect(screen.getByText("No local endpoint packaged")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Release mode unavailable")).not.toBeInTheDocument();
   });
 

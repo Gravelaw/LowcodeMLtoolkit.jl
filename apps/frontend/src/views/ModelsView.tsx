@@ -11,6 +11,7 @@ export function ModelsView({
   feedback?: ActionFeedback;
 }) {
   const selected = data.modelRegistry[0];
+  const artifactEvidence = selected?.artifactEvidence ?? [];
   return (
     <div className="route-grid models-route">
       <section className="page-title">
@@ -37,26 +38,36 @@ export function ModelsView({
         />
       </Card>
 
-      <Card title="Churn Prediction" className="right-panel detail-drawer">
-        <div className="drawer-head">
-          <h2>{selected.modelId}</h2>
-          <StatusPill tone="green">Healthy</StatusPill>
-        </div>
-        <div className="metrics-grid-small">
-          <MetricCard label={selected.primaryMetricName} value={selected.primaryMetricValue.toFixed(3)} detail="latest" />
-          <MetricCard label="F1 Score" value="0.861" detail="v1.2.0" tone="blue" />
-          <MetricCard label="Precision" value="0.872" detail="v1.2.0" tone="green" />
-          <MetricCard label="Recall" value="0.850" detail="v1.2.0" tone="orange" />
-        </div>
-        <div className="key-values">
-          <span>Framework</span><strong>MLJ.jl</strong>
-          <span>Training Data</span><strong>25.1 GB local</strong>
-          <span>Model Path</span><strong>{selected.artifactEvidence[0].artifactRef}</strong>
-        </div>
-        <h3>Artifacts (Stored on Disk)</h3>
-        <ul className="artifact-list">
-          {selected.artifactEvidence.map((artifact) => <li key={artifact.artifactRef}>{artifact.artifactRef}</li>)}
-        </ul>
+      <Card title={selected?.modelId ?? "No Model Selected"} className="right-panel detail-drawer">
+        {selected ? (
+          <>
+            <div className="drawer-head">
+              <h2>{selected.modelId}</h2>
+              <StatusPill tone="green">Healthy</StatusPill>
+            </div>
+            <div className="metrics-grid-small">
+              <MetricCard label={selected.primaryMetricName} value={selected.primaryMetricValue.toFixed(3)} detail="latest" />
+              <MetricCard label="F1 Score" value="0.861" detail="v1.2.0" tone="blue" />
+              <MetricCard label="Precision" value="0.872" detail="v1.2.0" tone="green" />
+              <MetricCard label="Recall" value="0.850" detail="v1.2.0" tone="orange" />
+            </div>
+            <div className="key-values">
+              <span>Framework</span><strong>MLJ.jl</strong>
+              <span>Training Data</span><strong>25.1 GB local</strong>
+              <span>Model Path</span><strong>{artifactEvidence[0]?.artifactRef ?? "No local model artifact"}</strong>
+            </div>
+            <h3>Artifacts (Stored on Disk)</h3>
+            {artifactEvidence.length === 0 ? (
+              <p className="empty-state">No local model artifacts are attached to this registry record yet.</p>
+            ) : (
+              <ul className="artifact-list">
+                {artifactEvidence.map((artifact) => <li key={artifact.artifactRef}>{artifact.artifactRef}</li>)}
+              </ul>
+            )}
+          </>
+        ) : (
+          <p className="empty-state">No backend model registry records are available for this workspace yet. Register a model after training completes.</p>
+        )}
       </Card>
 
       <Card title="Model Comparison" className="wide">

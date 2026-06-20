@@ -2461,3 +2461,24 @@ After any meaningful job:
 
 - Review PR #28 for the AKS-23 project creation and shell-action slice.
 - After PR #28 review, move AKS-23 to Done if browser-granted local scaffold writes satisfy acceptance; otherwise add a follow-up gateway scaffold endpoint for service-owned typed-path writes.
+
+---
+
+## Update: AKS-27 Route Resilience First Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Started AKS-27 on branch `codex/aks-27-route-resilience` with draft PR #29.
+- Added a route-level error boundary around active module views so a module render failure produces an actionable unavailable state while preserving the JuliaFlow shell.
+- Hardened shared `DataTable` so missing row arrays do not crash table rendering.
+- Added empty-state guards for Models when no registry records exist, Deploy when no package records exist, and Settings when no checkpoint is available.
+- Extended local-appliance frontend coverage so empty backend lists remain empty across Transform, Monitor, ML Studio, Visualize, Models, Deploy, and Settings.
+- Captured local Playwright/Edge browser sanity for Explorer, ML Studio, Models, Deploy, and Visualize routes.
+
+### Gaps Pending
+
+- Route-level error boundaries are in place, but a broader per-card boundary can be considered later if individual cards should fail independently inside a route.
+
+### Next Items To Implement
+
+- Update PR #29 and Linear AKS-27 with final evidence before marking ready for review.
