@@ -2717,3 +2717,28 @@ Each checkpoint entry must contain:
 ### Next Items To Implement
 
 - Update PR #29/Linear with final AKS-27 evidence.
+
+---
+
+## Checkpoint: AKS-24 Explorer System Health And Artifacts First Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Closed stale PR #19 and started AKS-24 from current `main` on `codex/aks-24-explorer-system-health-artifacts`.
+- Added gateway health polling through existing `/health` data at a 5-second cadence for gateway-backed modes.
+- Added health freshness/stale state so failed refreshes keep the last known hardware values visible.
+- Consolidated Explorer hardware metrics into one System Health surface backed by runtime health instead of static CPU/RAM/Disk placeholders.
+- Added project-specific trust boundary evidence and replaced the generic local-first privacy card.
+- Replaced flat project artifact rows with grouped hierarchy rows and explicit path-copy actions.
+- Kept compute controls read-only for this first slice while making their runtime-health source and Settings handoff clear.
+- Verification passed with focused frontend tests, production build, browser sanity on `/`, `/settings`, and `/data`, control-doc sync, BRD traceability, and diff checks.
+
+### Gaps Pending
+
+- Functional compute settings remain the second AKS-24 slice: contract/gateway persistence, runtime scheduling propagation, and execution evidence are still needed.
+- Artifact open-folder behavior remains copy-path only until a real local folder reveal bridge exists.
+
+### Next Items To Implement
+
+- Publish the draft AKS-24 PR.
+- Start AKS-24 compute settings after the Explorer UX PR is reviewed.

@@ -334,17 +334,23 @@ Verification evidence for this slice: `npm run smoke:live-backend-browser`, `npm
 
 Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run test`, `npm run build`, `npm run validate:contracts`, and `npm run smoke:live-backend-browser` with artifacts at `artifacts/release-verification/live-backend-browser`.
 
-## Latest Active Slice - 2026-06-20 AKS-23 Project Creation And Shell Actions
+## Latest Completed Slice - 2026-06-20 AKS-23 Project Creation And Shell Actions
 
-**AKS-23 project creation and global shell actions are ready for review.** The current frontend slice expands the New Project dialog from template confirmation into editable project name, description, typed local folder path inputs, native target-folder grants through the browser File System Access API, scaffold file writes for granted folders, workflow identity updates, and Explorer scaffold artifact rows. Grid, Share, Help, and Profile top-bar controls now open concrete local-first dialogs. The slice also hardens ML Studio against incomplete live experiment metrics found during browser sanity.
+**AKS-23 project creation and global shell actions are complete.** The frontend slice expands the New Project dialog from template confirmation into editable project name, description, typed local folder path inputs, native target-folder grants through the browser File System Access API, scaffold file writes for granted folders, workflow identity updates, and Explorer scaffold artifact rows. Grid, Share, Help, and Profile top-bar controls now open concrete local-first dialogs. The slice also hardens ML Studio against incomplete live experiment metrics found during browser sanity.
 
 Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `git diff --check`, and a local Playwright/Edge sanity pass against `/`, `/ml-studio`, and `/visualize`. A future gateway-native scaffold endpoint can still be added if the product needs service-owned writes from typed paths, but the browser path now supports real local file creation after explicit folder permission.
 
-## Latest Active Slice - 2026-06-20 AKS-27 Route Resilience
+## Latest Completed Slice - 2026-06-20 AKS-27 Route Resilience
 
-**AKS-27 route resilience is in progress.** The current frontend slice adds a route-level error boundary around module views so one route failure renders an actionable unavailable state without blanking the global shell. It also hardens live empty states for Models, Deploy, Settings, and shared tables so empty or partial backend payloads no longer require first records to exist.
+**AKS-27 route resilience is complete.** The frontend slice adds a route-level error boundary around module views so one route failure renders an actionable unavailable state without blanking the global shell. It also hardens live empty states for Models, Deploy, Settings, and shared tables so empty or partial backend payloads no longer require first records to exist.
 
 Verification evidence for this slice: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, `git diff --check`, and local Playwright/Edge browser sanity on `/`, `/ml-studio`, `/models`, `/deploy`, and `/visualize`.
+
+## Latest Active Slice - 2026-06-20 AKS-24 Explorer System Health And Artifacts
+
+**AKS-24 first slice is in progress for Explorer live health and artifact UX.** Explorer now uses the existing gateway `/health` contract for a promoted System Health area, polls gateway-backed health every 5 seconds, keeps deterministic fixture health in demo mode, and marks health stale without discarding the last known values when polling fails. The duplicate static CPU/RAM/Disk placards are removed, the generic privacy/security card is replaced by project-specific local trust boundary evidence, the Local Project Browser is grouped into a hierarchical artifact view with path-copy actions, and Local Compute is explicitly read-only runtime-health evidence with a Settings link.
+
+Verification evidence for this slice so far: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, browser sanity on `/`, `/settings`, and `/data`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`. AKS-24 remains open because functional compute settings persistence, runtime propagation, and execution evidence are planned as the second AKS-24 PR.
 
 ## Latest Completed Slice — 2026-06-17 Backend-Backed Product Actions
 

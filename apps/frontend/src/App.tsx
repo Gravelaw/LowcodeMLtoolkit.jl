@@ -176,6 +176,8 @@ function buildDemoData(runtimeMode: JuliaFlowRuntimeMode = "demo"): AppData {
     runtime,
     unavailable: [],
     health: withRuntimeHealth(localHealth, runtime),
+    healthLastUpdatedAt: undefined,
+    healthStale: false,
     workflow: localWorkflow,
     workflowSummary,
     dataProfile,
@@ -224,6 +226,8 @@ function buildUnavailableData(
     runtime,
     unavailable,
     health: withRuntimeHealth(localHealth, runtime),
+    healthLastUpdatedAt: undefined,
+    healthStale: true,
     workflow,
     workflowSummary: summary,
     executions: [],
@@ -563,6 +567,8 @@ function App() {
           runtime: liveRuntime,
           unavailable: liveRuntime.unavailable,
           health: withRuntimeHealth(health, liveRuntime),
+          healthLastUpdatedAt: new Date().toISOString(),
+          healthStale: false,
           workflow,
           workflowSummary: summary,
           dataProfile,
@@ -592,7 +598,30 @@ function App() {
     }
 
     void loadGatewayState();
-    return () => abort.abort();
+    const interval = window.setInterval(async () => {
+      try {
+        const health = await client.healthcheck(requestOptions(abort.signal));
+        const liveRuntime = health.runtime ?? runtimeContract(runtimeMode);
+        setData((current) => ({
+          ...current,
+          mode: current.mode === "unavailable" ? current.mode : "live",
+          runtimeMode: liveRuntime.mode,
+          runtime: liveRuntime,
+          unavailable: liveRuntime.unavailable,
+          health: withRuntimeHealth(health, liveRuntime),
+          healthLastUpdatedAt: new Date().toISOString(),
+          healthStale: false
+        }));
+      } catch (error) {
+        if (!abort.signal.aborted) {
+          setData((current) => ({ ...current, healthStale: true }));
+        }
+      }
+    }, 5000);
+    return () => {
+      abort.abort();
+      window.clearInterval(interval);
+    };
   }, [fixtureSubstitutionAllowed, gatewayAuthHeaders, gatewayBaseUrl, runtimeMode]);
 
   function navigate(view: AppView) {
@@ -685,6 +714,17 @@ function App() {
   function setUtilityFeedback(label: string, tone: ActionFeedback["tone"] = "success") {
     setUtilityDialog(null);
     setViewFeedback(activeView, label, tone);
+  }
+
+  async function copyArtifactPath(path: string) {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(path);
+      }
+      setViewFeedback("explorer", `Artifact path copied: ${path}`, "success");
+    } catch {
+      setViewFeedback("explorer", `Artifact path ready to copy: ${path}`, "info");
+    }
   }
 
   async function withGatewayFallback<T>(
@@ -870,6 +910,8 @@ function App() {
                 "Workflow run stayed in deterministic demo mode."
               )
             }
+            onCopyArtifactPath={copyArtifactPath}
+            onOpenSettings={() => navigate("settings")}
           />
         );
     }

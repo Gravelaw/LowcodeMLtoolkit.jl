@@ -35,6 +35,8 @@ export interface AppData {
   runtime: JuliaFlowRuntimeContract;
   unavailable: JuliaFlowUnavailableState[];
   health: GatewayHealthcheck;
+  healthLastUpdatedAt?: string;
+  healthStale: boolean;
   workflow: WorkflowDefinition;
   workflowSummary: GatewayWorkflowSummary;
   dataProfile: GatewayDataImportProfile;

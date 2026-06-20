@@ -72,43 +72,43 @@ Priority order:
 
 ### UI-REVIEW-003 - Explorer Hardware Metrics Must Poll Live Hardware State
 
-- Status: backlog
+- Status: implemented in AKS-24 first slice, pending review
 - Module: Explorer / Local Workspace Overview
 - Annotated element: CPU Usage, RAM Usage, and Disk Space metric cards
 - Page: `http://127.0.0.1:15173/`
 - Problem: the CPU, RAM, and disk cards currently show static values, so changes in local hardware usage are not reflected in the dashboard.
 - Expected behavior: these cards should poll live local hardware state and update the displayed CPU usage, RAM usage, disk capacity/free space, and supporting details without requiring a page reload.
-- Notes: implementation should define the polling source and cadence, likely through the local gateway health/hardware endpoint or a dedicated hardware metrics endpoint. It should handle unavailable metrics with clear fallback text, avoid excessive polling, and keep the UI stable while values update.
+- Notes: implementation now polls the existing gateway `/health` surface every 5 seconds in gateway-backed modes, updates runtime-sourced CPU/thread, memory, disk, GPU, and freshness fields, and marks health stale without discarding the last known values when refresh fails.
 
 ### UI-REVIEW-004 - Explorer Privacy And Security Card Feels Irrelevant To The Project
 
-- Status: backlog
+- Status: implemented in AKS-24 first slice, pending review
 - Module: Explorer / Local Workspace Overview
 - Annotated element: `Privacy & Security (Local-First)` card
 - Page: `http://127.0.0.1:15173/`
 - Problem: the card reads as generic product reassurance and does not feel relevant to the current project context.
 - Expected behavior: replace or revise this section so it provides project-specific local trust/security information, or remove it from the Explorer project overview if it does not support the user's current workflow.
-- Notes: candidate replacements include project data locations, local artifact boundaries, active credentials/auth state, dataset privacy flags, local backup status, or links to Settings security details. Avoid generic marketing copy in the operational Explorer dashboard.
+- Notes: implementation replaces the generic local-first reassurance card with project-specific local trust boundary evidence: local home, data estate root, metadata readiness/backend, auth mode, backup status/root, and runtime fixture provenance.
 
 ### UI-REVIEW-005 - Consolidate Explorer Hardware Metrics With System Health
 
-- Status: backlog
+- Status: implemented in AKS-24 first slice, pending review
 - Module: Explorer / Local Workspace Overview
 - Annotated element: `System Health` card and top CPU/RAM/Disk metric cards
 - Page: `http://127.0.0.1:15173/`
 - Problem: the dashboard shows CPU, RAM, and disk metrics twice: once as top metric placards and again inside the `System Health` card.
 - Expected behavior: consolidate hardware/system metrics into one coherent area. Either move the CPU/RAM/Disk placards into the `System Health` widget, or move/promote the `System Health` widget upward so it becomes the primary hardware summary.
-- Notes: coordinate this with `UI-REVIEW-003`, since live polling should update the consolidated metrics in one place rather than maintaining duplicate displays.
+- Notes: implementation removes the static CPU/RAM/Disk placards and promotes a single System Health card near the top of Explorer. Execution, workflow, metadata, and artifact counts remain as separate project summary metrics.
 
 ### UI-REVIEW-006 - Local Project Browser Needs Hierarchical Artifact View And Open Actions
 
-- Status: backlog
+- Status: implemented in AKS-24 first slice, pending review
 - Module: Explorer / Local Project Browser
 - Annotated element: `Local Project Browser` card
 - Page: `http://127.0.0.1:15173/`
 - Problem: artifacts are shown as a flat table of long paths, which makes the project structure hard to scan and does not provide a direct way to open a folder or artifact location.
 - Expected behavior: replace or augment the flat table with a clearer artifact/path browser, such as a hierarchical folder tree, grouped artifact categories, or expandable path rows.
-- Notes: include small open-folder/open-directory actions where appropriate. The design should make artifact locations, file types, sizes, and status easy to scan without horizontal scrolling.
+- Notes: implementation replaces the flat table with grouped artifact folders, file names, full paths, inferred artifact kind, size, status, and explicit `Copy Path` actions. Real OS folder reveal remains deferred until a native/browser bridge exists.
 
 ### UI-REVIEW-007 - Top-Bar Utility Buttons Need Purposeful Actions Or Dialogs
 
@@ -128,14 +128,14 @@ Priority order:
 
 ### UI-REVIEW-008 - Local Compute Settings Must Be Functional And Reflected In Workflows
 
-- Status: backlog
+- Status: backlog, planned for AKS-24 second slice
 - Module: Explorer / Local Compute and Settings / Compute And Autosave
 - Annotated element: `Local Compute` card
 - Page: `http://127.0.0.1:15173/`
 - Problem: the `Local Compute` card displays compute backend, threads, BLAS, and GPU/CPU fallback values, but it is unclear whether these are connected to Settings or whether changing Settings affects application performance or data-science workflows.
 - Expected behavior: compute-related settings should be configurable in Settings, reflected back in Explorer, and applied to relevant workflow execution paths such as transforms, ML training, model registration, and runtime scheduling.
 - Verification needed: confirm whether current Settings controls mutate any persisted runtime configuration, whether the gateway/workers consume that configuration, and whether workflow execution records show the selected backend/thread/GPU/BLAS policy.
-- Notes: if the current card is read-only/static, create implementation work to add real settings persistence, runtime propagation, and user-visible execution evidence. Include unavailable/unsupported hardware states when GPU or BLAS choices cannot be applied.
+- Notes: first AKS-24 slice makes the Explorer compute card explicitly read from runtime health and links to Settings. The second AKS-24 slice should add contract/gateway settings persistence, runtime propagation, and execution evidence before AKS-24 can close.
 
 ### UI-REVIEW-009 - Data Local Source Selector Needs Clear Backend Semantics And Real Switching
 
