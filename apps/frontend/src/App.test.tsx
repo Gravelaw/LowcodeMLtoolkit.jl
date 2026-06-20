@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import * as matchers from "@testing-library/jest-dom/matchers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -72,6 +72,7 @@ describe("JuliaFlow local-only app redesign", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.useRealTimers();
     window.__JULIAFLOW_CONFIG__ = undefined;
   });
 
@@ -80,7 +81,9 @@ describe("JuliaFlow local-only app redesign", () => {
 
     expect(screen.getByRole("status", { name: /100% local status/i })).toHaveTextContent("100% Local");
     expect(screen.getByRole("heading", { name: /local workspace overview/i })).toBeInTheDocument();
-    expect(screen.getByText("Privacy & Security (Local-First)")).toBeInTheDocument();
+    expect(screen.getByText("Project Trust Boundary")).toBeInTheDocument();
+    expect(screen.getByText("System Health")).toBeInTheDocument();
+    expect(screen.getByLabelText("Local project artifact hierarchy")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "+ New Project" }));
     expect(screen.getByRole("dialog", { name: "Create New Project" })).toBeInTheDocument();
@@ -96,6 +99,8 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create Local Project" }));
     expect(screen.getByText("Local project scaffold created at /Users/alexj/JuliaFlowLocal/Projects/Foundation_PoC.")).toBeInTheDocument();
     expect(screen.getByText("Foundation_PoC/Project.toml")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Copy Path" })[0]);
+    expect(screen.getByText(/Artifact path/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Open grid menu" }));
     expect(screen.getByRole("dialog", { name: "Module Launcher" })).toBeInTheDocument();
@@ -270,6 +275,57 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(headerValue(registerCall?.[1], "authorization")).toBe("Bearer dev-secret");
     expect(headerValue(registerCall?.[1], "x-juliaflow-workspace")).toBe("workspace-a");
     expect(headerValue(registerCall?.[1], "x-juliaflow-workspace-role")).toBe("editor");
+  });
+
+  it("polls gateway health and preserves stale values when refresh fails", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: "http://127.0.0.1:8088",
+      runtimeMode: "development"
+    };
+    let healthRequests = 0;
+    const refreshedHealth = {
+      ...localHealth,
+      cpuThreadCount: 12,
+      cpuWorkerConcurrency: 6,
+      freeMemoryBytes: 8_000_000_000
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/health")) {
+        healthRequests += 1;
+        if (healthRequests === 1) return json(localHealth);
+        if (healthRequests === 2) return json(refreshedHealth);
+        throw new TypeError("gateway offline");
+      }
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: executionRecords, count: executionRecords.length });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
+      if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
+      if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
+      if (url.includes("/deploy/packages")) return json({ items: deployPackages, count: deployPackages.length });
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(screen.getByText("12 threads")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(screen.getByText("Stale")).toBeInTheDocument();
+    expect(screen.getByText("12 threads")).toBeInTheDocument();
   });
 
   it("saves, runs, and monitors a workflow through the gateway lifecycle", async () => {

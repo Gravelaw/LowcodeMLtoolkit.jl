@@ -2482,3 +2482,29 @@ After any meaningful job:
 ### Next Items To Implement
 
 - Update PR #29 and Linear AKS-27 with final evidence before marking ready for review.
+
+---
+
+## Update: AKS-24 Explorer System Health And Artifacts First Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Closed stale GitHub PR #19 after confirming it had a dirty merge state against current `main` and overlapped with newer AKS-23/AKS-27 frontend work.
+- Started AKS-24 on branch `codex/aks-24-explorer-system-health-artifacts` and moved Linear AKS-24 to In Progress.
+- Added gateway-backed health freshness fields to app state and poll existing `/health` every 5 seconds when a gateway is configured.
+- Preserved deterministic fixture health in demo mode and marks gateway health stale without discarding the last known values when polling fails.
+- Reworked Explorer so static CPU/RAM/Disk placards and the duplicate System Health widget become one promoted runtime-sourced System Health area.
+- Replaced generic Privacy & Security content with project-specific trust boundary evidence for local home, data estate root, metadata, auth mode, backup, and runtime provenance.
+- Replaced the flat Local Project Browser table with grouped artifact hierarchy rows, inferred artifact kinds, status, size, and path-copy actions.
+- Kept Local Compute read-only in this first PR but made it explicitly sourced from runtime health and linked to Settings.
+- Verified the slice with focused frontend tests, production build, browser sanity on `/`, `/settings`, and `/data`, control-doc sync, BRD traceability, and diff checks.
+
+### Gaps Pending
+
+- AKS-24 is not complete until compute settings become configurable, persisted, propagated into workflow execution, and visible in execution/experiment evidence.
+- Real OS folder reveal/open-directory behavior remains deferred until a native desktop bridge or browser-supported local handle is available; current artifact actions truthfully copy paths.
+
+### Next Items To Implement
+
+- Open a draft PR for the first AKS-24 Explorer health/artifact slice.
+- Plan AKS-24 second PR for contract-first compute settings persistence and runtime propagation.
