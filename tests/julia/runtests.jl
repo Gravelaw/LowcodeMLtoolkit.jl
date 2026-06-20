@@ -1403,6 +1403,9 @@ end
         @test health_payload["cpuWorkerConcurrency"] <= health_payload["cpuThreadCount"]
         @test health_payload["cpuMemoryLimitBytes"] > 0
         @test health_payload["cpuMemoryLimitBytes"] <= health_payload["totalMemoryBytes"]
+        @test health_payload["computeSettings"]["selectedBackend"] in ["cpu", "cuda", "simulated_cuda"]
+        @test health_payload["computeSettings"]["cpuWorkerConcurrency"] == health_payload["cpuWorkerConcurrency"]
+        @test health_payload["computeSettings"]["cpuMemoryLimitBytes"] == health_payload["cpuMemoryLimitBytes"]
         @test health_payload["gpuCudaStatus"] in ["not_requested", "requested", "ready", "unavailable"]
         @test health_payload["gpuHardwareDeviceCount"] >= 0
         @test health_payload["gpuSimulatedDeviceCount"] >= 0
@@ -1418,6 +1421,30 @@ end
         @test isfile(health_payload["dataEstateDuckdbQueryPath"])
         @test occursin("\"dataEstateReady\":true", healthcheck(state))
         @test occursin("\"cloudCredentialsRequired\":false", healthcheck(state))
+        compute_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/settings/compute"),
+        )
+        @test compute_response.status == 200
+        compute_payload = JSON3.read(String(compute_response.body), Dict{String,Any})
+        @test compute_payload["schedulerPolicy"] == "bounded_threads"
+        updated_compute_response = route_request(
+            state,
+            HTTP.Request("PUT", "/api/v1/settings/compute", ["Content-Type" => "application/json"], JSON3.write(Dict(
+                "selectedBackend" => "cpu",
+                "cpuWorkerConcurrency" => 1,
+                "cpuMemoryLimitBytes" => 1_000_000_000,
+                "gpuPreference" => "cpu_fallback",
+                "blasThreadCount" => 1,
+            ))),
+        )
+        @test updated_compute_response.status == 200
+        updated_compute_payload = JSON3.read(String(updated_compute_response.body), Dict{String,Any})
+        @test updated_compute_payload["source"] == "profile"
+        @test updated_compute_payload["cpuWorkerConcurrency"] == 1
+        refreshed_health_payload = JSON3.read(healthcheck(state), Dict{String,Any})
+        @test refreshed_health_payload["cpuWorkerConcurrency"] == 1
+        @test refreshed_health_payload["computeSettings"]["blasThreadCount"] == 1
         @test occursin("wf-foundation", list_workflows_response(state))
         @test occursin("\"nodeCount\":3", get_workflow_response(state, "wf-foundation"))
         @test occursin("\"nodes\":[", get_workflow_response(state, "wf-foundation"))

@@ -21,6 +21,8 @@ export GatewayCheckpoint,
     persist_workflow_text!,
     foundation_state,
     healthcheck,
+    compute_settings_response,
+    update_compute_settings_response!,
     list_workflows_response,
     get_workflow_response,
     execution_accept_response,
@@ -45,6 +47,8 @@ export GatewayCheckpoint,
 
 const GatewayCheckpoint = JuliaFlowGatewayRepository.GatewayCheckpoint
 const GatewayExecution = JuliaFlowGatewayRepository.GatewayExecution
+const COMPUTE_BACKENDS = Set(["cpu", "cuda", "simulated_cuda"])
+const GPU_PREFERENCES = Set(["auto", "cpu_fallback", "cuda_required"])
 
 Base.@kwdef mutable struct GatewayState
     repository::AbstractGatewayRepository
@@ -578,6 +582,97 @@ function local_metadata_health(state::GatewayState, profile::AbstractString, hom
     )
 end
 
+function utc_timestamp()
+    return Dates.format(Dates.now(Dates.UTC), dateformat"yyyy-mm-ddTHH:MM:SS") * "Z"
+end
+
+function default_compute_settings()
+    cpu_threads = Threads.nthreads()
+    total_memory = Int(Sys.total_memory())
+    free_memory = Int(Sys.free_memory())
+    default_memory_limit = max(1, min(free_memory, total_memory ÷ 2))
+    return Dict{String,Any}(
+        "selectedBackend" => "cpu",
+        "cpuWorkerConcurrency" => min(cpu_threads, positive_env_int("JULIAFLOW_CPU_WORKER_CONCURRENCY", cpu_threads)),
+        "cpuMemoryLimitBytes" => min(total_memory, positive_env_int("JULIAFLOW_CPU_WORKER_MEMORY_LIMIT_BYTES", default_memory_limit)),
+        "gpuPreference" => "cpu_fallback",
+        "blasThreadCount" => max(1, positive_env_int("JULIAFLOW_BLAS_THREAD_COUNT", cpu_threads)),
+        "schedulerPolicy" => "bounded_threads",
+        "source" => "default",
+        "updatedAt" => utc_timestamp(),
+    )
+end
+
+function compute_settings_path(state::GatewayState)
+    home = local_appliance_home()
+    metadata = local_metadata_health(state, local_appliance_profile(), home)
+    root = String(metadata["metadataRoot"])
+    root == "postgresql" && (root = local_metadata_root(home))
+    return joinpath(root, "compute-settings.json")
+end
+
+function normalize_compute_settings(value::AbstractDict; source::AbstractString = "profile")
+    defaults = default_compute_settings()
+    selected_backend = String(get(value, "selectedBackend", defaults["selectedBackend"]))
+    selected_backend in COMPUTE_BACKENDS || error("selectedBackend must be cpu, cuda, or simulated_cuda")
+    gpu_preference = String(get(value, "gpuPreference", defaults["gpuPreference"]))
+    gpu_preference in GPU_PREFERENCES || error("gpuPreference must be auto, cpu_fallback, or cuda_required")
+    cpu_threads = Threads.nthreads()
+    total_memory = Int(Sys.total_memory())
+    cpu_concurrency = Int(get(value, "cpuWorkerConcurrency", defaults["cpuWorkerConcurrency"]))
+    cpu_concurrency >= 1 || error("cpuWorkerConcurrency must be at least 1")
+    cpu_concurrency <= cpu_threads || error("cpuWorkerConcurrency cannot exceed available Julia threads")
+    memory_limit = Int(get(value, "cpuMemoryLimitBytes", defaults["cpuMemoryLimitBytes"]))
+    memory_limit >= 1 || error("cpuMemoryLimitBytes must be positive")
+    memory_limit <= total_memory || error("cpuMemoryLimitBytes cannot exceed system memory")
+    blas_threads = Int(get(value, "blasThreadCount", defaults["blasThreadCount"]))
+    blas_threads >= 1 || error("blasThreadCount must be at least 1")
+    blas_threads <= max(1, cpu_threads) || error("blasThreadCount cannot exceed available Julia threads")
+    return Dict{String,Any}(
+        "selectedBackend" => selected_backend,
+        "cpuWorkerConcurrency" => cpu_concurrency,
+        "cpuMemoryLimitBytes" => memory_limit,
+        "gpuPreference" => gpu_preference,
+        "blasThreadCount" => blas_threads,
+        "schedulerPolicy" => "bounded_threads",
+        "source" => source,
+        "updatedAt" => String(get(value, "updatedAt", utc_timestamp())),
+    )
+end
+
+function load_compute_settings(state::GatewayState)
+    path = compute_settings_path(state)
+    if isfile(path)
+        try
+            return normalize_compute_settings(JSON3.read(read(path, String), Dict{String,Any}); source = "profile")
+        catch
+            return default_compute_settings()
+        end
+    end
+    return default_compute_settings()
+end
+
+function save_compute_settings!(state::GatewayState, settings::AbstractDict)
+    normalized = normalize_compute_settings(settings; source = "profile")
+    normalized["updatedAt"] = utc_timestamp()
+    path = compute_settings_path(state)
+    mkpath(dirname(path))
+    open(path, "w") do io
+        write(io, JSON3.write(normalized))
+    end
+    return normalized
+end
+
+function compute_settings_response(state::GatewayState)
+    return JSON3.write(load_compute_settings(state))
+end
+
+function update_compute_settings_response!(state::GatewayState, body::AbstractDict)
+    current = load_compute_settings(state)
+    merged = merge(current, normalized_string_dict(body))
+    return JSON3.write(save_compute_settings!(state, merged))
+end
+
 function ensure_local_zone(path::AbstractString)
     get(ENV, "JULIAFLOW_APPLIANCE_BOOTSTRAP", "0") == "1" || return
     mkpath(path)
@@ -749,17 +844,20 @@ function gpu_device_summaries(gpu_registry)
     return summaries, total_vram_bytes, hardware_count, simulated_count
 end
 
-function local_hardware_runtime_profile(disk_status, gpu_registry)
+function local_hardware_runtime_profile(disk_status, gpu_registry, compute_settings)
     cpu_threads = Threads.nthreads()
     total_memory = Int(Sys.total_memory())
     free_memory = Int(Sys.free_memory())
-    cpu_concurrency = min(cpu_threads, positive_env_int("JULIAFLOW_CPU_WORKER_CONCURRENCY", cpu_threads))
+    cpu_concurrency = min(cpu_threads, Int(compute_settings["cpuWorkerConcurrency"]))
     default_memory_limit = max(1, min(free_memory, total_memory ÷ 2))
-    memory_limit = min(total_memory, positive_env_int("JULIAFLOW_CPU_WORKER_MEMORY_LIMIT_BYTES", default_memory_limit))
+    memory_limit = min(total_memory, Int(compute_settings["cpuMemoryLimitBytes"]))
     gpu_summaries, total_vram_bytes, hardware_count, simulated_count = gpu_device_summaries(gpu_registry)
     cuda_required = get(ENV, "JULIAFLOW_CUDA_SMOKE", "0") == "1"
     cuda_status = cuda_required ? "requested" : "not_requested"
-    selected_backend = hardware_count > 0 ? "cuda" : simulated_count > 0 ? "simulated_cuda" : "cpu"
+    requested_backend = String(compute_settings["selectedBackend"])
+    selected_backend = requested_backend == "cuda" && hardware_count == 0 ? "cpu" :
+                       requested_backend == "simulated_cuda" && simulated_count == 0 ? "cpu" :
+                       requested_backend
     hardware_ready = cpu_threads > 0 &&
                      total_memory > 0 &&
                      free_memory >= 0 &&
@@ -768,10 +866,10 @@ function local_hardware_runtime_profile(disk_status, gpu_registry)
     return Dict(
         "hardwareProfileStatus" => hardware_ready ? "ready" : "degraded",
         "hardwareSelectedBackend" => selected_backend,
-        "cpuSchedulerPolicy" => "bounded_threads",
+        "cpuSchedulerPolicy" => String(compute_settings["schedulerPolicy"]),
         "cpuWorkerConcurrency" => cpu_concurrency,
         "cpuMemoryLimitBytes" => memory_limit,
-        "gpuCudaStatus" => cuda_status,
+        "gpuCudaStatus" => requested_backend == "cuda" && hardware_count == 0 ? "unavailable" : cuda_status,
         "gpuHardwareDeviceCount" => hardware_count,
         "gpuSimulatedDeviceCount" => simulated_count,
         "gpuTotalVramBytes" => total_vram_bytes,
@@ -827,7 +925,8 @@ function healthcheck(state::GatewayState)
     disk_status = local_disk_status(data_root)
     data_estate = local_data_estate_management(data_root, zones)
     metadata = local_metadata_health(state, profile, appliance_home)
-    hardware = local_hardware_runtime_profile(disk_status, gpu_registry)
+    compute_settings = load_compute_settings(state)
+    hardware = local_hardware_runtime_profile(disk_status, gpu_registry, compute_settings)
     hub_cache = local_hub_cache_health(appliance_home, state.hub_extensions)
     runtime = runtime_contract_payload()
     return JSON3.write(
@@ -885,6 +984,7 @@ function healthcheck(state::GatewayState)
             "gpuSimulatedDeviceCount" => hardware["gpuSimulatedDeviceCount"],
             "gpuTotalVramBytes" => hardware["gpuTotalVramBytes"],
             "gpuDeviceSummaries" => hardware["gpuDeviceSummaries"],
+            "computeSettings" => compute_settings,
             "explainabilityEvidence" => gateway_explainability_evidence(state),
             "hubCacheRoot" => hub_cache["hubCacheRoot"],
             "hubArtifactStorePath" => hub_cache["hubArtifactStorePath"],
@@ -1702,10 +1802,19 @@ function execution_accept_response(
         execution_mode_override = execution_mode_override,
     )
     execution = materialize_execution(job)
+    workflow = state.workflows[workflow_id]
+    compute_settings = load_compute_settings(state)
+    selected_backend = String(compute_settings["selectedBackend"])
+    settings_source = String(compute_settings["source"])
+    execution.metadata["computeSettingsApplied"] = compute_settings
+    if !JuliaFlowGatewayRepository.JuliaFlowExecutionService.is_stream_workflow(workflow) && !should_dispatch_gpu_execution(workflow, execution)
+        haskey(execution.metadata, "dispatchSchedulerPolicy") || (execution.metadata["dispatchSchedulerPolicy"] = String(compute_settings["schedulerPolicy"]))
+        haskey(execution.metadata, "dispatchWorkerPool") || (execution.metadata["dispatchWorkerPool"] = selected_backend == "cpu" ? "local-cpu" : "local-$(selected_backend)")
+        haskey(execution.metadata, "dispatchPlacementReason") || (execution.metadata["dispatchPlacementReason"] = "Applied local compute settings from $(settings_source) profile.")
+    end
     execution.metadata["explainability_evidence"] = gateway_explainability_evidence(state; checkpoint_tag = execution.checkpoint_tag)
     save_execution!(state.repository, execution; producer = "api-gateway")
     push!(state.executions, execution)
-    workflow = state.workflows[workflow_id]
     if JuliaFlowGatewayRepository.JuliaFlowExecutionService.is_stream_workflow(workflow)
         if stream_worker_mode() == "process"
             execution = queue_stream_execution!(state, execution)
@@ -4720,6 +4829,17 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
         method == "OPTIONS" && return empty_response(204)
         method == "GET" && segments == ["health"] && return json_response(200, healthcheck(state))
         method == "GET" && segments == ["metrics"] && return text_response(200, metrics_response(state); content_type = "text/plain; version=0.0.4")
+        method == "GET" && segments == ["api", "v1", "settings", "compute"] && begin
+            require_permission!(state, request, "workflow:read")
+            return json_response(200, compute_settings_response(state))
+        end
+        method == "PUT" && segments == ["api", "v1", "settings", "compute"] && begin
+            require_permission!(state, request, "workflow:write")
+            body = parse_request_body(request)
+            response = update_compute_settings_response!(state, body)
+            append_audit_event!(state, request, "settings.compute.update"; target_type = "settings", target_id = "compute")
+            return json_response(200, response)
+        end
         method == "GET" && segments == ["api", "v1", "workflows"] && begin
             require_permission!(state, request, "workflow:read")
             return json_response(200, list_workflows_response(state))

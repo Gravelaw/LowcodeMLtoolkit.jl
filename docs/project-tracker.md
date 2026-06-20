@@ -2508,3 +2508,28 @@ After any meaningful job:
 
 - Open a draft PR for the first AKS-24 Explorer health/artifact slice.
 - Plan AKS-24 second PR for contract-first compute settings persistence and runtime propagation.
+
+---
+
+## Update: AKS-24 Compute Settings Runtime Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Started stacked branch `codex/aks-24-compute-settings-runtime` from the PR #30 branch so compute settings stay separate from the Explorer health/artifact PR.
+- Added shared contract types for `GatewayComputeSettings` and update requests plus typed gateway client methods for `GET/PUT /api/v1/settings/compute`.
+- Added gateway file-backed compute settings persistence under the local metadata root.
+- Reflected persisted compute settings in gateway health and local hardware profile fields.
+- Added Settings controls for backend, worker concurrency, memory limit, GPU preference, and BLAS thread count.
+- Added workflow execution metadata evidence through `computeSettingsApplied` while preserving existing GPU and stream dispatch metadata.
+- Verified the slice with focused frontend tests, contract validation, repo-local Julia tests, and production build.
+
+### Gaps Pending
+
+- This branch is stacked on PR #30 and should be retargeted to `main` after PR #30 merges.
+- Runtime worker processes still read applied policy through gateway execution evidence; deeper hot-reconfiguration of already-running external worker processes is out of scope for this slice.
+
+### Next Items To Implement
+
+- Run browser sanity and final control gates for the compute-settings branch.
+- Open a draft stacked PR against `codex/aks-24-explorer-system-health-artifacts`.
+- After PR #30 merges, rebase/retarget the compute settings PR to `main`.

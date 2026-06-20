@@ -156,6 +156,11 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByText("Security And API Keys")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Worker concurrency"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Local Settings" }));
+    expect(screen.getByText("Compute settings staged locally for this demo workspace.")).toBeInTheDocument();
+    expect(screen.getByText("Applied concurrency")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
   });
 
   it("writes project scaffold files when a target folder is granted", async () => {
