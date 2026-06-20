@@ -16,5 +16,7 @@ artifacts/
 
 .omx/
 .staging/
+.codex/
+.codex-archive/
 .codex/config.toml
 *.tsbuildinfo
