@@ -63,6 +63,8 @@ export function DataView({
   const [filterValue, setFilterValue] = useState("all");
   const [sortField, setSortField] = useState("tenure_months");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [activeSourceLabel, setActiveSourceLabel] = useState("Local Files");
+  const [sampleSize, setSampleSize] = useState("all");
   const activeProfile = data.dataProfile;
   const dataProfiles = data.dataProfiles?.length > 0 ? data.dataProfiles : [activeProfile];
   const sourceOptions = activeProfile.sourceOptions ?? [];
@@ -79,7 +81,7 @@ export function DataView({
     : numericFields[0] ?? activeProfile.schemaSummary[0]?.name ?? "field";
   const filterOptions = uniqueValues(previewRows, effectiveFilterField);
 
-  const preview = useMemo(() => {
+  const filteredPreview = useMemo(() => {
     const filtered = filterValue === "all"
       ? previewRows
       : previewRows.filter((row) => String(row[effectiveFilterField] ?? "") === filterValue);
@@ -88,6 +90,10 @@ export function DataView({
       return sortDirection === "asc" ? result : -result;
     });
   }, [effectiveFilterField, effectiveSortField, filterValue, previewRows, sortDirection]);
+  const preview = useMemo(() => {
+    if (sampleSize === "all") return filteredPreview;
+    return filteredPreview.slice(0, Number(sampleSize));
+  }, [filteredPreview, sampleSize]);
   const columns = previewColumns(preview.length ? preview : previewRows, activeProfile.schemaSummary);
 
   const sourceBrowser = [
@@ -124,15 +130,19 @@ export function DataView({
           {sourceBrowser.map((source) => (
             <button
               type="button"
-              className={`source-row ${source.enabled ? "" : "disabled"}`}
+              className={`source-row ${source.enabled ? "" : "disabled"} ${activeSourceLabel === source.label ? "active" : ""}`}
               key={source.label}
               disabled={!source.enabled}
               title={source.enabled ? source.detail : source.reason}
-              onClick={() => source.option && onImport(sourceRequest(activeProfile, source.option))}
+              onClick={() => {
+                setActiveSourceLabel(source.label);
+                if (source.option) onImport(sourceRequest(activeProfile, source.option));
+              }}
             >
               <strong>{source.label}</strong>
               <span>{source.detail}</span>
               <StatusPill tone={modeTone(source.status)}>{source.status}</StatusPill>
+              {!source.enabled ? <small>{source.reason}</small> : null}
             </button>
           ))}
         </div>
@@ -188,6 +198,9 @@ export function DataView({
       </Card>
 
       <Card title="Table Workspace" eyebrow={`${filterValue === "all" ? "No filter" : `${effectiveFilterField} = ${filterValue}`} / sort ${effectiveSortField} ${sortDirection}`} className="wide">
+        <p className="workspace-state-line">
+          Active source: <strong>{activeSourceLabel}</strong> | Preview: <strong>{preview.length.toLocaleString()}</strong> of <strong>{filteredPreview.length.toLocaleString()}</strong> filtered rows
+        </p>
         <div className="mode-tabs" role="tablist" aria-label="Data table workspace tabs">
           {dataTabs.map((tab) => (
             <button type="button" key={tab} className={activeTab === tab ? "active" : ""} aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}>
@@ -270,7 +283,20 @@ export function DataView({
 
         {activeTab === "joins" ? <p className="empty-state">Join planning is visible but disabled until persisted join contracts are added to the gateway.</p> : null}
         {activeTab === "transforms" ? <p className="empty-state">Open Transform to build persisted feature pipelines from this dataset profile.</p> : null}
-        {activeTab === "sampling" ? <p className="empty-state">Sampling is pending local stratified sampler contracts; current preview shows deterministic first rows from profile evidence.</p> : null}
+        {activeTab === "sampling" ? (
+          <div className="control-panel-grid">
+            <label>
+              <span>Preview sample</span>
+              <select value={sampleSize} onChange={(event) => setSampleSize(event.target.value)}>
+                <option value="all">All filtered rows</option>
+                <option value="2">First 2 rows</option>
+                <option value="3">First 3 rows</option>
+                <option value="5">First 5 rows</option>
+              </select>
+            </label>
+            <p className="empty-state">Sampling changes the visible preview only. Persisted stratified sampling remains a gateway contract follow-up.</p>
+          </div>
+        ) : null}
         {activeTab === "lineage" ? (
           <div className="lineage-list">
             {(activeProfile.lineageArtifacts ?? []).map((artifact) => (

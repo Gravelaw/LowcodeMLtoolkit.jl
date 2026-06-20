@@ -831,6 +831,17 @@ tr:last-child td {
   background: #f8fafc;
 }
 
+.source-row.active {
+  border-color: #c8bcff;
+  background: #f7f4ff;
+}
+
+.source-row small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .settings-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1103,6 +1114,7 @@ meter {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .interactive-chart figcaption div:first-child {
@@ -1121,6 +1133,26 @@ meter {
 .chart-actions {
   display: flex;
   gap: 4px;
+}
+
+.chart-status {
+  min-height: 24px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #027a48;
+  font-weight: 700;
+}
+
+.chart-status.stale {
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.chart-status.error,
+.chart-status.empty {
+  background: #f2f4f7;
+  color: var(--muted);
 }
 
 .chart-actions .jf-button {
@@ -1147,6 +1179,19 @@ meter {
 
 .chart-summary {
   margin: 0;
+}
+
+.chart-warning,
+.workspace-state-line {
+  margin: 0;
+  color: #b54708;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.workspace-state-line {
+  margin-bottom: 12px;
+  color: var(--muted);
 }
 
 .control-panel-grid,

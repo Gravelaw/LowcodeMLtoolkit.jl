@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import * as matchers from "@testing-library/jest-dom/matchers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { canRenderChart, chartReadiness, chartStatusLabel } from "./components/chart-utils";
 import {
   buildCanvasNodeLayouts,
   buildCheckpointRailItems,
@@ -263,6 +264,38 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
     fireEvent.click(screen.getByRole("button", { name: /package local endpoint/i }));
     expect(screen.getByText("Synthetic local deploy package displayed.")).toBeInTheDocument();
+  });
+
+  it("classifies local chart specs for ready, stale, empty, and missing states", () => {
+    const ready = localHealth.charts?.find((chart) => chart.chartId === "workspace-cpu-trend");
+    const stale = localHealth.charts?.find((chart) => chart.chartId === "workspace-disk-trend");
+    expect(chartReadiness(ready)).toBe("ready");
+    expect(chartReadiness(stale)).toBe("stale");
+    expect(canRenderChart(stale)).toBe(true);
+    expect(chartStatusLabel(stale)).toBe("Stale local evidence");
+    expect(chartReadiness(undefined)).toBe("empty");
+    expect(canRenderChart({ ...ready!, status: "empty", data: [] })).toBe(false);
+  });
+
+  it("updates Data sampling and Transform node config state", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Data" }));
+    fireEvent.click(screen.getByRole("button", { name: "sampling" }));
+    fireEvent.change(screen.getByLabelText("Preview sample"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "table" }));
+    expect(screen.getByText("C-1001")).toBeInTheDocument();
+    expect(screen.getByText("C-1005")).toBeInTheDocument();
+    expect(screen.queryByText("C-1003")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Transform" }));
+    fireEvent.click(screen.getAllByText("Feature Engineering")[0]);
+    fireEvent.change(screen.getByLabelText("Output column prefix"), { target: { value: "encoded_features" } });
+    expect(screen.getByDisplayValue("encoded_features")).toBeInTheDocument();
+    expect(screen.getAllByText(/encoded_features/).length).toBeGreaterThan(1);
+    expect(screen.getByText("Unsaved canvas edits detected")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Validate" }));
+    expect(screen.getByText("Pipeline is locally valid")).toBeInTheDocument();
   });
 
   it("uses runtime gateway config before falling back to fixtures", async () => {
