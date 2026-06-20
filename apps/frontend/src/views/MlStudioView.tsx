@@ -12,6 +12,27 @@ export function MlStudioView({
   feedback?: ActionFeedback;
 }) {
   const experiment = data.mlExperiments[0];
+  if (!experiment) {
+    return (
+      <div className="route-grid ml-route">
+        <section className="page-title">
+          <div>
+            <h1>ML Studio</h1>
+            <p>Train local MLJ pipelines with reproducible metrics, explainability, and hardware fallback evidence.</p>
+          </div>
+          <button type="button" className="jf-button primary" onClick={onRun}>Train New Model</button>
+        </section>
+        {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
+
+        <Card title="No ML Experiments Yet" className="wide">
+          <p className="empty-state">
+            No backend ML experiment records are available for this workspace yet. Train a model after the local gateway is ready, then this screen will show algorithm settings, metrics, feature importance, hardware evidence, and reproducibility details.
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="route-grid ml-route">
       <section className="page-title">
