@@ -82,6 +82,13 @@ export function VisualizeView({
             </button>
           ))}
         </div>
+        {mode !== "dashboard" ? (
+          <div className="visualize-capabilities" aria-label="Visualize workspace capabilities">
+            <span>Dashboard Builder</span>
+            <span>Artifact Rows</span>
+            <span>Local Save And Export Actions</span>
+          </div>
+        ) : null}
       </Card>
 
       {mode === "eda" ? (

@@ -477,6 +477,73 @@ export interface GatewayDatasetCardEvidence { datasetId: string; sourceUri: stri
 export interface GatewayModelCardEvidence { modelId: string; kind: string; target: string; config: Record<string, string | number | boolean>; metrics: Record<string, number>; limitations: string[]; }
 export interface GatewayExplanationEvidence { method: string; featureImportance: Array<{ feature: string; importance: number }>; localExample: { rowId: string; prediction: number; contributions: Array<{ feature: string; contribution: number }>; }; warnings: string[]; }
 export interface GatewayExplainabilityEvidence { status: "ready" | "pending"; generatedAt: string; workflowId: string; checkpointTag: string; datasetCard: GatewayDatasetCardEvidence; modelCard: GatewayModelCardEvidence; explanation: GatewayExplanationEvidence; reproducibilityBundleReady: boolean; }
+
+export type GatewayInteractiveChartRenderer = "plotly";
+export type GatewayInteractiveChartStatus = "ready" | "empty" | "stale" | "error";
+
+export interface GatewayInteractiveChartSource {
+  label: string;
+  localOnly: boolean;
+  updatedAt?: string;
+  evidenceRef?: string;
+}
+
+export interface GatewayInteractiveChartExport {
+  fileName: string;
+  png?: boolean;
+  html?: boolean;
+}
+
+export interface GatewayInteractiveChartSpec {
+  chartId: string;
+  title: string;
+  description?: string;
+  renderer: GatewayInteractiveChartRenderer;
+  kind: "line" | "bar" | "histogram" | "indicator" | "scatter" | "heatmap" | string;
+  status: GatewayInteractiveChartStatus;
+  data: Array<Record<string, unknown>>;
+  layout: Record<string, unknown>;
+  config?: Record<string, unknown>;
+  source: GatewayInteractiveChartSource;
+  summary: string;
+  emptyReason?: string;
+  staleReason?: string;
+  export?: GatewayInteractiveChartExport;
+}
+
+export interface GatewayLocalWorkspaceActivity {
+  label: string;
+  detail: string;
+  occurredAt: string;
+  status: "completed" | "running" | "warning" | "ready" | string;
+}
+
+export interface GatewayLocalArtifactSummary {
+  path: string;
+  kind: "dataset" | "table" | "code" | "model" | "metadata" | "artifact" | string;
+  size: string;
+  status: string;
+  localOnly: boolean;
+}
+
+export interface GatewayWorkspaceSummary {
+  cpuUsagePercent: number;
+  ramUsedBytes: number;
+  ramTotalBytes: number;
+  diskUsedBytes: number;
+  diskTotalBytes: number;
+  localDatasetCount: number;
+  localModelCount: number;
+  recentRunCount: number;
+  packageInstalledCount: number;
+  packageOutdatedCount: number;
+  runtimeUptimeLabel: string;
+  activeJobCount: number;
+  projectRoot: string;
+  activities: GatewayLocalWorkspaceActivity[];
+  artifacts: GatewayLocalArtifactSummary[];
+}
+
 export interface GatewayHealthcheck {
   service: "api-gateway";
   status: "ok";
@@ -583,6 +650,8 @@ export interface GatewayHealthcheck {
   oidcDiscoveryConfigured?: boolean;
   oidcJwksConfigured?: boolean;
   oidcAllowedAlgorithms?: string[];
+  workspaceSummary?: GatewayWorkspaceSummary;
+  charts?: GatewayInteractiveChartSpec[];
 }
 
 export interface GatewayDataEstateZoneStatus {
@@ -917,6 +986,7 @@ export interface GatewayDataImportProfile {
   workflowReadiness?: GatewayDataWorkflowReadiness;
   quickPlots?: GatewayDataQuickPlot[];
   previewRows?: Array<Record<string, string | number | boolean | null>>;
+  charts?: GatewayInteractiveChartSpec[];
 }
 
 export interface GatewayDataImportProfileResponse {
@@ -950,6 +1020,12 @@ export interface GatewayTransformRunRecord {
   nodeResults: GatewayTransformNodeResult[];
   artifactEvidence: GatewayTransformArtifactEvidence[];
   localOnly: boolean;
+  charts?: GatewayInteractiveChartSpec[];
+  validation?: {
+    status: "valid" | "warning" | "invalid" | string;
+    messages: string[];
+    updatedAt: string;
+  };
 }
 
 export interface GatewayTransformRunRequest {

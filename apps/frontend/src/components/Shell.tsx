@@ -1,16 +1,32 @@
+import type { ComponentType } from "react";
+import {
+  Activity,
+  BarChart3,
+  Boxes,
+  BrainCircuit,
+  Database,
+  FolderOpen,
+  GitBranch,
+  Grid3X3,
+  HelpCircle,
+  Package,
+  Settings,
+  Share2
+} from "lucide-react";
 import { Button, StatusPill } from "./ui";
 import type { AppView } from "../types";
+import type { LucideProps } from "lucide-react";
 
-const navItems: Array<{ id: AppView; label: string; path: string }> = [
-  { id: "explorer", label: "Explorer", path: "/" },
-  { id: "data", label: "Data", path: "/data" },
-  { id: "visualize", label: "Visualize", path: "/visualize" },
-  { id: "transform", label: "Transform", path: "/transform" },
-  { id: "ml-studio", label: "ML Studio", path: "/ml-studio" },
-  { id: "models", label: "Models", path: "/models" },
-  { id: "deploy", label: "Deploy", path: "/deploy" },
-  { id: "monitor", label: "Monitor", path: "/monitor" },
-  { id: "settings", label: "Settings", path: "/settings" }
+const navItems: Array<{ id: AppView; label: string; path: string; icon: ComponentType<LucideProps> }> = [
+  { id: "explorer", label: "Explorer", path: "/", icon: FolderOpen },
+  { id: "data", label: "Data", path: "/data", icon: Database },
+  { id: "visualize", label: "Visualize", path: "/visualize", icon: BarChart3 },
+  { id: "transform", label: "Transform", path: "/transform", icon: GitBranch },
+  { id: "ml-studio", label: "ML Studio", path: "/ml-studio", icon: BrainCircuit },
+  { id: "models", label: "Models", path: "/models", icon: Boxes },
+  { id: "deploy", label: "Deploy", path: "/deploy", icon: Package },
+  { id: "monitor", label: "Monitor", path: "/monitor", icon: Activity },
+  { id: "settings", label: "Settings", path: "/settings", icon: Settings }
 ];
 
 export function pathForView(view: AppView) {
@@ -62,18 +78,21 @@ export function Shell({
         </div>
         <p className="brand-copy">Low code EDA and ML built for Julia. Runs 100% locally.</p>
         <nav>
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              aria-current={activeView === item.id ? "page" : undefined}
-              className={activeView === item.id ? "active" : ""}
-              type="button"
-              onClick={() => onNavigate(item.id)}
-            >
-              <span aria-hidden="true" className="nav-icon">{item.label.slice(0, 1)}</span>
-              {item.label}
-            </button>
-          ))}
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                aria-current={activeView === item.id ? "page" : undefined}
+                className={activeView === item.id ? "active" : ""}
+                type="button"
+                onClick={() => onNavigate(item.id)}
+              >
+                <span aria-hidden="true" className="nav-icon"><Icon size={17} strokeWidth={1.9} /></span>
+                {item.label}
+              </button>
+            );
+          })}
         </nav>
         <div className="local-proof">
           <strong>julia</strong>
@@ -94,9 +113,9 @@ export function Shell({
           </div>
           <div className="top-actions">
             <Button variant="primary" onClick={onPrimaryAction}>+ New Project</Button>
-            <Button ariaLabel="Open grid menu" onClick={onGridAction}>Grid</Button>
-            <Button ariaLabel="Open share panel" onClick={onShareAction}>Share</Button>
-            <Button ariaLabel="Open help" onClick={onHelpAction}>?</Button>
+            <Button ariaLabel="Open grid menu" onClick={onGridAction}><Grid3X3 size={17} aria-hidden="true" /></Button>
+            <Button ariaLabel="Open share panel" onClick={onShareAction}><Share2 size={17} aria-hidden="true" /></Button>
+            <Button ariaLabel="Open help" onClick={onHelpAction}><HelpCircle size={17} aria-hidden="true" /></Button>
             <button type="button" className="avatar" aria-label="Open local profile" onClick={onProfileAction}>AJ</button>
           </div>
         </header>

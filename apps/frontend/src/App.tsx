@@ -593,7 +593,7 @@ function App() {
           visualizeExports,
           checkpoints,
           dashboard,
-          projectFiles
+          projectFiles: health.workspaceSummary?.artifacts?.length ? health.workspaceSummary.artifacts : projectFiles
         });
       } catch (error) {
         if (!abort.signal.aborted) {
