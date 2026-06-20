@@ -2918,6 +2918,14 @@ end
         @test data_import_payload["profile"]["targetZone"] == "raw"
         @test startswith(data_import_payload["profile"]["artifactRef"], "local://data/raw/foundation-profile")
         @test data_import_payload["profile"]["localOnly"] == true
+        @test data_import_payload["profile"]["activeReadMode"] == "csv"
+        @test length(data_import_payload["profile"]["sourceOptions"]) == 4
+        @test any(option -> option["mode"] == "duckdb", data_import_payload["profile"]["sourceOptions"])
+        @test length(data_import_payload["profile"]["lineageArtifacts"]) == 4
+        @test length(data_import_payload["profile"]["qualityChecks"]) >= 1
+        @test data_import_payload["profile"]["workflowReadiness"]["downstreamReady"] == true
+        @test length(data_import_payload["profile"]["quickPlots"]) >= 1
+        @test length(data_import_payload["profile"]["previewRows"]) >= 1
         @test transform_run_response.status == 202
         transform_run_payload = JSON3.read(String(transform_run_response.body), Dict{String,Any})
         @test transform_run_payload["status"] == "accepted"

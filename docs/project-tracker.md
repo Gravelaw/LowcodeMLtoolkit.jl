@@ -2525,11 +2525,32 @@ After any meaningful job:
 
 ### Gaps Pending
 
-- This branch is stacked on PR #30 and should be retargeted to `main` after PR #30 merges.
-- Runtime worker processes still read applied policy through gateway execution evidence; deeper hot-reconfiguration of already-running external worker processes is out of scope for this slice.
+- PR #32 replaced the closed stacked PR #31 and merged into `main`.
+- Runtime worker processes still read applied policy through gateway execution evidence; deeper hot-reconfiguration of already-running external worker processes remains future runtime depth if required.
 
 ### Next Items To Implement
 
-- Run browser sanity and final control gates for the compute-settings branch.
-- Open a draft stacked PR against `codex/aks-24-explorer-system-health-artifacts`.
-- After PR #30 merges, rebase/retarget the compute settings PR to `main`.
+- Continue with AKS-25 Data estate workflow.
+
+---
+
+## Update: AKS-25 Data Estate Workflow Slice - 2026-06-20
+
+### Work Done Till Date
+
+- Started `codex/aks-25-data-estate-workflow` from updated `main` after AKS-24 merged.
+- Extended the Data import/profile contract and OpenAPI schema with active read mode, source options, artifact lineage, quality checks, field roles, workflow readiness, quick EDA plots, and preview rows.
+- Extended the gateway local-data import/profile response with deterministic telecom churn and Global Superstore fixture evidence and CSV, Arrow IPC, Parquet, and DuckDB read-mode semantics.
+- Reworked the Data route from static source cards into dataset catalog, read-mode selector, profile refresh, preview rows, field roles/quality, lineage, quality checks, ML readiness, and quick EDA checks.
+- Verified the slice so far with focused frontend tests, contract validation, production build, and repo-local Julia gateway tests.
+
+### Gaps Pending
+
+- PR review/CI/merge are still pending before AKS-25 can close in Linear.
+- Download/import UX for full external Kaggle datasets remains represented by deterministic fixture metadata in this slice; no large raw Kaggle files are committed.
+
+### Next Items To Implement
+
+- Run final control gates and diff check.
+- Open the AKS-25 PR and link it to Linear.
+- After merge, move AKS-25 to Done and start AKS-26.

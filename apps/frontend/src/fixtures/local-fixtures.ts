@@ -34,6 +34,13 @@ export const churnRows: DatasetRow[] = [
   { customer_id: "C-1005", tenure_months: 7, monthly_charges: 88.5, contract_type: "monthly", churn_risk: 0.73, label: "churned" }
 ];
 
+export const superstoreRows = [
+  { order_id: "CA-2016-152156", order_date: "2016-11-08", segment: "Consumer", category: "Furniture", sales: 261.96, profit: 41.91 },
+  { order_id: "CA-2016-152156", order_date: "2016-11-08", segment: "Consumer", category: "Furniture", sales: 731.94, profit: 219.58 },
+  { order_id: "CA-2016-138688", order_date: "2016-06-12", segment: "Corporate", category: "Office Supplies", sales: 14.62, profit: 6.87 },
+  { order_id: "US-2015-108966", order_date: "2015-10-11", segment: "Home Office", category: "Technology", sales: 957.58, profit: -383.03 }
+];
+
 export const localHealth: GatewayHealthcheck = {
   service: "api-gateway",
   status: "ok",
@@ -249,15 +256,109 @@ export const dataProfile: GatewayDataImportProfile = {
     { name: "churn", type: "Bool" }
   ],
   profileSummary: [
-    { name: "tenure_months", type: "Int64", quality: "99.8% complete" },
-    { name: "monthly_charges", type: "Float64", quality: "0 outliers clipped" },
-    { name: "contract_type", type: "String", quality: "3 categories" }
+    { name: "customer_id", type: "String", quality: "unique customer key", role: "id", missingCount: 0, distinctCount: 12500, outlierCount: 0 },
+    { name: "tenure_months", type: "Int64", quality: "99.8% complete", role: "feature", missingCount: 25, distinctCount: 73, outlierCount: 0 },
+    { name: "monthly_charges", type: "Float64", quality: "0 outliers clipped", role: "feature", missingCount: 0, distinctCount: 1210, outlierCount: 0 },
+    { name: "contract_type", type: "String", quality: "3 categories", role: "feature", missingCount: 0, distinctCount: 3, outlierCount: 0 },
+    { name: "churn", type: "Bool", quality: "target balance checked", role: "label", missingCount: 0, distinctCount: 2, outlierCount: 0 }
   ],
   manifestReady: true,
   manifestChecksums: localHealth.dataEstateManifestChecksums,
   duckdbStatus: "ready",
   importedAt: "2026-06-17T10:00:00Z",
-  localOnly: true
+  localOnly: true,
+  activeReadMode: "csv",
+  sourceOptions: [
+    { mode: "csv", label: "CSV raw source", path: "data/raw/churn.csv", status: "active", semantics: "Raw local file read for ingest and reproducible source checks." },
+    { mode: "arrow_ipc", label: "Arrow IPC artifact", path: "data/raw/customer-churn-local.arrow", status: "ready", semantics: "Fast local columnar boundary used between JuliaFlow nodes." },
+    { mode: "parquet", label: "Parquet managed artifact", path: "data/processed/customer-churn-local.parquet", status: "ready", semantics: "Durable local analytics artifact for processed and feature zones." },
+    { mode: "duckdb", label: "DuckDB query view", path: "data/_duckdb/local-data-estate.sql", status: "ready", semantics: "Persistent local SQL view for profiling, joins, and aggregate reads." }
+  ],
+  lineageArtifacts: [
+    { stage: "raw", artifactRef: "data/raw/churn.csv", format: "csv", checksumSha256: "b".repeat(64), rowCount: 12500 },
+    { stage: "profiled", artifactRef: "data/raw/customer-churn-local.arrow", format: "arrow_ipc", checksumSha256: "b".repeat(64), rowCount: 12500 },
+    { stage: "processed", artifactRef: "data/processed/customer-churn-local.parquet", format: "parquet", checksumSha256: "b".repeat(64), rowCount: 12500 },
+    { stage: "query", artifactRef: "data/_duckdb/local-data-estate.sql", format: "duckdb", checksumSha256: "b".repeat(64), rowCount: 12500 }
+  ],
+  qualityChecks: [
+    { checkId: "target-balance", label: "Target balance", status: "passed", detail: "Churn rate is 26.5%, suitable for stratified split." },
+    { checkId: "leakage", label: "Leakage scan", status: "passed", detail: "No post-churn columns are marked as features." },
+    { checkId: "missingness", label: "Missingness", status: "warning", detail: "25 tenure rows require imputation before training." }
+  ],
+  workflowReadiness: {
+    targetColumn: "churn",
+    trainTestSplit: "stratified 80/20",
+    leakageWarnings: [],
+    downstreamReady: true,
+    recommendedNextAction: "Open ML Studio to train a local churn classifier or Transform to encode contract_type."
+  },
+  quickPlots: [
+    { plotId: "churn-balance", title: "Churn Balance", kind: "target_balance", field: "churn", values: [{ label: "retained", value: 9188 }, { label: "churned", value: 3312 }] },
+    { plotId: "contract-risk", title: "Risk By Contract", kind: "bar", field: "contract_type", values: [{ label: "monthly", value: 0.61 }, { label: "annual", value: 0.24 }, { label: "two_year", value: 0.12 }] }
+  ],
+  previewRows: churnRows.map(({ churn_risk: _risk, label, ...row }) => ({ ...row, churn: label === "churned" }))
+};
+
+export const superstoreDataProfile: GatewayDataImportProfile = {
+  datasetId: "global-superstore-local",
+  sourceUri: "data/raw/global_superstore.csv",
+  sourceFormat: "csv",
+  targetZone: "raw",
+  artifactRef: "data/raw/global-superstore-local.arrow",
+  artifactFormats: ["arrow_ipc", "parquet"],
+  checksumSha256: "9".repeat(64),
+  rowCount: 9800,
+  schemaSummary: [
+    { name: "order_id", type: "String" },
+    { name: "order_date", type: "Date" },
+    { name: "segment", type: "String" },
+    { name: "category", type: "String" },
+    { name: "sales", type: "Float64" },
+    { name: "profit", type: "Float64" }
+  ],
+  profileSummary: [
+    { name: "order_id", type: "String", quality: "unique order-line key", role: "id", missingCount: 0, distinctCount: 5009, outlierCount: 0 },
+    { name: "order_date", type: "Date", quality: "date range ready", role: "timestamp", missingCount: 0, distinctCount: 1237, outlierCount: 0 },
+    { name: "segment", type: "String", quality: "3 categories", role: "feature", missingCount: 0, distinctCount: 3, outlierCount: 0 },
+    { name: "category", type: "String", quality: "3 categories", role: "feature", missingCount: 0, distinctCount: 3, outlierCount: 0 },
+    { name: "sales", type: "Float64", quality: "right-skewed; winsorize recommended", role: "feature", missingCount: 0, distinctCount: 5825, outlierCount: 181 },
+    { name: "profit", type: "Float64", quality: "target candidate; negative values present", role: "label", missingCount: 0, distinctCount: 7287, outlierCount: 224 }
+  ],
+  manifestReady: true,
+  manifestChecksums: localHealth.dataEstateManifestChecksums,
+  duckdbStatus: "ready",
+  importedAt: "2026-06-17T10:00:00Z",
+  localOnly: true,
+  activeReadMode: "duckdb",
+  sourceOptions: [
+    { mode: "csv", label: "CSV raw source", path: "data/raw/global_superstore.csv", status: "ready", semantics: "Raw local file read for ingest and reproducible source checks." },
+    { mode: "arrow_ipc", label: "Arrow IPC artifact", path: "data/raw/global-superstore-local.arrow", status: "ready", semantics: "Fast local columnar boundary used between JuliaFlow nodes." },
+    { mode: "parquet", label: "Parquet managed artifact", path: "data/processed/global-superstore-local.parquet", status: "ready", semantics: "Durable local analytics artifact for processed and feature zones." },
+    { mode: "duckdb", label: "DuckDB query view", path: "data/_duckdb/local-data-estate.sql", status: "active", semantics: "Persistent local SQL view for profiling, joins, and aggregate reads." }
+  ],
+  lineageArtifacts: [
+    { stage: "raw", artifactRef: "data/raw/global_superstore.csv", format: "csv", checksumSha256: "9".repeat(64), rowCount: 9800 },
+    { stage: "profiled", artifactRef: "data/raw/global-superstore-local.arrow", format: "arrow_ipc", checksumSha256: "9".repeat(64), rowCount: 9800 },
+    { stage: "processed", artifactRef: "data/processed/global-superstore-local.parquet", format: "parquet", checksumSha256: "9".repeat(64), rowCount: 9800 },
+    { stage: "query", artifactRef: "data/_duckdb/local-data-estate.sql", format: "duckdb", checksumSha256: "9".repeat(64), rowCount: 9800 }
+  ],
+  qualityChecks: [
+    { checkId: "dates-parse", label: "Order dates parse", status: "passed", detail: "Order and ship dates are typed for time-series EDA." },
+    { checkId: "profit-outliers", label: "Profit outliers", status: "warning", detail: "224 high-leverage profit rows should be reviewed before regression." },
+    { checkId: "lineage-ready", label: "Local artifact lineage", status: "passed", detail: "Raw, Arrow, Parquet, and DuckDB bindings are available locally." }
+  ],
+  workflowReadiness: {
+    targetColumn: "profit",
+    trainTestSplit: "time-aware 80/20",
+    leakageWarnings: ["Avoid using ship_date-derived delivery duration before validating order-time availability."],
+    downstreamReady: true,
+    recommendedNextAction: "Open Visualize for sales/profit EDA or Transform to build aggregate features."
+  },
+  quickPlots: [
+    { plotId: "sales-category", title: "Sales By Category", kind: "bar", field: "category", values: [{ label: "Furniture", value: 741999 }, { label: "Office Supplies", value: 719047 }, { label: "Technology", value: 836154 }] },
+    { plotId: "profit-segment", title: "Profit By Segment", kind: "bar", field: "segment", values: [{ label: "Consumer", value: 134119 }, { label: "Corporate", value: 91979 }, { label: "Home Office", value: 60299 }] }
+  ],
+  previewRows: superstoreRows
 };
 
 export const transformRuns: GatewayTransformRunRecord[] = [

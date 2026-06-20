@@ -13,12 +13,15 @@ import {
   modelRegistry,
   publishedDashboard,
   projectFiles,
+  superstoreDataProfile,
   transformRuns,
   visualizeExports,
   workflowSummary
 } from "./fixtures/local-fixtures";
 import type { ActionFeedback, AppData, AppView, LocalProjectArtifact } from "./types";
 import type {
+  GatewayDataImportProfile,
+  GatewayDataImportProfileRequest,
   GatewayHealthcheck,
   GatewayRequestOptions,
   JuliaFlowRuntimeContract,
@@ -182,6 +185,7 @@ function buildDemoData(runtimeMode: JuliaFlowRuntimeMode = "demo"): AppData {
     workflow: localWorkflow,
     workflowSummary,
     dataProfile,
+    dataProfiles: [dataProfile, superstoreDataProfile],
     transformRuns,
     executions: executionRecords,
     mlExperiments,
@@ -461,6 +465,13 @@ function prependUnique<TItem>(
   return [nextItem, ...items.filter((item) => getKey(item) !== nextKey)];
 }
 
+function upsertDataProfile(
+  profiles: GatewayDataImportProfile[] | undefined,
+  profile: GatewayDataImportProfile
+): GatewayDataImportProfile[] {
+  return [profile, ...(profiles ?? []).filter((item) => item.datasetId !== profile.datasetId)];
+}
+
 function isGatewayAuthError(error: unknown): boolean {
   return error instanceof GatewayClientError && (error.status === 401 || error.status === 403);
 }
@@ -573,6 +584,7 @@ function App() {
           workflow,
           workflowSummary: summary,
           dataProfile,
+          dataProfiles: [dataProfile, superstoreDataProfile],
           executions: executions.items.length > 0 || !fixtureSubstitutionAllowed ? executions.items : executionRecords,
           transformRuns: transforms.items.length > 0 || !fixtureSubstitutionAllowed ? transforms.items : transformRuns,
           mlExperiments: experiments.items.length > 0 || !fixtureSubstitutionAllowed ? experiments.items : mlExperiments,
@@ -815,14 +827,51 @@ function App() {
           <DataView
             data={data}
             feedback={feedback.data}
-            onImport={() =>
-              withGatewayFallback(
-                "data",
-                () => client!.importDataProfile({ datasetId: "customer-churn-local", sourceUri: "data/raw/churn.csv", format: "csv", targetZone: "raw" }),
-                (response) => setData((current) => ({ ...current, dataProfile: response.profile, mode: "live" })),
-                "Synthetic local profile loaded from fixture."
-              )
+            onSelectProfile={(profile) =>
+              setData((current) => ({
+                ...current,
+                dataProfile: profile,
+                dataProfiles: upsertDataProfile(current.dataProfiles, profile)
+              }))
             }
+            onImport={(request?: GatewayDataImportProfileRequest) => {
+              const nextRequest = request ?? {
+                datasetId: data.dataProfile.datasetId,
+                sourceUri: data.dataProfile.sourceUri,
+                format: data.dataProfile.activeReadMode ?? data.dataProfile.sourceFormat,
+                targetZone: data.dataProfile.targetZone,
+                readMode: data.dataProfile.activeReadMode ?? data.dataProfile.sourceFormat
+              };
+              if (!gatewayBaseUrl && fixtureSubstitutionAllowed && nextRequest.readMode) {
+                setData((current) => {
+                  const nextProfile: GatewayDataImportProfile = {
+                    ...current.dataProfile,
+                    activeReadMode: nextRequest.readMode,
+                    sourceFormat: String(nextRequest.format ?? current.dataProfile.sourceFormat),
+                    sourceOptions: current.dataProfile.sourceOptions?.map((option) => ({
+                      ...option,
+                      status: option.mode === nextRequest.readMode ? "active" : option.status === "active" ? "ready" : option.status
+                    }))
+                  };
+                  return {
+                    ...current,
+                    dataProfile: nextProfile,
+                    dataProfiles: upsertDataProfile(current.dataProfiles, nextProfile)
+                  };
+                });
+              }
+              return withGatewayFallback(
+                "data",
+                () => client!.importDataProfile(nextRequest),
+                (response) => setData((current) => ({
+                  ...current,
+                  dataProfile: response.profile,
+                  dataProfiles: upsertDataProfile(current.dataProfiles, response.profile),
+                  mode: "live"
+                })),
+                `Synthetic ${nextRequest.readMode ?? data.dataProfile.activeReadMode ?? "csv"} profile loaded from fixture.`
+              );
+            }}
           />
         );
       case "transform":

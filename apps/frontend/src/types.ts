@@ -40,6 +40,7 @@ export interface AppData {
   workflow: WorkflowDefinition;
   workflowSummary: GatewayWorkflowSummary;
   dataProfile: GatewayDataImportProfile;
+  dataProfiles: GatewayDataImportProfile[];
   transformRuns: GatewayTransformRunRecord[];
   executions: GatewayExecutionRecord[];
   mlExperiments: GatewayMlExperimentRecord[];

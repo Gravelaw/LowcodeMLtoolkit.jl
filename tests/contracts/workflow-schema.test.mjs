@@ -252,6 +252,13 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.GatewayLocalServiceUrls);
   assert.ok(schemas.DataImportProfileResponse);
   assert.ok(schemas.DataImportProfile.properties.artifactRef);
+  assert.ok(schemas.DataImportProfileRequest.properties.readMode);
+  assert.ok(schemas.DataImportProfile.properties.sourceOptions);
+  assert.ok(schemas.DataImportProfile.properties.lineageArtifacts);
+  assert.ok(schemas.DataImportProfile.properties.qualityChecks);
+  assert.ok(schemas.DataImportProfile.properties.workflowReadiness);
+  assert.ok(schemas.DataImportProfile.properties.quickPlots);
+  assert.ok(schemas.DataImportProfile.properties.previewRows);
   assert.ok(schemas.TransformRunResponse);
   assert.ok(schemas.TransformRunRecord.properties.artifactEvidence);
   assert.ok(schemas.TransformHistoryResponse);
