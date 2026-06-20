@@ -2640,7 +2640,7 @@ Each checkpoint entry must contain:
 
 - Docker Desktop access from Codex is restored on the `desktop-linux` context; `docker info` and Compose work from `D:\Julia Project`.
 - `smoke:local-metadata` now passes the Docker PostgreSQL lab-team path. The gateway repository imports `LibPQ` normally at module load instead of lazily importing it mid-call, which removes Julia 1.12 world-age failures in PostgreSQL gateway startup.
-- `smoke-local-metadata.mjs` and `verify-release.mjs` now use the repo-local Julia command/depot for standalone Julia subprocesses, avoiding blocked user-global compiled DLLs under `C:\Users\aksha\.julia\compiled`.
+- `smoke-local-metadata.mjs`, `verify-release.mjs`, and npm-visible Julia scripts now use the repo-local Julia command/depot for standalone Julia subprocesses, avoiding blocked user-global compiled DLLs under `C:\Users\aksha\.julia\compiled`.
 - No-skip `npm run verify:release` passed bootstrap, contracts, frontend, Julia tests, local smokes, and live-backend browser smoke before stopping at the expected control-doc sync gate for this code/doc slice.
 - After control-doc synchronization, full no-skip `npm run verify:release` passed and wrote `artifacts/release-verification/latest/summary.json`.
 
