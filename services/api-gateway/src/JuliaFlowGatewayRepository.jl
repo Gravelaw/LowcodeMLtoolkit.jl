@@ -6,6 +6,7 @@ using .JuliaFlowExecutionService
 using Dates
 using JSON3
 using UUIDs
+import LibPQ
 
 export GatewayCheckpoint,
     GatewayExecution,
@@ -214,14 +215,15 @@ Base.@kwdef struct PostgreSQLGatewayRepository <: AbstractGatewayRepository
 end
 
 function libpq()
-    if !isdefined(@__MODULE__, :LibPQ)
-        @eval import LibPQ
-    end
-    return getfield(@__MODULE__, :LibPQ)
+    return LibPQ
 end
 
 function execute(conn, statement::AbstractString, args...; kwargs...)
-    return libpq().execute(conn, statement, args...; kwargs...)
+    return Base.invokelatest(libpq().execute, conn, statement, args...; kwargs...)
+end
+
+function close_connection(conn)
+    return Base.invokelatest(close, conn)
 end
 
 function workflow_metadata_payload(workflow::WorkflowDefinition)
@@ -1437,7 +1439,7 @@ function ensure_repository!(repo::FileGatewayRepository)
 end
 
 function connect(repo::PostgreSQLGatewayRepository)
-    return libpq().Connection(repo.connection_string)
+    return Base.invokelatest(libpq().Connection, repo.connection_string)
 end
 
 function create_postgres_schema!(repo::PostgreSQLGatewayRepository)
@@ -1557,7 +1559,7 @@ function create_postgres_schema!(repo::PostgreSQLGatewayRepository)
             """,
         )
     finally
-        close(conn)
+        close_connection(conn)
     end
     return repo
 end
@@ -1854,7 +1856,7 @@ function load_checkpoints(repo::PostgreSQLGatewayRepository)
             )
         end
     finally
-        close(conn)
+        close_connection(conn)
     end
     return checkpoints
 end
@@ -1870,7 +1872,7 @@ function load_executions(repo::PostgreSQLGatewayRepository)
             push!(executions, gateway_execution(item))
         end
     finally
-        close(conn)
+        close_connection(conn)
     end
     return executions
 end
@@ -1905,7 +1907,7 @@ function load_events(repo::PostgreSQLGatewayRepository)
             )
         end
     finally
-        close(conn)
+        close_connection(conn)
     end
     return events
 end
@@ -1919,7 +1921,7 @@ function load_auth_policy(repo::PostgreSQLGatewayRepository)
         row === nothing && return GatewayAuthPolicy()
         return gateway_auth_policy(JSON3.read(String(row[1][1]), Dict{String,Any}))
     finally
-        close(conn)
+        close_connection(conn)
     end
 end
 
@@ -1932,7 +1934,7 @@ function load_auth_directory(repo::PostgreSQLGatewayRepository)
         row === nothing && return GatewayAuthDirectory()
         return gateway_auth_directory(JSON3.read(String(row[1][1]), Dict{String,Any}))
     finally
-        close(conn)
+        close_connection(conn)
     end
 end
 
@@ -1947,7 +1949,7 @@ function load_hub_extensions(repo::PostgreSQLGatewayRepository)
             push!(extensions, gateway_hub_extension(item))
         end
     finally
-        close(conn)
+        close_connection(conn)
     end
     isempty(extensions) && return default_hub_extensions()
     return extensions
@@ -1964,7 +1966,7 @@ function load_published_dashboards(repo::PostgreSQLGatewayRepository)
             push!(dashboards, gateway_published_dashboard(item))
         end
     finally
-        close(conn)
+        close_connection(conn)
     end
     return dashboards
 end
@@ -1980,7 +1982,7 @@ function load_workflows(repo::PostgreSQLGatewayRepository)
             workflows[workflow.id] = workflow
         end
     finally
-        close(conn)
+        close_connection(conn)
     end
     return workflows
 end
@@ -2006,7 +2008,7 @@ function save_workflow!(repo::PostgreSQLGatewayRepository, workflow_toml::Abstra
             [workflow.id, workflow.name, workflow.version, workflow_toml, JSON3.write(workflow_metadata_payload(workflow))],
         )
     finally
-        close(conn)
+        close_connection(conn)
     end
     payload = Dict{String,Any}(
         "workflowId" => workflow.id,
@@ -2041,7 +2043,7 @@ function save_checkpoint!(repo::PostgreSQLGatewayRepository, checkpoint::Gateway
             [checkpoint.tag, checkpoint.summary, checkpoint.created_at],
         )
     finally
-        close(conn)
+        close_connection(conn)
     end
     return checkpoint
 end
@@ -2082,7 +2084,7 @@ function save_execution!(repo::PostgreSQLGatewayRepository, execution::GatewayEx
             ],
         )
     finally
-        close(conn)
+        close_connection(conn)
     end
     append_event!(
         repo,
@@ -2116,7 +2118,7 @@ function save_auth_policy!(repo::PostgreSQLGatewayRepository, policy::GatewayAut
             [JSON3.write(auth_policy_payload(normalized))],
         )
     finally
-        close(conn)
+        close_connection(conn)
     end
     append_event!(
         repo,
@@ -2168,7 +2170,7 @@ function save_auth_directory!(repo::PostgreSQLGatewayRepository, directory::Gate
             [JSON3.write(auth_directory_payload(normalized))],
         )
     finally
-        close(conn)
+        close_connection(conn)
     end
     append_event!(
         repo,
@@ -2197,7 +2199,7 @@ function save_hub_extension!(repo::PostgreSQLGatewayRepository, extension::HubEx
             [extension.extension_id, JSON3.write(hub_extension_payload(extension))],
         )
     finally
-        close(conn)
+        close_connection(conn)
     end
     append_event!(
         repo,
@@ -2226,7 +2228,7 @@ function save_published_dashboard!(repo::PostgreSQLGatewayRepository, dashboard:
             [dashboard.dashboard_id, JSON3.write(published_dashboard_payload(dashboard))],
         )
     finally
-        close(conn)
+        close_connection(conn)
     end
     append_event!(
         repo,
@@ -2286,7 +2288,7 @@ function append_event!(
             payload = payload,
         )
     finally
-        close(conn)
+        close_connection(conn)
     end
 end
 
@@ -2321,7 +2323,7 @@ function list_events_after(repo::PostgreSQLGatewayRepository, after_sequence::In
             )
         end
     finally
-        close(conn)
+        close_connection(conn)
     end
     return events
 end
@@ -2339,7 +2341,7 @@ function load_consumer_cursor(repo::PostgreSQLGatewayRepository, consumer_id::Ab
         row === nothing && return 0
         return Int(row[1][1])
     finally
-        close(conn)
+        close_connection(conn)
     end
 end
 
@@ -2359,7 +2361,7 @@ function save_consumer_cursor!(repo::PostgreSQLGatewayRepository, consumer_id::A
             [String(consumer_id), Int(last_sequence)],
         )
     finally
-        close(conn)
+        close_connection(conn)
     end
     return Int(last_sequence)
 end

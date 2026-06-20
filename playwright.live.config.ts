@@ -11,7 +11,7 @@ export default defineConfig({
     baseURL: process.env.JULIAFLOW_LIVE_FRONTEND_URL ?? "http://127.0.0.1:14178",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    video: "retain-on-failure"
+    video: "off"
   },
   outputDir: "artifacts/release-verification/live-backend-browser/test-results"
 });
