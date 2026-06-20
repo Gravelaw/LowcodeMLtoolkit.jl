@@ -194,12 +194,14 @@ export function ExplorerView({
 
       <Card title="Recent Local Activity">
         <ol className="activity-list">
-          {activity.map((item) => (
-            <li key={`${item.label}-${item.detail}`}>
+          {activity.map((item, index) => (
+            <li key={`${item.label}-${item.detail}-${item.occurredAt}-${item.status}-${index}`}>
               <span className="activity-dot" />
-              <strong>{item.label}</strong>
-              <span>{item.detail}</span>
-              <small>{item.occurredAt}</small>
+              <div className="activity-content">
+                <strong>{item.label}</strong>
+                <span>{item.detail}</span>
+                <small>{item.occurredAt}</small>
+              </div>
             </li>
           ))}
         </ol>

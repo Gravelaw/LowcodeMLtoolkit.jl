@@ -17,6 +17,14 @@ function juliaCommand() {
   return existsSync(LOCAL_JULIA) ? LOCAL_JULIA : "julia";
 }
 
+function npmCommand() {
+  return process.platform === "win32" ? "cmd.exe" : "npm";
+}
+
+function npmArgs(args) {
+  return process.platform === "win32" ? ["/d", "/s", "/c", "npm", ...args] : args;
+}
+
 function withJuliaEnv(env) {
   return {
     ...env,
@@ -444,7 +452,7 @@ async function main() {
     spawnProcess("execution-service", juliaCommand(), ["--project=.", "scripts/run-execution-service.jl"], withJuliaEnv(env)),
     spawnProcess("stream-worker", juliaCommand(), ["--project=.", "scripts/run-stream-worker.jl"], withJuliaEnv(env)),
     spawnProcess("gpu-worker", juliaCommand(), ["--project=.", "scripts/run-gpu-worker.jl"], withJuliaEnv(env)),
-    spawnProcess("frontend", "npm", ["--workspace", "@juliaflow/frontend", "run", "dev", "--", "--host", options.host, "--port", numberOption(options.frontendPort, "frontend port")], env)
+    spawnProcess("frontend", npmCommand(), npmArgs(["--workspace", "@juliaflow/frontend", "run", "dev", "--", "--host", options.host, "--port", numberOption(options.frontendPort, "frontend port")]), env)
   ];
 
   console.log(`[dev:local] profile=${config.profile}`);

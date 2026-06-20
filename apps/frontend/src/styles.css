@@ -714,7 +714,7 @@ tr:last-child td {
 
 .health-list div,
 .key-values {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
 }
 
 .health-list div,
@@ -724,6 +724,8 @@ tr:last-child td {
   align-items: center;
   min-height: 28px;
   border-bottom: 1px solid var(--border);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .health-list div {
@@ -733,6 +735,35 @@ tr:last-child td {
 .health-list span,
 .key-values span {
   color: var(--muted);
+}
+
+.key-values strong {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.explorer-route .activity-list li {
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+}
+
+.explorer-route .activity-dot {
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+}
+
+.explorer-route .activity-list strong,
+.explorer-route .activity-list span,
+.explorer-route .activity-list small {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.activity-content {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 }
 
 .artifact-tree {

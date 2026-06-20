@@ -569,9 +569,7 @@ function App() {
         ]);
         const dashboard =
           dashboards.items[0] ??
-          (fixtureSubstitutionAllowed
-            ? await client.getPublishedDashboard(dashboardId, undefined, requestOptions(abort.signal)).catch(() => fallbackValue(publishedDashboard))
-            : dashboardFromWorkflow(workflow, summary));
+          dashboardFromWorkflow(workflow, summary);
         const liveRuntime = health.runtime ?? runtimeContract(runtimeMode);
         setData({
           mode: "live",
