@@ -5,6 +5,7 @@ import type {
   GatewayDeployPackageRecord,
   GatewayExecutionRecord,
   GatewayHealthcheck,
+  GatewayInteractiveChartSpec,
   GatewayMlExperimentRecord,
   GatewayModelRegistryRecord,
   GatewayTransformRunRecord,
@@ -39,6 +40,140 @@ export const superstoreRows = [
   { order_id: "CA-2016-152156", order_date: "2016-11-08", segment: "Consumer", category: "Furniture", sales: 731.94, profit: 219.58 },
   { order_id: "CA-2016-138688", order_date: "2016-06-12", segment: "Corporate", category: "Office Supplies", sales: 14.62, profit: 6.87 },
   { order_id: "US-2015-108966", order_date: "2015-10-11", segment: "Home Office", category: "Technology", sales: 957.58, profit: -383.03 }
+];
+
+const chartTimestamp = "2026-06-17T10:00:00Z";
+
+function plotlyChartSpec({
+  chartId,
+  title,
+  kind,
+  data,
+  summary,
+  sourceLabel,
+  height = 240
+}: {
+  chartId: string;
+  title: string;
+  kind: GatewayInteractiveChartSpec["kind"];
+  data: GatewayInteractiveChartSpec["data"];
+  summary: string;
+  sourceLabel: string;
+  height?: number;
+}): GatewayInteractiveChartSpec {
+  return {
+    chartId,
+    title,
+    renderer: "plotly",
+    kind,
+    status: "ready",
+    data,
+    layout: {
+      height,
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
+      margin: { l: 34, r: 12, t: 20, b: 34 },
+      font: { family: "Inter, system-ui, sans-serif", size: 11, color: "#344054" },
+      xaxis: { automargin: true },
+      yaxis: { automargin: true }
+    },
+    config: { displaylogo: false, responsive: true },
+    source: { label: sourceLabel, localOnly: true, updatedAt: chartTimestamp },
+    summary,
+    export: { fileName: chartId, png: true, html: true }
+  };
+}
+
+const workspaceCharts: GatewayInteractiveChartSpec[] = [
+  plotlyChartSpec({
+    chartId: "workspace-cpu-trend",
+    title: "CPU Trend",
+    kind: "line",
+    sourceLabel: "Fixture gateway health",
+    summary: "CPU usage trend generated from local workspace health evidence.",
+    data: [{ type: "scatter", mode: "lines+markers", x: ["-25m", "-20m", "-15m", "-10m", "-5m", "now"], y: [18, 21, 16, 26, 23, 28], line: { color: "#5b2eea", width: 3 } }]
+  }),
+  plotlyChartSpec({
+    chartId: "workspace-ram-trend",
+    title: "RAM Trend",
+    kind: "line",
+    sourceLabel: "Fixture gateway health",
+    summary: "RAM usage trend generated from local workspace health evidence.",
+    data: [{ type: "scatter", mode: "lines+markers", x: ["-25m", "-20m", "-15m", "-10m", "-5m", "now"], y: [32, 35, 37, 36, 39, 39], line: { color: "#16a34a", width: 3 } }]
+  }),
+  plotlyChartSpec({
+    chartId: "workspace-disk-trend",
+    title: "Disk Trend",
+    kind: "line",
+    sourceLabel: "Fixture data estate",
+    summary: "Disk usage trend generated from managed local data estate evidence.",
+    data: [{ type: "scatter", mode: "lines+markers", x: ["-25m", "-20m", "-15m", "-10m", "-5m", "now"], y: [36, 37, 38, 39, 40, 41], line: { color: "#2563eb", width: 3 } }]
+  })
+];
+
+const churnProfileCharts: GatewayInteractiveChartSpec[] = [
+  plotlyChartSpec({
+    chartId: "data-churn-balance",
+    title: "Churn Balance",
+    kind: "bar",
+    sourceLabel: "customer-churn-local profile",
+    summary: "Target balance is generated from local profile evidence.",
+    data: [{ type: "bar", x: ["retained", "churned"], y: [9188, 3312], marker: { color: ["#16a34a", "#5b2eea"] } }]
+  }),
+  plotlyChartSpec({
+    chartId: "data-contract-risk",
+    title: "Risk By Contract",
+    kind: "bar",
+    sourceLabel: "customer-churn-local profile",
+    summary: "Contract risk is generated from local profile evidence.",
+    data: [{ type: "bar", x: ["monthly", "annual", "two_year"], y: [0.61, 0.24, 0.12], marker: { color: ["#5b2eea", "#2563eb", "#16a34a"] } }]
+  }),
+  plotlyChartSpec({
+    chartId: "data-missingness-churn",
+    title: "Missing Values",
+    kind: "bar",
+    sourceLabel: "customer-churn-local profile",
+    summary: "Missing value counts are generated from local profile evidence.",
+    data: [{ type: "bar", x: ["customer_id", "tenure_months", "monthly_charges", "contract_type", "churn"], y: [0, 25, 0, 0, 0], marker: { color: "#d97706" } }]
+  })
+];
+
+const superstoreProfileCharts: GatewayInteractiveChartSpec[] = [
+  plotlyChartSpec({
+    chartId: "data-sales-category",
+    title: "Sales By Category",
+    kind: "bar",
+    sourceLabel: "global-superstore-local profile",
+    summary: "Sales by category is generated from local profile evidence.",
+    data: [{ type: "bar", x: ["Furniture", "Office Supplies", "Technology"], y: [741999, 719047, 836154], marker: { color: ["#5b2eea", "#2563eb", "#16a34a"] } }]
+  }),
+  plotlyChartSpec({
+    chartId: "data-profit-segment",
+    title: "Profit By Segment",
+    kind: "bar",
+    sourceLabel: "global-superstore-local profile",
+    summary: "Profit by segment is generated from local profile evidence.",
+    data: [{ type: "bar", x: ["Consumer", "Corporate", "Home Office"], y: [134119, 91979, 60299], marker: { color: ["#5b2eea", "#2563eb", "#16a34a"] } }]
+  }),
+  plotlyChartSpec({
+    chartId: "data-missingness-superstore",
+    title: "Missing Values",
+    kind: "bar",
+    sourceLabel: "global-superstore-local profile",
+    summary: "Missing value counts are generated from local profile evidence.",
+    data: [{ type: "bar", x: ["order_id", "order_date", "segment", "category", "sales", "profit"], y: [0, 0, 0, 0, 0, 0], marker: { color: "#d97706" } }]
+  })
+];
+
+const transformCharts: GatewayInteractiveChartSpec[] = [
+  plotlyChartSpec({
+    chartId: "transform-rows-transform-2026-06-17-001",
+    title: "Rows By Transform Node",
+    kind: "bar",
+    sourceLabel: "latest transform run",
+    summary: "Rows by transform node are generated from local run evidence.",
+    data: [{ type: "bar", x: ["source", "features"], y: [12500, 12500], marker: { color: "#5b2eea" } }]
+  })
 ];
 
 export const localHealth: GatewayHealthcheck = {
@@ -192,7 +327,37 @@ export const localHealth: GatewayHealthcheck = {
   activeGpuExecutions: 0,
   gpuWorkerOwnedExecutions: 0,
   queuedExecutionsTotal: 0,
-  runningExecutionsTotal: 0
+  runningExecutionsTotal: 0,
+  workspaceSummary: {
+    cpuUsagePercent: 28,
+    ramUsedBytes: 6_200_000_000,
+    ramTotalBytes: 16_000_000_000,
+    diskUsedBytes: 300_000_000_000,
+    diskTotalBytes: 512_000_000_000,
+    localDatasetCount: 18,
+    localModelCount: 24,
+    recentRunCount: 7,
+    packageInstalledCount: 142,
+    packageOutdatedCount: 2,
+    runtimeUptimeLabel: "2d 14h 32m",
+    activeJobCount: 2,
+    projectRoot: "/Users/alexj/JuliaFlowLocal/Projects",
+    activities: [
+      { label: "Pipeline completed", detail: "Customer Churn Analysis Pipeline", occurredAt: "2026-06-17T10:42:00Z", status: "completed" },
+      { label: "Model trained", detail: "churn_model_v1.jls", occurredAt: "2026-06-17T10:24:00Z", status: "completed" },
+      { label: "Dataset loaded", detail: "churn.csv (12,500 rows)", occurredAt: "2026-06-17T09:58:00Z", status: "ready" },
+      { label: "EDA notebook executed", detail: "eda.jl", occurredAt: "2026-06-17T09:41:00Z", status: "completed" },
+      { label: "Transform completed", detail: "Feature Engineering Pipeline", occurredAt: "2026-06-17T08:59:00Z", status: "completed" }
+    ],
+    artifacts: [
+      { path: "Customer_Churn_Project/Project.toml", kind: "code", size: "2.1 KB", status: "local", localOnly: true },
+      { path: "Customer_Churn_Project/data/churn.csv", kind: "dataset", size: "25.1 GB", status: "profiled", localOnly: true },
+      { path: "Customer_Churn_Project/data/features/churn_features.parquet", kind: "table", size: "18.7 MB", status: "materialized", localOnly: true },
+      { path: "Customer_Churn_Project/models/churn_model_v1.jls", kind: "model", size: "87.6 MB", status: "registered", localOnly: true },
+      { path: "Customer_Churn_Project/results/metrics.csv", kind: "metadata", size: "3.1 KB", status: "checkpointed", localOnly: true }
+    ]
+  },
+  charts: workspaceCharts
 };
 
 export const localWorkflow: WorkflowDefinition = {
@@ -296,7 +461,8 @@ export const dataProfile: GatewayDataImportProfile = {
     { plotId: "churn-balance", title: "Churn Balance", kind: "target_balance", field: "churn", values: [{ label: "retained", value: 9188 }, { label: "churned", value: 3312 }] },
     { plotId: "contract-risk", title: "Risk By Contract", kind: "bar", field: "contract_type", values: [{ label: "monthly", value: 0.61 }, { label: "annual", value: 0.24 }, { label: "two_year", value: 0.12 }] }
   ],
-  previewRows: churnRows.map(({ churn_risk: _risk, label, ...row }) => ({ ...row, churn: label === "churned" }))
+  previewRows: churnRows.map(({ churn_risk: _risk, label, ...row }) => ({ ...row, churn: label === "churned" })),
+  charts: churnProfileCharts
 };
 
 export const superstoreDataProfile: GatewayDataImportProfile = {
@@ -358,7 +524,8 @@ export const superstoreDataProfile: GatewayDataImportProfile = {
     { plotId: "sales-category", title: "Sales By Category", kind: "bar", field: "category", values: [{ label: "Furniture", value: 741999 }, { label: "Office Supplies", value: 719047 }, { label: "Technology", value: 836154 }] },
     { plotId: "profit-segment", title: "Profit By Segment", kind: "bar", field: "segment", values: [{ label: "Consumer", value: 134119 }, { label: "Corporate", value: 91979 }, { label: "Home Office", value: 60299 }] }
   ],
-  previewRows: superstoreRows
+  previewRows: superstoreRows,
+  charts: superstoreProfileCharts
 };
 
 export const transformRuns: GatewayTransformRunRecord[] = [
@@ -377,7 +544,13 @@ export const transformRuns: GatewayTransformRunRecord[] = [
       { nodeId: "features", nodeType: "transform.feature_engineer", status: "executed", rowCount: 12500, artifactRefs: ["data/features/churn_features.parquet"] }
     ],
     artifactEvidence: [{ nodeId: "features", artifactRefs: ["data/features/churn_features.parquet", "data/features/churn_features.arrow"] }],
-    localOnly: true
+    localOnly: true,
+    charts: transformCharts,
+    validation: {
+      status: "valid",
+      messages: ["Pipeline nodes resolved locally.", "Artifact outputs are attached to this run."],
+      updatedAt: "2026-06-17T10:10:18Z"
+    }
   }
 ];
 

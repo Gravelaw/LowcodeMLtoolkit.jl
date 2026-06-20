@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Explorer/Data/Transform Mock Parity - 2026-06-20
+
+### Work Done Till Date
+
+- Implemented the focused Explorer/Data/Transform mock-parity product-depth slice.
+- Created the Linear parent/child backlog under AKS-28 through AKS-35 for shared chart foundation, Explorer/Data/Transform parity, gateway/contracts, visual QA, and the Data ML Readiness text-overlap bug.
+- Added reusable local interactive chart contracts, Julia/gateway Plotly-compatible chart spec helpers, and a lazy local Plotly renderer with accessible summaries and export hooks.
+- Explorer now renders gateway-backed workspace summaries, artifact evidence, local activity/package/runtime data, and Plotly mini charts with proper sidebar icons.
+- Data now exposes local source/read-mode/tabs/filter/sort/profile/lineage behavior, disabled unsupported sources with reasons, Plotly EDA charts, and wrapped readiness text.
+- Transform now uses React Flow for node-edge editing and shows grouped palette search, selected-node settings, validation/run/history evidence, before/after preview, generated Julia code, logs, artifacts, and Plotly metrics.
+- Verification passed: `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`, `npm run test:browser -- tests/browser/local-ui.spec.ts`, and `npm run smoke:live-backend-browser`.
+
+### Gaps Pending
+
+- Unsupported Data connectors remain disabled until real gateway/source handlers are implemented.
+- The Plotly renderer is lazy-loaded, but bundle-size monitoring remains important for future chart-heavy slices.
+- Persisted Transform pipeline editing depth and broader visual QA remain tracked in the AKS-28 child backlog.
+
+### Next Items To Implement
+
+- Run control-doc sync, BRD traceability, and diff checks after this checkpoint update.
+- Commit, push, and open the draft PR for the current branch.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-13 Live Workflow Metadata Recovery - 2026-06-20
 
 ### Work Done Till Date

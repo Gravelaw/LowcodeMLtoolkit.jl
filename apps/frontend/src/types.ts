@@ -59,6 +59,8 @@ export interface ActionFeedback {
 
 export interface LocalProjectArtifact {
   path: string;
+  kind?: string;
   size: string;
   status: string;
+  localOnly?: boolean;
 }

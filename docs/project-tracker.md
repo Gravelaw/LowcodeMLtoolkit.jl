@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-20`
 
 ## Work Done Till Date
+### Explorer/Data/Transform Mock Parity And Interactive Local Analytics (2026-06-20)
+
+- Created Linear parent AKS-28 and child issues AKS-29 through AKS-35 for shared chart foundation, Explorer parity, Data parity, Transform parity, gateway/contracts, visual QA, and the Data ML Readiness text-overlap bug.
+- Added contract-first local interactive chart spec types and Julia/gateway helpers that emit Plotly-compatible workspace, data-profile, and transform-run chart evidence.
+- Added a lazy local Plotly renderer with loading, empty, error, screen-reader summary, PNG export, and local HTML/spec export behavior.
+- Updated Explorer to use gateway-backed workspace summary data, artifact-tree evidence, local activity, local package/runtime blocks, and Plotly mini charts instead of static placeholders.
+- Updated Data with local source sections, disabled unsupported connectors with reasons, table/schema/profile/filter/sort/join/transform/sampling/lineage tabs, read-mode/profile refresh behavior, visible filter/sort mutations, Plotly quick EDA charts, and wrapped right-panel readiness text.
+- Updated Transform with a React Flow node-edge canvas, searchable grouped palette, node selection/settings, validation/run/history evidence, before/after preview, generated Julia code, logs, artifact output, and Plotly metric charts.
+- Verification passed: `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`, `npm run test:browser -- tests/browser/local-ui.spec.ts`, and `npm run smoke:live-backend-browser`.
+
+### Gaps Pending
+
+- This slice is a product-quality parity pass, not a full native data-source connector implementation; unsupported sources are intentionally disabled until backed by gateway behavior.
+- Plotly rendering is lazy-loaded and local, but the Plotly bundle is still large and should stay isolated from the base shell.
+- Transform validation/run evidence is deterministic local gateway/demo evidence; deeper persisted pipeline editing can continue under the AKS-28 child backlog.
+
+### Next Items To Implement
+
+- Finish control-doc validation, commit, push, and open the draft PR for the Explorer/Data/Transform parity branch.
+- Continue follow-up work from AKS-29 through AKS-35 rather than expanding scope inside this branch.
+
 ### AKS-13 Live Workflow Metadata Recovery (2026-06-20)
 
 - Updated release/local-appliance workflow loading so backend workflow detail must include workflow id, nodes, connections, flow variables, graph layout metadata, and runtime metadata before rendering live canvas/pipeline state.

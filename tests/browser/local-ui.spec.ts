@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import {
   checkpoints,
   dashboardId,
@@ -106,6 +108,33 @@ test("backend-backed local actions use mocked gateway fixtures", async ({ page }
   await page.getByRole("button", { name: "Deploy" }).click();
   await page.getByRole("button", { name: /package local endpoint/i }).click();
   await expect(page.getByText("Gateway action completed locally.")).toBeVisible();
+});
+
+test("Explorer Data Transform mock parity screenshots and interactions", async ({ page }, testInfo) => {
+  const screenshotDir = join("artifacts", "mock-parity", testInfo.project.name);
+  mkdirSync(screenshotDir, { recursive: true });
+
+  await expect(page.getByRole("heading", { name: "Local Workspace Overview" })).toBeVisible();
+  await expect(page.locator('[data-chart-id="workspace-cpu-trend"] .svg-container')).toBeVisible({ timeout: 10_000 });
+  await page.screenshot({ path: join(screenshotDir, "explorer.png"), fullPage: true });
+
+  await page.getByRole("button", { name: "Data" }).click();
+  await expect(page.getByRole("heading", { name: "Data", exact: true })).toBeVisible();
+  await expect(page.locator('[data-chart-id="data-churn-balance"] .svg-container')).toBeVisible({ timeout: 10_000 });
+  await page.getByRole("button", { name: "filters" }).click();
+  await page.locator(".control-panel-grid select").nth(1).selectOption("monthly");
+  await page.getByRole("button", { name: "table" }).click();
+  await expect(page.getByText("C-1001")).toBeVisible();
+  await expect(page.getByText("C-1002")).not.toBeVisible();
+  await page.screenshot({ path: join(screenshotDir, "data.png"), fullPage: true });
+
+  await page.getByRole("button", { name: "Transform", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Transform", exact: true })).toBeVisible();
+  await expect(page.locator('[data-chart-id="transform-rows-transform-2026-06-17-001"] .svg-container')).toBeVisible({ timeout: 10_000 });
+  await page.getByText("Feature Engineering").first().click();
+  const transformSettings = page.locator(".right-panel").filter({ hasText: "Transform Settings" });
+  await expect(transformSettings.getByText("transform.feature_engineer")).toBeVisible();
+  await page.screenshot({ path: join(screenshotDir, "transform.png"), fullPage: true });
 });
 
 async function mockGateway(page: Page) {
