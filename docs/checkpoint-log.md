@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject API Negative Validation Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Hardened `DataScienceProject` gateway validation for unsupported `schemaVersion`, route/body project id mismatch, and non-array child-record fields.
+- Added explicit API status classification for malformed project payloads, duplicate project creation, and missing projects.
+- Tightened OpenAPI `UpdateDataScienceProjectRequest` so update payloads are bounded to documented project fields instead of arbitrary properties.
+- Added contract assertions for the bounded update schema.
+- Added Julia route assertions for missing project name, duplicate project creation, unsupported schema version, invalid child-record shape, and project id mismatch.
+- Verified the slice with `npm run validate:contracts` and a focused Julia negative route smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Project API payload validation is stronger, but validation/test enforcement is not yet wired into execution, tuning, registry promotion, deployment, or final evaluation gates.
+- Gateway module split, local source trust-boundary hardening, statistical EDA services, typed jobs, model lifecycle gates, drift reports, and broader project-backed frontend routing remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Add gateway/execution validation checks for split alignment, final-test locks, and fit/apply metadata before tuning or model promotion.
+- Start gateway internal module extraction for data-project/catalog/analysis/experiment/monitoring responsibilities.
+- Harden local source import trust boundaries before enabling broader connector behavior.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Data Project Frontend Persistence Slice - 2026-06-21
 
 ### Work Done Till Date

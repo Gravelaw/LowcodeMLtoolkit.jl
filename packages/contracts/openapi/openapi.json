@@ -1958,7 +1958,108 @@
       },
       "UpdateDataScienceProjectRequest": {
         "type": "object",
-        "additionalProperties": true
+        "additionalProperties": false,
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "datasets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectDataset"
+            }
+          },
+          "schemaContracts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchemaContract"
+            }
+          },
+          "splitPlans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatasetSplitPlan"
+            }
+          },
+          "splitAssignments": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "validationFolds": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "finalTestLocks": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "statisticalAnalysisRuns": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "trainingPlans": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "tuningStudies": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "evaluationReports": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "predictionExports": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "modelLifecycleRecords": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "monitoringBaselines": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "driftReports": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "reproducibilityEvidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          }
+        }
       },
       "DataScienceProjectListResponse": {
         "type": "object",

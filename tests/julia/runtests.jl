@@ -1708,6 +1708,51 @@ end
                 ),
             ),
         )
+        data_science_project_missing_name_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("description" => "Missing required name")),
+            ),
+        )
+        data_science_project_duplicate_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("projectId" => "wellbore-geology", "name" => "Duplicate Wellbore Geology")),
+            ),
+        )
+        data_science_project_bad_schema_version_response = route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/data-science-projects/wellbore-geology",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("schemaVersion" => "2.0")),
+            ),
+        )
+        data_science_project_bad_child_shape_response = route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/data-science-projects/wellbore-geology",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("splitPlans" => Dict("splitPlanId" => "not-an-array"))),
+            ),
+        )
+        data_science_project_id_mismatch_response = route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/data-science-projects/wellbore-geology",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("projectId" => "other-project")),
+            ),
+        )
         data_science_project_missing_response = route_request(state, HTTP.Request("GET", "/api/v1/data-science-projects/missing-project"))
         transform_run_response = route_request(
             state,
@@ -3009,6 +3054,16 @@ end
         data_science_project_update_payload = JSON3.read(String(data_science_project_update_response.body), Dict{String,Any})
         @test data_science_project_update_payload["name"] == "Wellbore Geology Updated"
         @test data_science_project_update_payload["splitPlans"][1]["strategy"] == "depth"
+        @test data_science_project_missing_name_response.status == 400
+        @test occursin("data science project missing name", String(data_science_project_missing_name_response.body))
+        @test data_science_project_duplicate_response.status == 409
+        @test occursin("data science project already exists", String(data_science_project_duplicate_response.body))
+        @test data_science_project_bad_schema_version_response.status == 400
+        @test occursin("schemaVersion must be 1.0", String(data_science_project_bad_schema_version_response.body))
+        @test data_science_project_bad_child_shape_response.status == 400
+        @test occursin("project child records must be arrays", String(data_science_project_bad_child_shape_response.body))
+        @test data_science_project_id_mismatch_response.status == 400
+        @test occursin("project id mismatch", String(data_science_project_id_mismatch_response.body))
         @test data_science_project_missing_response.status == 404
         @test isfile(joinpath(store_root, "data-science-projects.json"))
         @test haskey(load_state(store_root).data_science_projects, "wellbore-geology")

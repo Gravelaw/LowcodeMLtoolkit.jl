@@ -277,6 +277,10 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.DatasetSplitPlan);
   assert.ok(schemas.DataScienceProjectListResponse);
   assert.ok(schemas.CreateDataScienceProjectRequest.required.includes("name"));
+  assert.equal(schemas.UpdateDataScienceProjectRequest.additionalProperties, false);
+  assert.ok(schemas.UpdateDataScienceProjectRequest.properties.schemaContracts);
+  assert.ok(schemas.UpdateDataScienceProjectRequest.properties.splitPlans);
+  assert.ok(schemas.UpdateDataScienceProjectRequest.properties.finalTestLocks);
   assert.ok(schemas.TransformRunResponse);
   assert.ok(schemas.TransformRunRecord.properties.artifactEvidence);
   assert.ok(schemas.TransformHistoryResponse);

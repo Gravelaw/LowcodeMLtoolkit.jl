@@ -21,6 +21,25 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject API Negative Validation Slice (2026-06-21)
+
+- Hardened gateway `DataScienceProject` materialization to reject unsupported `schemaVersion`, explicit route/body project id mismatches, and non-array child-record fields.
+- Classified project validation failures as explicit API responses: 400 for malformed project payloads, 409 for duplicate project creation, and 404 for missing projects.
+- Tightened OpenAPI `UpdateDataScienceProjectRequest` from an unbounded object to the documented project update fields.
+- Added contract assertions for bounded update schemas and Julia route assertions for missing name, duplicate project, unsupported schema version, invalid child-record array shape, and route/body id mismatch.
+- Verification passed: `npm run validate:contracts` and focused Julia negative route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. API payload validation is stronger, but execution-level validation/test enforcement, typed jobs, gateway module split, local source trust boundaries, statistical EDA, lifecycle gates, drift records, and broader project-backed route migration remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Move validation/test discipline into gateway/execution checks that block tuning, registration, deployment, and final evaluation when split evidence or final-test locks are invalid.
+- Start gateway internal module extraction before adding deeper stats, tuning, registry, or drift behavior.
+- Add local source trust-boundary checks before enabling broad file/folder/database connectors.
+
 ### AKS-36 Data Project Frontend Persistence Slice (2026-06-21)
 
 - Added a `DataScienceProject` aggregate to frontend `AppData` and demo fixtures, including dataset registration, schema contract columns, split plan, validation fold, final-test lock collection, and local reproducibility evidence.
@@ -38,8 +57,7 @@ Tracker always records 3 things:
 
 ### Next Items To Implement
 
-- Add negative project API/contract tests for invalid updates, missing fields, and route/body project id mismatch.
-- Move validation/test discipline from UI persistence into gateway/execution checks that block tuning, registration, and deployment when split evidence is missing or final test locks are violated.
+- Move validation/test discipline from UI/API persistence into gateway/execution checks that block tuning, registration, and deployment when split evidence is missing or final test locks are violated.
 - Start gateway module split and local import trust-boundary hardening before broad source enablement.
 
 ### AKS-36 DataScienceProject Substrate First Slice (2026-06-21)

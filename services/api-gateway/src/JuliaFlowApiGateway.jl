@@ -4296,11 +4296,23 @@ function validate_project_name(body::AbstractDict)
     return name
 end
 
+function validate_project_schema_version(body::AbstractDict, existing::Union{Nothing,DataScienceProjectRecord})
+    schema_version = String(get(body, "schemaVersion", existing === nothing ? "1.0" : existing.schema_version))
+    schema_version == "1.0" || error("data science project schemaVersion must be 1.0")
+    return schema_version
+end
+
 function project_id_from_body(body::AbstractDict, name::AbstractString)
     requested = haskey(body, "projectId") ? String(body["projectId"]) : name
     project_id = safe_local_dataset_id(requested)
     isempty(project_id) && error("data science project id cannot be empty")
     return project_id
+end
+
+function validate_project_id_matches!(body::AbstractDict, project_id::AbstractString)
+    haskey(body, "projectId") || return nothing
+    safe_local_dataset_id(String(body["projectId"])) == project_id || error("project id mismatch")
+    return nothing
 end
 
 function materialize_data_science_project(
@@ -4312,13 +4324,12 @@ function materialize_data_science_project(
     name = haskey(body, "name") ? strip(String(body["name"])) : (existing === nothing ? validate_project_name(body) : existing.name)
     isempty(name) && error("data science project name cannot be empty")
     project_id = project_id_override === nothing ? project_id_from_body(body, name) : String(project_id_override)
-    if haskey(body, "projectId") && String(body["projectId"]) != project_id
-        safe_local_dataset_id(String(body["projectId"])) == project_id || error("project id mismatch")
-    end
+    validate_project_id_matches!(body, project_id)
+    schema_version = validate_project_schema_version(body, existing)
 
     project = DataScienceProjectRecord(
         project_id = project_id,
-        schema_version = String(get(body, "schemaVersion", existing === nothing ? "1.0" : existing.schema_version)),
+        schema_version = schema_version,
         name = name,
         description = haskey(body, "description") && body["description"] !== nothing ? String(body["description"]) : (existing === nothing ? nothing : existing.description),
         local_only = Bool(get(body, "localOnly", existing === nothing ? true : existing.local_only)),
@@ -4400,6 +4411,14 @@ function classify_gateway_error(err)
         return 404, message
     elseif occursin("data science project not found", message)
         return 404, message
+    elseif occursin("data science project already exists", message)
+        return 409, message
+    elseif occursin("data science project schemaVersion must be 1.0", message)
+        return 400, message
+    elseif occursin("project child records must be arrays", message)
+        return 400, message
+    elseif occursin("project id mismatch", message)
+        return 400, message
     elseif occursin("route not found", message)
         return 404, message
     elseif occursin("Artifact ", message) && occursin(" missing from artifact store", message)
