@@ -1448,8 +1448,8 @@
               }
             }
           },
-          "409": {
-            "description": "Final evaluation prerequisites are missing",
+          "404": {
+            "description": "Project not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1458,8 +1458,8 @@
               }
             }
           },
-          "404": {
-            "description": "Project not found",
+          "409": {
+            "description": "Final evaluation prerequisites are missing",
             "content": {
               "application/json": {
                 "schema": {
@@ -1515,8 +1515,8 @@
               }
             }
           },
-          "409": {
-            "description": "Prediction export prerequisites are missing",
+          "404": {
+            "description": "Project not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1525,8 +1525,8 @@
               }
             }
           },
-          "404": {
-            "description": "Project not found",
+          "409": {
+            "description": "Prediction export prerequisites are missing",
             "content": {
               "application/json": {
                 "schema": {
@@ -1582,8 +1582,8 @@
               }
             }
           },
-          "409": {
-            "description": "Drift prerequisites are missing",
+          "404": {
+            "description": "Project not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1592,8 +1592,8 @@
               }
             }
           },
-          "404": {
-            "description": "Project not found",
+          "409": {
+            "description": "Drift prerequisites are missing",
             "content": {
               "application/json": {
                 "schema": {
@@ -1649,8 +1649,8 @@
               }
             }
           },
-          "409": {
-            "description": "Lifecycle prerequisites are missing",
+          "404": {
+            "description": "Project not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1659,8 +1659,8 @@
               }
             }
           },
-          "404": {
-            "description": "Project not found",
+          "409": {
+            "description": "Lifecycle prerequisites are missing",
             "content": {
               "application/json": {
                 "schema": {
@@ -2854,6 +2854,15 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "outputContract": {
+            "$ref": "#/components/schemas/PredictionOutputContract"
+          },
+          "outputMappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PredictionOutputMapping"
             }
           }
         }
@@ -8556,6 +8565,71 @@
           "count": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "PredictionOutputColumnContract": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "sourceColumn": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "PredictionOutputContract": {
+        "type": "object",
+        "required": [
+          "contractId",
+          "columns"
+        ],
+        "properties": {
+          "contractId": {
+            "type": "string"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PredictionOutputColumnContract"
+            }
+          },
+          "primaryKey": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "PredictionOutputMapping": {
+        "type": "object",
+        "required": [
+          "outputColumn",
+          "sourceColumn"
+        ],
+        "properties": {
+          "outputColumn": {
+            "type": "string"
+          },
+          "sourceColumn": {
+            "type": "string"
           }
         }
       }

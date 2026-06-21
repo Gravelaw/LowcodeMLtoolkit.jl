@@ -331,6 +331,16 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/predictions/export"]);
   assert.deepEqual(schemas.RunPredictionExportRequest.properties.format.enum, ["csv", "parquet", "jsonl"]);
   assert.equal(schemas.RunPredictionExportRequest.properties.outputColumns.items.type, "string");
+  assert.equal(
+    schemas.RunPredictionExportRequest.properties.outputContract.$ref,
+    "#/components/schemas/PredictionOutputContract",
+  );
+  assert.equal(
+    schemas.RunPredictionExportRequest.properties.outputMappings.items.$ref,
+    "#/components/schemas/PredictionOutputMapping",
+  );
+  assert.deepEqual(schemas.PredictionOutputContract.required, ["contractId", "columns"]);
+  assert.deepEqual(schemas.PredictionOutputMapping.required, ["outputColumn", "sourceColumn"]);
   assert.ok(schemas.RunPredictionExportResponse.properties.predictionExport);
   assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/drift/run"]);
   assert.equal(schemas.RunDriftReportRequest.properties.threshold.minimum, 0);

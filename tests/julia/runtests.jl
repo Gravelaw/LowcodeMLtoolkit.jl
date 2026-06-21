@@ -2257,6 +2257,55 @@ end
                 ),
             ),
         )
+        prediction_export_mapped_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/scored-foundation-submission",
+                        "outputContract" => Dict(
+                            "contractId" => "contract://outputs/scored-foundation-submission",
+                            "columns" => [
+                                Dict("name" => "row_id", "sourceColumn" => "prediction_id", "required" => true),
+                                Dict("name" => "score", "sourceColumn" => "prediction", "type" => "float64", "required" => true),
+                            ],
+                        ),
+                        "outputColumns" => ["row_id", "score"],
+                        "outputMappings" => [
+                            Dict("outputColumn" => "score", "sourceColumn" => "prediction"),
+                        ],
+                        "format" => "csv",
+                        "rowCount" => 3,
+                    ),
+                ),
+            ),
+        )
+        prediction_export_bad_mapping_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/bad-foundation-submission",
+                        "outputContract" => Dict(
+                            "contractId" => "contract://outputs/bad-foundation-submission",
+                            "columns" => [
+                                Dict("name" => "row_id", "sourceColumn" => "prediction_id", "required" => true),
+                                Dict("name" => "score", "sourceColumn" => "not_a_scoring_column", "required" => true),
+                            ],
+                        ),
+                        "outputColumns" => ["row_id", "score"],
+                    ),
+                ),
+            ),
+        )
         transform_run_response = route_request(
             state,
             HTTP.Request(
@@ -3853,6 +3902,20 @@ end
         @test occursin("outputContractRef required", String(prediction_export_missing_contract_response.body))
         @test prediction_export_bad_columns_response.status == 400
         @test occursin("outputColumns unsupported", String(prediction_export_bad_columns_response.body))
+        @test prediction_export_mapped_response.status == 201
+        prediction_export_mapped_payload = JSON3.read(String(prediction_export_mapped_response.body), Dict{String,Any})
+        @test prediction_export_mapped_payload["predictionExport"]["outputContractRef"] == "contract://outputs/scored-foundation-submission"
+        @test String.(collect(prediction_export_mapped_payload["predictionExport"]["outputColumns"])) == ["row_id", "score"]
+        @test String.(collect(prediction_export_mapped_payload["predictionExport"]["validationEvidence"]["outputContractColumns"])) == ["row_id", "score"]
+        mapped_pairs = Dict(String(mapping["outputColumn"]) => String(mapping["sourceColumn"]) for mapping in prediction_export_mapped_payload["predictionExport"]["outputMappings"])
+        @test mapped_pairs["row_id"] == "prediction_id"
+        @test mapped_pairs["score"] == "prediction"
+        @test prediction_export_mapped_payload["predictionExport"]["validationEvidence"]["contractRequiredColumnsSatisfied"] == true
+        mapped_artifact_ref = String(prediction_export_mapped_payload["predictionExport"]["artifactRef"])
+        mapped_artifact_path = joinpath(data_estate_root, split(replace(mapped_artifact_ref, "local://" => ""), '/')...)
+        @test startswith(read(mapped_artifact_path, String), "row_id,score")
+        @test prediction_export_bad_mapping_response.status == 400
+        @test occursin("outputMappings unsupported sourceColumn", String(prediction_export_bad_mapping_response.body))
         @test drift_report_response.status == 201
         drift_report_payload = JSON3.read(String(drift_report_response.body), Dict{String,Any})
         @test drift_report_payload["status"] == "completed"

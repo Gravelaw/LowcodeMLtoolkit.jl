@@ -5792,23 +5792,118 @@ const PREDICTION_EXPORT_COLUMNS = [
     "prediction",
 ]
 
-function prediction_export_output_columns(body::AbstractDict)
-    raw = haskey(body, "outputColumns") ? body["outputColumns"] : PREDICTION_EXPORT_COLUMNS
+function prediction_export_contract(body::AbstractDict, output_contract_ref::AbstractString)
+    contract_columns = [
+        Dict{String,Any}("name" => column, "sourceColumn" => column, "required" => true)
+        for column in PREDICTION_EXPORT_COLUMNS
+    ]
+    contract = Dict{String,Any}(
+        "contractId" => String(output_contract_ref),
+        "columns" => contract_columns,
+    )
+    if haskey(body, "outputContract")
+        raw_contract = body["outputContract"]
+        raw_contract isa AbstractDict || error("prediction export outputContract must be an object")
+        contract_id = strip(String(get(raw_contract, "contractId", output_contract_ref)))
+        !isempty(contract_id) || error("prediction export outputContract contractId required")
+        if !isempty(strip(String(output_contract_ref))) && contract_id != String(output_contract_ref)
+            error("prediction export outputContract contractId must match outputContractRef")
+        end
+        raw_columns = get(raw_contract, "columns", Any[])
+        raw_columns isa AbstractVector || error("prediction export outputContract columns must be an array")
+        isempty(raw_columns) && error("prediction export outputContract columns required")
+        parsed_columns = Dict{String,Any}[]
+        seen = Set{String}()
+        for raw_column in raw_columns
+            raw_column isa AbstractDict || error("prediction export outputContract columns must be objects")
+            name = strip(String(get(raw_column, "name", "")))
+            !isempty(name) || error("prediction export outputContract column name required")
+            name in seen && error("prediction export outputContract duplicate column: $(name)")
+            push!(seen, name)
+            source_column = strip(String(get(raw_column, "sourceColumn", name)))
+            column = Dict{String,Any}(
+                "name" => name,
+                "sourceColumn" => source_column,
+                "required" => Bool(get(raw_column, "required", true)),
+            )
+            haskey(raw_column, "type") && (column["type"] = String(raw_column["type"]))
+            haskey(raw_column, "description") && (column["description"] = String(raw_column["description"]))
+            push!(parsed_columns, column)
+        end
+        contract = Dict{String,Any}(
+            "contractId" => contract_id,
+            "columns" => parsed_columns,
+        )
+        haskey(raw_contract, "primaryKey") && (contract["primaryKey"] = raw_contract["primaryKey"])
+        haskey(raw_contract, "createdAt") && (contract["createdAt"] = String(raw_contract["createdAt"]))
+    end
+    return contract
+end
+
+function prediction_export_contract_column_names(contract::AbstractDict)
+    return [String(get(column, "name", "")) for column in get(contract, "columns", Any[])]
+end
+
+function prediction_export_output_columns(body::AbstractDict, contract::AbstractDict)
+    contract_columns = prediction_export_contract_column_names(contract)
+    raw = haskey(body, "outputColumns") ? body["outputColumns"] : contract_columns
     raw isa AbstractVector || error("prediction export outputColumns must be an array")
     columns = String[]
     unsupported = String[]
     for value in raw
         column = strip(String(value))
         isempty(column) && error("prediction export outputColumns cannot include empty column names")
-        if column in PREDICTION_EXPORT_COLUMNS
+        if column in contract_columns
             push!(columns, column)
         else
             push!(unsupported, column)
         end
     end
     isempty(columns) && error("prediction export outputColumns must include at least one column")
-    isempty(unsupported) || error("prediction export outputColumns unsupported: $(join(unique(unsupported), ", "))")
-    return unique(columns)
+    isempty(unsupported) || error("prediction export outputColumns unsupported by output contract: $(join(unique(unsupported), ", "))")
+    selected = unique(columns)
+    required_columns = [
+        String(get(column, "name", ""))
+        for column in get(contract, "columns", Any[])
+        if Bool(get(column, "required", true))
+    ]
+    missing_required = setdiff(required_columns, selected)
+    isempty(missing_required) || error("prediction export outputColumns missing required output contract columns: $(join(missing_required, ", "))")
+    return selected
+end
+
+function prediction_export_output_mappings(body::AbstractDict, contract::AbstractDict, output_columns::AbstractVector)
+    allowed_outputs = Set(prediction_export_contract_column_names(contract))
+    selected_outputs = Set(String.(output_columns))
+    mappings = Dict{String,String}()
+    for column in get(contract, "columns", Any[])
+        output_column = String(get(column, "name", ""))
+        source_column = strip(String(get(column, "sourceColumn", output_column)))
+        !isempty(source_column) || error("prediction export outputContract sourceColumn required for $(output_column)")
+        mappings[output_column] = source_column
+    end
+    if haskey(body, "outputMappings")
+        raw_mappings = body["outputMappings"]
+        raw_mappings isa AbstractVector || error("prediction export outputMappings must be an array")
+        for raw_mapping in raw_mappings
+            raw_mapping isa AbstractDict || error("prediction export outputMappings entries must be objects")
+            output_column = strip(String(get(raw_mapping, "outputColumn", "")))
+            source_column = strip(String(get(raw_mapping, "sourceColumn", "")))
+            !isempty(output_column) || error("prediction export outputMappings outputColumn required")
+            !isempty(source_column) || error("prediction export outputMappings sourceColumn required")
+            output_column in allowed_outputs || error("prediction export outputMappings unknown outputColumn: $(output_column)")
+            mappings[output_column] = source_column
+        end
+    end
+    unsupported_sources = unique([
+        source for (output, source) in mappings
+        if output in selected_outputs && !(source in PREDICTION_EXPORT_COLUMNS)
+    ])
+    isempty(unsupported_sources) || error("prediction export outputMappings unsupported sourceColumn: $(join(unsupported_sources, ", "))")
+    return [
+        Dict{String,Any}("outputColumn" => output_column, "sourceColumn" => mappings[String(output_column)])
+        for output_column in output_columns
+    ]
 end
 
 function prediction_export_rows(export_id::AbstractString, report::AbstractDict, dataset_id::AbstractString, output_contract_ref::AbstractString, row_count::Integer)
@@ -5826,14 +5921,18 @@ function prediction_export_rows(export_id::AbstractString, report::AbstractDict,
     ]
 end
 
-function selected_prediction_export_rows(rows::AbstractVector, output_columns::AbstractVector)
+function selected_prediction_export_rows(rows::AbstractVector, output_columns::AbstractVector, output_mappings::AbstractVector)
+    mapping_by_output = Dict(String(mapping["outputColumn"]) => String(mapping["sourceColumn"]) for mapping in output_mappings)
     return [
-        Dict{String,Any}(column => row[column] for column in output_columns) for row in rows
+        Dict{String,Any}(
+            column => row[mapping_by_output[String(column)]]
+            for column in output_columns
+        ) for row in rows
     ]
 end
 
-function prediction_export_content(format::AbstractString, rows::AbstractVector, output_columns::AbstractVector)
-    selected_rows = selected_prediction_export_rows(rows, output_columns)
+function prediction_export_content(format::AbstractString, rows::AbstractVector, output_columns::AbstractVector, output_mappings::AbstractVector)
+    selected_rows = selected_prediction_export_rows(rows, output_columns, output_mappings)
     if String(format) == "jsonl"
         return join([JSON3.write(row) for row in selected_rows], "\n") * "\n"
     elseif String(format) == "csv"
@@ -5855,6 +5954,7 @@ function persist_prediction_export_artifact!(
     dataset_id::AbstractString,
     output_contract_ref::AbstractString,
     output_columns::AbstractVector,
+    output_mappings::AbstractVector,
 )
     artifact_ref = String(prediction_export["artifactRef"])
     artifact_path = local_data_ref_path_for_write(artifact_ref)
@@ -5866,7 +5966,7 @@ function persist_prediction_export_artifact!(
         output_contract_ref,
         Int(prediction_export["rowCount"]),
     )
-    content = prediction_export_content(String(get(prediction_export, "format", "csv")), rows, output_columns)
+    content = prediction_export_content(String(get(prediction_export, "format", "csv")), rows, output_columns, output_mappings)
     write(artifact_path, content)
     checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
     artifact_refs = [
@@ -5900,7 +6000,10 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
     !isempty(strip(output_contract_ref)) || error("prediction export outputContractRef required")
     format = prediction_export_format(body)
     row_count = prediction_export_row_count(body, dataset)
-    output_columns = prediction_export_output_columns(body)
+    output_contract = prediction_export_contract(body, output_contract_ref)
+    output_columns = prediction_export_output_columns(body, output_contract)
+    output_mappings = prediction_export_output_mappings(body, output_contract, output_columns)
+    output_contract_columns = prediction_export_contract_column_names(output_contract)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     export_id = "pred-" * replace(string(uuid4()), "-" => "")
     artifact_ref = "local://predictions/$(project.project_id)/$(export_id)/predictions.$(format)"
@@ -5912,19 +6015,24 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
         "rowCount" => row_count,
         "format" => format,
         "outputColumns" => output_columns,
+        "outputContract" => output_contract,
+        "outputMappings" => output_mappings,
         "validationEvidence" => Dict{String,Any}(
             "projectId" => project.project_id,
             "datasetId" => dataset_id,
             "evaluationReportId" => String(get(report, "evaluationReportId", "")),
             "outputContractRef" => output_contract_ref,
             "outputColumns" => output_columns,
+            "outputContractColumns" => output_contract_columns,
+            "outputMappings" => output_mappings,
             "outputSchemaValidated" => true,
+            "contractRequiredColumnsSatisfied" => true,
             "finalEvaluationApproved" => true,
             "finalTestOnly" => true,
         ),
         "createdAt" => timestamp,
     )
-    artifact_refs = persist_prediction_export_artifact!(prediction_export, report, dataset_id, output_contract_ref, output_columns)
+    artifact_refs = persist_prediction_export_artifact!(prediction_export, report, dataset_id, output_contract_ref, output_columns, output_mappings)
     project.prediction_exports = [prediction_export, project.prediction_exports...]
     record_data_science_project_job!(
         project,

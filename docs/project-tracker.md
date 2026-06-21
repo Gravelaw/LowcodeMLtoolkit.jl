@@ -21,6 +21,26 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Imported Output Contract Mapping Slice (2026-06-21)
+
+- Added typed prediction output contract and output mapping request shapes to TypeScript contracts and OpenAPI.
+- Gateway prediction export now accepts an inline output contract, validates contract id consistency, required output columns, duplicate contract columns, selected output columns, and output-to-local scoring source mappings.
+- Prediction export artifacts now honor mapped output names, so local scoring evidence can be written as submission-like columns such as `row_id,score` instead of only the internal scoring schema names.
+- Prediction export validation evidence now records output contract columns, output mappings, schema validation status, and required-column satisfaction.
+- Added contract schema assertions plus Julia route coverage for successful mapped export artifacts and unsupported source-column rejection.
+- Verification passed: `npm run validate:contracts`; `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. Output contract parsing/mapping is now covered for inline local request contracts, but project jobs remain deterministic gateway records rather than execution-backed scoring workers.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Move prediction export/scoring behind execution-backed workers.
+- Continue gateway module split or dedicated model registry repository extraction.
+- Add project-backed frontend surfaces for the validation/tuning/evaluation/export flow.
+
 ### AKS-36 Project Job Resource Evidence Slice (2026-06-21)
 
 - Added `DataScienceProjectJobResourceEvidence` to TypeScript contracts and OpenAPI.

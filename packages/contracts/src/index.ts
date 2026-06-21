@@ -746,10 +746,32 @@ export interface RunFinalEvaluationResponse {
   project: DataScienceProject;
 }
 
+export interface PredictionOutputColumnContract {
+  name: string;
+  type?: string;
+  required?: boolean;
+  sourceColumn?: string;
+  description?: string;
+}
+
+export interface PredictionOutputContract {
+  contractId: string;
+  columns: PredictionOutputColumnContract[];
+  primaryKey?: string[];
+  createdAt?: string;
+}
+
+export interface PredictionOutputMapping {
+  outputColumn: string;
+  sourceColumn: string;
+}
+
 export interface RunPredictionExportRequest {
   datasetId?: string;
   evaluationReportId?: string;
   outputContractRef?: string;
+  outputContract?: PredictionOutputContract;
+  outputMappings?: PredictionOutputMapping[];
   format?: "csv" | "parquet" | "jsonl" | string;
   rowCount?: number;
   outputColumns?: string[];
@@ -859,6 +881,8 @@ export interface PredictionExport {
   rowCount: number;
   format?: string;
   outputColumns?: string[];
+  outputContract?: PredictionOutputContract;
+  outputMappings?: PredictionOutputMapping[];
   artifactRefs?: DataScienceProjectEvidenceRef[];
   validationEvidence?: {
     projectId?: string;
@@ -866,7 +890,10 @@ export interface PredictionExport {
     evaluationReportId?: string;
     outputContractRef?: string;
     outputColumns?: string[];
+    outputContractColumns?: string[];
+    outputMappings?: PredictionOutputMapping[];
     outputSchemaValidated?: boolean;
+    contractRequiredColumnsSatisfied?: boolean;
     finalEvaluationApproved?: boolean;
     finalTestOnly?: boolean;
   };

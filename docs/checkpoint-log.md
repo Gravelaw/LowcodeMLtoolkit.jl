@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Imported Output Contract Mapping Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added prediction output contract and output mapping contracts to TypeScript and OpenAPI.
+- Gateway prediction export now parses inline local output contracts, validates required output columns and contract id consistency, rejects duplicate/unknown output fields, and verifies mapped source columns against the local scoring schema.
+- Persisted prediction artifacts now use the mapped output names and validation evidence records contract columns, mappings, schema validation, and required-column satisfaction.
+- Added contract assertions and Julia route tests for mapped CSV export plus invalid source mapping rejection.
+- Verified with `npm run validate:contracts` and the full Julia suite through `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Imported output contract mapping is now supported for inline local request contracts, but scoring remains deterministic gateway substrate evidence rather than worker-backed model inference.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Move project scoring/export jobs behind execution-backed worker orchestration.
+- Continue gateway module split or dedicated model registry repository extraction.
+- Add project-backed frontend state for validation, tuning, final evaluation, prediction export, and drift flows.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Project Job Resource Evidence Slice - 2026-06-21
 
 ### Work Done Till Date
