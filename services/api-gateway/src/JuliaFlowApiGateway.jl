@@ -4910,6 +4910,30 @@ function pearson_correlation(left::Vector{Float64}, right::Vector{Float64})
     return round(numerator / denominator; digits = 6)
 end
 
+function rank_values(values::Vector{Float64})
+    indexed = sort(collect(enumerate(values)); by = item -> item[2])
+    ranks = zeros(Float64, length(values))
+    index = 1
+    while index <= length(indexed)
+        next_index = index
+        while next_index < length(indexed) && indexed[next_index + 1][2] == indexed[index][2]
+            next_index += 1
+        end
+        rank = (index + next_index) / 2
+        for grouped_index in index:next_index
+            ranks[indexed[grouped_index][1]] = rank
+        end
+        index = next_index + 1
+    end
+    return ranks
+end
+
+function spearman_correlation(left::Vector{Float64}, right::Vector{Float64})
+    n = min(length(left), length(right))
+    n <= 1 && return 0.0
+    return pearson_correlation(rank_values(left[1:n]), rank_values(right[1:n]))
+end
+
 function simple_linear_ols(target::Vector{Float64}, feature::Vector{Float64})
     n = min(length(target), length(feature))
     n <= 1 && return nothing
@@ -4933,6 +4957,33 @@ function simple_linear_ols(target::Vector{Float64}, feature::Vector{Float64})
         "slope" => round(slope; digits = 6),
         "rSquared" => round(r_squared; digits = 6),
         "sse" => round(sse; digits = 6),
+    )
+end
+
+function two_sample_t_test(target_values::Vector{Float64}, group_values::AbstractVector)
+    n = min(length(target_values), length(group_values))
+    n <= 2 && return nothing
+    groups = Dict{String,Vector{Float64}}()
+    for index in 1:n
+        group = isempty(group_values[index]) ? "(missing)" : String(group_values[index])
+        push!(get!(groups, group, Float64[]), target_values[index])
+    end
+    length(groups) == 2 || return nothing
+    ordered_groups = sort(collect(keys(groups)))
+    left = groups[ordered_groups[1]]
+    right = groups[ordered_groups[2]]
+    (length(left) <= 1 || length(right) <= 1) && return nothing
+    left_mean = sample_mean(left)
+    right_mean = sample_mean(right)
+    standard_error = sqrt(sample_std(left)^2 / length(left) + sample_std(right)^2 / length(right))
+    standard_error == 0.0 && return nothing
+    return Dict{String,Any}(
+        "method" => "welch_t_test",
+        "groups" => ordered_groups,
+        "n" => Dict(ordered_groups[1] => length(left), ordered_groups[2] => length(right)),
+        "mean" => Dict(ordered_groups[1] => round(left_mean; digits = 6), ordered_groups[2] => round(right_mean; digits = 6)),
+        "meanDifference" => round(left_mean - right_mean; digits = 6),
+        "tStatistic" => round((left_mean - right_mean) / standard_error; digits = 6),
     )
 end
 
@@ -4967,6 +5018,39 @@ function one_way_anova(target_values::Vector{Float64}, group_values::AbstractVec
     )
 end
 
+function chi_square_independence(left_values::AbstractVector, right_values::AbstractVector)
+    n = min(length(left_values), length(right_values))
+    n <= 1 && return nothing
+    left_levels = sort(unique([isempty(String(value)) ? "(missing)" : String(value) for value in left_values[1:n]]))
+    right_levels = sort(unique([isempty(String(value)) ? "(missing)" : String(value) for value in right_values[1:n]]))
+    (length(left_levels) <= 1 || length(right_levels) <= 1) && return nothing
+    observed = [0 for _ in left_levels, _ in right_levels]
+    left_index = Dict(level => index for (index, level) in enumerate(left_levels))
+    right_index = Dict(level => index for (index, level) in enumerate(right_levels))
+    for index in 1:n
+        left = isempty(String(left_values[index])) ? "(missing)" : String(left_values[index])
+        right = isempty(String(right_values[index])) ? "(missing)" : String(right_values[index])
+        observed[left_index[left], right_index[right]] += 1
+    end
+    row_totals = [sum(observed[row, :]) for row in 1:length(left_levels)]
+    column_totals = [sum(observed[:, column]) for column in 1:length(right_levels)]
+    statistic = 0.0
+    for row in 1:length(left_levels), column in 1:length(right_levels)
+        expected = row_totals[row] * column_totals[column] / n
+        expected == 0.0 && continue
+        statistic += (observed[row, column] - expected)^2 / expected
+    end
+    return Dict{String,Any}(
+        "method" => "chi_square_independence",
+        "n" => n,
+        "leftLevels" => left_levels,
+        "rightLevels" => right_levels,
+        "degreesOfFreedom" => (length(left_levels) - 1) * (length(right_levels) - 1),
+        "chiSquareStatistic" => round(statistic; digits = 6),
+        "observed" => observed,
+    )
+end
+
 function requested_feature_columns(body::AbstractDict)
     raw_features = haskey(body, "featureColumns") ? body["featureColumns"] : Any[]
     raw_features isa AbstractVector || return String[]
@@ -4997,20 +5081,39 @@ function local_csv_statistical_evidence(dataset::AbstractDict, body::AbstractDic
         [left == right ? 1.0 : pearson_correlation(numeric_columns[left], numeric_columns[right]) for right in ordered_columns]
         for left in ordered_columns
     ]
+    spearman = [
+        [left == right ? 1.0 : spearman_correlation(numeric_columns[left], numeric_columns[right]) for right in ordered_columns]
+        for left in ordered_columns
+    ]
     target_column = haskey(body, "targetColumn") ? String(body["targetColumn"]) : ""
     feature_columns = requested_feature_columns(body)
     inferential = Dict{String,Any}()
+    categorical_features = [feature for feature in feature_columns if feature in Vector{String}(table["headers"]) && !haskey(numeric_columns, feature)]
     if !isempty(target_column) && haskey(numeric_columns, target_column)
         numeric_features = [feature for feature in feature_columns if haskey(numeric_columns, feature) && feature != target_column]
         if "ols" in methods && !isempty(numeric_features)
             ols = simple_linear_ols(numeric_columns[target_column], numeric_columns[first(numeric_features)])
             ols === nothing || (inferential["ols"] = merge(ols, Dict("targetColumn" => target_column, "featureColumn" => first(numeric_features))))
         end
-        categorical_features = [feature for feature in feature_columns if feature in Vector{String}(table["headers"]) && !haskey(numeric_columns, feature)]
         if "anova" in methods && !isempty(categorical_features)
             anova = one_way_anova(numeric_columns[target_column], simple_column_values(table, first(categorical_features)))
             anova === nothing || (inferential["anova"] = merge(anova, Dict("targetColumn" => target_column, "groupColumn" => first(categorical_features))))
         end
+        if "t_test" in methods && !isempty(categorical_features)
+            t_test = two_sample_t_test(numeric_columns[target_column], simple_column_values(table, first(categorical_features)))
+            t_test === nothing || (inferential["tTest"] = merge(t_test, Dict("targetColumn" => target_column, "groupColumn" => first(categorical_features))))
+        end
+    end
+    if "chi_square" in methods && length(categorical_features) >= 2
+        chi_square = chi_square_independence(simple_column_values(table, categorical_features[1]), simple_column_values(table, categorical_features[2]))
+        chi_square === nothing || (inferential["chiSquare"] = merge(chi_square, Dict("leftColumn" => categorical_features[1], "rightColumn" => categorical_features[2])))
+    end
+    if "spearman_correlation" in methods
+        inferential["spearmanCorrelation"] = Dict(
+            "method" => "spearman_correlation",
+            "columns" => ordered_columns,
+            "matrix" => spearman,
+        )
     end
     return Dict{String,Any}(
         "executionMode" => "local_csv",
@@ -5020,6 +5123,7 @@ function local_csv_statistical_evidence(dataset::AbstractDict, body::AbstractDic
         "numericColumns" => ordered_columns,
         "summaries" => summaries,
         "correlationMatrix" => correlations,
+        "spearmanCorrelationMatrix" => spearman,
         "inferentialTests" => inferential,
     )
 end

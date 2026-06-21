@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Local CSV Remaining Statistical Methods Slice (2026-06-21)
+
+- Extended the local CSV statistical EDA path with Spearman rank correlation, two-sample Welch-style t-test evidence, and chi-square independence evidence.
+- Managed local CSV runs now return `spearmanCorrelationMatrix` and `inferentialTests.spearmanCorrelation` when `spearman_correlation` is requested.
+- Managed local CSV runs now return `inferentialTests.tTest` for a numeric target grouped by the first requested categorical feature when `t_test` is requested.
+- Managed local CSV runs now return `inferentialTests.chiSquare` for the first two requested categorical features when `chi_square` is requested.
+- Added focused Julia route coverage proving Spearman, t-test, and chi-square evidence is produced from actual managed CSV values.
+- Verification passed: focused Julia local CSV remaining-statistical-methods route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. Local CSV statistical evidence now covers summary, Pearson, Spearman, OLS, one-way ANOVA, t-test, and chi-square, but persisted result artifacts and worker-backed statistical jobs remain open.
+- Gateway module split, execution-backed jobs, deeper tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Persist statistical result artifacts instead of only returning record payload evidence.
+- Move statistical execution behind a worker-backed project job path.
+- Start gateway internal module extraction for project/data source/statistical analysis handling.
+
 ### AKS-36 Local CSV Inferential Statistics Slice (2026-06-21)
 
 - Extended the project-scoped statistical EDA route with first local CSV-backed inferential evidence.

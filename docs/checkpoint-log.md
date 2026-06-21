@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Remaining Statistical Methods Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Extended the local CSV statistical EDA path with Spearman rank correlation, two-sample Welch-style t-test evidence, and chi-square independence evidence.
+- Managed local CSV runs now return `spearmanCorrelationMatrix` and `inferentialTests.spearmanCorrelation` when `spearman_correlation` is requested.
+- Managed local CSV runs now return `inferentialTests.tTest` for a numeric target grouped by the first requested categorical feature when `t_test` is requested.
+- Managed local CSV runs now return `inferentialTests.chiSquare` for the first two requested categorical features when `chi_square` is requested.
+- Added focused Julia route smoke coverage proving Spearman, t-test, and chi-square evidence is produced from actual managed CSV values.
+- Verified the slice with a focused Julia local CSV remaining-statistical-methods smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Local CSV statistical evidence now covers summary, Pearson, Spearman, OLS, one-way ANOVA, t-test, and chi-square, but persisted result artifacts and worker-backed statistical jobs remain open.
+- Gateway module split, execution-backed jobs, deeper tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Persist statistical result artifacts instead of only returning record payload evidence.
+- Move statistical execution behind a worker-backed project job path.
+- Start gateway internal module extraction for project/data source/statistical analysis handling.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Inferential Statistics Slice - 2026-06-21
 
 ### Work Done Till Date
