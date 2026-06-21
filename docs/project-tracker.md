@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Local CSV Statistical EDA Slice (2026-06-21)
+
+- Added a data-derived statistical EDA path for `POST /api/v1/data-science-projects/{projectId}/statistical-analysis/run`.
+- Project datasets with managed `local://data/...` CSV refs now resolve only inside the configured local data-estate root.
+- When the managed CSV exists, the route computes bounded local numeric summaries and a Pearson correlation matrix from the actual file instead of only returning deterministic fixture evidence.
+- Statistical analysis run records now include `resultSummary.executionMode = local_csv`, row count, numeric columns, summaries, and correlation matrix while preserving the fixture fallback for unavailable managed CSV sources.
+- Added focused Julia route coverage proving the real CSV path returns data-derived summary evidence.
+- Verification passed: focused Julia local CSV statistical-analysis route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice adds first real local CSV-backed summary/correlation evidence, but OLS, t-test, chi-square, ANOVA, richer Spearman handling, persisted result artifacts, and worker-backed statistical jobs remain open.
+- Gateway module split, execution-backed jobs, deeper tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Extend statistical execution beyond summary/Pearson evidence into OLS and inferential tests.
+- Replace remaining deterministic project route evidence with real Julia execution jobs and concrete local artifacts.
+- Start gateway internal module extraction for project/data source/statistical analysis handling.
+
 ### AKS-36 Local Import Audit Evidence Slice (2026-06-21)
 
 - Added redaction-safe audit evidence for `/api/v1/local-data/import`.

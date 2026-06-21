@@ -4809,8 +4809,137 @@ function statistical_analysis_methods(body::AbstractDict)
     return methods
 end
 
-function statistical_analysis_charts(dataset_id::AbstractString, run_id::AbstractString, fixture::AbstractDict)
-    profile_rows = get(fixture, "profileSummary", Any[])
+function data_science_project_dataset(project::DataScienceProjectRecord, dataset_id::AbstractString)
+    dataset_index = findfirst(dataset -> String(get(dataset, "datasetId", "")) == String(dataset_id), project.datasets)
+    dataset_index === nothing && error("statistical analysis dataset not registered in project: $(dataset_id)")
+    return project.datasets[dataset_index]
+end
+
+function resolve_local_data_ref_path(source_ref::AbstractString)
+    ref = strip(String(source_ref))
+    normalized = replace(ref, "\\" => "/")
+    lower = lowercase(normalized)
+    startswith(lower, "local://data/") || return nothing
+    validate_project_local_ref!(ref, "dataset sourceUri")
+    relative = normalized[nextind(normalized, firstindex(normalized), length("local://data/")):end]
+    isempty(strip(relative, ['/'])) && return nothing
+    data_root = local_data_estate_root(local_appliance_home())
+    isdir(data_root) || return nothing
+    root = realpath(data_root)
+    candidate = normpath(joinpath(root, split(relative, '/'; keepempty = false)...))
+    path_within_root(candidate, root) || error("statistical analysis dataset source escapes local data estate")
+    return isfile(candidate) ? candidate : nothing
+end
+
+function parse_simple_csv(path::AbstractString; max_rows::Integer = 1_000)
+    lines = readlines(path)
+    isempty(lines) && return nothing
+    headers = [strip(header) for header in split(first(lines), ',')]
+    isempty(headers) && return nothing
+    rows = Vector{Vector{String}}()
+    for line in Iterators.take(lines[2:end], max_rows)
+        isempty(strip(line)) && continue
+        values = [strip(value) for value in split(line, ',')]
+        length(values) < length(headers) && append!(values, fill("", length(headers) - length(values)))
+        push!(rows, values[1:length(headers)])
+    end
+    return Dict{String,Any}("headers" => headers, "rows" => rows)
+end
+
+function simple_numeric_columns(table::AbstractDict)
+    headers = Vector{String}(table["headers"])
+    rows = table["rows"]
+    columns = Dict{String,Vector{Float64}}()
+    missing_counts = Dict{String,Int}()
+    for (index, header) in enumerate(headers)
+        values = Float64[]
+        missing_count = 0
+        nonmissing_count = 0
+        numeric = true
+        for row in rows
+            value = strip(String(row[index]))
+            if isempty(value) || lowercase(value) in ("missing", "na", "null", "nothing")
+                missing_count += 1
+                continue
+            end
+            nonmissing_count += 1
+            parsed = tryparse(Float64, value)
+            if parsed === nothing
+                numeric = false
+                break
+            end
+            push!(values, parsed)
+        end
+        if numeric && nonmissing_count > 0
+            columns[header] = values
+            missing_counts[header] = missing_count
+        end
+    end
+    return columns, missing_counts
+end
+
+function sample_mean(values::Vector{Float64})
+    return isempty(values) ? 0.0 : sum(values) / length(values)
+end
+
+function sample_std(values::Vector{Float64})
+    length(values) <= 1 && return 0.0
+    mean_value = sample_mean(values)
+    return sqrt(sum((value - mean_value)^2 for value in values) / (length(values) - 1))
+end
+
+function pearson_correlation(left::Vector{Float64}, right::Vector{Float64})
+    n = min(length(left), length(right))
+    n <= 1 && return 0.0
+    left_values = left[1:n]
+    right_values = right[1:n]
+    left_mean = sample_mean(left_values)
+    right_mean = sample_mean(right_values)
+    numerator = sum((left_values[index] - left_mean) * (right_values[index] - right_mean) for index in 1:n)
+    left_denominator = sqrt(sum((value - left_mean)^2 for value in left_values))
+    right_denominator = sqrt(sum((value - right_mean)^2 for value in right_values))
+    denominator = left_denominator * right_denominator
+    denominator == 0.0 && return 0.0
+    return round(numerator / denominator; digits = 6)
+end
+
+function local_csv_statistical_evidence(dataset::AbstractDict)
+    source_uri = String(get(dataset, "sourceUri", ""))
+    source_path = resolve_local_data_ref_path(source_uri)
+    source_path === nothing && return nothing
+    table = parse_simple_csv(source_path)
+    table === nothing && return nothing
+    numeric_columns, missing_counts = simple_numeric_columns(table)
+    isempty(numeric_columns) && return nothing
+    summaries = [
+        Dict(
+            "column" => column,
+            "count" => length(values),
+            "missingCount" => get(missing_counts, column, 0),
+            "mean" => round(sample_mean(values); digits = 6),
+            "std" => round(sample_std(values); digits = 6),
+            "min" => minimum(values),
+            "max" => maximum(values),
+        ) for (column, values) in sort(collect(numeric_columns); by = item -> item[1])
+    ]
+    ordered_columns = [String(summary["column"]) for summary in summaries]
+    correlations = [
+        [left == right ? 1.0 : pearson_correlation(numeric_columns[left], numeric_columns[right]) for right in ordered_columns]
+        for left in ordered_columns
+    ]
+    return Dict{String,Any}(
+        "executionMode" => "local_csv",
+        "sourceKind" => "managed_local_csv",
+        "sourceRef" => source_uri,
+        "rowCount" => length(table["rows"]),
+        "numericColumns" => ordered_columns,
+        "summaries" => summaries,
+        "correlationMatrix" => correlations,
+    )
+end
+
+function statistical_analysis_charts(dataset_id::AbstractString, run_id::AbstractString, fixture::AbstractDict, evidence = nothing)
+    profile_rows = evidence === nothing ? get(fixture, "profileSummary", Any[]) : get(evidence, "summaries", Any[])
     charts = Dict{String,Any}[]
     if !isempty(profile_rows)
         push!(
@@ -4822,7 +4951,7 @@ function statistical_analysis_charts(dataset_id::AbstractString, run_id::Abstrac
                 [
                     Dict(
                         "type" => "bar",
-                        "x" => [String(row["name"]) for row in profile_rows],
+                        "x" => [String(get(row, "name", get(row, "column", ""))) for row in profile_rows],
                         "y" => [Int(get(row, "missingCount", 0)) for row in profile_rows],
                         "marker" => Dict("color" => "#d97706"),
                     ),
@@ -4833,6 +4962,10 @@ function statistical_analysis_charts(dataset_id::AbstractString, run_id::Abstrac
             ),
         )
     end
+    correlation_columns = evidence === nothing ? ["feature_1", "feature_2", "target"] : [String(column) for column in get(evidence, "numericColumns", String[])]
+    correlation_matrix = evidence === nothing ? [[1.0, 0.42, 0.31], [0.42, 1.0, 0.56], [0.31, 0.56, 1.0]] : get(evidence, "correlationMatrix", Any[])
+    isempty(correlation_columns) && (correlation_columns = ["numeric_column"])
+    isempty(correlation_matrix) && (correlation_matrix = [[1.0]])
     push!(
         charts,
         plotly_chart_spec(
@@ -4842,9 +4975,9 @@ function statistical_analysis_charts(dataset_id::AbstractString, run_id::Abstrac
             [
                 Dict(
                     "type" => "heatmap",
-                    "x" => ["feature_1", "feature_2", "target"],
-                    "y" => ["feature_1", "feature_2", "target"],
-                    "z" => [[1.0, 0.42, 0.31], [0.42, 1.0, 0.56], [0.31, 0.56, 1.0]],
+                    "x" => correlation_columns,
+                    "y" => correlation_columns,
+                    "z" => correlation_matrix,
                     "colorscale" => "Viridis",
                 ),
             ];
@@ -4860,11 +4993,14 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
     project = state.data_science_projects[project_id]
     dataset_id = statistical_analysis_dataset(project, body)
+    dataset = data_science_project_dataset(project, dataset_id)
     methods = statistical_analysis_methods(body)
     run_id = "stats-" * replace(string(uuid4()), "-" => "")
     fixture = data_profile_fixture(dataset_id, "local://data/$(dataset_id)")
+    evidence = local_csv_statistical_evidence(dataset)
     warnings = String[]
     haskey(body, "targetColumn") || push!(warnings, "No targetColumn supplied; inferential tests are recorded as exploratory evidence.")
+    evidence === nothing && push!(warnings, "Managed local CSV source was not available; fixture profile evidence was used for this statistical EDA run.")
     analysis_run = Dict{String,Any}(
         "analysisRunId" => run_id,
         "datasetId" => dataset_id,
@@ -4872,10 +5008,11 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
         "status" => "completed",
         "generatedCodeRef" => "local://analysis/$(dataset_id)/$(run_id)/analysis.jl",
         "resultRef" => "local://analysis/$(dataset_id)/$(run_id)/results.json",
-        "charts" => statistical_analysis_charts(dataset_id, run_id, fixture),
+        "charts" => statistical_analysis_charts(dataset_id, run_id, fixture, evidence),
         "warnings" => warnings,
         "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
     )
+    evidence === nothing || (analysis_run["resultSummary"] = evidence)
     project.statistical_analysis_runs = [analysis_run, project.statistical_analysis_runs...]
     timestamp = String(analysis_run["createdAt"])
     record_data_science_project_job!(

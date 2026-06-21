@@ -1221,14 +1221,20 @@ end
         unsupported_source_path = joinpath(import_root, "profile.exe")
         credential_content_path = joinpath(import_root, "profile-with-auth-column.csv")
         pii_content_path = joinpath(import_root, "profile-with-pii.csv")
+        data_estate_root = mktempdir()
+        foundation_raw_data_dir = joinpath(data_estate_root, "raw")
+        mkpath(foundation_raw_data_dir)
+        foundation_dataset_path = joinpath(foundation_raw_data_dir, "foundation-sales-sample.csv")
         write(import_source_path, "region,amount,window\nnorth,12.5,2026-Q2\nsouth,9.5,2026-Q2\n")
         write(secret_source_path, "api_key,value\nredacted,1\n")
         write(large_source_path, repeat("x", 2048))
         write(unsupported_source_path, "not,a,dataset\n")
         write(credential_content_path, "region,amount,access_token\nnorth,12.5,redacted\n")
         write(pii_content_path, "customer_id,ssn,amount\n1,000-00-0000,12.5\n")
+        write(foundation_dataset_path, "region,amount,margin\nnorth,10,2\nsouth,20,4\nnorth,30,9\n")
         ENV["JULIAFLOW_IMPORT_ROOTS"] = import_root
         ENV["JULIAFLOW_IMPORT_MAX_BYTES"] = "1024"
+        ENV["JULIAFLOW_DATA_ESTATE_ROOT"] = data_estate_root
         updated_toml = replace(read(foundation_path, String), "Foundation PoC" => "Foundation PoC Updated")
         foundation_workflow_payload = Dict{String,Any}(
             "workflow" => Dict(
@@ -3669,6 +3675,11 @@ end
         @test statistical_analysis_payload["analysisRun"]["datasetId"] == "foundation-sales-sample"
         @test occursin("pearson_correlation", statistical_analysis_payload["analysisRun"]["method"])
         @test length(statistical_analysis_payload["analysisRun"]["charts"]) >= 1
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["executionMode"] == "local_csv"
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["rowCount"] == 3
+        @test "amount" in statistical_analysis_payload["analysisRun"]["resultSummary"]["numericColumns"]
+        amount_summary = only(filter(summary -> summary["column"] == "amount", statistical_analysis_payload["analysisRun"]["resultSummary"]["summaries"]))
+        @test amount_summary["mean"] == 20.0
         @test length(statistical_analysis_payload["project"]["statisticalAnalysisRuns"]) >= 1
         @test statistical_analysis_bad_method_response.status == 400
         @test occursin("statistical analysis unsupported methods", String(statistical_analysis_bad_method_response.body))
