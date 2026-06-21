@@ -13,6 +13,7 @@ import {
   type GatewayModelRegistryRequest,
   type GatewayTransformRunRequest,
   type GatewayVisualizeCheckpointExportRequest,
+  type RunStatisticalAnalysisRequest,
   type UpdateDataScienceProjectRequest,
   type MilestoneCheckpointTag,
   type TransitionExecutionStatusRequest
@@ -71,6 +72,12 @@ const dataScienceProjectUpdateRequest: UpdateDataScienceProjectRequest = {
       createdAt: "2026-06-21T00:00:00Z"
     }
   ]
+};
+const statisticalAnalysisRequest: RunStatisticalAnalysisRequest = {
+  datasetId: "contracts-train",
+  methods: ["summary", "pearson_correlation", "anova"],
+  targetColumn: "amount",
+  featureColumns: ["region", "discount"]
 };
 const transformRunRequest: GatewayTransformRunRequest = {
   executionMode: "cpu_only",
@@ -135,6 +142,7 @@ client.listDataScienceProjects();
 client.createDataScienceProject(dataScienceProjectRequest);
 client.getDataScienceProject("contracts-project");
 client.updateDataScienceProject("contracts-project", dataScienceProjectUpdateRequest);
+client.runDataScienceProjectStatisticalAnalysis("contracts-project", statisticalAnalysisRequest);
 client.runWorkflowTransform("wf-foundation", transformRunRequest);
 client.getWorkflowTransformHistory("wf-foundation");
 client.runWorkflowMlExperiment("wf-foundation", mlExperimentRunRequest);
@@ -150,6 +158,7 @@ gatewayEndpointPaths.executionStatus("exec-1");
 gatewayEndpointPaths.localDataImport;
 gatewayEndpointPaths.dataScienceProjects;
 gatewayEndpointPaths.dataScienceProject("contracts-project");
+gatewayEndpointPaths.dataScienceProjectStatisticalAnalysisRun("contracts-project");
 gatewayEndpointPaths.workflowTransformRun("wf-foundation");
 gatewayEndpointPaths.workflowTransformHistory("wf-foundation");
 gatewayEndpointPaths.workflowMlExperimentRun("wf-foundation");

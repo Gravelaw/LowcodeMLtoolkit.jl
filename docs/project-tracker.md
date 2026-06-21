@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Statistical EDA Run Substrate Slice (2026-06-21)
+
+- Added TypeScript contracts and OpenAPI path/schema coverage for `POST /api/v1/data-science-projects/{projectId}/statistical-analysis/run`.
+- Added typed client and endpoint-path coverage for project-scoped statistical analysis runs.
+- Added a gateway statistical EDA run route that validates project/dataset membership, validates requested method names, generates local Plotly-compatible chart evidence, and persists the run into `DataScienceProject.statisticalAnalysisRuns`.
+- Added controlled 400 responses for invalid statistical analysis requests such as unsupported methods.
+- Added Julia route assertions for successful run persistence and unsupported-method rejection.
+- Verification passed: `npm run validate:contracts`, focused Julia route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`, and `npm run build`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice persists deterministic local EDA evidence, but real Julia statistical execution for OLS, t-test, chi-square, ANOVA, Pearson/Spearman correlation, result tables, and UI workflow coverage remains open.
+- Hyperparameter tuning, final evaluation, prediction/output export, transform fit/apply semantics, drift/evaluation records, gateway module split, local source trust-boundary hardening, typed jobs, and first-class lifecycle records remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Replace deterministic EDA evidence with real Julia statistical method execution and result artifacts.
+- Add typed tuning/final-evaluation/prediction/drift records and validation gates.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+
 ### AKS-36 Model Promotion And Deploy Validation Gate Slice (2026-06-21)
 
 - Added validation-evidence propagation to model registry records and local deploy package records in TypeScript contracts, OpenAPI, and gateway payloads.

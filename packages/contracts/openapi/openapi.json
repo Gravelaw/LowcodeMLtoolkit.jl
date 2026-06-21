@@ -1233,6 +1233,63 @@
         }
       }
     },
+    "/api/v1/data-science-projects/{projectId}/statistical-analysis/run": {
+      "post": {
+        "summary": "Run local statistical EDA for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunStatisticalAnalysisRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Statistical analysis run persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunStatisticalAnalysisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid analysis request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflows/{workflowId}/transforms/run": {
       "post": {
         "summary": "Run a workflow transform and return local artifact evidence",
@@ -1924,6 +1981,104 @@
             "items": {
               "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
             }
+          }
+        }
+      },
+      "StatisticalAnalysisRun": {
+        "type": "object",
+        "required": [
+          "analysisRunId",
+          "datasetId",
+          "method",
+          "status",
+          "warnings",
+          "createdAt"
+        ],
+        "properties": {
+          "analysisRunId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "unavailable"
+            ]
+          },
+          "generatedCodeRef": {
+            "type": "string"
+          },
+          "resultRef": {
+            "type": "string"
+          },
+          "charts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InteractiveChartSpec"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "RunStatisticalAnalysisRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targetColumn": {
+            "type": "string"
+          },
+          "featureColumns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "RunStatisticalAnalysisResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "analysisRun",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "analysisRun": {
+            "$ref": "#/components/schemas/StatisticalAnalysisRun"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
           }
         }
       },

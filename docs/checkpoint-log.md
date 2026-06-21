@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Statistical EDA Run Substrate Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added `RunStatisticalAnalysisRequest` and `RunStatisticalAnalysisResponse` contracts plus a project-scoped OpenAPI route for statistical EDA runs.
+- Added typed gateway client and endpoint-path coverage for the new route.
+- Implemented `POST /api/v1/data-science-projects/{projectId}/statistical-analysis/run` in the gateway.
+- The route validates project/dataset membership, validates supported method names, generates local Plotly-compatible chart evidence, persists the run into `DataScienceProject.statisticalAnalysisRuns`, and returns the updated project.
+- Added focused contract assertions and Julia route assertions for successful persistence and unsupported-method rejection.
+- Verified the slice with `npm run validate:contracts`, a focused Julia route smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`, and `npm run build`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Statistical EDA now has a project-backed run record route, but real Julia execution for OLS, t-test, chi-square, ANOVA, Pearson/Spearman correlation, result tables, and UI workflow coverage remains open.
+- Hyperparameter tuning, final evaluation, prediction/output export, transform fit/apply semantics, drift/evaluation records, gateway module split, local source trust-boundary hardening, typed jobs, and first-class lifecycle records remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Replace deterministic EDA profile evidence with real Julia statistical computations and result artifacts.
+- Add typed tuning/final-evaluation/prediction/drift records and validation gates.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Model Promotion And Deploy Validation Gate Slice - 2026-06-21
 
 ### Work Done Till Date

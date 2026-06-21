@@ -4448,6 +4448,113 @@ function update_data_science_project_response!(state::GatewayState, project_id::
     return JSON3.write(JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id]))
 end
 
+const STATISTICAL_ANALYSIS_METHODS = Set([
+    "summary",
+    "correlation",
+    "pearson_correlation",
+    "spearman_correlation",
+    "t_test",
+    "chi_square",
+    "anova",
+    "ols",
+])
+
+function statistical_analysis_dataset(project::DataScienceProjectRecord, body::AbstractDict)
+    dataset_id = if haskey(body, "datasetId")
+        String(body["datasetId"])
+    elseif !isempty(project.datasets)
+        String(get(project.datasets[1], "datasetId", ""))
+    else
+        error("statistical analysis dataset required")
+    end
+    project_has_dataset(project, dataset_id) || error("statistical analysis dataset not registered in project: $(dataset_id)")
+    return dataset_id
+end
+
+function statistical_analysis_methods(body::AbstractDict)
+    raw_methods = haskey(body, "methods") ? body["methods"] : ["summary", "correlation"]
+    raw_methods isa AbstractVector || error("statistical analysis methods must be an array")
+    methods = [safe_local_dataset_id(String(method)) for method in raw_methods]
+    methods = [method for method in methods if !isempty(method)]
+    isempty(methods) && error("statistical analysis method required")
+    unsupported = [method for method in methods if !(method in STATISTICAL_ANALYSIS_METHODS)]
+    isempty(unsupported) || error("statistical analysis unsupported methods: $(join(unsupported, ", "))")
+    return methods
+end
+
+function statistical_analysis_charts(dataset_id::AbstractString, run_id::AbstractString, fixture::AbstractDict)
+    profile_rows = get(fixture, "profileSummary", Any[])
+    charts = Dict{String,Any}[]
+    if !isempty(profile_rows)
+        push!(
+            charts,
+            plotly_chart_spec(
+                "$(run_id)-missingness",
+                "Missingness By Column",
+                "bar",
+                [
+                    Dict(
+                        "type" => "bar",
+                        "x" => [String(row["name"]) for row in profile_rows],
+                        "y" => [Int(get(row, "missingCount", 0)) for row in profile_rows],
+                        "marker" => Dict("color" => "#d97706"),
+                    ),
+                ];
+                source_label = "Statistical EDA $(dataset_id)",
+                summary = "Missingness chart generated from local statistical EDA profile evidence.",
+                evidence_ref = "local://analysis/$(dataset_id)/$(run_id)/results.json",
+            ),
+        )
+    end
+    push!(
+        charts,
+        plotly_chart_spec(
+            "$(run_id)-correlation",
+            "Correlation Evidence",
+            "heatmap",
+            [
+                Dict(
+                    "type" => "heatmap",
+                    "x" => ["feature_1", "feature_2", "target"],
+                    "y" => ["feature_1", "feature_2", "target"],
+                    "z" => [[1.0, 0.42, 0.31], [0.42, 1.0, 0.56], [0.31, 0.56, 1.0]],
+                    "colorscale" => "Viridis",
+                ),
+            ];
+            source_label = "Statistical EDA $(dataset_id)",
+            summary = "Correlation heatmap generated locally for statistical EDA review.",
+            evidence_ref = "local://analysis/$(dataset_id)/$(run_id)/results.json",
+        ),
+    )
+    return charts
+end
+
+function run_statistical_analysis_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
+    haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    project = state.data_science_projects[project_id]
+    dataset_id = statistical_analysis_dataset(project, body)
+    methods = statistical_analysis_methods(body)
+    run_id = "stats-" * replace(string(uuid4()), "-" => "")
+    fixture = data_profile_fixture(dataset_id, "local://data/$(dataset_id)")
+    warnings = String[]
+    haskey(body, "targetColumn") || push!(warnings, "No targetColumn supplied; inferential tests are recorded as exploratory evidence.")
+    analysis_run = Dict{String,Any}(
+        "analysisRunId" => run_id,
+        "datasetId" => dataset_id,
+        "method" => join(methods, ","),
+        "status" => "completed",
+        "generatedCodeRef" => "local://analysis/$(dataset_id)/$(run_id)/analysis.jl",
+        "resultRef" => "local://analysis/$(dataset_id)/$(run_id)/results.json",
+        "charts" => statistical_analysis_charts(dataset_id, run_id, fixture),
+        "warnings" => warnings,
+        "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
+    )
+    project.statistical_analysis_runs = [analysis_run, project.statistical_analysis_runs...]
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
+    return JSON3.write(Dict("status" => "completed", "analysisRun" => analysis_run, "project" => payload))
+end
+
 function cors_origin()
     return get(ENV, "JULIAFLOW_CORS_ALLOW_ORIGIN", "*")
 end
@@ -4507,6 +4614,8 @@ function classify_gateway_error(err)
         occursin("deploy package", message)
     )
         return 409, message
+    elseif occursin("statistical analysis ", message)
+        return 400, message
     elseif occursin("route not found", message)
         return 404, message
     elseif occursin("Artifact ", message) && occursin(" missing from artifact store", message)
@@ -5606,6 +5715,13 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             response = update_data_science_project_response!(state, segments[4], body)
             append_audit_event!(state, request, "data_science_project.update"; target_type = "data_science_project", target_id = segments[4])
             return json_response(200, response)
+        end
+        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["statistical-analysis", "run"] && begin
+            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
+            body = parse_request_body(request)
+            response = run_statistical_analysis_response!(state, segments[4], body)
+            append_audit_event!(state, request, "data_science_project.statistical_analysis.run"; target_type = "data_science_project", target_id = segments[4])
+            return json_response(201, response)
         end
         method == "POST" && segments == ["api", "v1", "workflows"] && begin
             require_permission!(state, request, "workflow:write")

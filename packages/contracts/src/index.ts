@@ -620,6 +620,19 @@ export interface StatisticalAnalysisRun {
   createdAt: string;
 }
 
+export interface RunStatisticalAnalysisRequest {
+  datasetId?: string;
+  methods?: Array<"summary" | "correlation" | "t_test" | "chi_square" | "anova" | string>;
+  targetColumn?: string;
+  featureColumns?: string[];
+}
+
+export interface RunStatisticalAnalysisResponse {
+  status: "completed";
+  analysisRun: StatisticalAnalysisRun;
+  project: DataScienceProject;
+}
+
 export interface TrainingPlan {
   trainingPlanId: string;
   targetColumn: string;
@@ -1859,6 +1872,8 @@ export const gatewayEndpointPaths = {
   dataScienceProjects: "/api/v1/data-science-projects",
   dataScienceProject: (projectId: string) =>
     `/api/v1/data-science-projects/${encodeURIComponent(projectId)}`,
+  dataScienceProjectStatisticalAnalysisRun: (projectId: string) =>
+    `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/statistical-analysis/run`,
   publishedDashboard: (dashboardId: string, request?: GatewayPublishedDashboardReadRequest) => {
     const path = `/api/v1/dashboards/${encodeURIComponent(dashboardId)}`;
     const params = new URLSearchParams();
@@ -2170,6 +2185,11 @@ export interface GatewayApiClient {
     request: UpdateDataScienceProjectRequest,
     options?: GatewayRequestOptions
   ): Promise<DataScienceProject>;
+  runDataScienceProjectStatisticalAnalysis(
+    projectId: string,
+    request?: RunStatisticalAnalysisRequest,
+    options?: GatewayRequestOptions
+  ): Promise<RunStatisticalAnalysisResponse>;
   runWorkflowTransform(
     workflowId: string,
     request?: GatewayTransformRunRequest,
@@ -2520,6 +2540,13 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "PUT",
         gatewayEndpointPaths.dataScienceProject(projectId),
         projectRequest,
+        requestOptions
+      ),
+    runDataScienceProjectStatisticalAnalysis: (projectId, analysisRequest, requestOptions) =>
+      request<RunStatisticalAnalysisResponse>(
+        "POST",
+        gatewayEndpointPaths.dataScienceProjectStatisticalAnalysisRun(projectId),
+        analysisRequest ?? {},
         requestOptions
       ),
     runWorkflowTransform: (workflowId, transformRequest, requestOptions) =>

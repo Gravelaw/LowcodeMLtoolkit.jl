@@ -1801,6 +1801,31 @@ end
                 ),
             ),
         )
+        statistical_analysis_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/statistical-analysis/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "methods" => ["summary", "pearson_correlation", "anova"],
+                        "targetColumn" => "amount",
+                        "featureColumns" => ["region"],
+                    ),
+                ),
+            ),
+        )
+        statistical_analysis_bad_method_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/statistical-analysis/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "foundation-sales-sample", "methods" => ["unsupported_method"])),
+            ),
+        )
         transform_run_response = route_request(
             state,
             HTTP.Request(
@@ -3172,6 +3197,15 @@ end
         @test isfile(joinpath(store_root, "data-science-projects.json"))
         @test haskey(load_state(store_root).data_science_projects, "wellbore-geology")
         @test haskey(load_state(store_root).data_science_projects, "foundation-ml-project")
+        @test statistical_analysis_response.status == 201
+        statistical_analysis_payload = JSON3.read(String(statistical_analysis_response.body), Dict{String,Any})
+        @test statistical_analysis_payload["status"] == "completed"
+        @test statistical_analysis_payload["analysisRun"]["datasetId"] == "foundation-sales-sample"
+        @test occursin("pearson_correlation", statistical_analysis_payload["analysisRun"]["method"])
+        @test length(statistical_analysis_payload["analysisRun"]["charts"]) >= 1
+        @test length(statistical_analysis_payload["project"]["statisticalAnalysisRuns"]) >= 1
+        @test statistical_analysis_bad_method_response.status == 400
+        @test occursin("statistical analysis unsupported methods", String(statistical_analysis_bad_method_response.body))
         @test transform_run_response.status == 202
         transform_run_payload = JSON3.read(String(transform_run_response.body), Dict{String,Any})
         @test transform_run_payload["status"] == "accepted"
