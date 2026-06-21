@@ -17,6 +17,7 @@ import {
   type RunFinalEvaluationRequest,
   type RunPredictionExportRequest,
   type RunStatisticalAnalysisRequest,
+  type RunTransformFitApplyRequest,
   type RunTuningStudyRequest,
   type UpdateDataScienceProjectRequest,
   type MilestoneCheckpointTag,
@@ -82,6 +83,13 @@ const statisticalAnalysisRequest: RunStatisticalAnalysisRequest = {
   methods: ["summary", "pearson_correlation", "anova"],
   targetColumn: "amount",
   featureColumns: ["region", "discount"]
+};
+const transformFitApplyRequest: RunTransformFitApplyRequest = {
+  datasetId: "contracts-train",
+  splitPlanId: "split-contracts",
+  transformRef: "local://transforms/contracts/fit-apply.jl",
+  fitSplit: "train",
+  applySplits: ["validation", "test"]
 };
 const tuningStudyRequest: RunTuningStudyRequest = {
   datasetId: "contracts-train",
@@ -179,6 +187,7 @@ client.listDataScienceProjects();
 client.createDataScienceProject(dataScienceProjectRequest);
 client.getDataScienceProject("contracts-project");
 client.updateDataScienceProject("contracts-project", dataScienceProjectUpdateRequest);
+client.runDataScienceProjectTransformFitApply("contracts-project", transformFitApplyRequest);
 client.runDataScienceProjectStatisticalAnalysis("contracts-project", statisticalAnalysisRequest);
 client.runDataScienceProjectTuningStudy("contracts-project", tuningStudyRequest);
 client.runDataScienceProjectFinalEvaluation("contracts-project", finalEvaluationRequest);
@@ -199,6 +208,7 @@ gatewayEndpointPaths.executionStatus("exec-1");
 gatewayEndpointPaths.localDataImport;
 gatewayEndpointPaths.dataScienceProjects;
 gatewayEndpointPaths.dataScienceProject("contracts-project");
+gatewayEndpointPaths.dataScienceProjectTransformFitApply("contracts-project");
 gatewayEndpointPaths.dataScienceProjectStatisticalAnalysisRun("contracts-project");
 gatewayEndpointPaths.dataScienceProjectTuningRun("contracts-project");
 gatewayEndpointPaths.dataScienceProjectFinalEvaluationRun("contracts-project");

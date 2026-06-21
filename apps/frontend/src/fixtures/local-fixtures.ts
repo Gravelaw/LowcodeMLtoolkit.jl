@@ -534,6 +534,7 @@ export const dataScienceProject: DataScienceProject = {
     }
   ],
   finalTestLocks: [],
+  transformFitApplyRecords: [],
   statisticalAnalysisRuns: [],
   trainingPlans: [],
   tuningStudies: [],

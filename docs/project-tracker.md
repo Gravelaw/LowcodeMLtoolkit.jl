@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Transform Fit/Apply Semantics Slice (2026-06-21)
+
+- Added TypeScript contracts, OpenAPI path/schema coverage, endpoint-path coverage, typed client support, and repository persistence for project-scoped `transformFitApplyRecords`.
+- Added `POST /api/v1/data-science-projects/{projectId}/transforms/fit-apply` to record train-only transform fitting and held-out split application evidence.
+- Added gateway validation requiring project/dataset membership, a locked split plan, `fitSplit: train`, and apply splits limited to validation/test/evaluation.
+- Persisted transform fit/apply records with leakage checks and local artifact refs for fit state plus held-out apply outputs.
+- Added contract assertions and Julia route smoke coverage for valid persistence, reload persistence, non-train fit rejection, and train-as-apply rejection.
+- Verification passed: `npm run validate:contracts` and focused Julia route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice records transform fit/apply semantics, but real Julia transform execution, transform state materialization from actual nodes, UI workflow coverage, and typed execution job lifecycle remain open.
+- Gateway module split, local source trust-boundary hardening, typed jobs, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Replace deterministic transform fit/apply evidence with real Julia transform execution and state artifacts.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+- Add typed execution job records for the project-backed data-science workflow.
+
 ### AKS-36 Drift Report Gate Slice (2026-06-21)
 
 - Added TypeScript contracts, OpenAPI path/schema coverage, endpoint-path coverage, and typed client support for `POST /api/v1/data-science-projects/{projectId}/drift/run`.

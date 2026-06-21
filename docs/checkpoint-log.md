@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Transform Fit/Apply Semantics Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added `TransformFitApplyRecord`, `RunTransformFitApplyRequest`, and `RunTransformFitApplyResponse` contracts plus a project-scoped OpenAPI route for train-only transform fitting and held-out split application.
+- Added typed gateway client, endpoint-path coverage, and repository persistence for `DataScienceProject.transformFitApplyRecords`.
+- Implemented `POST /api/v1/data-science-projects/{projectId}/transforms/fit-apply` in the gateway.
+- The route validates project/dataset membership, requires a locked split plan, requires `fitSplit: train`, restricts apply splits to validation/test/evaluation, and rejects train-as-apply evidence.
+- Persisted transform fit/apply records with leakage checks and local artifact refs for fit state plus held-out apply outputs.
+- Added focused contract assertions and Julia route smoke coverage for valid persistence, reload persistence, non-train fit rejection, and train-as-apply rejection.
+- Verified the slice with `npm run validate:contracts` and a focused Julia route smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Transform fit/apply semantics now have project-backed evidence, but real Julia transform execution, transform state materialization from actual nodes, UI workflow coverage, and typed execution job lifecycle remain open.
+- Gateway module split, local source trust-boundary hardening, typed jobs, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Replace deterministic transform fit/apply evidence with real Julia transform execution and state artifacts.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+- Add typed execution job records for the project-backed data-science workflow.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Drift Report Gate Slice - 2026-06-21
 
 ### Work Done Till Date

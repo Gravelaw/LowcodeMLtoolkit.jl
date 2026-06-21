@@ -1233,6 +1233,63 @@
         }
       }
     },
+    "/api/v1/data-science-projects/{projectId}/transforms/fit-apply": {
+      "post": {
+        "summary": "Run local train-only transform fit and split-safe apply for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunTransformFitApplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transform fit/apply evidence persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunTransformFitApplyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid transform fit/apply request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/data-science-projects/{projectId}/statistical-analysis/run": {
       "post": {
         "summary": "Run local statistical EDA for a data-science project",
@@ -2115,6 +2172,7 @@
           "splitAssignments",
           "validationFolds",
           "finalTestLocks",
+          "transformFitApplyRecords",
           "statisticalAnalysisRuns",
           "trainingPlans",
           "tuningStudies",
@@ -2181,6 +2239,12 @@
             }
           },
           "finalTestLocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "transformFitApplyRecords": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DataScienceProjectChildRecord"
@@ -2315,6 +2379,59 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "RunTransformFitApplyRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "transformRef": {
+            "type": "string"
+          },
+          "fitSplit": {
+            "type": "string",
+            "enum": [
+              "train"
+            ]
+          },
+          "applySplits": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "validation",
+                "test",
+                "evaluation"
+              ]
+            }
+          }
+        }
+      },
+      "RunTransformFitApplyResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "transformRun",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "transformRun": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
           }
         }
       },
@@ -2635,6 +2752,12 @@
             }
           },
           "finalTestLocks": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "transformFitApplyRecords": {
             "type": "array",
             "items": {
               "type": "object"

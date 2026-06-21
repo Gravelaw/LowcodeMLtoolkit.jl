@@ -608,6 +608,22 @@ export interface FinalTestLock {
   lockedBy: string;
 }
 
+export interface TransformFitApplyRecord {
+  transformRunId: string;
+  datasetId: string;
+  splitPlanId: string;
+  fitSplit: "train";
+  applySplits: Array<"validation" | "test" | "evaluation">;
+  transformRef: string;
+  leakageChecks: Array<{
+    checkId: string;
+    status: "passed" | "warning" | "failed";
+    detail: string;
+  }>;
+  artifactRefs: DataScienceProjectEvidenceRef[];
+  createdAt: string;
+}
+
 export interface StatisticalAnalysisRun {
   analysisRunId: string;
   datasetId: string;
@@ -630,6 +646,20 @@ export interface RunStatisticalAnalysisRequest {
 export interface RunStatisticalAnalysisResponse {
   status: "completed";
   analysisRun: StatisticalAnalysisRun;
+  project: DataScienceProject;
+}
+
+export interface RunTransformFitApplyRequest {
+  datasetId?: string;
+  splitPlanId?: string;
+  transformRef?: string;
+  fitSplit?: "train";
+  applySplits?: Array<"validation" | "test" | "evaluation">;
+}
+
+export interface RunTransformFitApplyResponse {
+  status: "completed";
+  transformRun: TransformFitApplyRecord;
   project: DataScienceProject;
 }
 
@@ -818,6 +848,7 @@ export interface DataScienceProject {
   splitAssignments: SplitAssignment[];
   validationFolds: ValidationFold[];
   finalTestLocks: FinalTestLock[];
+  transformFitApplyRecords: TransformFitApplyRecord[];
   statisticalAnalysisRuns: StatisticalAnalysisRun[];
   trainingPlans: TrainingPlan[];
   tuningStudies: TuningStudy[];
@@ -842,6 +873,7 @@ export interface UpdateDataScienceProjectRequest extends Partial<CreateDataScien
   splitAssignments?: SplitAssignment[];
   validationFolds?: ValidationFold[];
   finalTestLocks?: FinalTestLock[];
+  transformFitApplyRecords?: TransformFitApplyRecord[];
   statisticalAnalysisRuns?: StatisticalAnalysisRun[];
   trainingPlans?: TrainingPlan[];
   tuningStudies?: TuningStudy[];
@@ -1972,6 +2004,8 @@ export const gatewayEndpointPaths = {
   dataScienceProjects: "/api/v1/data-science-projects",
   dataScienceProject: (projectId: string) =>
     `/api/v1/data-science-projects/${encodeURIComponent(projectId)}`,
+  dataScienceProjectTransformFitApply: (projectId: string) =>
+    `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/transforms/fit-apply`,
   dataScienceProjectStatisticalAnalysisRun: (projectId: string) =>
     `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/statistical-analysis/run`,
   dataScienceProjectTuningRun: (projectId: string) =>
@@ -2293,6 +2327,11 @@ export interface GatewayApiClient {
     request: UpdateDataScienceProjectRequest,
     options?: GatewayRequestOptions
   ): Promise<DataScienceProject>;
+  runDataScienceProjectTransformFitApply(
+    projectId: string,
+    request?: RunTransformFitApplyRequest,
+    options?: GatewayRequestOptions
+  ): Promise<RunTransformFitApplyResponse>;
   runDataScienceProjectStatisticalAnalysis(
     projectId: string,
     request?: RunStatisticalAnalysisRequest,
@@ -2668,6 +2707,13 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "PUT",
         gatewayEndpointPaths.dataScienceProject(projectId),
         projectRequest,
+        requestOptions
+      ),
+    runDataScienceProjectTransformFitApply: (projectId, transformRequest, requestOptions) =>
+      request<RunTransformFitApplyResponse>(
+        "POST",
+        gatewayEndpointPaths.dataScienceProjectTransformFitApply(projectId),
+        transformRequest ?? {},
         requestOptions
       ),
     runDataScienceProjectStatisticalAnalysis: (projectId, analysisRequest, requestOptions) =>

@@ -1801,6 +1801,54 @@ end
                 ),
             ),
         )
+        transform_fit_apply_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/transforms/fit-apply",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-stratified",
+                        "transformRef" => "local://transforms/foundation/fit-apply.jl",
+                        "fitSplit" => "train",
+                        "applySplits" => ["validation", "test"],
+                    ),
+                ),
+            ),
+        )
+        transform_fit_apply_bad_fit_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/transforms/fit-apply",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-stratified",
+                        "fitSplit" => "validation",
+                        "applySplits" => ["test"],
+                    ),
+                ),
+            ),
+        )
+        transform_fit_apply_train_apply_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/transforms/fit-apply",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-stratified",
+                        "applySplits" => ["train", "validation"],
+                    ),
+                ),
+            ),
+        )
         statistical_analysis_response = route_request(
             state,
             HTTP.Request(
@@ -3355,6 +3403,18 @@ end
         @test isfile(joinpath(store_root, "data-science-projects.json"))
         @test haskey(load_state(store_root).data_science_projects, "wellbore-geology")
         @test haskey(load_state(store_root).data_science_projects, "foundation-ml-project")
+        @test transform_fit_apply_response.status == 201
+        transform_fit_apply_payload = JSON3.read(String(transform_fit_apply_response.body), Dict{String,Any})
+        @test transform_fit_apply_payload["status"] == "completed"
+        @test transform_fit_apply_payload["transformRun"]["fitSplit"] == "train"
+        @test "validation" in transform_fit_apply_payload["transformRun"]["applySplits"]
+        @test "test" in transform_fit_apply_payload["transformRun"]["applySplits"]
+        @test length(transform_fit_apply_payload["transformRun"]["leakageChecks"]) >= 2
+        @test length(transform_fit_apply_payload["project"]["transformFitApplyRecords"]) >= 1
+        @test transform_fit_apply_bad_fit_response.status == 400
+        @test occursin("fitSplit must be train", String(transform_fit_apply_bad_fit_response.body))
+        @test transform_fit_apply_train_apply_response.status == 400
+        @test occursin("can only apply to validation", String(transform_fit_apply_train_apply_response.body))
         @test statistical_analysis_response.status == 201
         statistical_analysis_payload = JSON3.read(String(statistical_analysis_response.body), Dict{String,Any})
         @test statistical_analysis_payload["status"] == "completed"

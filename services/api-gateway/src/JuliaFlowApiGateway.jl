@@ -4346,6 +4346,7 @@ const DATA_SCIENCE_PROJECT_ARRAY_FIELDS = Dict(
     "splitAssignments" => :split_assignments,
     "validationFolds" => :validation_folds,
     "finalTestLocks" => :final_test_locks,
+    "transformFitApplyRecords" => :transform_fit_apply_records,
     "statisticalAnalysisRuns" => :statistical_analysis_runs,
     "trainingPlans" => :training_plans,
     "tuningStudies" => :tuning_studies,
@@ -4446,6 +4447,76 @@ function update_data_science_project_response!(state::GatewayState, project_id::
     project = materialize_data_science_project(body; existing = state.data_science_projects[project_id], project_id_override = project_id)
     state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
     return JSON3.write(JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id]))
+end
+
+function transform_apply_splits(body::AbstractDict, split_plan::AbstractDict)
+    raw_splits = haskey(body, "applySplits") ? body["applySplits"] : ["validation", "test"]
+    raw_splits isa AbstractVector || error("transform fit/apply applySplits must be an array")
+    splits = [String(item) for item in raw_splits]
+    all(item -> item in ("validation", "test", "evaluation"), splits) || error("transform fit/apply can only apply to validation, test, or evaluation splits")
+    "train" in splits && error("transform fit/apply cannot apply fitted state back to train as an apply split")
+    if "validation" in splits
+        Float64(get(split_plan, "validationFraction", 0.0)) > 0 || error("transform fit/apply validation split required")
+    end
+    if "test" in splits
+        Float64(get(split_plan, "testFraction", 0.0)) > 0 || error("transform fit/apply test split required")
+    end
+    isempty(splits) && error("transform fit/apply apply split required")
+    return unique(splits)
+end
+
+function run_transform_fit_apply_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
+    haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    project = state.data_science_projects[project_id]
+    dataset_id = statistical_analysis_dataset(project, body)
+    split_plan = project_split_plan_for_request(project, body, dataset_id, "transform fit/apply")
+    Bool(get(split_plan, "locked", false)) || error("transform fit/apply locked split required")
+    fit_split = String(get(body, "fitSplit", "train"))
+    fit_split == "train" || error("transform fit/apply fitSplit must be train")
+    apply_splits = transform_apply_splits(body, split_plan)
+    transform_ref = haskey(body, "transformRef") ? String(body["transformRef"]) : "local://transforms/$(project.project_id)/default-fit-apply.jl"
+    isempty(strip(transform_ref)) && error("transform fit/apply transformRef required")
+    timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+    run_id = "transform-fit-apply-" * replace(string(uuid4()), "-" => "")
+    artifact_refs = [
+        Dict(
+            "refId" => "artifact-$(run_id)-fit",
+            "kind" => "transform_fit_state",
+            "localOnly" => true,
+            "path" => "local://transforms/$(project.project_id)/$(run_id)/fit-state.arrow",
+            "generatedAt" => timestamp,
+        ),
+    ]
+    for split in apply_splits
+        push!(
+            artifact_refs,
+            Dict(
+                "refId" => "artifact-$(run_id)-apply-$(split)",
+                "kind" => "transform_apply_output",
+                "localOnly" => true,
+                "path" => "local://transforms/$(project.project_id)/$(run_id)/$(split).arrow",
+                "generatedAt" => timestamp,
+            ),
+        )
+    end
+    transform_run = Dict{String,Any}(
+        "transformRunId" => run_id,
+        "datasetId" => dataset_id,
+        "splitPlanId" => String(get(split_plan, "splitPlanId", "")),
+        "fitSplit" => "train",
+        "applySplits" => apply_splits,
+        "transformRef" => transform_ref,
+        "leakageChecks" => [
+            Dict("checkId" => "fit-split-train-only", "status" => "passed", "detail" => "Transform state is fit only on the training split."),
+            Dict("checkId" => "heldout-apply-only", "status" => "passed", "detail" => "Frozen transform state is applied to held-out splits without refitting."),
+        ],
+        "artifactRefs" => artifact_refs,
+        "createdAt" => timestamp,
+    )
+    project.transform_fit_apply_records = [transform_run, project.transform_fit_apply_records...]
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
+    return JSON3.write(Dict("status" => "completed", "transformRun" => transform_run, "project" => payload))
 end
 
 const STATISTICAL_ANALYSIS_METHODS = Set([
@@ -4997,6 +5068,8 @@ function classify_gateway_error(err)
         return 409, message
     elseif occursin("drift report prerequisite", message)
         return 409, message
+    elseif occursin("transform fit/apply ", message)
+        return 400, message
     elseif occursin("statistical analysis ", message)
         return 400, message
     elseif occursin("tuning study ", message)
@@ -6106,6 +6179,13 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             response = update_data_science_project_response!(state, segments[4], body)
             append_audit_event!(state, request, "data_science_project.update"; target_type = "data_science_project", target_id = segments[4])
             return json_response(200, response)
+        end
+        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["transforms", "fit-apply"] && begin
+            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
+            body = parse_request_body(request)
+            response = run_transform_fit_apply_response!(state, segments[4], body)
+            append_audit_event!(state, request, "data_science_project.transform.fit_apply"; target_type = "data_science_project", target_id = segments[4])
+            return json_response(201, response)
         end
         method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["statistical-analysis", "run"] && begin
             require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
