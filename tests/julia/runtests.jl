@@ -2176,6 +2176,13 @@ end
                         "outputContractRef" => "contract://outputs/foundation-predictions",
                         "format" => "csv",
                         "rowCount" => 25,
+                        "outputColumns" => [
+                            "prediction_id",
+                            "dataset_id",
+                            "evaluation_report_id",
+                            "output_contract_ref",
+                            "prediction",
+                        ],
                     ),
                 ),
             ),
@@ -2233,6 +2240,21 @@ end
                 "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
                 ["Content-Type" => "application/json"],
                 JSON3.write(Dict("datasetId" => "foundation-sales-sample")),
+            ),
+        )
+        prediction_export_bad_columns_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/foundation-predictions",
+                        "outputColumns" => ["prediction_id", "unknown_column"],
+                    ),
+                ),
             ),
         )
         transform_run_response = route_request(
@@ -3735,7 +3757,18 @@ end
         @test prediction_export_payload["status"] == "completed"
         @test prediction_export_payload["predictionExport"]["outputContractRef"] == "contract://outputs/foundation-predictions"
         @test prediction_export_payload["predictionExport"]["format"] == "csv"
+        prediction_export_output_columns = String.(collect(prediction_export_payload["predictionExport"]["outputColumns"]))
+        @test prediction_export_output_columns == [
+            "prediction_id",
+            "dataset_id",
+            "evaluation_report_id",
+            "output_contract_ref",
+            "prediction",
+        ]
         @test prediction_export_payload["predictionExport"]["validationEvidence"]["finalEvaluationApproved"] == true
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["outputContractRef"] == "contract://outputs/foundation-predictions"
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["outputSchemaValidated"] == true
+        @test String.(collect(prediction_export_payload["predictionExport"]["validationEvidence"]["outputColumns"])) == prediction_export_output_columns
         @test length(prediction_export_payload["predictionExport"]["artifactRefs"]) == 1
         @test all(ref -> haskey(ref, "checksumSha256") && haskey(ref, "sizeBytes"), prediction_export_payload["predictionExport"]["artifactRefs"])
         prediction_artifact_ref = String(prediction_export_payload["predictionExport"]["artifactRef"])
@@ -3753,6 +3786,8 @@ end
         @test occursin("format must be csv", String(prediction_export_bad_format_response.body))
         @test prediction_export_missing_contract_response.status == 400
         @test occursin("outputContractRef required", String(prediction_export_missing_contract_response.body))
+        @test prediction_export_bad_columns_response.status == 400
+        @test occursin("outputColumns unsupported", String(prediction_export_bad_columns_response.body))
         @test drift_report_response.status == 201
         drift_report_payload = JSON3.read(String(drift_report_response.body), Dict{String,Any})
         @test drift_report_payload["status"] == "completed"

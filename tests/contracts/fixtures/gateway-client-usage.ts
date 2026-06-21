@@ -115,7 +115,8 @@ const predictionExportRequest: RunPredictionExportRequest = {
   evaluationReportId: "eval-contracts",
   outputContractRef: "contract://outputs/churn-predictions",
   format: "csv",
-  rowCount: 12
+  rowCount: 12,
+  outputColumns: ["prediction_id", "dataset_id", "evaluation_report_id", "output_contract_ref", "prediction"]
 };
 const driftReportRequest: RunDriftReportRequest = {
   datasetId: "contracts-train",

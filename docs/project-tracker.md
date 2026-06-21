@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Prediction Export Output Contract Validation Slice (2026-06-21)
+
+- Added `RunPredictionExportRequest.outputColumns` and `PredictionExport.outputColumns` contract fields plus validation evidence for output contract ref, output columns, and schema validation status.
+- Gateway prediction export now validates requested output columns against the known local scoring schema before writing the artifact.
+- CSV/JSONL/parquet-fallback content generation now respects the selected validated output columns.
+- Unsupported or empty output-column requests fail with a 400 response before artifact persistence.
+- Added contract usage, OpenAPI schema assertions, and Julia route coverage for successful output-column persistence plus unsupported-column rejection.
+- Verification passed: `npm run validate:contracts`; `npm run build`; `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+- PR #40 latest head checks passed for `web` and `julia` after earlier commit-level failures.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. Output columns are now validated against the bounded local scoring schema, but imported output contract parsing/mapping and worker-backed model inference remain open.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, rollback/retraining workflow depth, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Replace deterministic scoring/export with an execution-backed worker job path.
+- Add imported output contract parsing and mapping validation once the scoring job path owns model output shape.
+- Continue gateway module split or rollback/retraining lifecycle transitions.
+
 ### AKS-36 Prediction Export Artifact Materialization Slice (2026-06-21)
 
 - Materialized prediction export artifacts for `POST /api/v1/data-science-projects/{projectId}/predictions/export`.

@@ -2699,6 +2699,12 @@
           "rowCount": {
             "type": "integer",
             "minimum": 1
+          },
+          "outputColumns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

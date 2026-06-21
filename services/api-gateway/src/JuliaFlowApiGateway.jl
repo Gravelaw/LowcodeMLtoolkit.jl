@@ -5657,6 +5657,33 @@ function prediction_export_row_count(body::AbstractDict, dataset::AbstractDict)
     return value
 end
 
+const PREDICTION_EXPORT_COLUMNS = [
+    "prediction_id",
+    "dataset_id",
+    "evaluation_report_id",
+    "output_contract_ref",
+    "prediction",
+]
+
+function prediction_export_output_columns(body::AbstractDict)
+    raw = haskey(body, "outputColumns") ? body["outputColumns"] : PREDICTION_EXPORT_COLUMNS
+    raw isa AbstractVector || error("prediction export outputColumns must be an array")
+    columns = String[]
+    unsupported = String[]
+    for value in raw
+        column = strip(String(value))
+        isempty(column) && error("prediction export outputColumns cannot include empty column names")
+        if column in PREDICTION_EXPORT_COLUMNS
+            push!(columns, column)
+        else
+            push!(unsupported, column)
+        end
+    end
+    isempty(columns) && error("prediction export outputColumns must include at least one column")
+    isempty(unsupported) || error("prediction export outputColumns unsupported: $(join(unique(unsupported), ", "))")
+    return unique(columns)
+end
+
 function prediction_export_rows(export_id::AbstractString, report::AbstractDict, dataset_id::AbstractString, output_contract_ref::AbstractString, row_count::Integer)
     metrics = get(report, "metrics", Dict{String,Any}())
     metric_values = [Float64(value) for value in values(metrics)]
@@ -5672,26 +5699,27 @@ function prediction_export_rows(export_id::AbstractString, report::AbstractDict,
     ]
 end
 
-function prediction_export_content(format::AbstractString, rows::AbstractVector)
+function selected_prediction_export_rows(rows::AbstractVector, output_columns::AbstractVector)
+    return [
+        Dict{String,Any}(column => row[column] for column in output_columns) for row in rows
+    ]
+end
+
+function prediction_export_content(format::AbstractString, rows::AbstractVector, output_columns::AbstractVector)
+    selected_rows = selected_prediction_export_rows(rows, output_columns)
     if String(format) == "jsonl"
-        return join([JSON3.write(row) for row in rows], "\n") * "\n"
+        return join([JSON3.write(row) for row in selected_rows], "\n") * "\n"
     elseif String(format) == "csv"
-        header = "prediction_id,dataset_id,evaluation_report_id,output_contract_ref,prediction"
+        header = join([csv_escape(column) for column in output_columns], ",")
         lines = [
             join(
-                [
-                    String(row["prediction_id"]),
-                    String(row["dataset_id"]),
-                    String(row["evaluation_report_id"]),
-                    String(row["output_contract_ref"]),
-                    string(row["prediction"]),
-                ],
+                [csv_escape(get(row, column, "")) for column in output_columns],
                 ",",
-            ) for row in rows
+            ) for row in selected_rows
         ]
         return join([header, lines...], "\n") * "\n"
     end
-    return JSON3.write(Dict("format" => String(format), "rows" => rows)) * "\n"
+    return JSON3.write(Dict("format" => String(format), "outputColumns" => output_columns, "rows" => selected_rows)) * "\n"
 end
 
 function persist_prediction_export_artifact!(
@@ -5699,6 +5727,7 @@ function persist_prediction_export_artifact!(
     report::AbstractDict,
     dataset_id::AbstractString,
     output_contract_ref::AbstractString,
+    output_columns::AbstractVector,
 )
     artifact_ref = String(prediction_export["artifactRef"])
     artifact_path = local_data_ref_path_for_write(artifact_ref)
@@ -5710,7 +5739,7 @@ function persist_prediction_export_artifact!(
         output_contract_ref,
         Int(prediction_export["rowCount"]),
     )
-    content = prediction_export_content(String(get(prediction_export, "format", "csv")), rows)
+    content = prediction_export_content(String(get(prediction_export, "format", "csv")), rows, output_columns)
     write(artifact_path, content)
     checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
     artifact_refs = [
@@ -5744,6 +5773,7 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
     !isempty(strip(output_contract_ref)) || error("prediction export outputContractRef required")
     format = prediction_export_format(body)
     row_count = prediction_export_row_count(body, dataset)
+    output_columns = prediction_export_output_columns(body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     export_id = "pred-" * replace(string(uuid4()), "-" => "")
     artifact_ref = "local://predictions/$(project.project_id)/$(export_id)/predictions.$(format)"
@@ -5754,16 +5784,20 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
         "artifactRef" => artifact_ref,
         "rowCount" => row_count,
         "format" => format,
+        "outputColumns" => output_columns,
         "validationEvidence" => Dict{String,Any}(
             "projectId" => project.project_id,
             "datasetId" => dataset_id,
             "evaluationReportId" => String(get(report, "evaluationReportId", "")),
+            "outputContractRef" => output_contract_ref,
+            "outputColumns" => output_columns,
+            "outputSchemaValidated" => true,
             "finalEvaluationApproved" => true,
             "finalTestOnly" => true,
         ),
         "createdAt" => timestamp,
     )
-    artifact_refs = persist_prediction_export_artifact!(prediction_export, report, dataset_id, output_contract_ref)
+    artifact_refs = persist_prediction_export_artifact!(prediction_export, report, dataset_id, output_contract_ref, output_columns)
     project.prediction_exports = [prediction_export, project.prediction_exports...]
     record_data_science_project_job!(
         project,

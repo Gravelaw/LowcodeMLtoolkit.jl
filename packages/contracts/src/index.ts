@@ -731,6 +731,7 @@ export interface RunPredictionExportRequest {
   outputContractRef?: string;
   format?: "csv" | "parquet" | "jsonl" | string;
   rowCount?: number;
+  outputColumns?: string[];
 }
 
 export interface RunPredictionExportResponse {
@@ -817,11 +818,15 @@ export interface PredictionExport {
   artifactRef: string;
   rowCount: number;
   format?: string;
+  outputColumns?: string[];
   artifactRefs?: DataScienceProjectEvidenceRef[];
   validationEvidence?: {
     projectId?: string;
     datasetId?: string;
     evaluationReportId?: string;
+    outputContractRef?: string;
+    outputColumns?: string[];
+    outputSchemaValidated?: boolean;
     finalEvaluationApproved?: boolean;
     finalTestOnly?: boolean;
   };

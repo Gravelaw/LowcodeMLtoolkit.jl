@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Prediction Export Output Contract Validation Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added prediction export output-column request/record contract fields.
+- Gateway prediction export now validates requested output columns against the known local scoring schema before artifact persistence.
+- Prediction export artifact generation now writes only validated selected columns while preserving deterministic CSV/JSONL output.
+- Validation evidence now records output contract ref, output columns, and output schema validation status.
+- Added OpenAPI/client fixture coverage and Julia route assertions for successful output-column evidence plus unsupported-column rejection.
+- Verified with `npm run validate:contracts`, `npm run build`, and the full Julia suite through `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Output columns are validated against the bounded local scoring schema, but imported output contract parsing/mapping and real worker-backed model inference remain open.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, frontend workflow coverage, and rollback/retraining lifecycle depth remain open.
+
+### Next Items To Implement
+
+- Replace deterministic prediction export evidence with worker-backed scoring/export artifacts.
+- Add imported output contract parsing and mapping validation.
+- Continue gateway module split or rollback/retraining lifecycle transitions.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Prediction Export Artifact Materialization Slice - 2026-06-21
 
 ### Work Done Till Date
