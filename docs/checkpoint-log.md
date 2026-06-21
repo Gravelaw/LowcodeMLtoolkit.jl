@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Inferential Statistics Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Extended the project-scoped statistical EDA route with first local CSV-backed inferential evidence.
+- `StatisticalAnalysisRun` contracts/OpenAPI now expose `resultSummary` explicitly for local statistical outputs.
+- Managed local CSV runs now compute simple linear OLS evidence for the requested numeric feature/target pair, including intercept, slope, R-squared, SSE, and sample size.
+- Managed local CSV runs now compute one-way ANOVA evidence for the requested categorical feature and numeric target, including groups, degrees of freedom, F statistic, and sums of squares.
+- Added focused OpenAPI contract coverage for `resultSummary` and Julia route smoke coverage proving OLS/ANOVA evidence is produced from actual managed CSV values.
+- Verified the slice with a focused Julia local CSV inferential-statistics smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -` plus `npm run validate:contracts`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This slice adds first local CSV-backed OLS/ANOVA evidence, but t-test, chi-square, Spearman rank correlation, persisted result artifacts, and worker-backed statistical jobs remain open.
+- Gateway module split, execution-backed jobs, deeper tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Add t-test, chi-square, and Spearman evidence or move statistical execution behind a worker-backed job path.
+- Persist statistical result artifacts instead of only returning record payload evidence.
+- Start gateway internal module extraction for project/data source/statistical analysis handling.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Statistical EDA Slice - 2026-06-21
 
 ### Work Done Till Date

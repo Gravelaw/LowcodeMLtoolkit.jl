@@ -2415,6 +2415,11 @@
           "resultRef": {
             "type": "string"
           },
+          "resultSummary": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Local statistical EDA result summary, including execution mode, numeric summaries, correlation matrix, and available inferential evidence."
+          },
           "charts": {
             "type": "array",
             "items": {

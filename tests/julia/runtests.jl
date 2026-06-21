@@ -2060,9 +2060,9 @@ end
                 JSON3.write(
                     Dict(
                         "datasetId" => "foundation-sales-sample",
-                        "methods" => ["summary", "pearson_correlation", "anova"],
+                        "methods" => ["summary", "pearson_correlation", "ols", "anova"],
                         "targetColumn" => "amount",
-                        "featureColumns" => ["region"],
+                        "featureColumns" => ["margin", "region"],
                     ),
                 ),
             ),
@@ -3680,6 +3680,10 @@ end
         @test "amount" in statistical_analysis_payload["analysisRun"]["resultSummary"]["numericColumns"]
         amount_summary = only(filter(summary -> summary["column"] == "amount", statistical_analysis_payload["analysisRun"]["resultSummary"]["summaries"]))
         @test amount_summary["mean"] == 20.0
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["ols"]["featureColumn"] == "margin"
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["ols"]["rSquared"] > 0.9
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["anova"]["groupColumn"] == "region"
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["anova"]["dfBetween"] == 1
         @test length(statistical_analysis_payload["project"]["statisticalAnalysisRuns"]) >= 1
         @test statistical_analysis_bad_method_response.status == 400
         @test occursin("statistical analysis unsupported methods", String(statistical_analysis_bad_method_response.body))

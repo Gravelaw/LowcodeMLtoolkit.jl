@@ -655,6 +655,7 @@ export interface StatisticalAnalysisRun {
   status: "queued" | "running" | "completed" | "failed" | "unavailable";
   generatedCodeRef?: string;
   resultRef?: string;
+  resultSummary?: Record<string, unknown>;
   charts?: GatewayInteractiveChartSpec[];
   warnings: string[];
   createdAt: string;

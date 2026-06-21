@@ -4878,6 +4878,13 @@ function simple_numeric_columns(table::AbstractDict)
     return columns, missing_counts
 end
 
+function simple_column_values(table::AbstractDict, column::AbstractString)
+    headers = Vector{String}(table["headers"])
+    column_index = findfirst(header -> header == String(column), headers)
+    column_index === nothing && return String[]
+    return [String(strip(String(row[column_index]))) for row in table["rows"]]
+end
+
 function sample_mean(values::Vector{Float64})
     return isempty(values) ? 0.0 : sum(values) / length(values)
 end
@@ -4903,7 +4910,70 @@ function pearson_correlation(left::Vector{Float64}, right::Vector{Float64})
     return round(numerator / denominator; digits = 6)
 end
 
-function local_csv_statistical_evidence(dataset::AbstractDict)
+function simple_linear_ols(target::Vector{Float64}, feature::Vector{Float64})
+    n = min(length(target), length(feature))
+    n <= 1 && return nothing
+    y = target[1:n]
+    x = feature[1:n]
+    x_mean = sample_mean(x)
+    y_mean = sample_mean(y)
+    ssx = sum((value - x_mean)^2 for value in x)
+    ssx == 0.0 && return nothing
+    slope = sum((x[index] - x_mean) * (y[index] - y_mean) for index in 1:n) / ssx
+    intercept = y_mean - slope * x_mean
+    predictions = [intercept + slope * value for value in x]
+    residuals = [y[index] - predictions[index] for index in 1:n]
+    sse = sum(value^2 for value in residuals)
+    sst = sum((value - y_mean)^2 for value in y)
+    r_squared = sst == 0.0 ? 0.0 : 1.0 - (sse / sst)
+    return Dict{String,Any}(
+        "model" => "simple_linear_ols",
+        "n" => n,
+        "intercept" => round(intercept; digits = 6),
+        "slope" => round(slope; digits = 6),
+        "rSquared" => round(r_squared; digits = 6),
+        "sse" => round(sse; digits = 6),
+    )
+end
+
+function one_way_anova(target_values::Vector{Float64}, group_values::AbstractVector)
+    n = min(length(target_values), length(group_values))
+    n <= 1 && return nothing
+    groups = Dict{String,Vector{Float64}}()
+    for index in 1:n
+        group = isempty(group_values[index]) ? "(missing)" : group_values[index]
+        push!(get!(groups, group, Float64[]), target_values[index])
+    end
+    length(groups) <= 1 && return nothing
+    overall = sample_mean(target_values[1:n])
+    group_value_vectors = collect(values(groups))
+    ss_between = sum(length(group_values) * (sample_mean(group_values) - overall)^2 for group_values in group_value_vectors)
+    ss_within = sum(sum((value - sample_mean(group_values))^2 for value in group_values) for group_values in group_value_vectors)
+    df_between = length(groups) - 1
+    df_within = n - length(groups)
+    df_within <= 0 && return nothing
+    ms_between = ss_between / df_between
+    ms_within = ss_within / df_within
+    f_statistic = ms_within == 0.0 ? 0.0 : ms_between / ms_within
+    return Dict{String,Any}(
+        "method" => "one_way_anova",
+        "n" => n,
+        "groups" => sort(collect(keys(groups))),
+        "dfBetween" => df_between,
+        "dfWithin" => df_within,
+        "fStatistic" => round(f_statistic; digits = 6),
+        "ssBetween" => round(ss_between; digits = 6),
+        "ssWithin" => round(ss_within; digits = 6),
+    )
+end
+
+function requested_feature_columns(body::AbstractDict)
+    raw_features = haskey(body, "featureColumns") ? body["featureColumns"] : Any[]
+    raw_features isa AbstractVector || return String[]
+    return [String(feature) for feature in raw_features if !isempty(strip(String(feature)))]
+end
+
+function local_csv_statistical_evidence(dataset::AbstractDict, body::AbstractDict, methods::AbstractVector)
     source_uri = String(get(dataset, "sourceUri", ""))
     source_path = resolve_local_data_ref_path(source_uri)
     source_path === nothing && return nothing
@@ -4927,6 +4997,21 @@ function local_csv_statistical_evidence(dataset::AbstractDict)
         [left == right ? 1.0 : pearson_correlation(numeric_columns[left], numeric_columns[right]) for right in ordered_columns]
         for left in ordered_columns
     ]
+    target_column = haskey(body, "targetColumn") ? String(body["targetColumn"]) : ""
+    feature_columns = requested_feature_columns(body)
+    inferential = Dict{String,Any}()
+    if !isempty(target_column) && haskey(numeric_columns, target_column)
+        numeric_features = [feature for feature in feature_columns if haskey(numeric_columns, feature) && feature != target_column]
+        if "ols" in methods && !isempty(numeric_features)
+            ols = simple_linear_ols(numeric_columns[target_column], numeric_columns[first(numeric_features)])
+            ols === nothing || (inferential["ols"] = merge(ols, Dict("targetColumn" => target_column, "featureColumn" => first(numeric_features))))
+        end
+        categorical_features = [feature for feature in feature_columns if feature in Vector{String}(table["headers"]) && !haskey(numeric_columns, feature)]
+        if "anova" in methods && !isempty(categorical_features)
+            anova = one_way_anova(numeric_columns[target_column], simple_column_values(table, first(categorical_features)))
+            anova === nothing || (inferential["anova"] = merge(anova, Dict("targetColumn" => target_column, "groupColumn" => first(categorical_features))))
+        end
+    end
     return Dict{String,Any}(
         "executionMode" => "local_csv",
         "sourceKind" => "managed_local_csv",
@@ -4935,6 +5020,7 @@ function local_csv_statistical_evidence(dataset::AbstractDict)
         "numericColumns" => ordered_columns,
         "summaries" => summaries,
         "correlationMatrix" => correlations,
+        "inferentialTests" => inferential,
     )
 end
 
@@ -4997,7 +5083,7 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
     methods = statistical_analysis_methods(body)
     run_id = "stats-" * replace(string(uuid4()), "-" => "")
     fixture = data_profile_fixture(dataset_id, "local://data/$(dataset_id)")
-    evidence = local_csv_statistical_evidence(dataset)
+    evidence = local_csv_statistical_evidence(dataset, body, methods)
     warnings = String[]
     haskey(body, "targetColumn") || push!(warnings, "No targetColumn supplied; inferential tests are recorded as exploratory evidence.")
     evidence === nothing && push!(warnings, "Managed local CSV source was not available; fixture profile evidence was used for this statistical EDA run.")
