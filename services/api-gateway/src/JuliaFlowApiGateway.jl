@@ -3140,6 +3140,90 @@ function upsert_project_model_lifecycle!(
     return record
 end
 
+function model_lifecycle_action_state(action::AbstractString)
+    action == "mark_rollback_ready" && return "rollback_ready"
+    action == "mark_rolled_back" && return "rolled_back"
+    action == "request_retraining" && return "retraining_requested"
+    error("model lifecycle action must be mark_rollback_ready, mark_rolled_back, or request_retraining")
+end
+
+function model_lifecycle_action_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
+    haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    project = state.data_science_projects[project_id]
+    model_id = haskey(body, "modelId") ? strip(String(body["modelId"])) : ""
+    !isempty(model_id) || error("model lifecycle modelId required")
+    action = haskey(body, "action") ? strip(String(body["action"])) : ""
+    lifecycle_state = model_lifecycle_action_state(action)
+
+    index = findfirst(record -> String(get(record, "modelId", "")) == model_id, project.model_lifecycle_records)
+    index === nothing && error("model lifecycle record not found: $(model_id)")
+    existing = Dict{String,Any}(String(key) => value for (key, value) in pairs(project.model_lifecycle_records[index]))
+    previous_state = String(get(existing, "state", ""))
+    deployed_endpoint_id = String(get(existing, "deployedEndpointId", ""))
+    if action == "mark_rollback_ready"
+        previous_state == "deployed" || error("model lifecycle action requires deployed model state")
+        !isempty(strip(deployed_endpoint_id)) || error("model lifecycle deployedEndpointId required")
+    elseif action == "request_retraining"
+        previous_state in ("deployed", "rollback_ready", "rolled_back") || error("model lifecycle retraining requires deployed, rollback_ready, or rolled_back model state")
+        !isempty(strip(deployed_endpoint_id)) || error("model lifecycle deployedEndpointId required")
+    elseif action == "mark_rolled_back"
+        previous_state == "rollback_ready" || error("model lifecycle rollback requires rollback_ready state")
+    end
+
+    rollback_model_id = haskey(body, "rollbackModelId") ? strip(String(body["rollbackModelId"])) : String(get(existing, "rollbackModelId", ""))
+    if action in ("mark_rollback_ready", "mark_rolled_back")
+        !isempty(rollback_model_id) || error("model lifecycle rollbackModelId required")
+        rollback_model_id != model_id || error("model lifecycle rollbackModelId must differ from modelId")
+    end
+
+    drift_report_id = haskey(body, "driftReportId") ? strip(String(body["driftReportId"])) : ""
+    if !isempty(drift_report_id)
+        drift_index = findfirst(report -> String(get(report, "driftReportId", "")) == drift_report_id, project.drift_reports)
+        drift_index === nothing && error("model lifecycle driftReportId not found: $(drift_report_id)")
+    end
+
+    reason = haskey(body, "reason") ? strip(String(body["reason"])) : ""
+    timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+    record = Dict{String,Any}(
+        "modelId" => model_id,
+        "state" => lifecycle_state,
+        "updatedAt" => timestamp,
+        "lifecycleAction" => action,
+        "validationEvidence" => Dict{String,Any}(
+            "projectId" => project.project_id,
+            "modelId" => model_id,
+            "previousState" => previous_state,
+            "lifecycleAction" => action,
+        ),
+    )
+    haskey(existing, "evaluationReportId") && (record["evaluationReportId"] = String(existing["evaluationReportId"]))
+    isempty(strip(deployed_endpoint_id)) || (record["deployedEndpointId"] = deployed_endpoint_id)
+    isempty(rollback_model_id) || (record["rollbackModelId"] = rollback_model_id)
+    isempty(drift_report_id) || (record["validationEvidence"]["driftReportId"] = drift_report_id)
+    isempty(rollback_model_id) || (record["validationEvidence"]["rollbackModelId"] = rollback_model_id)
+    isempty(deployed_endpoint_id) || (record["validationEvidence"]["deployedEndpointId"] = deployed_endpoint_id)
+    isempty(reason) || (record["validationEvidence"]["reason"] = reason)
+    if action in ("mark_rollback_ready", "mark_rolled_back") && !isempty(reason)
+        record["rollbackReason"] = reason
+    elseif action == "request_retraining" && !isempty(reason)
+        record["retrainingReason"] = reason
+    end
+
+    remaining = [item for (item_index, item) in enumerate(project.model_lifecycle_records) if item_index != index]
+    project.model_lifecycle_records = [record, remaining...]
+    record_data_science_project_job!(
+        project,
+        "model_lifecycle";
+        source_record_id = model_id,
+        started_at = timestamp,
+        finished_at = timestamp,
+    )
+    project.updated_at = timestamp
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
+    return JSON3.write(Dict("status" => "completed", "lifecycleRecord" => record, "project" => payload))
+end
+
 function ml_experiment_payload(state::GatewayState, execution::GatewayExecution; request_body::AbstractDict = Dict{String,Any}())
     haskey(state.workflows, execution.workflow_id) || error("workflow not found: $(execution.workflow_id)")
     workflow = state.workflows[execution.workflow_id]
@@ -6002,6 +6086,10 @@ function classify_gateway_error(err)
         return 400, message
     elseif occursin("drift report ", message)
         return 400, message
+    elseif occursin("model lifecycle record not found", message)
+        return 409, message
+    elseif occursin("model lifecycle ", message)
+        return 400, message
     elseif occursin("route not found", message)
         return 404, message
     elseif occursin("Artifact ", message) && occursin(" missing from artifact store", message)
@@ -7162,6 +7250,13 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             body = parse_request_body(request)
             response = run_drift_report_response!(state, segments[4], body)
             append_audit_event!(state, request, "data_science_project.drift.run"; target_type = "data_science_project", target_id = segments[4])
+            return json_response(201, response)
+        end
+        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["models", "lifecycle"] && begin
+            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
+            body = parse_request_body(request)
+            response = model_lifecycle_action_response!(state, segments[4], body)
+            append_audit_event!(state, request, "data_science_project.model.lifecycle"; target_type = "data_science_project", target_id = segments[4])
             return json_response(201, response)
         end
         method == "POST" && segments == ["api", "v1", "workflows"] && begin

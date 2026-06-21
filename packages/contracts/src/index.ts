@@ -527,6 +527,9 @@ export type DataScienceModelLifecycleState =
   | "validated"
   | "approved"
   | "deployed"
+  | "rollback_ready"
+  | "rolled_back"
+  | "retraining_requested"
   | "deprecated"
   | "archived";
 
@@ -615,7 +618,8 @@ export type DataScienceProjectJobType =
   | "tuning_study"
   | "final_evaluation"
   | "prediction_export"
-  | "drift_report";
+  | "drift_report"
+  | "model_lifecycle";
 
 export type DataScienceProjectJobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
@@ -755,6 +759,25 @@ export interface RunDriftReportResponse {
   project: DataScienceProject;
 }
 
+export type DataScienceModelLifecycleAction =
+  | "mark_rollback_ready"
+  | "mark_rolled_back"
+  | "request_retraining";
+
+export interface RunModelLifecycleActionRequest {
+  modelId: string;
+  action: DataScienceModelLifecycleAction;
+  rollbackModelId?: string;
+  driftReportId?: string;
+  reason?: string;
+}
+
+export interface RunModelLifecycleActionResponse {
+  status: "completed";
+  lifecycleRecord: ModelLifecycleRecord;
+  project: DataScienceProject;
+}
+
 export interface TrainingPlan {
   trainingPlanId: string;
   targetColumn: string;
@@ -839,6 +862,19 @@ export interface ModelLifecycleRecord {
   evaluationReportId?: string;
   deployedEndpointId?: string;
   rollbackModelId?: string;
+  lifecycleAction?: DataScienceModelLifecycleAction;
+  rollbackReason?: string;
+  retrainingReason?: string;
+  validationEvidence?: {
+    projectId?: string;
+    modelId?: string;
+    previousState?: DataScienceModelLifecycleState;
+    lifecycleAction?: DataScienceModelLifecycleAction;
+    deployedEndpointId?: string;
+    rollbackModelId?: string;
+    driftReportId?: string;
+    reason?: string;
+  };
   updatedAt: string;
 }
 
@@ -2053,6 +2089,8 @@ export const gatewayEndpointPaths = {
     `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/predictions/export`,
   dataScienceProjectDriftRun: (projectId: string) =>
     `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/drift/run`,
+  dataScienceProjectModelLifecycle: (projectId: string) =>
+    `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/models/lifecycle`,
   publishedDashboard: (dashboardId: string, request?: GatewayPublishedDashboardReadRequest) => {
     const path = `/api/v1/dashboards/${encodeURIComponent(dashboardId)}`;
     const params = new URLSearchParams();
@@ -2394,6 +2432,11 @@ export interface GatewayApiClient {
     request?: RunDriftReportRequest,
     options?: GatewayRequestOptions
   ): Promise<RunDriftReportResponse>;
+  runDataScienceProjectModelLifecycleAction(
+    projectId: string,
+    request: RunModelLifecycleActionRequest,
+    options?: GatewayRequestOptions
+  ): Promise<RunModelLifecycleActionResponse>;
   runWorkflowTransform(
     workflowId: string,
     request?: GatewayTransformRunRequest,
@@ -2786,6 +2829,13 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "POST",
         gatewayEndpointPaths.dataScienceProjectDriftRun(projectId),
         driftRequest ?? {},
+        requestOptions
+      ),
+    runDataScienceProjectModelLifecycleAction: (projectId, lifecycleRequest, requestOptions) =>
+      request<RunModelLifecycleActionResponse>(
+        "POST",
+        gatewayEndpointPaths.dataScienceProjectModelLifecycle(projectId),
+        lifecycleRequest,
         requestOptions
       ),
     runWorkflowTransform: (workflowId, transformRequest, requestOptions) =>

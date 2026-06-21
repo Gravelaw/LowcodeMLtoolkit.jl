@@ -1605,6 +1605,73 @@
         }
       }
     },
+    "/api/v1/data-science-projects/{projectId}/models/lifecycle": {
+      "post": {
+        "summary": "Record a local model lifecycle action for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunModelLifecycleActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Model lifecycle action recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunModelLifecycleActionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid lifecycle request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Lifecycle prerequisites are missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflows/{workflowId}/transforms/run": {
       "post": {
         "summary": "Run a workflow transform and return local artifact evidence",
@@ -2188,7 +2255,8 @@
               "tuning_study",
               "final_evaluation",
               "prediction_export",
-              "drift_report"
+              "drift_report",
+              "model_lifecycle"
             ]
           },
           "status": {
@@ -2367,7 +2435,7 @@
           "modelLifecycleRecords": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/ModelLifecycleRecord"
             }
           },
           "monitoringBaselines": {
@@ -2781,6 +2849,115 @@
           }
         }
       },
+      "RunModelLifecycleActionRequest": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "action"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "mark_rollback_ready",
+              "mark_rolled_back",
+              "request_retraining"
+            ]
+          },
+          "rollbackModelId": {
+            "type": "string"
+          },
+          "driftReportId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "RunModelLifecycleActionResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "lifecycleRecord",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "lifecycleRecord": {
+            "$ref": "#/components/schemas/ModelLifecycleRecord"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "ModelLifecycleRecord": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "state",
+          "updatedAt"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "candidate",
+              "validated",
+              "approved",
+              "deployed",
+              "rollback_ready",
+              "rolled_back",
+              "retraining_requested",
+              "deprecated",
+              "archived"
+            ]
+          },
+          "evaluationReportId": {
+            "type": "string"
+          },
+          "deployedEndpointId": {
+            "type": "string"
+          },
+          "rollbackModelId": {
+            "type": "string"
+          },
+          "lifecycleAction": {
+            "type": "string",
+            "enum": [
+              "mark_rollback_ready",
+              "mark_rolled_back",
+              "request_retraining"
+            ]
+          },
+          "rollbackReason": {
+            "type": "string"
+          },
+          "retrainingReason": {
+            "type": "string"
+          },
+          "validationEvidence": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
       "CreateDataScienceProjectRequest": {
         "type": "object",
         "required": [
@@ -2910,7 +3087,7 @@
           "modelLifecycleRecords": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/ModelLifecycleRecord"
             }
           },
           "monitoringBaselines": {

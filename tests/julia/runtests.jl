@@ -2395,6 +2395,68 @@ end
             state,
             HTTP.Request("GET", "/api/v1/data-science-projects/foundation-ml-project"),
         )
+        model_lifecycle_rolled_back_too_early_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "mark_rolled_back",
+                        "rollbackModelId" => "foundation-linear-baseline-v0",
+                        "reason" => "rollback requires an explicit ready state first",
+                    ),
+                ),
+            ),
+        )
+        model_lifecycle_rollback_ready_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "mark_rollback_ready",
+                        "rollbackModelId" => "foundation-linear-baseline-v0",
+                        "reason" => "local drift review approved fallback model",
+                    ),
+                ),
+            ),
+        )
+        model_lifecycle_rolled_back_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "mark_rolled_back",
+                        "reason" => "operator executed local rollback",
+                    ),
+                ),
+            ),
+        )
+        model_lifecycle_retraining_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "request_retraining",
+                        "reason" => "post-rollback retraining requested",
+                    ),
+                ),
+            ),
+        )
         hub_list_response = route_request(state, HTTP.Request("GET", "/api/v1/hub/extensions"))
         hub_install_response = route_request(
             state,
@@ -3912,6 +3974,28 @@ end
         @test deployed_lifecycle_record["state"] == "deployed"
         @test deployed_lifecycle_record["deployedEndpointId"] == deploy_package_payload["package"]["packageId"]
         @test length(model_lifecycle_after_deploy_payload["modelLifecycleRecords"]) == length(model_lifecycle_after_register_payload["modelLifecycleRecords"])
+        @test model_lifecycle_rolled_back_too_early_response.status == 400
+        @test occursin("rollback requires rollback_ready", String(model_lifecycle_rolled_back_too_early_response.body))
+        @test model_lifecycle_rollback_ready_response.status == 201
+        rollback_ready_payload = JSON3.read(String(model_lifecycle_rollback_ready_response.body), Dict{String,Any})
+        @test rollback_ready_payload["status"] == "completed"
+        @test rollback_ready_payload["lifecycleRecord"]["state"] == "rollback_ready"
+        @test rollback_ready_payload["lifecycleRecord"]["rollbackModelId"] == "foundation-linear-baseline-v0"
+        @test rollback_ready_payload["lifecycleRecord"]["rollbackReason"] == "local drift review approved fallback model"
+        @test rollback_ready_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "deployed"
+        @test rollback_ready_payload["lifecycleRecord"]["validationEvidence"]["deployedEndpointId"] == deploy_package_payload["package"]["packageId"]
+        @test first(filter(job -> job["jobType"] == "model_lifecycle", rollback_ready_payload["project"]["projectJobs"]))["sourceRecordId"] == "foundation-linear-baseline"
+        @test model_lifecycle_rolled_back_response.status == 201
+        rolled_back_payload = JSON3.read(String(model_lifecycle_rolled_back_response.body), Dict{String,Any})
+        @test rolled_back_payload["lifecycleRecord"]["state"] == "rolled_back"
+        @test rolled_back_payload["lifecycleRecord"]["rollbackModelId"] == "foundation-linear-baseline-v0"
+        @test rolled_back_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "rollback_ready"
+        @test model_lifecycle_retraining_response.status == 201
+        retraining_payload = JSON3.read(String(model_lifecycle_retraining_response.body), Dict{String,Any})
+        @test retraining_payload["lifecycleRecord"]["state"] == "retraining_requested"
+        @test retraining_payload["lifecycleRecord"]["retrainingReason"] == "post-rollback retraining requested"
+        @test retraining_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "rolled_back"
+        @test length(retraining_payload["project"]["modelLifecycleRecords"]) == length(model_lifecycle_after_deploy_payload["modelLifecycleRecords"])
         @test gpu_execute_response.status == 202
         @test gpu_execute_payload["status"] == "queued"
         @test gpu_execute_payload["dispatchLane"] == "gpu"

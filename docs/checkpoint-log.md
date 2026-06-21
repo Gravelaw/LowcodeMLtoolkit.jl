@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Model Lifecycle Rollback And Retraining Action Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added project-backed model lifecycle action contracts and OpenAPI route coverage.
+- Added `rollback_ready`, `rolled_back`, and `retraining_requested` lifecycle states.
+- Implemented `POST /api/v1/data-science-projects/{projectId}/models/lifecycle` in the gateway.
+- The route requires an existing deployed project lifecycle record, records rollback target/reason or retraining reason, preserves deployment/evaluation evidence, and appends a `model_lifecycle` project job.
+- Added TypeScript client fixture coverage and Julia route assertions for rollback-ready, rolled-back, retraining-requested, and invalid early rollback transitions.
+- Verified with `npm run validate:contracts`, `npm run build`, and the full Julia suite through `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Lifecycle actions now have project-backed substrate evidence, but real rollback execution, retraining orchestration, and CPU/GPU job resource evidence remain open.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, imported output contract mapping, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Convert rollback/retraining lifecycle actions into execution-backed jobs.
+- Add CPU/GPU job/trial resource evidence for retraining/scoring workflows.
+- Continue gateway module split or imported output contract mapping.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Prediction Export Output Contract Validation Slice - 2026-06-21
 
 ### Work Done Till Date

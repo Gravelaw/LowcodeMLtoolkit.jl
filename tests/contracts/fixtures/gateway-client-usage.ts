@@ -15,6 +15,7 @@ import {
   type GatewayVisualizeCheckpointExportRequest,
   type RunDriftReportRequest,
   type RunFinalEvaluationRequest,
+  type RunModelLifecycleActionRequest,
   type RunPredictionExportRequest,
   type RunStatisticalAnalysisRequest,
   type RunTransformFitApplyRequest,
@@ -125,6 +126,12 @@ const driftReportRequest: RunDriftReportRequest = {
   metricNames: ["psi", "ks"],
   threshold: 0.2
 };
+const modelLifecycleActionRequest: RunModelLifecycleActionRequest = {
+  modelId: "contracts-model-v2",
+  action: "mark_rollback_ready",
+  rollbackModelId: "contracts-model-v1",
+  reason: "Validation drift exceeded the local review threshold"
+};
 const transformRunRequest: GatewayTransformRunRequest = {
   executionMode: "cpu_only",
   flowVariables: { JULIAFLOW_GPU_DEVICE: "cpu" }
@@ -197,6 +204,10 @@ client.runDataScienceProjectPredictionExport("contracts-project", predictionExpo
   response.predictionExport.artifactRefs?.forEach((artifactRef) => artifactRef.checksumSha256?.toLowerCase());
 });
 client.runDataScienceProjectDriftReport("contracts-project", driftReportRequest);
+client.runDataScienceProjectModelLifecycleAction("contracts-project", modelLifecycleActionRequest);
+client.runDataScienceProjectModelLifecycleAction("contracts-project", modelLifecycleActionRequest).then((response) => {
+  response.lifecycleRecord.state.toUpperCase();
+});
 client.runWorkflowTransform("wf-foundation", transformRunRequest);
 client.getWorkflowTransformHistory("wf-foundation");
 client.runWorkflowMlExperiment("wf-foundation", mlExperimentRunRequest);
@@ -218,6 +229,7 @@ gatewayEndpointPaths.dataScienceProjectTuningRun("contracts-project");
 gatewayEndpointPaths.dataScienceProjectFinalEvaluationRun("contracts-project");
 gatewayEndpointPaths.dataScienceProjectPredictionExport("contracts-project");
 gatewayEndpointPaths.dataScienceProjectDriftRun("contracts-project");
+gatewayEndpointPaths.dataScienceProjectModelLifecycle("contracts-project");
 gatewayEndpointPaths.workflowTransformRun("wf-foundation");
 gatewayEndpointPaths.workflowTransformHistory("wf-foundation");
 gatewayEndpointPaths.workflowMlExperimentRun("wf-foundation");

@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Model Lifecycle Rollback And Retraining Action Slice (2026-06-21)
+
+- Added contract states for `rollback_ready`, `rolled_back`, and `retraining_requested`.
+- Added `RunModelLifecycleActionRequest` / `RunModelLifecycleActionResponse` plus the typed gateway client path for `POST /api/v1/data-science-projects/{projectId}/models/lifecycle`.
+- Added gateway validation requiring an existing project-backed model lifecycle record and deployed model evidence before rollback/retraining actions.
+- Recorded rollback target, lifecycle action, prior state, deployed endpoint, reason, and validation evidence on the updated `ModelLifecycleRecord`.
+- Added `model_lifecycle` to the project job ledger and records a completed lifecycle job for each accepted action.
+- Added contract fixture/OpenAPI coverage and full Julia route coverage for rollback-ready, rolled-back, retraining-requested, and invalid early rollback transitions.
+- Verification passed: `npm run validate:contracts`; `npm run build`; `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. Rollback/retraining lifecycle evidence is now project-backed, but actual rollback execution, retraining job orchestration, and CPU/GPU resource evidence remain open.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, imported output contract mapping, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Move lifecycle actions from substrate evidence to execution-backed rollback/retraining jobs.
+- Add CPU/GPU resource evidence to tuning/retraining/scoring job records.
+- Continue gateway module split or imported output contract mapping.
+
 ### AKS-36 Prediction Export Output Contract Validation Slice (2026-06-21)
 
 - Added `RunPredictionExportRequest.outputColumns` and `PredictionExport.outputColumns` contract fields plus validation evidence for output contract ref, output columns, and schema validation status.
