@@ -633,6 +633,25 @@ export interface RunStatisticalAnalysisResponse {
   project: DataScienceProject;
 }
 
+export interface RunTuningStudyRequest {
+  datasetId?: string;
+  splitPlanId?: string;
+  trainingPlanId?: string;
+  targetColumn?: string;
+  taskType?: "classification" | "regression" | "ranking" | "clustering" | string;
+  algorithm?: string;
+  metricNames?: string[];
+  maxTrials?: number;
+  finalTestPolicy?: "forbid_final_test" | "use_final_test";
+}
+
+export interface RunTuningStudyResponse {
+  status: "completed";
+  trainingPlan: TrainingPlan;
+  tuningStudy: TuningStudy;
+  project: DataScienceProject;
+}
+
 export interface TrainingPlan {
   trainingPlanId: string;
   targetColumn: string;
@@ -657,6 +676,15 @@ export interface TuningStudy {
   validationOnly: boolean;
   trials: TuningTrial[];
   bestTrialId?: string;
+  validationEvidence?: {
+    projectId?: string;
+    datasetId?: string;
+    splitPlanId?: string;
+    splitStrategy?: string;
+    validationFraction?: number;
+    testFraction?: number;
+    finalTestPolicy?: "forbid_final_test" | "use_final_test";
+  };
   createdAt: string;
 }
 
@@ -1874,6 +1902,8 @@ export const gatewayEndpointPaths = {
     `/api/v1/data-science-projects/${encodeURIComponent(projectId)}`,
   dataScienceProjectStatisticalAnalysisRun: (projectId: string) =>
     `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/statistical-analysis/run`,
+  dataScienceProjectTuningRun: (projectId: string) =>
+    `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/tuning/run`,
   publishedDashboard: (dashboardId: string, request?: GatewayPublishedDashboardReadRequest) => {
     const path = `/api/v1/dashboards/${encodeURIComponent(dashboardId)}`;
     const params = new URLSearchParams();
@@ -2190,6 +2220,11 @@ export interface GatewayApiClient {
     request?: RunStatisticalAnalysisRequest,
     options?: GatewayRequestOptions
   ): Promise<RunStatisticalAnalysisResponse>;
+  runDataScienceProjectTuningStudy(
+    projectId: string,
+    request?: RunTuningStudyRequest,
+    options?: GatewayRequestOptions
+  ): Promise<RunTuningStudyResponse>;
   runWorkflowTransform(
     workflowId: string,
     request?: GatewayTransformRunRequest,
@@ -2547,6 +2582,13 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "POST",
         gatewayEndpointPaths.dataScienceProjectStatisticalAnalysisRun(projectId),
         analysisRequest ?? {},
+        requestOptions
+      ),
+    runDataScienceProjectTuningStudy: (projectId, tuningRequest, requestOptions) =>
+      request<RunTuningStudyResponse>(
+        "POST",
+        gatewayEndpointPaths.dataScienceProjectTuningRun(projectId),
+        tuningRequest ?? {},
         requestOptions
       ),
     runWorkflowTransform: (workflowId, transformRequest, requestOptions) =>

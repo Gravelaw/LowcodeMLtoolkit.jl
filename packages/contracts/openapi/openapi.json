@@ -1290,6 +1290,63 @@
         }
       }
     },
+    "/api/v1/data-science-projects/{projectId}/tuning/run": {
+      "post": {
+        "summary": "Run a local validation-only tuning study for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunTuningStudyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tuning study persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunTuningStudyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid tuning request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflows/{workflowId}/transforms/run": {
       "post": {
         "summary": "Run a workflow transform and return local artifact evidence",
@@ -2076,6 +2133,73 @@
           },
           "analysisRun": {
             "$ref": "#/components/schemas/StatisticalAnalysisRun"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "RunTuningStudyRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "trainingPlanId": {
+            "type": "string"
+          },
+          "targetColumn": {
+            "type": "string"
+          },
+          "taskType": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string"
+          },
+          "metricNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "maxTrials": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "finalTestPolicy": {
+            "type": "string",
+            "enum": [
+              "forbid_final_test",
+              "use_final_test"
+            ]
+          }
+        }
+      },
+      "RunTuningStudyResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "trainingPlan",
+          "tuningStudy",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "trainingPlan": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "tuningStudy": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
           },
           "project": {
             "$ref": "#/components/schemas/DataScienceProject"

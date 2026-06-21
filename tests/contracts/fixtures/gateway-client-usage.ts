@@ -14,6 +14,7 @@ import {
   type GatewayTransformRunRequest,
   type GatewayVisualizeCheckpointExportRequest,
   type RunStatisticalAnalysisRequest,
+  type RunTuningStudyRequest,
   type UpdateDataScienceProjectRequest,
   type MilestoneCheckpointTag,
   type TransitionExecutionStatusRequest
@@ -79,6 +80,16 @@ const statisticalAnalysisRequest: RunStatisticalAnalysisRequest = {
   targetColumn: "amount",
   featureColumns: ["region", "discount"]
 };
+const tuningStudyRequest: RunTuningStudyRequest = {
+  datasetId: "contracts-train",
+  splitPlanId: "split-contracts",
+  targetColumn: "amount",
+  taskType: "regression",
+  algorithm: "MLJ.EvoTreesRegressor",
+  metricNames: ["rmse", "mae"],
+  maxTrials: 3,
+  finalTestPolicy: "forbid_final_test"
+};
 const transformRunRequest: GatewayTransformRunRequest = {
   executionMode: "cpu_only",
   flowVariables: { JULIAFLOW_GPU_DEVICE: "cpu" }
@@ -143,6 +154,7 @@ client.createDataScienceProject(dataScienceProjectRequest);
 client.getDataScienceProject("contracts-project");
 client.updateDataScienceProject("contracts-project", dataScienceProjectUpdateRequest);
 client.runDataScienceProjectStatisticalAnalysis("contracts-project", statisticalAnalysisRequest);
+client.runDataScienceProjectTuningStudy("contracts-project", tuningStudyRequest);
 client.runWorkflowTransform("wf-foundation", transformRunRequest);
 client.getWorkflowTransformHistory("wf-foundation");
 client.runWorkflowMlExperiment("wf-foundation", mlExperimentRunRequest);
@@ -159,6 +171,7 @@ gatewayEndpointPaths.localDataImport;
 gatewayEndpointPaths.dataScienceProjects;
 gatewayEndpointPaths.dataScienceProject("contracts-project");
 gatewayEndpointPaths.dataScienceProjectStatisticalAnalysisRun("contracts-project");
+gatewayEndpointPaths.dataScienceProjectTuningRun("contracts-project");
 gatewayEndpointPaths.workflowTransformRun("wf-foundation");
 gatewayEndpointPaths.workflowTransformHistory("wf-foundation");
 gatewayEndpointPaths.workflowMlExperimentRun("wf-foundation");

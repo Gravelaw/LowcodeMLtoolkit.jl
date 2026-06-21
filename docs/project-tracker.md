@@ -21,6 +21,26 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Validation-Only Tuning Study Slice (2026-06-21)
+
+- Added TypeScript contracts, OpenAPI path/schema coverage, endpoint-path coverage, and typed client support for `POST /api/v1/data-science-projects/{projectId}/tuning/run`.
+- Added a project-scoped gateway tuning-study route that validates project/dataset membership, requires split evidence with nonzero validation/test fractions, rejects final-test use, creates or updates a training plan, and persists a deterministic validation-only tuning study into `DataScienceProject.tuningStudies`.
+- Added `validationEvidence` to tuning-study records so accepted studies expose project, dataset, split, validation/test fraction, and final-test policy context.
+- Added Julia route assertions and contract assertions for successful tuning persistence and final-test misuse rejection.
+- Verification passed: `npm run validate:contracts`, focused Julia route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`, and `npm run build`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice records validation-only tuning substrate evidence, but real Julia hyperparameter optimization, trial artifact execution, UI workflow coverage, and typed tuning job lifecycle remain open.
+- Final evaluation, prediction/output export, transform fit/apply semantics, drift/evaluation records, gateway module split, local source trust-boundary hardening, typed jobs, and first-class lifecycle records remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Replace deterministic tuning trials with real Julia tuning execution and persisted trial artifacts.
+- Add final-evaluation, prediction/export, and drift records with the same split/final-test gates.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+
 ### AKS-36 Statistical EDA Run Substrate Slice (2026-06-21)
 
 - Added TypeScript contracts and OpenAPI path/schema coverage for `POST /api/v1/data-science-projects/{projectId}/statistical-analysis/run`.

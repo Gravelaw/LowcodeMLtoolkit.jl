@@ -285,6 +285,9 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.StatisticalAnalysisRun.properties.charts);
   assert.ok(schemas.RunStatisticalAnalysisRequest.properties.methods);
   assert.ok(schemas.RunStatisticalAnalysisResponse.properties.analysisRun);
+  assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/tuning/run"]);
+  assert.deepEqual(schemas.RunTuningStudyRequest.properties.finalTestPolicy.enum, ["forbid_final_test", "use_final_test"]);
+  assert.ok(schemas.RunTuningStudyResponse.properties.tuningStudy);
   assert.ok(schemas.TransformRunResponse);
   assert.ok(schemas.TransformRunRecord.properties.artifactEvidence);
   assert.ok(schemas.TransformHistoryResponse);

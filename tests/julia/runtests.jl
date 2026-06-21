@@ -1826,6 +1826,42 @@ end
                 JSON3.write(Dict("datasetId" => "foundation-sales-sample", "methods" => ["unsupported_method"])),
             ),
         )
+        tuning_study_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/tuning/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-stratified",
+                        "targetColumn" => "amount",
+                        "taskType" => "regression",
+                        "algorithm" => "MLJ.EvoTreesRegressor",
+                        "metricNames" => ["rmse", "mae"],
+                        "maxTrials" => 3,
+                        "finalTestPolicy" => "forbid_final_test",
+                    ),
+                ),
+            ),
+        )
+        tuning_study_final_test_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/tuning/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-stratified",
+                        "targetColumn" => "amount",
+                        "finalTestPolicy" => "use_final_test",
+                    ),
+                ),
+            ),
+        )
         transform_run_response = route_request(
             state,
             HTTP.Request(
@@ -3206,6 +3242,16 @@ end
         @test length(statistical_analysis_payload["project"]["statisticalAnalysisRuns"]) >= 1
         @test statistical_analysis_bad_method_response.status == 400
         @test occursin("statistical analysis unsupported methods", String(statistical_analysis_bad_method_response.body))
+        @test tuning_study_response.status == 201
+        tuning_study_payload = JSON3.read(String(tuning_study_response.body), Dict{String,Any})
+        @test tuning_study_payload["status"] == "completed"
+        @test tuning_study_payload["tuningStudy"]["validationOnly"] == true
+        @test tuning_study_payload["tuningStudy"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test length(tuning_study_payload["tuningStudy"]["trials"]) == 3
+        @test length(tuning_study_payload["project"]["tuningStudies"]) >= 1
+        @test length(tuning_study_payload["project"]["trainingPlans"]) >= 1
+        @test tuning_study_final_test_response.status == 400
+        @test occursin("final test data cannot be used", String(tuning_study_final_test_response.body))
         @test transform_run_response.status == 202
         transform_run_payload = JSON3.read(String(transform_run_response.body), Dict{String,Any})
         @test transform_run_payload["status"] == "accepted"

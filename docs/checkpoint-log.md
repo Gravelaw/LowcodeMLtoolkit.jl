@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Validation-Only Tuning Study Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added `RunTuningStudyRequest` and `RunTuningStudyResponse` contracts plus a project-scoped OpenAPI route for local validation-only tuning studies.
+- Added typed gateway client and endpoint-path coverage for the new route.
+- Implemented `POST /api/v1/data-science-projects/{projectId}/tuning/run` in the gateway.
+- The route validates project/dataset membership, requires split-plan evidence, requires nonzero validation/test fractions, rejects `use_final_test`, creates or updates a training plan, persists deterministic tuning-study evidence, and returns the updated project.
+- Added `validationEvidence` to tuning-study records so accepted studies carry project/split/final-test policy context.
+- Added focused contract assertions and Julia route assertions for successful persistence and final-test misuse rejection.
+- Verified the slice with `npm run validate:contracts`, a focused Julia route smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`, and `npm run build`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Tuning now has a project-backed validation-only run record route, but real Julia hyperparameter optimization, persisted trial artifacts, UI workflow coverage, and typed tuning job lifecycle remain open.
+- Final evaluation, prediction/output export, transform fit/apply semantics, drift/evaluation records, gateway module split, local source trust-boundary hardening, typed jobs, and first-class lifecycle records remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Replace deterministic tuning evidence with real Julia tuning execution and trial artifacts.
+- Add final-evaluation, prediction/export, and drift records with split/final-test gates.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Statistical EDA Run Substrate Slice - 2026-06-21
 
 ### Work Done Till Date
