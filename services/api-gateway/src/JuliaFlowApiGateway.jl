@@ -4831,6 +4831,20 @@ function resolve_local_data_ref_path(source_ref::AbstractString)
     return isfile(candidate) ? candidate : nothing
 end
 
+function local_data_ref_path_for_write(local_ref::AbstractString)
+    ref = strip(String(local_ref))
+    normalized = replace(ref, "\\" => "/")
+    startswith(lowercase(normalized), "local://") || error("local artifact ref must use local://")
+    validate_project_local_ref!(ref, "artifactRef")
+    relative = normalized[nextind(normalized, firstindex(normalized), length("local://")):end]
+    data_root = local_data_estate_root(local_appliance_home())
+    mkpath(data_root)
+    root = realpath(data_root)
+    candidate = normpath(joinpath(root, split(relative, '/'; keepempty = false)...))
+    path_within_root(candidate, root) || error("local artifact ref escapes local data estate")
+    return candidate
+end
+
 function parse_simple_csv(path::AbstractString; max_rows::Integer = 1_000)
     lines = readlines(path)
     isempty(lines) && return nothing
@@ -5179,6 +5193,74 @@ function statistical_analysis_charts(dataset_id::AbstractString, run_id::Abstrac
     return charts
 end
 
+function statistical_analysis_code_artifact(dataset_id::AbstractString, methods::AbstractVector, body::AbstractDict)
+    target = haskey(body, "targetColumn") ? String(body["targetColumn"]) : ""
+    features = requested_feature_columns(body)
+    return join(
+        [
+            "# JuliaFlow local statistical EDA artifact",
+            "# dataset: $(dataset_id)",
+            "# methods: $(join([String(method) for method in methods], ", "))",
+            "# targetColumn: $(target)",
+            "# featureColumns: $(join(features, ", "))",
+            "using Statistics",
+            "# Result evidence is persisted beside this code artifact as results.json.",
+        ],
+        "\n",
+    ) * "\n"
+end
+
+function persist_statistical_analysis_artifacts!(
+    analysis_run::Dict{String,Any},
+    dataset_id::AbstractString,
+    methods::AbstractVector,
+    body::AbstractDict,
+    evidence,
+)
+    code_ref = String(analysis_run["generatedCodeRef"])
+    result_ref = String(analysis_run["resultRef"])
+    code_path = local_data_ref_path_for_write(code_ref)
+    result_path = local_data_ref_path_for_write(result_ref)
+    mkpath(dirname(code_path))
+    mkpath(dirname(result_path))
+    code = statistical_analysis_code_artifact(dataset_id, methods, body)
+    result_payload = Dict{String,Any}(
+        "analysisRunId" => String(analysis_run["analysisRunId"]),
+        "datasetId" => dataset_id,
+        "method" => String(analysis_run["method"]),
+        "status" => String(analysis_run["status"]),
+        "resultSummary" => evidence === nothing ? Dict{String,Any}("executionMode" => "fixture_fallback") : evidence,
+        "warnings" => analysis_run["warnings"],
+        "createdAt" => String(analysis_run["createdAt"]),
+    )
+    write(code_path, code)
+    result_json = JSON3.write(result_payload)
+    write(result_path, result_json)
+    code_checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(code))))
+    result_checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(result_json))))
+    analysis_run["artifactRefs"] = [
+        Dict(
+            "refId" => "artifact-$(analysis_run["analysisRunId"])-code",
+            "kind" => "statistical_analysis_code",
+            "localOnly" => true,
+            "path" => code_ref,
+            "checksumSha256" => code_checksum,
+            "sizeBytes" => filesize(code_path),
+            "generatedAt" => String(analysis_run["createdAt"]),
+        ),
+        Dict(
+            "refId" => "artifact-$(analysis_run["analysisRunId"])-results",
+            "kind" => "statistical_analysis_results",
+            "localOnly" => true,
+            "path" => result_ref,
+            "checksumSha256" => result_checksum,
+            "sizeBytes" => filesize(result_path),
+            "generatedAt" => String(analysis_run["createdAt"]),
+        ),
+    ]
+    return analysis_run["artifactRefs"]
+end
+
 function run_statistical_analysis_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
     project = state.data_science_projects[project_id]
@@ -5203,6 +5285,7 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
         "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
     )
     evidence === nothing || (analysis_run["resultSummary"] = evidence)
+    artifact_refs = persist_statistical_analysis_artifacts!(analysis_run, dataset_id, methods, body, evidence)
     project.statistical_analysis_runs = [analysis_run, project.statistical_analysis_runs...]
     timestamp = String(analysis_run["createdAt"])
     record_data_science_project_job!(
@@ -5210,22 +5293,7 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
         "statistical_analysis";
         dataset_id = dataset_id,
         source_record_id = run_id,
-        output_refs = [
-            Dict(
-                "refId" => "artifact-$(run_id)-code",
-                "kind" => "statistical_analysis_code",
-                "localOnly" => true,
-                "path" => String(analysis_run["generatedCodeRef"]),
-                "generatedAt" => timestamp,
-            ),
-            Dict(
-                "refId" => "artifact-$(run_id)-results",
-                "kind" => "statistical_analysis_results",
-                "localOnly" => true,
-                "path" => String(analysis_run["resultRef"]),
-                "generatedAt" => timestamp,
-            ),
-        ],
+        output_refs = artifact_refs,
         started_at = timestamp,
         finished_at = timestamp,
     )

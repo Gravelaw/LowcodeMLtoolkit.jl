@@ -1993,6 +1993,10 @@
           "checksumSha256": {
             "type": "string"
           },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
           "path": {
             "type": "string"
           },
@@ -2419,6 +2423,13 @@
             "type": "object",
             "additionalProperties": true,
             "description": "Local statistical EDA result summary, including execution mode, numeric summaries, correlation matrix, and available inferential evidence."
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            },
+            "description": "Persisted local code and result artifacts for the statistical analysis run."
           },
           "charts": {
             "type": "array",

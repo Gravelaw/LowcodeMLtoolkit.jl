@@ -535,6 +535,7 @@ export interface DataScienceProjectEvidenceRef {
   kind: string;
   localOnly: boolean;
   checksumSha256?: string;
+  sizeBytes?: number;
   path?: string;
   generatedAt?: string;
 }
@@ -656,6 +657,7 @@ export interface StatisticalAnalysisRun {
   generatedCodeRef?: string;
   resultRef?: string;
   resultSummary?: Record<string, unknown>;
+  artifactRefs?: DataScienceProjectEvidenceRef[];
   charts?: GatewayInteractiveChartSpec[];
   warnings: string[];
   createdAt: string;

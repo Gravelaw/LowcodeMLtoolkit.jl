@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Statistical Artifact Persistence Slice (2026-06-21)
+
+- Persisted project-scoped statistical EDA artifacts for `POST /api/v1/data-science-projects/{projectId}/statistical-analysis/run`.
+- Statistical runs now write a local `analysis.jl` code artifact and `results.json` result artifact under the configured local data-estate root from the existing `local://analysis/...` refs.
+- `StatisticalAnalysisRun.artifactRefs` and project job `outputRefs` now include local-only code/results refs with SHA-256 checksums, byte sizes, and generated timestamps.
+- Extended shared `DataScienceProjectEvidenceRef` contracts/OpenAPI with `sizeBytes`, and `StatisticalAnalysisRun` with `artifactRefs`.
+- Added focused Julia route coverage proving code/results files are written and returned refs include checksums/sizes.
+- Verification passed: focused Julia statistical artifact persistence smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. Statistical EDA now persists local result/code artifacts, but worker-backed statistical jobs remain open.
+- Gateway module split, execution-backed jobs, deeper tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Move statistical execution behind a worker-backed project job path.
+- Start gateway internal module extraction for project/data source/statistical analysis handling.
+- Replace remaining deterministic tuning/evaluation/scoring/drift route evidence with real execution-backed artifacts.
+
 ### AKS-36 Local CSV Remaining Statistical Methods Slice (2026-06-21)
 
 - Extended the local CSV statistical EDA path with Spearman rank correlation, two-sample Welch-style t-test evidence, and chi-square independence evidence.

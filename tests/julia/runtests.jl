@@ -3688,6 +3688,15 @@ end
         @test haskey(statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"], "chiSquare")
         @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["chiSquare"]["degreesOfFreedom"] == 1
         @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["spearmanCorrelation"]["columns"] == statistical_analysis_payload["analysisRun"]["resultSummary"]["numericColumns"]
+        @test length(statistical_analysis_payload["analysisRun"]["artifactRefs"]) == 2
+        stats_result_ref = String(statistical_analysis_payload["analysisRun"]["resultRef"])
+        stats_code_ref = String(statistical_analysis_payload["analysisRun"]["generatedCodeRef"])
+        stats_result_path = joinpath(data_estate_root, split(replace(stats_result_ref, "local://" => ""), '/')...)
+        stats_code_path = joinpath(data_estate_root, split(replace(stats_code_ref, "local://" => ""), '/')...)
+        @test isfile(stats_result_path)
+        @test isfile(stats_code_path)
+        @test occursin("\"executionMode\":\"local_csv\"", read(stats_result_path, String))
+        @test all(ref -> haskey(ref, "checksumSha256") && haskey(ref, "sizeBytes"), statistical_analysis_payload["analysisRun"]["artifactRefs"])
         @test length(statistical_analysis_payload["project"]["statisticalAnalysisRuns"]) >= 1
         @test statistical_analysis_bad_method_response.status == 400
         @test occursin("statistical analysis unsupported methods", String(statistical_analysis_bad_method_response.body))

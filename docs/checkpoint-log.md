@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Statistical Artifact Persistence Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Persisted project-scoped statistical EDA artifacts for `POST /api/v1/data-science-projects/{projectId}/statistical-analysis/run`.
+- Statistical runs now write a local `analysis.jl` code artifact and `results.json` result artifact under the configured local data-estate root from the existing `local://analysis/...` refs.
+- `StatisticalAnalysisRun.artifactRefs` and project job `outputRefs` now include local-only code/results refs with SHA-256 checksums, byte sizes, and generated timestamps.
+- Extended shared `DataScienceProjectEvidenceRef` contracts/OpenAPI with `sizeBytes`, and `StatisticalAnalysisRun` with `artifactRefs`.
+- Added focused Julia route smoke coverage proving code/results files are written and returned refs include checksums/sizes.
+- Verified the slice with a focused Julia statistical artifact persistence smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Statistical EDA now persists local result/code artifacts, but worker-backed statistical jobs remain open.
+- Gateway module split, execution-backed jobs, deeper tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Move statistical execution behind a worker-backed project job path.
+- Start gateway internal module extraction for project/data source/statistical analysis handling.
+- Replace remaining deterministic tuning/evaluation/scoring/drift route evidence with real execution-backed artifacts.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Remaining Statistical Methods Slice - 2026-06-21
 
 ### Work Done Till Date

@@ -293,6 +293,7 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/statistical-analysis/run"]);
   assert.ok(schemas.StatisticalAnalysisRun.properties.charts);
   assert.ok(schemas.StatisticalAnalysisRun.properties.resultSummary);
+  assert.ok(schemas.StatisticalAnalysisRun.properties.artifactRefs);
   assert.ok(schemas.RunStatisticalAnalysisRequest.properties.methods);
   assert.ok(schemas.RunStatisticalAnalysisResponse.properties.analysisRun);
   assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/tuning/run"]);
