@@ -4773,6 +4773,74 @@ function run_final_evaluation_response!(state::GatewayState, project_id::Abstrac
     return JSON3.write(Dict("status" => "completed", "evaluationReport" => evaluation_report, "project" => payload))
 end
 
+function project_evaluation_report_for_prediction_export(project::DataScienceProjectRecord, body::AbstractDict)
+    isempty(project.evaluation_reports) && error("prediction export prerequisite approved final evaluation required")
+    if haskey(body, "evaluationReportId")
+        report_id = String(body["evaluationReportId"])
+        match = findfirst(report -> String(get(report, "evaluationReportId", "")) == report_id, project.evaluation_reports)
+        match === nothing && error("prediction export prerequisite evaluation report not found: $(report_id)")
+        return project.evaluation_reports[match]
+    end
+    return project.evaluation_reports[1]
+end
+
+function prediction_export_format(body::AbstractDict)
+    format = haskey(body, "format") ? safe_local_dataset_id(String(body["format"])) : "csv"
+    format in ("csv", "parquet", "jsonl") || error("prediction export format must be csv, parquet, or jsonl")
+    return format
+end
+
+function prediction_export_row_count(body::AbstractDict, dataset::AbstractDict)
+    value = if haskey(body, "rowCount")
+        Int(body["rowCount"])
+    else
+        Int(get(dataset, "rowCount", 1))
+    end
+    value > 0 || error("prediction export rowCount must be positive")
+    return value
+end
+
+function run_prediction_export_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
+    haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    project = state.data_science_projects[project_id]
+    dataset_id = statistical_analysis_dataset(project, body)
+    dataset_index = findfirst(dataset -> String(get(dataset, "datasetId", "")) == String(dataset_id), project.datasets)
+    dataset_index === nothing && error("prediction export dataset not registered: $(dataset_id)")
+    dataset = project.datasets[dataset_index]
+    report = project_evaluation_report_for_prediction_export(project, body)
+    Bool(get(report, "approved", false)) || error("prediction export prerequisite approved final evaluation required")
+    Bool(get(report, "finalTestOnly", false)) || error("prediction export prerequisite final evaluation evidence required")
+    validation = get(report, "validationEvidence", Dict{String,Any}())
+    String(get(validation, "finalTestPolicy", "")) == "use_final_test" || error("prediction export prerequisite final test evidence required")
+    output_contract_ref = haskey(body, "outputContractRef") ? String(body["outputContractRef"]) : ""
+    !isempty(strip(output_contract_ref)) || error("prediction export outputContractRef required")
+    format = prediction_export_format(body)
+    row_count = prediction_export_row_count(body, dataset)
+    timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+    export_id = "pred-" * replace(string(uuid4()), "-" => "")
+    artifact_ref = "local://predictions/$(project.project_id)/$(export_id)/predictions.$(format)"
+    prediction_export = Dict{String,Any}(
+        "predictionExportId" => export_id,
+        "evaluationReportId" => String(get(report, "evaluationReportId", "")),
+        "outputContractRef" => output_contract_ref,
+        "artifactRef" => artifact_ref,
+        "rowCount" => row_count,
+        "format" => format,
+        "validationEvidence" => Dict{String,Any}(
+            "projectId" => project.project_id,
+            "datasetId" => dataset_id,
+            "evaluationReportId" => String(get(report, "evaluationReportId", "")),
+            "finalEvaluationApproved" => true,
+            "finalTestOnly" => true,
+        ),
+        "createdAt" => timestamp,
+    )
+    project.prediction_exports = [prediction_export, project.prediction_exports...]
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
+    return JSON3.write(Dict("status" => "completed", "predictionExport" => prediction_export, "project" => payload))
+end
+
 function cors_origin()
     return get(ENV, "JULIAFLOW_CORS_ALLOW_ORIGIN", "*")
 end
@@ -4834,11 +4902,15 @@ function classify_gateway_error(err)
         return 409, message
     elseif occursin("final evaluation prerequisite", message)
         return 409, message
+    elseif occursin("prediction export prerequisite", message)
+        return 409, message
     elseif occursin("statistical analysis ", message)
         return 400, message
     elseif occursin("tuning study ", message)
         return 400, message
     elseif occursin("final evaluation ", message)
+        return 400, message
+    elseif occursin("prediction export ", message)
         return 400, message
     elseif occursin("route not found", message)
         return 404, message
@@ -5959,6 +6031,13 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             body = parse_request_body(request)
             response = run_final_evaluation_response!(state, segments[4], body)
             append_audit_event!(state, request, "data_science_project.evaluation.run"; target_type = "data_science_project", target_id = segments[4])
+            return json_response(201, response)
+        end
+        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["predictions", "export"] && begin
+            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
+            body = parse_request_body(request)
+            response = run_prediction_export_response!(state, segments[4], body)
+            append_audit_event!(state, request, "data_science_project.predictions.export"; target_type = "data_science_project", target_id = segments[4])
             return json_response(201, response)
         end
         method == "POST" && segments == ["api", "v1", "workflows"] && begin

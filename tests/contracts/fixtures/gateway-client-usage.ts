@@ -14,6 +14,7 @@ import {
   type GatewayTransformRunRequest,
   type GatewayVisualizeCheckpointExportRequest,
   type RunFinalEvaluationRequest,
+  type RunPredictionExportRequest,
   type RunStatisticalAnalysisRequest,
   type RunTuningStudyRequest,
   type UpdateDataScienceProjectRequest,
@@ -100,6 +101,13 @@ const finalEvaluationRequest: RunFinalEvaluationRequest = {
   approvalThreshold: 0.8,
   finalTestPolicy: "use_final_test"
 };
+const predictionExportRequest: RunPredictionExportRequest = {
+  datasetId: "contracts-train",
+  evaluationReportId: "eval-contracts",
+  outputContractRef: "contract://outputs/churn-predictions",
+  format: "csv",
+  rowCount: 12
+};
 const transformRunRequest: GatewayTransformRunRequest = {
   executionMode: "cpu_only",
   flowVariables: { JULIAFLOW_GPU_DEVICE: "cpu" }
@@ -166,6 +174,7 @@ client.updateDataScienceProject("contracts-project", dataScienceProjectUpdateReq
 client.runDataScienceProjectStatisticalAnalysis("contracts-project", statisticalAnalysisRequest);
 client.runDataScienceProjectTuningStudy("contracts-project", tuningStudyRequest);
 client.runDataScienceProjectFinalEvaluation("contracts-project", finalEvaluationRequest);
+client.runDataScienceProjectPredictionExport("contracts-project", predictionExportRequest);
 client.runWorkflowTransform("wf-foundation", transformRunRequest);
 client.getWorkflowTransformHistory("wf-foundation");
 client.runWorkflowMlExperiment("wf-foundation", mlExperimentRunRequest);
@@ -184,6 +193,7 @@ gatewayEndpointPaths.dataScienceProject("contracts-project");
 gatewayEndpointPaths.dataScienceProjectStatisticalAnalysisRun("contracts-project");
 gatewayEndpointPaths.dataScienceProjectTuningRun("contracts-project");
 gatewayEndpointPaths.dataScienceProjectFinalEvaluationRun("contracts-project");
+gatewayEndpointPaths.dataScienceProjectPredictionExport("contracts-project");
 gatewayEndpointPaths.workflowTransformRun("wf-foundation");
 gatewayEndpointPaths.workflowTransformHistory("wf-foundation");
 gatewayEndpointPaths.workflowMlExperimentRun("wf-foundation");

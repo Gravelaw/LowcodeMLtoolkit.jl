@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Prediction Export Gate Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added `RunPredictionExportRequest` and `RunPredictionExportResponse` contracts plus a project-scoped OpenAPI route for local prediction export.
+- Added typed gateway client and endpoint-path coverage for the new route.
+- Implemented `POST /api/v1/data-science-projects/{projectId}/predictions/export` in the gateway.
+- The route validates project/dataset membership, blocks export without an approved final-evaluation report, requires final-test evidence on that report, requires explicit output contract evidence, validates export format/row count, and persists local prediction export evidence.
+- Persisted prediction exports into `DataScienceProject.predictionExports` with artifact ref, row count, format, output contract, and validation evidence linking the export to the approved evaluation report.
+- Added focused contract assertions and Julia route assertions for successful persistence, bad format rejection, and missing output contract rejection.
+- Verified the slice with `npm run validate:contracts` and a focused Julia route smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Prediction export now has a project-backed gated route, but real Julia scoring, prediction file materialization, output schema validation, UI workflow coverage, and typed scoring/export job lifecycle remain open.
+- Transform fit/apply semantics, drift/evaluation monitoring records, gateway module split, local source trust-boundary hardening, typed jobs, and first-class lifecycle records remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Replace deterministic prediction export evidence with real Julia scoring and export artifacts.
+- Add drift records and transform fit/apply semantics with the same split/evaluation evidence discipline.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Final Evaluation Gate Slice - 2026-06-21
 
 ### Work Done Till Date

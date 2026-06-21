@@ -1913,6 +1913,46 @@ end
                 ),
             ),
         )
+        prediction_export_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/foundation-predictions",
+                        "format" => "csv",
+                        "rowCount" => 25,
+                    ),
+                ),
+            ),
+        )
+        prediction_export_bad_format_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/foundation-predictions",
+                        "format" => "xlsx",
+                    ),
+                ),
+            ),
+        )
+        prediction_export_missing_contract_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "foundation-sales-sample")),
+            ),
+        )
         transform_run_response = route_request(
             state,
             HTTP.Request(
@@ -3314,6 +3354,17 @@ end
         @test occursin("finalTestPolicy must be use_final_test", String(final_evaluation_bad_policy_response.body))
         @test final_evaluation_missing_training_response.status == 409
         @test occursin("training plan not found", String(final_evaluation_missing_training_response.body))
+        @test prediction_export_response.status == 201
+        prediction_export_payload = JSON3.read(String(prediction_export_response.body), Dict{String,Any})
+        @test prediction_export_payload["status"] == "completed"
+        @test prediction_export_payload["predictionExport"]["outputContractRef"] == "contract://outputs/foundation-predictions"
+        @test prediction_export_payload["predictionExport"]["format"] == "csv"
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["finalEvaluationApproved"] == true
+        @test length(prediction_export_payload["project"]["predictionExports"]) >= 1
+        @test prediction_export_bad_format_response.status == 400
+        @test occursin("format must be csv", String(prediction_export_bad_format_response.body))
+        @test prediction_export_missing_contract_response.status == 400
+        @test occursin("outputContractRef required", String(prediction_export_missing_contract_response.body))
         @test transform_run_response.status == 202
         transform_run_payload = JSON3.read(String(transform_run_response.body), Dict{String,Any})
         @test transform_run_payload["status"] == "accepted"

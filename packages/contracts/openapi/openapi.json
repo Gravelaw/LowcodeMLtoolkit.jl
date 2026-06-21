@@ -1414,6 +1414,73 @@
         }
       }
     },
+    "/api/v1/data-science-projects/{projectId}/predictions/export": {
+      "post": {
+        "summary": "Export local predictions for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunPredictionExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Prediction export persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPredictionExportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid prediction export request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Prediction export prerequisites are missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflows/{workflowId}/transforms/run": {
       "post": {
         "summary": "Run a workflow transform and return local artifact evidence",
@@ -2322,6 +2389,54 @@
             ]
           },
           "evaluationReport": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "RunPredictionExportRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "evaluationReportId": {
+            "type": "string"
+          },
+          "outputContractRef": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "parquet",
+              "jsonl"
+            ]
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "RunPredictionExportResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "predictionExport",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "predictionExport": {
             "$ref": "#/components/schemas/DataScienceProjectChildRecord"
           },
           "project": {

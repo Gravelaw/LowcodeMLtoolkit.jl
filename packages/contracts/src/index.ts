@@ -668,6 +668,20 @@ export interface RunFinalEvaluationResponse {
   project: DataScienceProject;
 }
 
+export interface RunPredictionExportRequest {
+  datasetId?: string;
+  evaluationReportId?: string;
+  outputContractRef?: string;
+  format?: "csv" | "parquet" | "jsonl" | string;
+  rowCount?: number;
+}
+
+export interface RunPredictionExportResponse {
+  status: "completed";
+  predictionExport: PredictionExport;
+  project: DataScienceProject;
+}
+
 export interface TrainingPlan {
   trainingPlanId: string;
   targetColumn: string;
@@ -730,6 +744,14 @@ export interface PredictionExport {
   outputContractRef?: string;
   artifactRef: string;
   rowCount: number;
+  format?: string;
+  validationEvidence?: {
+    projectId?: string;
+    datasetId?: string;
+    evaluationReportId?: string;
+    finalEvaluationApproved?: boolean;
+    finalTestOnly?: boolean;
+  };
   createdAt: string;
 }
 
@@ -1932,6 +1954,8 @@ export const gatewayEndpointPaths = {
     `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/tuning/run`,
   dataScienceProjectFinalEvaluationRun: (projectId: string) =>
     `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/evaluation/run`,
+  dataScienceProjectPredictionExport: (projectId: string) =>
+    `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/predictions/export`,
   publishedDashboard: (dashboardId: string, request?: GatewayPublishedDashboardReadRequest) => {
     const path = `/api/v1/dashboards/${encodeURIComponent(dashboardId)}`;
     const params = new URLSearchParams();
@@ -2258,6 +2282,11 @@ export interface GatewayApiClient {
     request?: RunFinalEvaluationRequest,
     options?: GatewayRequestOptions
   ): Promise<RunFinalEvaluationResponse>;
+  runDataScienceProjectPredictionExport(
+    projectId: string,
+    request?: RunPredictionExportRequest,
+    options?: GatewayRequestOptions
+  ): Promise<RunPredictionExportResponse>;
   runWorkflowTransform(
     workflowId: string,
     request?: GatewayTransformRunRequest,
@@ -2629,6 +2658,13 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "POST",
         gatewayEndpointPaths.dataScienceProjectFinalEvaluationRun(projectId),
         evaluationRequest ?? {},
+        requestOptions
+      ),
+    runDataScienceProjectPredictionExport: (projectId, predictionRequest, requestOptions) =>
+      request<RunPredictionExportResponse>(
+        "POST",
+        gatewayEndpointPaths.dataScienceProjectPredictionExport(projectId),
+        predictionRequest ?? {},
         requestOptions
       ),
     runWorkflowTransform: (workflowId, transformRequest, requestOptions) =>

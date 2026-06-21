@@ -21,6 +21,26 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Prediction Export Gate Slice (2026-06-21)
+
+- Added TypeScript contracts, OpenAPI path/schema coverage, endpoint-path coverage, and typed client support for `POST /api/v1/data-science-projects/{projectId}/predictions/export`.
+- Added a project-scoped gateway prediction-export route that validates project/dataset membership, requires an approved final-evaluation report, requires final-test evidence on that report, and requires explicit output contract evidence before writing an export record.
+- Persisted prediction exports into `DataScienceProject.predictionExports` with local artifact refs, format, row count, output contract, and validation evidence linking the export to the approved evaluation report.
+- Added contract assertions and Julia route assertions for successful prediction export persistence, bad format rejection, and missing output contract rejection.
+- Verification passed: `npm run validate:contracts` and focused Julia route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice records deterministic prediction-export substrate evidence, but real model scoring, prediction file materialization, output schema validation, UI workflow coverage, and typed scoring/export job lifecycle remain open.
+- Transform fit/apply semantics, drift/evaluation monitoring records, gateway module split, local source trust-boundary hardening, typed jobs, and first-class lifecycle records remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Replace deterministic prediction export evidence with real Julia scoring and export artifacts.
+- Add drift records and transform fit/apply semantics with the same split/evaluation evidence discipline.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+
 ### AKS-36 Final Evaluation Gate Slice (2026-06-21)
 
 - Added TypeScript contracts, OpenAPI path/schema coverage, endpoint-path coverage, and typed client support for `POST /api/v1/data-science-projects/{projectId}/evaluation/run`.
