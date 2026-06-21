@@ -296,6 +296,7 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.ModelRegistryResponse);
   assert.ok(schemas.ModelRegistryRecord.properties.primaryMetricName);
   assert.ok(schemas.ModelRegistryRecord.properties.artifactEvidence);
+  assert.ok(schemas.ModelRegistryRecord.properties.validationEvidence);
   assert.ok(schemas.ModelRegistryListResponse);
   assert.ok(schemas.GatewayAuthContext);
   assert.deepEqual(schemas.GatewayAuthContext.properties.role.enum, ["owner", "editor", "viewer"]);
@@ -403,6 +404,7 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.DeployPackageRequest.properties.endpointPath);
   assert.ok(schemas.DeployPackageRecord.properties.packageChecksumSha256);
   assert.ok(schemas.DeployPackageRecord.properties.artifactEvidence);
+  assert.ok(schemas.DeployPackageRecord.properties.validationEvidence);
   assert.ok(schemas.DeployPackageResponse.properties.package);
   assert.ok(schemas.DeployPackageHistoryResponse.properties.items);
   assert.ok(schemas.LocalBackupBundle);

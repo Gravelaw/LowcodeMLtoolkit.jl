@@ -21,6 +21,28 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Model Promotion And Deploy Validation Gate Slice (2026-06-21)
+
+- Added validation-evidence propagation to model registry records and local deploy package records in TypeScript contracts, OpenAPI, and gateway payloads.
+- Changed model registration to require `ml_validation_context` from a validated ML experiment run before creating a registry record.
+- Changed local deploy packaging to require the same validation evidence before packaging or fallback-synthesizing model registry details.
+- Filtered model registry list synthesis so unvalidated executions are not exposed as promotable model records.
+- Added explicit 409 classification for missing model-registration and deploy-package validation evidence.
+- Added Julia route assertions for blocked registration/deploy before validation, accepted registration/deploy after validation, and validation evidence on accepted records.
+- Verification passed: focused Julia route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`, `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, and `npm run build`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice covers model registration and local deploy packaging only; hyperparameter tuning, final evaluation, prediction/output export, transform fit/apply semantics, and drift/evaluation records still need validation/test gates.
+- Gateway module split, local source trust-boundary hardening, statistical EDA services, typed jobs, first-class model registry repository/lifecycle records, and broader project-backed route migration remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Add typed tuning/final-evaluation/prediction/drift records and block them when split/final-test evidence is absent or invalid.
+- Start gateway internal module extraction for project/catalog/analysis/experiment/registry/monitoring responsibilities.
+- Add statistical EDA run records and local source trust-boundary checks before deeper persona workflow features.
+
 ### AKS-36 ML Experiment Validation Enforcement Slice (2026-06-21)
 
 - Extended ML experiment run contracts and OpenAPI with optional `projectId`, `splitPlanId`, and `finalTestPolicy`, and added `validationEvidence` to experiment records.

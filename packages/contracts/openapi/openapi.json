@@ -7138,6 +7138,33 @@
               "$ref": "#/components/schemas/ModelRegistryArtifactEvidence"
             }
           },
+          "validationEvidence": {
+            "type": "object",
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "splitPlanId": {
+                "type": "string"
+              },
+              "splitStrategy": {
+                "type": "string"
+              },
+              "finalTestPolicy": {
+                "type": "string",
+                "enum": [
+                  "forbid_final_test",
+                  "use_final_test"
+                ]
+              },
+              "validationFraction": {
+                "type": "number"
+              },
+              "testFraction": {
+                "type": "number"
+              }
+            }
+          },
           "registeredAt": {
             "type": "string"
           },
@@ -7306,6 +7333,33 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DeployPackageArtifactEvidence"
+            }
+          },
+          "validationEvidence": {
+            "type": "object",
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "splitPlanId": {
+                "type": "string"
+              },
+              "splitStrategy": {
+                "type": "string"
+              },
+              "finalTestPolicy": {
+                "type": "string",
+                "enum": [
+                  "forbid_final_test",
+                  "use_final_test"
+                ]
+              },
+              "validationFraction": {
+                "type": "number"
+              },
+              "testFraction": {
+                "type": "number"
+              }
             }
           },
           "createdAt": {

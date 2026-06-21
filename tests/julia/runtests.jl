@@ -1814,6 +1814,24 @@ end
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/transforms/history"),
         )
+        model_register_without_validation_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/models/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("modelId" => "unvalidated-foundation-model")),
+            ),
+        )
+        deploy_package_without_validation_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/deploy/package",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("modelId" => "unvalidated-foundation-model")),
+            ),
+        )
         ml_experiment_run_response = route_request(
             state,
             HTTP.Request(
@@ -3164,6 +3182,10 @@ end
         transform_history_payload = JSON3.read(String(transform_history_response.body), Dict{String,Any})
         @test transform_history_payload["count"] >= 1
         @test transform_history_payload["items"][1]["workflowId"] == "wf-foundation"
+        @test model_register_without_validation_response.status == 409
+        @test occursin("model registration validation evidence required", String(model_register_without_validation_response.body))
+        @test deploy_package_without_validation_response.status == 409
+        @test occursin("deploy package validation evidence required", String(deploy_package_without_validation_response.body))
         @test ml_experiment_run_response.status == 202
         ml_experiment_payload = JSON3.read(String(ml_experiment_run_response.body), Dict{String,Any})
         @test ml_experiment_payload["status"] == "accepted"
@@ -3195,6 +3217,8 @@ end
         @test "reviewed" in model_register_payload["model"]["tags"]
         @test model_register_payload["model"]["primaryMetricName"] == "mae"
         @test length(model_register_payload["model"]["artifactEvidence"]) >= 3
+        @test model_register_payload["model"]["validationEvidence"]["projectId"] == "foundation-ml-project"
+        @test model_register_payload["model"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
         @test model_register_payload["model"]["localOnly"] == true
         @test model_registry_response.status == 200
         model_registry_payload = JSON3.read(String(model_registry_response.body), Dict{String,Any})
@@ -3209,6 +3233,8 @@ end
         @test deploy_package_payload["package"]["deploymentStatus"] == "local_ready"
         @test length(deploy_package_payload["package"]["packageChecksumSha256"]) == 64
         @test length(deploy_package_payload["package"]["artifactEvidence"]) >= 5
+        @test deploy_package_payload["package"]["validationEvidence"]["projectId"] == "foundation-ml-project"
+        @test deploy_package_payload["package"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
         @test occursin("Genie", deploy_package_payload["package"]["serviceCode"])
         @test deploy_package_history_response.status == 200
         deploy_package_history_payload = JSON3.read(String(deploy_package_history_response.body), Dict{String,Any})

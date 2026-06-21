@@ -2924,6 +2924,14 @@ function validate_ml_experiment_project_context(state::GatewayState, body::Abstr
     )
 end
 
+function model_validation_context(execution::GatewayExecution, action::AbstractString)
+    haskey(execution.metadata, "ml_validation_context") ||
+        error("$(String(action)) validation evidence required")
+    return Dict{String,Any}(
+        String(key) => value for (key, value) in pairs(execution.metadata["ml_validation_context"])
+    )
+end
+
 function ml_experiment_payload(state::GatewayState, execution::GatewayExecution; request_body::AbstractDict = Dict{String,Any}())
     haskey(state.workflows, execution.workflow_id) || error("workflow not found: $(execution.workflow_id)")
     workflow = state.workflows[execution.workflow_id]
@@ -3031,6 +3039,7 @@ function model_registry_payload(state::GatewayState, execution::GatewayExecution
         ["local", "checkpointed"]
     end
     registered_at = haskey(existing, "registeredAt") ? String(existing["registeredAt"]) : now
+    validation_context = model_validation_context(execution, "model registration")
 
     return Dict{String,Any}(
         "registryId" => "model-" * model_id,
@@ -3066,6 +3075,7 @@ function model_registry_payload(state::GatewayState, execution::GatewayExecution
                 "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(model_card["config"]))))),
             ),
         ],
+        "validationEvidence" => validation_context,
         "registeredAt" => registered_at,
         "updatedAt" => now,
         "deploymentStatus" => String(get(existing, "deploymentStatus", "not_deployed")),
@@ -3100,7 +3110,9 @@ function model_registry_list_response(state::GatewayState, workflow_id::Abstract
             execution.metadata["model_registry_record"] :
             model_registry_payload(state, execution)
         for execution in reverse(state.executions)
-        if execution.workflow_id == workflow_id && haskey(execution.metadata, "explainability_evidence")
+        if execution.workflow_id == workflow_id &&
+            haskey(execution.metadata, "explainability_evidence") &&
+            (haskey(execution.metadata, "model_registry_record") || haskey(execution.metadata, "ml_validation_context"))
     ]
     seen = Set{String}()
     deduped = Dict{String,Any}[]
@@ -3140,6 +3152,7 @@ end
 function deploy_package_payload!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
     execution = latest_model_execution(state, workflow_id)
     execution === nothing && error("model evidence not found for workflow: $(workflow_id)")
+    validation_context = model_validation_context(execution, "deploy package")
     model_record = haskey(execution.metadata, "model_registry_record") ?
         Dict{String,Any}(String(key) => value for (key, value) in pairs(execution.metadata["model_registry_record"])) :
         model_registry_payload(state, execution)
@@ -3202,6 +3215,7 @@ function deploy_package_payload!(state::GatewayState, workflow_id::AbstractStrin
         "modelRegistryId" => get(model_record, "registryId", nothing),
         "deploymentStatus" => "local_ready",
         "artifactEvidence" => artifact_evidence,
+        "validationEvidence" => validation_context,
         "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
         "localOnly" => true,
     )
@@ -4488,6 +4502,11 @@ function classify_gateway_error(err)
         occursin("final test data cannot be used", message)
     )
         return 400, message
+    elseif occursin("validation evidence required", message) && (
+        occursin("model registration", message) ||
+        occursin("deploy package", message)
+    )
+        return 409, message
     elseif occursin("route not found", message)
         return 404, message
     elseif occursin("Artifact ", message) && occursin(" missing from artifact store", message)

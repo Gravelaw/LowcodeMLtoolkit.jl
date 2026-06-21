@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Model Promotion And Deploy Validation Gate Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added `validationEvidence` to model registry and deploy package contract/OpenAPI records.
+- Required validated ML experiment context before model registration can create a registry record.
+- Required the same validation context before local deploy packaging can package a model or fallback-synthesize registry details.
+- Prevented model registry list synthesis from exposing unvalidated executions as promotable model records.
+- Added controlled 409 responses for missing model-registration or deploy-package validation evidence.
+- Added Julia route assertions for blocked registration/deploy before validation, accepted registration/deploy after validation, and validation evidence on accepted records.
+- Verified the slice with a focused Julia route smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`, `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, and `npm run build`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Validation enforcement now covers ML experiment runs, model registration, and local deploy packaging, but not hyperparameter tuning, final evaluation, prediction/output export, transform fit/apply semantics, or drift/evaluation records.
+- Gateway module split, local source trust-boundary hardening, statistical EDA services, typed jobs, first-class model lifecycle records, and broader project-backed feature migration remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Add typed tuning/final-evaluation/prediction/drift records and validation gates.
+- Start gateway internal module extraction before adding deeper stats/tuning/registry/drift behavior.
+- Add local-source trust-boundary checks and statistical EDA run records for the next data-science substrate slices.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 ML Experiment Validation Enforcement Slice - 2026-06-21
 
 ### Work Done Till Date

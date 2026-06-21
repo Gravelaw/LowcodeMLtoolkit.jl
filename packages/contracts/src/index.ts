@@ -1355,6 +1355,14 @@ export interface GatewayModelRegistryRecord {
   datasetId: string;
   datasetChecksumSha256: string;
   artifactEvidence: GatewayModelRegistryArtifactEvidence[];
+  validationEvidence?: {
+    projectId?: string;
+    splitPlanId?: string;
+    splitStrategy?: string;
+    finalTestPolicy?: "forbid_final_test" | "use_final_test";
+    validationFraction?: number;
+    testFraction?: number;
+  };
   registeredAt: string;
   updatedAt: string;
   deploymentStatus: "not_deployed" | "local_ready" | "archived" | string;
@@ -1402,6 +1410,14 @@ export interface GatewayDeployPackageRecord {
   modelRegistryId?: string | null;
   deploymentStatus: "local_ready" | "packaged" | "failed" | string;
   artifactEvidence: GatewayDeployPackageArtifactEvidence[];
+  validationEvidence?: {
+    projectId?: string;
+    splitPlanId?: string;
+    splitStrategy?: string;
+    finalTestPolicy?: "forbid_final_test" | "use_final_test";
+    validationFraction?: number;
+    testFraction?: number;
+  };
   createdAt: string;
   localOnly: boolean;
 }
