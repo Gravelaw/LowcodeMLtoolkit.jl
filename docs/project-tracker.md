@@ -21,6 +21,26 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Source Boundary Slice (2026-06-21)
+
+- Added gateway validation for `DataScienceProject.datasets` so project records only accept managed local `local://` source/artifact refs.
+- Rejected remote/provider dataset source URIs, traversal-shaped local refs, duplicate dataset ids, missing source refs, and `localOnly=false` dataset records.
+- Documented the managed-local source expectation in the OpenAPI `ProjectDataset.sourceUri` and `artifactRef` descriptions.
+- Added focused Julia route coverage for valid local refs plus remote, traversal, and non-local dataset rejection.
+- Verification passed: `npm run validate:contracts` and focused Julia source-boundary route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice hardens project dataset refs, but raw local file intake still needs a fuller import-root threat model, symlink/realpath checks, size caps, credential redaction, and audit coverage before broad connector enablement.
+- Gateway module split, execution-backed jobs, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Add import-root confinement and file-level local source validation for raw local uploads/imports.
+- Replace deterministic project route evidence with real Julia execution jobs and concrete local artifacts.
+- Start gateway internal module extraction for project/data source handling.
+
 ### AKS-36 Project Job Ledger Slice (2026-06-21)
 
 - Added `DataScienceProjectJobRecord` contracts/OpenAPI schema and `DataScienceProject.projectJobs` persistence for project-scoped data-science workflow jobs.
@@ -32,13 +52,13 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 parent is still open. This slice adds typed project job ledger evidence, but it does not replace deterministic route records with real asynchronous execution workers or resource-aware CPU/GPU job scheduling.
-- Gateway module split, local source trust-boundary hardening, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Gateway module split, broader local source trust-boundary hardening, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
 - Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
 
 ### Next Items To Implement
 
 - Replace deterministic project route evidence with real Julia execution jobs and concrete local artifacts.
-- Start gateway internal module extraction and local source trust-boundary hardening.
+- Start gateway internal module extraction and broader local source trust-boundary hardening.
 - Move remaining frontend data-science workflows behind project-backed actions.
 
 ### AKS-36 Transform Fit/Apply Semantics Slice (2026-06-21)

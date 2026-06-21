@@ -2029,7 +2029,8 @@
             ]
           },
           "sourceUri": {
-            "type": "string"
+            "type": "string",
+            "description": "Managed local artifact reference. DataScienceProject routes accept local:// refs and reject remote/provider URIs or traversal-shaped paths."
           },
           "localOnly": {
             "type": "boolean"
@@ -2044,7 +2045,8 @@
             "type": "string"
           },
           "artifactRef": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional managed local artifact reference using local://."
           }
         }
       },

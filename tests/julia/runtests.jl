@@ -1753,6 +1753,75 @@ end
                 JSON3.write(Dict("projectId" => "other-project")),
             ),
         )
+        data_science_project_remote_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "remote-source-project",
+                        "name" => "Remote Source Project",
+                        "datasets" => [
+                            Dict(
+                                "datasetId" => "remote-source",
+                                "name" => "Remote source",
+                                "role" => "train",
+                                "sourceUri" => "https://example.com/data.csv",
+                                "localOnly" => true,
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
+        data_science_project_traversal_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "traversal-source-project",
+                        "name" => "Traversal Source Project",
+                        "datasets" => [
+                            Dict(
+                                "datasetId" => "traversal-source",
+                                "name" => "Traversal source",
+                                "role" => "train",
+                                "sourceUri" => "local://data/raw/../secrets.csv",
+                                "localOnly" => true,
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
+        data_science_project_nonlocal_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "nonlocal-source-project",
+                        "name" => "Nonlocal Source Project",
+                        "datasets" => [
+                            Dict(
+                                "datasetId" => "nonlocal-source",
+                                "name" => "Nonlocal source",
+                                "role" => "train",
+                                "sourceUri" => "local://data/raw/nonlocal.csv",
+                                "localOnly" => false,
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
         data_science_project_missing_response = route_request(state, HTTP.Request("GET", "/api/v1/data-science-projects/missing-project"))
         data_science_project_foundation_response = route_request(
             state,
@@ -3398,6 +3467,12 @@ end
         @test occursin("project child records must be arrays", String(data_science_project_bad_child_shape_response.body))
         @test data_science_project_id_mismatch_response.status == 400
         @test occursin("project id mismatch", String(data_science_project_id_mismatch_response.body))
+        @test data_science_project_remote_source_response.status == 400
+        @test occursin("dataset sourceUri must use local://", String(data_science_project_remote_source_response.body))
+        @test data_science_project_traversal_source_response.status == 400
+        @test occursin("dataset sourceUri cannot contain path traversal", String(data_science_project_traversal_source_response.body))
+        @test data_science_project_nonlocal_source_response.status == 400
+        @test occursin("dataset localOnly must be true", String(data_science_project_nonlocal_source_response.body))
         @test data_science_project_missing_response.status == 404
         @test data_science_project_foundation_response.status == 201
         @test isfile(joinpath(store_root, "data-science-projects.json"))

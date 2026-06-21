@@ -4364,6 +4364,40 @@ function normalized_record_vector(value)
     return [Dict{String,Any}(String(key) => item for (key, item) in pairs(entry)) for entry in value]
 end
 
+function validate_project_local_ref!(value::AbstractString, label::AbstractString)
+    uri = strip(String(value))
+    isempty(uri) && error("data science project $(label) cannot be empty")
+    (occursin('\0', uri) || occursin('\n', uri) || occursin('\r', uri)) && error("data science project $(label) contains invalid characters")
+    normalized = replace(uri, "\\" => "/")
+    lower = lowercase(normalized)
+    startswith(lower, "local://") || error("data science project $(label) must use local:// managed local artifact refs")
+    prefix_end = nextind(normalized, firstindex(normalized), length("local://") - 1)
+    local_path = lastindex(normalized) > prefix_end ? normalized[nextind(normalized, prefix_end):end] : ""
+    isempty(strip(local_path, ['/'])) && error("data science project $(label) local path cannot be empty")
+    segments = split(local_path, '/'; keepempty = false)
+    any(segment -> segment == "." || segment == "..", segments) && error("data science project $(label) cannot contain path traversal")
+    occursin("%2e", lower) && error("data science project $(label) cannot contain encoded traversal")
+    return nothing
+end
+
+function validate_project_dataset_records!(records::Vector{Dict{String,Any}})
+    seen = Set{String}()
+    for record in records
+        haskey(record, "datasetId") || error("data science project datasetId required")
+        dataset_id = safe_local_dataset_id(String(record["datasetId"]))
+        isempty(dataset_id) && error("data science project datasetId required")
+        dataset_id in seen && error("data science project datasetId duplicated: $(dataset_id)")
+        push!(seen, dataset_id)
+        haskey(record, "sourceUri") || error("data science project dataset sourceUri required")
+        Bool(get(record, "localOnly", true)) || error("data science project dataset localOnly must be true")
+        validate_project_local_ref!(String(record["sourceUri"]), "dataset sourceUri")
+        if haskey(record, "artifactRef") && record["artifactRef"] !== nothing
+            validate_project_local_ref!(String(record["artifactRef"]), "dataset artifactRef")
+        end
+    end
+    return records
+end
+
 function validate_project_name(body::AbstractDict)
     haskey(body, "name") || error("data science project missing name")
     name = strip(String(body["name"]))
@@ -4414,7 +4448,9 @@ function materialize_data_science_project(
 
     for (json_key, field_name) in DATA_SCIENCE_PROJECT_ARRAY_FIELDS
         if haskey(body, json_key)
-            setfield!(project, field_name, normalized_record_vector(body[json_key]))
+            records = normalized_record_vector(body[json_key])
+            json_key == "datasets" && validate_project_dataset_records!(records)
+            setfield!(project, field_name, records)
         elseif existing !== nothing
             setfield!(project, field_name, getfield(existing, field_name))
         end
@@ -5193,6 +5229,8 @@ function classify_gateway_error(err)
     elseif occursin("data science project already exists", message)
         return 409, message
     elseif occursin("data science project schemaVersion must be 1.0", message)
+        return 400, message
+    elseif occursin("data science project dataset", message)
         return 400, message
     elseif occursin("project child records must be arrays", message)
         return 400, message
