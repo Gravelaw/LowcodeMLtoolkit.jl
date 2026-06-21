@@ -2768,6 +2768,45 @@ function validate_local_data_import_source!(source_uri::AbstractString)
     return source_path
 end
 
+function local_data_import_audit_source_details(source_uri)
+    details = Dict{String,Any}("sourceKind" => "managed")
+    source_uri === nothing && return details
+    uri = strip(String(source_uri))
+    isempty(uri) && return Dict{String,Any}("sourceKind" => "empty")
+    normalized = replace(uri, "\\" => "/")
+    lower = lowercase(normalized)
+    if startswith(lower, "local://")
+        details["sourceKind"] = "managed"
+        details["sourceRef"] = uri
+        return details
+    end
+    if occursin(r"^[a-z][a-z0-9+.-]*://"i, uri)
+        details["sourceKind"] = "remote"
+        details["scheme"] = first(split(uri, "://"))
+        return details
+    end
+    details["sourceKind"] = "file"
+    details["sourceBasename"] = basename(uri)
+    details["sourceExtension"] = lowercase(splitext(uri)[2])
+    if isfile(uri)
+        details["sourceBytes"] = filesize(uri)
+    end
+    return details
+end
+
+function local_data_import_audit_details(body::AbstractDict; outcome::AbstractString, reason = nothing)
+    dataset_id = haskey(body, "datasetId") ? String(body["datasetId"]) : "workflow-dataset"
+    details = Dict{String,Any}(
+        "datasetId" => dataset_id,
+        "format" => haskey(body, "format") ? String(body["format"]) : "csv",
+        "targetZone" => haskey(body, "targetZone") ? String(body["targetZone"]) : "raw",
+        "outcome" => String(outcome),
+    )
+    merge!(details, local_data_import_audit_source_details(get(body, "sourceUri", nothing)))
+    reason === nothing || (details["reason"] = String(reason))
+    return details
+end
+
 function data_import_profile_response!(state::GatewayState, body::AbstractDict)
     health = JSON3.read(healthcheck(state), Dict{String,Any})
     evidence = gateway_explainability_evidence(state)
@@ -6456,10 +6495,30 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
         method == "POST" && segments == ["api", "v1", "local-data", "import"] && begin
             require_permission!(state, request, "workflow:write")
             body = parse_request_body(request)
-            response = data_import_profile_response!(state, body)
             target_id = haskey(body, "datasetId") ? String(body["datasetId"]) : "workflow-dataset"
-            append_audit_event!(state, request, "local.data.import"; target_type = "dataset", target_id = target_id)
-            return json_response(201, response)
+            try
+                response = data_import_profile_response!(state, body)
+                append_audit_event!(
+                    state,
+                    request,
+                    "local.data.import";
+                    target_type = "dataset",
+                    target_id = target_id,
+                    details = local_data_import_audit_details(body; outcome = "accepted"),
+                )
+                return json_response(201, response)
+            catch err
+                status, message = classify_gateway_error(err)
+                append_audit_event!(
+                    state,
+                    request,
+                    "local.data.import.rejected";
+                    target_type = "dataset",
+                    target_id = target_id,
+                    details = local_data_import_audit_details(body; outcome = "rejected", reason = message),
+                )
+                return error_response(status, message)
+            end
         end
         method == "GET" && segments == ["api", "v1", "data-science-projects"] && begin
             require_permission!(state, request, "workflow:read")

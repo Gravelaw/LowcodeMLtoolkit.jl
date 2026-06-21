@@ -21,6 +21,26 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Local Import Audit Evidence Slice (2026-06-21)
+
+- Added redaction-safe audit evidence for `/api/v1/local-data/import`.
+- Successful imports now record `local.data.import` with dataset id, format, target zone, source kind, basename, extension, size, and accepted outcome without storing full local file paths.
+- Rejected imports now record `local.data.import.rejected` with sanitized source metadata, rejected outcome, and validation reason for path, size, format, credential, and PII marker failures.
+- Added focused Julia route coverage proving accepted and rejected audit events are persisted and do not include full import-root paths or sampled sensitive values.
+- Verification passed: focused Julia local-import audit route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice adds import audit decisions, but redaction previews, connector-specific policies, and a fuller local-source threat model remain open.
+- Gateway module split, execution-backed jobs, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Add connector-specific import policies and redaction-safe source diagnostics.
+- Replace deterministic project route evidence with real Julia execution jobs and concrete local artifacts.
+- Start gateway internal module extraction for project/data source handling.
+
 ### AKS-36 Local Import Content Sniffing Slice (2026-06-21)
 
 - Added first-pass content sniffing for text-like `/api/v1/local-data/import` filesystem sources.

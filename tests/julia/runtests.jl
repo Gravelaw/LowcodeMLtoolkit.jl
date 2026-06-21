@@ -3583,6 +3583,37 @@ end
         @test occursin("appears to contain credential content", String(data_import_credential_content_response.body))
         @test data_import_pii_content_response.status == 400
         @test occursin("appears to contain sensitive PII columns", String(data_import_pii_content_response.body))
+        local_import_audit_events = filter(
+            event -> event.event_type == "audit.action" && startswith(String(event.payload["action"]), "local.data.import"),
+            JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_events(state.repository),
+        )
+        @test any(
+            event ->
+                event.payload["action"] == "local.data.import" &&
+                event.payload["targetId"] == "Foundation Profile" &&
+                event.payload["details"]["outcome"] == "accepted" &&
+                event.payload["details"]["sourceKind"] == "file" &&
+                event.payload["details"]["sourceBasename"] == basename(import_source_path),
+            local_import_audit_events,
+        )
+        @test any(
+            event ->
+                event.payload["action"] == "local.data.import.rejected" &&
+                event.payload["targetId"] == "Credential Content Profile" &&
+                event.payload["details"]["outcome"] == "rejected" &&
+                occursin("credential content", String(event.payload["details"]["reason"])) &&
+                !occursin(import_root, JSON3.write(event.payload)),
+            local_import_audit_events,
+        )
+        @test any(
+            event ->
+                event.payload["action"] == "local.data.import.rejected" &&
+                event.payload["targetId"] == "PII Content Profile" &&
+                event.payload["details"]["outcome"] == "rejected" &&
+                occursin("sensitive PII columns", String(event.payload["details"]["reason"])) &&
+                !occursin("000-00-0000", JSON3.write(event.payload)),
+            local_import_audit_events,
+        )
         @test data_science_project_create_response.status == 201
         data_science_project_create_payload = JSON3.read(String(data_science_project_create_response.body), Dict{String,Any})
         @test data_science_project_create_payload["schemaVersion"] == "1.0"
