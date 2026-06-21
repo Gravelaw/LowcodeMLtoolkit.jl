@@ -21,6 +21,26 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Project Job Ledger Slice (2026-06-21)
+
+- Added `DataScienceProjectJobRecord` contracts/OpenAPI schema and `DataScienceProject.projectJobs` persistence for project-scoped data-science workflow jobs.
+- Added gateway job-ledger helpers and wired completed job records into transform fit/apply, statistical analysis, tuning study, final evaluation, prediction export, and drift report routes.
+- Persisted job records with job type, status, dataset/split/source record linkage, output refs, and start/finish timestamps.
+- Added contract assertions and Julia route smoke coverage for the full project chain and reload persistence of the job ledger.
+- Verification passed: `npm run validate:contracts` and focused Julia route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice adds typed project job ledger evidence, but it does not replace deterministic route records with real asynchronous execution workers or resource-aware CPU/GPU job scheduling.
+- Gateway module split, local source trust-boundary hardening, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Replace deterministic project route evidence with real Julia execution jobs and concrete local artifacts.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+- Move remaining frontend data-science workflows behind project-backed actions.
+
 ### AKS-36 Transform Fit/Apply Semantics Slice (2026-06-21)
 
 - Added TypeScript contracts, OpenAPI path/schema coverage, endpoint-path coverage, typed client support, and repository persistence for project-scoped `transformFitApplyRecords`.
@@ -33,14 +53,14 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 parent is still open. This slice records transform fit/apply semantics, but real Julia transform execution, transform state materialization from actual nodes, UI workflow coverage, and typed execution job lifecycle remain open.
-- Gateway module split, local source trust-boundary hardening, typed jobs, first-class lifecycle records, and project-backed frontend migration remain open.
+- Gateway module split, local source trust-boundary hardening, execution-backed typed jobs, first-class lifecycle records, and project-backed frontend migration remain open.
 - Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
 
 ### Next Items To Implement
 
 - Replace deterministic transform fit/apply evidence with real Julia transform execution and state artifacts.
 - Start gateway internal module extraction and local source trust-boundary hardening.
-- Add typed execution job records for the project-backed data-science workflow.
+- Add execution-backed typed job runners for the project-backed data-science workflow.
 
 ### AKS-36 Drift Report Gate Slice (2026-06-21)
 

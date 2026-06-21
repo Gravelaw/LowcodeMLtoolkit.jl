@@ -608,6 +608,30 @@ export interface FinalTestLock {
   lockedBy: string;
 }
 
+export type DataScienceProjectJobType =
+  | "transform_fit_apply"
+  | "statistical_analysis"
+  | "tuning_study"
+  | "final_evaluation"
+  | "prediction_export"
+  | "drift_report";
+
+export type DataScienceProjectJobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+
+export interface DataScienceProjectJobRecord {
+  jobId: string;
+  projectId: string;
+  jobType: DataScienceProjectJobType;
+  status: DataScienceProjectJobStatus;
+  datasetId?: string;
+  splitPlanId?: string;
+  sourceRecordId?: string;
+  outputRefs: DataScienceProjectEvidenceRef[];
+  startedAt: string;
+  finishedAt?: string;
+  errorMessage?: string;
+}
+
 export interface TransformFitApplyRecord {
   transformRunId: string;
   datasetId: string;
@@ -848,6 +872,7 @@ export interface DataScienceProject {
   splitAssignments: SplitAssignment[];
   validationFolds: ValidationFold[];
   finalTestLocks: FinalTestLock[];
+  projectJobs: DataScienceProjectJobRecord[];
   transformFitApplyRecords: TransformFitApplyRecord[];
   statisticalAnalysisRuns: StatisticalAnalysisRun[];
   trainingPlans: TrainingPlan[];
@@ -873,6 +898,7 @@ export interface UpdateDataScienceProjectRequest extends Partial<CreateDataScien
   splitAssignments?: SplitAssignment[];
   validationFolds?: ValidationFold[];
   finalTestLocks?: FinalTestLock[];
+  projectJobs?: DataScienceProjectJobRecord[];
   transformFitApplyRecords?: TransformFitApplyRecord[];
   statisticalAnalysisRuns?: StatisticalAnalysisRun[];
   trainingPlans?: TrainingPlan[];

@@ -141,6 +141,7 @@ Base.@kwdef mutable struct DataScienceProjectRecord
     split_assignments::Vector{Dict{String,Any}} = Dict{String,Any}[]
     validation_folds::Vector{Dict{String,Any}} = Dict{String,Any}[]
     final_test_locks::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    project_jobs::Vector{Dict{String,Any}} = Dict{String,Any}[]
     transform_fit_apply_records::Vector{Dict{String,Any}} = Dict{String,Any}[]
     statistical_analysis_runs::Vector{Dict{String,Any}} = Dict{String,Any}[]
     training_plans::Vector{Dict{String,Any}} = Dict{String,Any}[]
@@ -882,6 +883,7 @@ function data_science_project_payload(project::DataScienceProjectRecord)
         "splitAssignments" => project.split_assignments,
         "validationFolds" => project.validation_folds,
         "finalTestLocks" => project.final_test_locks,
+        "projectJobs" => project.project_jobs,
         "transformFitApplyRecords" => project.transform_fit_apply_records,
         "statisticalAnalysisRuns" => project.statistical_analysis_runs,
         "trainingPlans" => project.training_plans,
@@ -1319,6 +1321,7 @@ function gateway_data_science_project(item)
         split_assignments = dict_vector(get(item, "splitAssignments", Any[])),
         validation_folds = dict_vector(get(item, "validationFolds", Any[])),
         final_test_locks = dict_vector(get(item, "finalTestLocks", Any[])),
+        project_jobs = dict_vector(get(item, "projectJobs", Any[])),
         transform_fit_apply_records = dict_vector(get(item, "transformFitApplyRecords", Any[])),
         statistical_analysis_runs = dict_vector(get(item, "statisticalAnalysisRuns", Any[])),
         training_plans = dict_vector(get(item, "trainingPlans", Any[])),

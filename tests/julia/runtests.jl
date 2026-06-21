@@ -3463,6 +3463,14 @@ end
         @test drift_report_payload["driftReport"]["validationEvidence"]["outputContractRef"] == "contract://outputs/foundation-predictions"
         @test length(drift_report_payload["project"]["monitoringBaselines"]) >= 1
         @test length(drift_report_payload["project"]["driftReports"]) >= 1
+        @test length(drift_report_payload["project"]["projectJobs"]) >= 6
+        project_job_types = Set(String(job["jobType"]) for job in drift_report_payload["project"]["projectJobs"])
+        @test issubset(
+            Set(["transform_fit_apply", "statistical_analysis", "tuning_study", "final_evaluation", "prediction_export", "drift_report"]),
+            project_job_types,
+        )
+        @test all(job -> String(job["status"]) == "completed", drift_report_payload["project"]["projectJobs"])
+        @test all(job -> haskey(job, "outputRefs"), drift_report_payload["project"]["projectJobs"])
         @test drift_report_bad_threshold_response.status == 400
         @test occursin("threshold must be between 0 and 1", String(drift_report_bad_threshold_response.body))
         @test transform_run_response.status == 202

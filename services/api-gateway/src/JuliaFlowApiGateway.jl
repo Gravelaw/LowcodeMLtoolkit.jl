@@ -4346,6 +4346,7 @@ const DATA_SCIENCE_PROJECT_ARRAY_FIELDS = Dict(
     "splitAssignments" => :split_assignments,
     "validationFolds" => :validation_folds,
     "finalTestLocks" => :final_test_locks,
+    "projectJobs" => :project_jobs,
     "transformFitApplyRecords" => :transform_fit_apply_records,
     "statisticalAnalysisRuns" => :statistical_analysis_runs,
     "trainingPlans" => :training_plans,
@@ -4449,6 +4450,63 @@ function update_data_science_project_response!(state::GatewayState, project_id::
     return JSON3.write(JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id]))
 end
 
+function data_science_project_job_record(
+    project::DataScienceProjectRecord,
+    job_type::AbstractString;
+    status::AbstractString = "completed",
+    dataset_id::Union{Nothing,AbstractString} = nothing,
+    split_plan_id::Union{Nothing,AbstractString} = nothing,
+    source_record_id::Union{Nothing,AbstractString} = nothing,
+    output_refs::AbstractVector = Any[],
+    error_message::Union{Nothing,AbstractString} = nothing,
+    started_at::Union{Nothing,AbstractString} = nothing,
+    finished_at::Union{Nothing,AbstractString} = nothing,
+)
+    timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+    job = Dict{String,Any}(
+        "jobId" => "job-" * replace(string(uuid4()), "-" => ""),
+        "projectId" => project.project_id,
+        "jobType" => String(job_type),
+        "status" => String(status),
+        "outputRefs" => [Dict{String,Any}(String(key) => value for (key, value) in pairs(ref)) for ref in output_refs],
+        "startedAt" => started_at === nothing ? timestamp : String(started_at),
+    )
+    dataset_id === nothing || (job["datasetId"] = String(dataset_id))
+    split_plan_id === nothing || (job["splitPlanId"] = String(split_plan_id))
+    source_record_id === nothing || (job["sourceRecordId"] = String(source_record_id))
+    finished_at === nothing || (job["finishedAt"] = String(finished_at))
+    error_message === nothing || (job["errorMessage"] = String(error_message))
+    return job
+end
+
+function record_data_science_project_job!(
+    project::DataScienceProjectRecord,
+    job_type::AbstractString;
+    status::AbstractString = "completed",
+    dataset_id::Union{Nothing,AbstractString} = nothing,
+    split_plan_id::Union{Nothing,AbstractString} = nothing,
+    source_record_id::Union{Nothing,AbstractString} = nothing,
+    output_refs::AbstractVector = Any[],
+    error_message::Union{Nothing,AbstractString} = nothing,
+    started_at::Union{Nothing,AbstractString} = nothing,
+    finished_at::Union{Nothing,AbstractString} = nothing,
+)
+    job = data_science_project_job_record(
+        project,
+        job_type;
+        status = status,
+        dataset_id = dataset_id,
+        split_plan_id = split_plan_id,
+        source_record_id = source_record_id,
+        output_refs = output_refs,
+        error_message = error_message,
+        started_at = started_at,
+        finished_at = finished_at,
+    )
+    project.project_jobs = [job, project.project_jobs...]
+    return job
+end
+
 function transform_apply_splits(body::AbstractDict, split_plan::AbstractDict)
     raw_splits = haskey(body, "applySplits") ? body["applySplits"] : ["validation", "test"]
     raw_splits isa AbstractVector || error("transform fit/apply applySplits must be an array")
@@ -4514,6 +4572,16 @@ function run_transform_fit_apply_response!(state::GatewayState, project_id::Abst
         "createdAt" => timestamp,
     )
     project.transform_fit_apply_records = [transform_run, project.transform_fit_apply_records...]
+    record_data_science_project_job!(
+        project,
+        "transform_fit_apply";
+        dataset_id = dataset_id,
+        split_plan_id = String(get(split_plan, "splitPlanId", "")),
+        source_record_id = run_id,
+        output_refs = artifact_refs,
+        started_at = timestamp,
+        finished_at = timestamp,
+    )
     state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
     payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
     return JSON3.write(Dict("status" => "completed", "transformRun" => transform_run, "project" => payload))
@@ -4621,6 +4689,31 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
         "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
     )
     project.statistical_analysis_runs = [analysis_run, project.statistical_analysis_runs...]
+    timestamp = String(analysis_run["createdAt"])
+    record_data_science_project_job!(
+        project,
+        "statistical_analysis";
+        dataset_id = dataset_id,
+        source_record_id = run_id,
+        output_refs = [
+            Dict(
+                "refId" => "artifact-$(run_id)-code",
+                "kind" => "statistical_analysis_code",
+                "localOnly" => true,
+                "path" => String(analysis_run["generatedCodeRef"]),
+                "generatedAt" => timestamp,
+            ),
+            Dict(
+                "refId" => "artifact-$(run_id)-results",
+                "kind" => "statistical_analysis_results",
+                "localOnly" => true,
+                "path" => String(analysis_run["resultRef"]),
+                "generatedAt" => timestamp,
+            ),
+        ],
+        started_at = timestamp,
+        finished_at = timestamp,
+    )
     state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
     payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
     return JSON3.write(Dict("status" => "completed", "analysisRun" => analysis_run, "project" => payload))
@@ -4733,6 +4826,20 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
         "createdAt" => timestamp,
     )
     project.tuning_studies = [tuning_study, project.tuning_studies...]
+    tuning_output_refs = Dict{String,Any}[]
+    for trial in trials
+        append!(tuning_output_refs, get(trial, "artifactRefs", Dict{String,Any}[]))
+    end
+    record_data_science_project_job!(
+        project,
+        "tuning_study";
+        dataset_id = dataset_id,
+        split_plan_id = String(get(split_plan, "splitPlanId", "")),
+        source_record_id = study_id,
+        output_refs = tuning_output_refs,
+        started_at = timestamp,
+        finished_at = timestamp,
+    )
     state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
     payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
     return JSON3.write(Dict("status" => "completed", "trainingPlan" => training_plan, "tuningStudy" => tuning_study, "project" => payload))
@@ -4839,6 +4946,16 @@ function run_final_evaluation_response!(state::GatewayState, project_id::Abstrac
         ],
     )
     project.evaluation_reports = [evaluation_report, project.evaluation_reports...]
+    record_data_science_project_job!(
+        project,
+        "final_evaluation";
+        dataset_id = dataset_id,
+        split_plan_id = split_plan_id,
+        source_record_id = report_id,
+        output_refs = get(evaluation_report, "artifactRefs", Dict{String,Any}[]),
+        started_at = timestamp,
+        finished_at = timestamp,
+    )
     state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
     payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
     return JSON3.write(Dict("status" => "completed", "evaluationReport" => evaluation_report, "project" => payload))
@@ -4907,6 +5024,23 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
         "createdAt" => timestamp,
     )
     project.prediction_exports = [prediction_export, project.prediction_exports...]
+    record_data_science_project_job!(
+        project,
+        "prediction_export";
+        dataset_id = dataset_id,
+        source_record_id = export_id,
+        output_refs = [
+            Dict(
+                "refId" => "artifact-$(export_id)",
+                "kind" => "prediction_export",
+                "localOnly" => true,
+                "path" => artifact_ref,
+                "generatedAt" => timestamp,
+            ),
+        ],
+        started_at = timestamp,
+        finished_at = timestamp,
+    )
     state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
     payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
     return JSON3.write(Dict("status" => "completed", "predictionExport" => prediction_export, "project" => payload))
@@ -4998,6 +5132,23 @@ function run_drift_report_response!(state::GatewayState, project_id::AbstractStr
         "generatedAt" => timestamp,
     )
     project.drift_reports = [drift_report, project.drift_reports...]
+    record_data_science_project_job!(
+        project,
+        "drift_report";
+        dataset_id = dataset_id,
+        source_record_id = report_id,
+        output_refs = [
+            Dict(
+                "refId" => "artifact-$(report_id)",
+                "kind" => "drift_report",
+                "localOnly" => true,
+                "path" => "local://drift/$(project.project_id)/$(report_id)/report.json",
+                "generatedAt" => timestamp,
+            ),
+        ],
+        started_at = timestamp,
+        finished_at = timestamp,
+    )
     state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
     payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
     return JSON3.write(Dict("status" => "completed", "monitoringBaseline" => baseline, "driftReport" => drift_report, "project" => payload))

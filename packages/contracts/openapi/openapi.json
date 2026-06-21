@@ -2157,6 +2157,70 @@
         "type": "object",
         "additionalProperties": true
       },
+      "DataScienceProjectJobRecord": {
+        "type": "object",
+        "required": [
+          "jobId",
+          "projectId",
+          "jobType",
+          "status",
+          "outputRefs",
+          "startedAt"
+        ],
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "jobType": {
+            "type": "string",
+            "enum": [
+              "transform_fit_apply",
+              "statistical_analysis",
+              "tuning_study",
+              "final_evaluation",
+              "prediction_export",
+              "drift_report"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "sourceRecordId": {
+            "type": "string"
+          },
+          "outputRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "finishedAt": {
+            "type": "string"
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        }
+      },
       "DataScienceProject": {
         "type": "object",
         "required": [
@@ -2172,6 +2236,7 @@
           "splitAssignments",
           "validationFolds",
           "finalTestLocks",
+          "projectJobs",
           "transformFitApplyRecords",
           "statisticalAnalysisRuns",
           "trainingPlans",
@@ -2242,6 +2307,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "projectJobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectJobRecord"
             }
           },
           "transformFitApplyRecords": {
@@ -2755,6 +2826,12 @@
             "type": "array",
             "items": {
               "type": "object"
+            }
+          },
+          "projectJobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectJobRecord"
             }
           },
           "transformFitApplyRecords": {
