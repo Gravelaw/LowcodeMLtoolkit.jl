@@ -1219,10 +1219,14 @@ end
         secret_source_path = joinpath(import_root, "secrets.csv")
         large_source_path = joinpath(import_root, "large-profile.csv")
         unsupported_source_path = joinpath(import_root, "profile.exe")
+        credential_content_path = joinpath(import_root, "profile-with-auth-column.csv")
+        pii_content_path = joinpath(import_root, "profile-with-pii.csv")
         write(import_source_path, "region,amount,window\nnorth,12.5,2026-Q2\nsouth,9.5,2026-Q2\n")
         write(secret_source_path, "api_key,value\nredacted,1\n")
         write(large_source_path, repeat("x", 2048))
         write(unsupported_source_path, "not,a,dataset\n")
+        write(credential_content_path, "region,amount,access_token\nnorth,12.5,redacted\n")
+        write(pii_content_path, "customer_id,ssn,amount\n1,000-00-0000,12.5\n")
         ENV["JULIAFLOW_IMPORT_ROOTS"] = import_root
         ENV["JULIAFLOW_IMPORT_MAX_BYTES"] = "1024"
         updated_toml = replace(read(foundation_path, String), "Foundation PoC" => "Foundation PoC Updated")
@@ -1732,6 +1736,38 @@ end
                     Dict(
                         "datasetId" => "Unsupported Profile",
                         "sourceUri" => unsupported_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_credential_content_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Credential Content Profile",
+                        "sourceUri" => credential_content_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_pii_content_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "PII Content Profile",
+                        "sourceUri" => pii_content_path,
                         "format" => "csv",
                         "targetZone" => "raw",
                     ),
@@ -3543,6 +3579,10 @@ end
         @test occursin("source file exceeds size limit", String(data_import_large_source_response.body))
         @test data_import_unsupported_source_response.status == 400
         @test occursin("source extension is not supported", String(data_import_unsupported_source_response.body))
+        @test data_import_credential_content_response.status == 400
+        @test occursin("appears to contain credential content", String(data_import_credential_content_response.body))
+        @test data_import_pii_content_response.status == 400
+        @test occursin("appears to contain sensitive PII columns", String(data_import_pii_content_response.body))
         @test data_science_project_create_response.status == 201
         data_science_project_create_payload = JSON3.read(String(data_science_project_create_response.body), Dict{String,Any})
         @test data_science_project_create_payload["schemaVersion"] == "1.0"

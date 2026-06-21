@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local Import Content Sniffing Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added first-pass content sniffing for text-like `/api/v1/local-data/import` filesystem sources.
+- CSV/JSON/JSONL imports now sample the first 16 KiB and reject obvious credential markers such as API keys, access tokens, bearer authorization, private keys, client secrets, and passwords.
+- The same sample pass rejects obvious sensitive PII column markers such as SSN, passport, driver license, credit card, card number, date of birth, and DOB.
+- Invalid UTF-8 samples in text-like imports now fail as controlled local data import validation errors.
+- Added focused Julia route smoke coverage for valid import, credential-content rejection, and PII-content rejection.
+- Verified the slice with a focused Julia content-sniffing smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Marker-based content sniffing is in place, but richer audit evidence, redaction previews, connector-specific policies, and a fuller local-source threat model remain open.
+- Gateway module split, execution-backed jobs, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Add richer audit evidence and redaction-safe import diagnostics.
+- Replace deterministic project route evidence with real execution-backed Julia jobs and local artifact materialization.
+- Start gateway internal module extraction for project/data source handling.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local Import File Check Slice - 2026-06-21
 
 ### Work Done Till Date

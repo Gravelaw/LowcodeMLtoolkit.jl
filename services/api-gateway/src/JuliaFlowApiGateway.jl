@@ -2694,6 +2694,46 @@ function sensitive_import_path(path::AbstractString)
     return occursin("secret", filename) || occursin("password", filename) || occursin("token", filename) || occursin("credential", filename)
 end
 
+function local_data_import_sample(path::AbstractString; max_bytes::Integer = 16_384)
+    open(path, "r") do io
+        bytes = read(io, min(max_bytes, filesize(path)))
+        try
+            return lowercase(String(copy(bytes)))
+        catch
+            error("local data import source sample is not valid UTF-8 text")
+        end
+    end
+end
+
+function validate_local_data_import_sample!(path::AbstractString)
+    sample = local_data_import_sample(path)
+    credential_markers = [
+        "api_key",
+        "apikey",
+        "access_token",
+        "refresh_token",
+        "secret_key",
+        "client_secret",
+        "private_key",
+        "password",
+        "authorization:",
+        "bearer ",
+    ]
+    any(marker -> occursin(marker, sample), credential_markers) && error("local data import source appears to contain credential content")
+    pii_markers = [
+        "ssn",
+        "social_security",
+        "passport",
+        "driver_license",
+        "credit_card",
+        "card_number",
+        "date_of_birth",
+        "dob",
+    ]
+    any(marker -> occursin(marker, sample), pii_markers) && error("local data import source appears to contain sensitive PII columns")
+    return nothing
+end
+
 function validate_local_data_import_file!(path::AbstractString, source_format::AbstractString)
     sensitive_import_path(path) && error("local data import source appears to contain credentials or secrets")
     size = filesize(path)
@@ -2705,6 +2745,7 @@ function validate_local_data_import_file!(path::AbstractString, source_format::A
     extension = lowercase(splitext(path)[2])
     allowed_extensions = Set([".csv", ".json", ".jsonl", ".parquet", ".arrow", ".ipc", ".feather"])
     extension in allowed_extensions || error("local data import source extension is not supported")
+    extension in Set([".csv", ".json", ".jsonl"]) && validate_local_data_import_sample!(path)
     return nothing
 end
 
