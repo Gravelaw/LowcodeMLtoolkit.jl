@@ -3,11 +3,22 @@ import { Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
 import { InteractiveChart } from "../components/InteractiveChart";
 import { localCode } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
-import type { GatewayDataImportProfile, GatewayDataSourceOption } from "@juliaflow/contracts";
+import type {
+  DataScienceColumnRole,
+  DataScienceSplitStrategy,
+  DatasetSplitPlan,
+  GatewayDataImportProfile,
+  GatewayDataSourceOption,
+  SchemaColumnContract,
+  UpdateDataScienceProjectRequest
+} from "@juliaflow/contracts";
 
 type DataTab = "table" | "schema" | "profile" | "filters" | "sort" | "joins" | "transforms" | "sampling" | "lineage";
 
 const dataTabs: DataTab[] = ["table", "schema", "profile", "filters", "sort", "joins", "transforms", "sampling", "lineage"];
+const columnRoles: DataScienceColumnRole[] = ["feature", "target", "id", "group", "time", "depth", "sensitive", "ignore"];
+const logicalTypes = ["continuous", "categorical", "binary", "date", "datetime", "identifier", "text", "ordinal"];
+const splitStrategies: DataScienceSplitStrategy[] = ["random", "stratified", "grouped", "time", "depth", "external"];
 
 function tabLabel(tab: DataTab) {
   if (tab === "transforms") return "feature ops";
@@ -47,15 +58,21 @@ function uniqueValues(rows: Array<Record<string, unknown>>, field: string) {
   return Array.from(new Set(rows.map((row) => String(row[field] ?? "")).filter(Boolean))).slice(0, 6);
 }
 
+function semanticColumnOption(schemaColumns: SchemaColumnContract[], role: DataScienceColumnRole) {
+  return schemaColumns.find((column) => column.role === role)?.name ?? "";
+}
+
 export function DataView({
   data,
   onImport,
   onSelectProfile,
+  onProjectUpdate,
   feedback
 }: {
   data: AppData;
   onImport: (request?: ReturnType<typeof sourceRequest>) => void;
   onSelectProfile: (profile: GatewayDataImportProfile) => void;
+  onProjectUpdate: (request: UpdateDataScienceProjectRequest) => void;
   feedback?: ActionFeedback;
 }) {
   const [activeTab, setActiveTab] = useState<DataTab>("table");
@@ -69,6 +86,13 @@ export function DataView({
   const dataProfiles = data.dataProfiles?.length > 0 ? data.dataProfiles : [activeProfile];
   const sourceOptions = activeProfile.sourceOptions ?? [];
   const previewRows = activeProfile.previewRows ?? [];
+  const project = data.dataScienceProject;
+  const schemaContract = project.schemaContracts.find((schema) => schema.datasetId === activeProfile.datasetId) ?? project.schemaContracts[0];
+  const schemaColumns = schemaContract?.columns ?? [];
+  const activeSplitPlan = project.splitPlans.find((plan) => plan.datasetId === activeProfile.datasetId) ?? project.splitPlans[0];
+  const finalTestLock = activeSplitPlan
+    ? project.finalTestLocks.find((lock) => lock.splitPlanId === activeSplitPlan.splitPlanId)
+    : undefined;
   const activeOption = sourceOptions.find((option) => option.mode === activeProfile.activeReadMode) ?? sourceOptions[0];
   const qualityHighlight = activeProfile.profileSummary.find((field) => field.quality.includes("% complete"))?.quality;
   const numericFields = activeProfile.schemaSummary.filter((field) => /int|float|double|number/i.test(field.type)).map((field) => field.name);
@@ -95,6 +119,54 @@ export function DataView({
     return filteredPreview.slice(0, Number(sampleSize));
   }, [filteredPreview, sampleSize]);
   const columns = previewColumns(preview.length ? preview : previewRows, activeProfile.schemaSummary);
+
+  function updateSchemaColumn(columnName: string, patch: Partial<SchemaColumnContract>) {
+    if (!schemaContract) return;
+    const updatedSchema = {
+      ...schemaContract,
+      updatedAt: new Date().toISOString(),
+      columns: schemaContract.columns.map((column) => (
+        column.name === columnName
+          ? { ...column, ...patch }
+          : column
+      ))
+    };
+    onProjectUpdate({
+      schemaContracts: project.schemaContracts.map((schema) => (
+        schema.schemaId === updatedSchema.schemaId ? updatedSchema : schema
+      ))
+    });
+  }
+
+  function updateSplitPlan(patch: Partial<DatasetSplitPlan>) {
+    if (!activeSplitPlan) return;
+    const updatedPlan = {
+      ...activeSplitPlan,
+      ...patch
+    };
+    onProjectUpdate({
+      splitPlans: project.splitPlans.map((plan) => (
+        plan.splitPlanId === updatedPlan.splitPlanId ? updatedPlan : plan
+      ))
+    });
+  }
+
+  function lockFinalTestSplit() {
+    if (!activeSplitPlan) return;
+    const lock = finalTestLock ?? {
+      lockId: `lock-${activeSplitPlan.splitPlanId}`,
+      splitPlanId: activeSplitPlan.splitPlanId,
+      lockedAt: new Date().toISOString(),
+      reason: "Final test split locked from Data workspace before model tuning or promotion.",
+      lockedBy: "local-user"
+    };
+    onProjectUpdate({
+      splitPlans: project.splitPlans.map((plan) => (
+        plan.splitPlanId === activeSplitPlan.splitPlanId ? { ...plan, locked: true } : plan
+      )),
+      finalTestLocks: finalTestLock ? project.finalTestLocks : [...project.finalTestLocks, lock]
+    });
+  }
 
   const sourceBrowser = [
     { label: "Local Files", detail: "Browse local CSV, Arrow, Parquet", status: "ready", enabled: true, option: sourceOptions.find((option) => option.mode === "csv") },
@@ -161,6 +233,68 @@ export function DataView({
         </button>
       </Card>
 
+      <Card title="Project Schema Diagnostics" eyebrow={project.projectId} className="right-panel">
+        {schemaContract ? (
+          <div className="key-values wrap-values">
+            <span>Schema</span><strong>{schemaContract.schemaId}</strong>
+            <span>Columns</span><strong>{schemaColumns.length}</strong>
+            <span>Target</span><strong>{semanticColumnOption(schemaColumns, "target") || "not set"}</strong>
+            <span>Group</span><strong>{semanticColumnOption(schemaColumns, "group") || "not set"}</strong>
+            <span>Updated</span><strong>{schemaContract.updatedAt}</strong>
+          </div>
+        ) : (
+          <p className="empty-state">No schema contract is attached to this project yet.</p>
+        )}
+      </Card>
+
+      <Card title="Validation And Test Plan" className="right-panel">
+        {activeSplitPlan ? (
+          <div className="control-panel-grid single">
+            <label>
+              <span>Validation strategy</span>
+              <select
+                aria-label="Validation strategy"
+                value={activeSplitPlan.strategy}
+                onChange={(event) => updateSplitPlan({ strategy: event.target.value as DataScienceSplitStrategy })}
+              >
+                {splitStrategies.map((strategy) => <option key={strategy}>{strategy}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Group column</span>
+              <select
+                aria-label="Validation group column"
+                value={activeSplitPlan.groupColumn ?? ""}
+                onChange={(event) => updateSplitPlan({ groupColumn: event.target.value || undefined })}
+              >
+                <option value="">None</option>
+                {schemaColumns.map((column) => <option key={column.name}>{column.name}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Depth column</span>
+              <select
+                aria-label="Validation depth column"
+                value={activeSplitPlan.depthColumn ?? ""}
+                onChange={(event) => updateSplitPlan({ depthColumn: event.target.value || undefined })}
+              >
+                <option value="">None</option>
+                {schemaColumns.map((column) => <option key={column.name}>{column.name}</option>)}
+              </select>
+            </label>
+            <p className="workspace-state-line">
+              Train / validation / test: <strong>{Math.round((activeSplitPlan.trainFraction ?? 0) * 100)}%</strong> / <strong>{Math.round((activeSplitPlan.validationFraction ?? 0) * 100)}%</strong> / <strong>{Math.round((activeSplitPlan.testFraction ?? 0) * 100)}%</strong>
+            </p>
+            <button type="button" className="jf-button secondary full-width" disabled={Boolean(finalTestLock)} onClick={lockFinalTestSplit}>
+              {finalTestLock ? "Final Test Locked" : "Lock Final Test Split"}
+            </button>
+            {finalTestLock ? <p className="empty-state">Locked by {finalTestLock.lockedBy}: {finalTestLock.reason}</p> : null}
+          </div>
+        ) : (
+          <p className="empty-state">No split plan is attached to this project yet.</p>
+        )}
+      </Card>
+
       <Card title="Dataset Catalog" eyebrow="Local fixtures">
         <div className="source-grid">
           {dataProfiles.map((profile) => (
@@ -223,8 +357,49 @@ export function DataView({
 
         {activeTab === "schema" ? (
           <DataTable
-            columns={[{ key: "name", label: "Column" }, { key: "type", label: "Type" }]}
-            rows={activeProfile.schemaSummary}
+            columns={[
+              { key: "name", label: "Column" },
+              { key: "inferredType", label: "Inferred" },
+              {
+                key: "logicalType",
+                label: "Logical type",
+                render: (row) => (
+                  <select
+                    aria-label={`Logical type for ${row.name}`}
+                    value={row.logicalType}
+                    onChange={(event) => updateSchemaColumn(row.name, { logicalType: event.target.value })}
+                  >
+                    {logicalTypes.map((type) => <option key={type}>{type}</option>)}
+                  </select>
+                )
+              },
+              {
+                key: "role",
+                label: "Role",
+                render: (row) => (
+                  <select
+                    aria-label={`Column role for ${row.name}`}
+                    value={row.role}
+                    onChange={(event) => updateSchemaColumn(row.name, { role: event.target.value as DataScienceColumnRole })}
+                  >
+                    {columnRoles.map((role) => <option key={role}>{role}</option>)}
+                  </select>
+                )
+              },
+              {
+                key: "nullable",
+                label: "Nullable",
+                render: (row) => (
+                  <input
+                    aria-label={`Nullable ${row.name}`}
+                    type="checkbox"
+                    checked={row.nullable}
+                    onChange={(event) => updateSchemaColumn(row.name, { nullable: event.target.checked })}
+                  />
+                )
+              }
+            ]}
+            rows={schemaColumns}
             getRowKey={(row) => row.name}
           />
         ) : null}

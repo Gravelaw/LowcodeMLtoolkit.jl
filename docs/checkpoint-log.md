@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Data Project Frontend Persistence Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added a fixture-backed `DataScienceProject` aggregate to frontend shared state.
+- Loaded live data-science projects through the gateway client and kept release/local-appliance mode strict when the gateway returns no project aggregate.
+- Added Data route schema diagnostics backed by project schema contracts, including editable logical type, role, and nullable fields.
+- Added validation/test split controls backed by project split plans, including strategy, group/depth column selectors, visible train/validation/test fractions, and final-test lock state.
+- Added app-level persistence through `updateDataScienceProject`, with deterministic demo fallback and live gateway `PUT /api/v1/data-science-projects/{projectId}` coverage.
+- Added focused frontend tests for demo project edits and live gateway project update requests.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Data schema/validation is now project-backed, but Transform, ML Studio, Models, Monitor, Deploy, and reports are not fully project-backed.
+- Validation/test discipline is persisted, but not yet enforced in gateway/execution paths for tuning, model registration, deployment, or final evaluation.
+- Gateway module split, local source trust-boundary hardening, statistical EDA services, typed jobs, model lifecycle gates, drift reports, and broader release/local-appliance no-fixture evidence remain open.
+- Browser route QA was attempted with `npm run test:browser -- tests/browser/local-ui.spec.ts`, but Playwright failed before app assertions because Chromium could not launch on this host (`browserType.launch: spawn UNKNOWN`).
+
+### Next Items To Implement
+
+- Add negative contract/API coverage for project invalid updates and project id mismatch.
+- Implement execution/gateway validation checks for split alignment and final-test lock constraints.
+- Begin gateway internal module extraction before adding deeper stats, tuning, registry, or drift behavior.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Substrate First Slice - 2026-06-21
 
 ### Work Done Till Date

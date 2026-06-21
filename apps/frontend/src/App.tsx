@@ -5,6 +5,7 @@ import {
   checkpoints,
   dashboardId,
   dataProfile,
+  dataScienceProject,
   deployPackages,
   executionRecords,
   localHealth,
@@ -20,6 +21,7 @@ import {
 } from "./fixtures/local-fixtures";
 import type { ActionFeedback, AppData, AppView, LocalProjectArtifact } from "./types";
 import type {
+  DataScienceProject,
   GatewayDataImportProfile,
   GatewayDataImportProfileRequest,
   GatewayHealthcheck,
@@ -29,6 +31,7 @@ import type {
   JuliaFlowUnavailableCapability,
   JuliaFlowUnavailableState,
   PublishedDashboardDefinition,
+  UpdateDataScienceProjectRequest,
   UpdateGatewayComputeSettingsRequest,
   WorkflowDefinition,
   WorkspaceRole
@@ -186,6 +189,7 @@ function buildDemoData(runtimeMode: JuliaFlowRuntimeMode = "demo"): AppData {
     workflowSummary,
     dataProfile,
     dataProfiles: [dataProfile, superstoreDataProfile],
+    dataScienceProject,
     transformRuns,
     executions: executionRecords,
     mlExperiments,
@@ -556,7 +560,7 @@ function App() {
           return;
         }
         const workflow = workflowResult.ok ? workflowResult.workflow : localWorkflow;
-        const [transforms, experiments, models, packages, dashboards] = await Promise.all([
+        const [transforms, experiments, models, packages, dashboards, projects] = await Promise.all([
           client.getWorkflowTransformHistory(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(transformRuns)),
           client.getWorkflowMlExperimentHistory(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(mlExperiments)),
           client.listWorkflowModels(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(modelRegistry)),
@@ -565,11 +569,18 @@ function App() {
             fixtureSubstitutionAllowed
               ? { items: [publishedDashboard] }
               : { items: [] }
-          )
+          ),
+          client.listDataScienceProjects(requestOptions(abort.signal)).catch(() => fallbackList([dataScienceProject]))
         ]);
         const dashboard =
           dashboards.items[0] ??
           dashboardFromWorkflow(workflow, summary);
+        if (!fixtureSubstitutionAllowed && projects.items.length === 0) {
+          setData(buildUnavailableData(runtimeMode, [
+            unavailableState("workflowMetadata", "The local gateway returned no data science project aggregate.", "Create or import a data science project through the gateway, then reload.")
+          ], summary));
+          return;
+        }
         const liveRuntime = health.runtime ?? runtimeContract(runtimeMode);
         setData({
           mode: "live",
@@ -583,6 +594,7 @@ function App() {
           workflowSummary: summary,
           dataProfile,
           dataProfiles: [dataProfile, superstoreDataProfile],
+          dataScienceProject: projects.items[0] ?? dataScienceProject,
           executions: executions.items.length > 0 || !fixtureSubstitutionAllowed ? executions.items : executionRecords,
           transformRuns: transforms.items.length > 0 || !fixtureSubstitutionAllowed ? transforms.items : transformRuns,
           mlExperiments: experiments.items.length > 0 || !fixtureSubstitutionAllowed ? experiments.items : mlExperiments,
@@ -816,6 +828,68 @@ function App() {
     }
   }
 
+  function applyDataScienceProjectUpdate(project: DataScienceProject) {
+    setData((current) => ({
+      ...current,
+      dataScienceProject: project,
+      mode: current.mode === "unavailable" ? current.mode : current.mode
+    }));
+  }
+
+  async function updateDataScienceProject(request: UpdateDataScienceProjectRequest) {
+    const projectId = data.dataScienceProject.projectId;
+    const localProject: DataScienceProject = {
+      ...data.dataScienceProject,
+      ...request,
+      projectId,
+      schemaVersion: "1.0",
+      localOnly: true,
+      updatedAt: new Date().toISOString(),
+      datasets: request.datasets ?? data.dataScienceProject.datasets,
+      schemaContracts: request.schemaContracts ?? data.dataScienceProject.schemaContracts,
+      splitPlans: request.splitPlans ?? data.dataScienceProject.splitPlans,
+      splitAssignments: request.splitAssignments ?? data.dataScienceProject.splitAssignments,
+      validationFolds: request.validationFolds ?? data.dataScienceProject.validationFolds,
+      finalTestLocks: request.finalTestLocks ?? data.dataScienceProject.finalTestLocks,
+      statisticalAnalysisRuns: request.statisticalAnalysisRuns ?? data.dataScienceProject.statisticalAnalysisRuns,
+      trainingPlans: request.trainingPlans ?? data.dataScienceProject.trainingPlans,
+      tuningStudies: request.tuningStudies ?? data.dataScienceProject.tuningStudies,
+      evaluationReports: request.evaluationReports ?? data.dataScienceProject.evaluationReports,
+      predictionExports: request.predictionExports ?? data.dataScienceProject.predictionExports,
+      modelLifecycleRecords: request.modelLifecycleRecords ?? data.dataScienceProject.modelLifecycleRecords,
+      monitoringBaselines: request.monitoringBaselines ?? data.dataScienceProject.monitoringBaselines,
+      driftReports: request.driftReports ?? data.dataScienceProject.driftReports,
+      reproducibilityEvidence: request.reproducibilityEvidence ?? data.dataScienceProject.reproducibilityEvidence
+    };
+    if (!gatewayBaseUrl) {
+      if (fixtureSubstitutionAllowed) {
+        applyDataScienceProjectUpdate(localProject);
+        setViewFeedback("data", "Project schema and validation choices updated in demo workspace.", "success");
+      } else {
+        setViewFeedback("data", "Release mode requires the local gateway before project schema changes can be saved.", "error");
+      }
+      return;
+    }
+    try {
+      const project = await client!.updateDataScienceProject(projectId, request);
+      applyDataScienceProjectUpdate(project);
+      setViewFeedback("data", "Project schema and validation choices saved to the local gateway.");
+    } catch (error) {
+      if (fixtureSubstitutionAllowed && !isGatewayAuthError(error)) {
+        applyDataScienceProjectUpdate(localProject);
+        setViewFeedback("data", "Gateway project update failed; deterministic demo project state was updated locally.", "info");
+        return;
+      }
+      setViewFeedback(
+        "data",
+        isGatewayAuthError(error)
+          ? "Gateway authentication failed. Configure the local gateway token and retry."
+          : "Project schema and validation choices could not be saved by the local gateway.",
+        "error"
+      );
+    }
+  }
+
   const client = gatewayBaseUrl ? createGatewayClient({ baseUrl: gatewayBaseUrl, headers: gatewayAuthHeaders }) : null;
 
   const view = (() => {
@@ -832,6 +906,7 @@ function App() {
                 dataProfiles: upsertDataProfile(current.dataProfiles, profile)
               }))
             }
+            onProjectUpdate={updateDataScienceProject}
             onImport={(request?: GatewayDataImportProfileRequest) => {
               const nextRequest = request ?? {
                 datasetId: data.dataProfile.datasetId,

@@ -1233,6 +1233,10 @@ meter {
   margin-top: 14px;
 }
 
+.control-panel-grid.single {
+  grid-template-columns: 1fr;
+}
+
 .control-panel-grid label,
 .search-field {
   display: grid;

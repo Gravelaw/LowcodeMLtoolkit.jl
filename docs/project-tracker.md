@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Data Project Frontend Persistence Slice (2026-06-21)
+
+- Added a `DataScienceProject` aggregate to frontend `AppData` and demo fixtures, including dataset registration, schema contract columns, split plan, validation fold, final-test lock collection, and local reproducibility evidence.
+- Loaded data-science projects from the live gateway through `listDataScienceProjects`; release/local-appliance mode now treats an empty project list as unavailable instead of silently substituting the fixture project.
+- Added Data route project-backed schema diagnostics with editable logical types, column roles, and nullable flags.
+- Added validation/test split controls for strategy, group column, depth column, split fractions, and final-test locking; edits call `updateDataScienceProject` and persist through `PUT /api/v1/data-science-projects/{projectId}` when a gateway is configured.
+- Added frontend test coverage for demo schema/type/validation/final-test-lock edits and live gateway project update requests.
+- Verification passed: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx` and `npm run validate:contracts`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice does not implement gateway module split, local source trust-boundary hardening, execution-level validation/test rejection, statistical EDA calculations, typed training/tuning/evaluation/scoring/drift jobs, model lifecycle gates, or project-backed Transform/ML Studio/Models/Monitor state.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in the previous checkpoint.
+- Browser route QA was attempted with `npm run test:browser -- tests/browser/local-ui.spec.ts`, but Playwright could not launch Chromium on this host (`browserType.launch: spawn UNKNOWN`) before reaching app assertions.
+
+### Next Items To Implement
+
+- Add negative project API/contract tests for invalid updates, missing fields, and route/body project id mismatch.
+- Move validation/test discipline from UI persistence into gateway/execution checks that block tuning, registration, and deployment when split evidence is missing or final test locks are violated.
+- Start gateway module split and local import trust-boundary hardening before broad source enablement.
+
 ### AKS-36 DataScienceProject Substrate First Slice (2026-06-21)
 
 - Added additive `DataScienceProject` TypeScript contracts and OpenAPI paths for `/api/v1/data-science-projects` and `/api/v1/data-science-projects/{projectId}`.

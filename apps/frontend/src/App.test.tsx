@@ -12,6 +12,7 @@ import {
   portTypeCounts
 } from "./sample-workflow";
 import {
+  dataScienceProject,
   deployPackages,
   executionRecords,
   localHealth,
@@ -289,6 +290,17 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("C-1001")).toBeInTheDocument();
     expect(screen.getByText("C-1005")).toBeInTheDocument();
     expect(screen.queryByText("C-1003")).not.toBeInTheDocument();
+    expect(screen.getByText("Project Schema Diagnostics")).toBeInTheDocument();
+    expect(screen.getByText("Validation And Test Plan")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "schema" }));
+    fireEvent.change(screen.getByLabelText("Column role for monthly_charges"), { target: { value: "target" } });
+    expect(screen.getByText("Project schema and validation choices updated in demo workspace.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Logical type for contract_type"), { target: { value: "ordinal" } });
+    expect(screen.getByDisplayValue("ordinal")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Validation strategy"), { target: { value: "grouped" } });
+    expect(screen.getByDisplayValue("grouped")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Lock Final Test Split" }));
+    expect(screen.getByRole("button", { name: "Final Test Locked" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Transform" }));
     fireEvent.click(screen.getAllByText("Feature Engineering")[0]);
@@ -321,6 +333,15 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith("/api/v1/local-data/import") && method === "POST") return json({ status: "profiled", profile: superstoreDataProfile });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith("/api/v1/data-science-projects/customer-churn-project") && method === "PUT") return json({
+        ...dataScienceProject,
+        updatedAt: "2026-06-21T10:30:00Z",
+        schemaContracts: dataScienceProject.schemaContracts.map((schema) => ({
+          ...schema,
+          columns: schema.columns.map((column) => column.name === "monthly_charges" ? { ...column, role: "target" } : column)
+        }))
+      });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models/register") && method === "POST") return json({ status: "registered", model: modelRegistry[0] });
@@ -354,6 +375,16 @@ describe("JuliaFlow local-only app redesign", () => {
     ));
     await waitFor(() => expect(screen.getByText("Gateway action completed locally.")).toBeInTheDocument());
     expect(screen.getAllByText("CA-2016-152156").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "schema" }));
+    fireEvent.change(screen.getByLabelText("Column role for monthly_charges"), { target: { value: "target" } });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8088/api/v1/data-science-projects/customer-churn-project",
+      expect.objectContaining({
+        method: "PUT",
+        body: expect.stringContaining("\"monthly_charges\"")
+      })
+    ));
+    expect(screen.getByText("Project schema and validation choices saved to the local gateway.")).toBeInTheDocument();
   });
 
   it("polls gateway health and preserves stale values when refresh fails", async () => {
@@ -381,6 +412,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith("/api/v1/executions")) return json({ items: executionRecords, count: executionRecords.length });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
@@ -432,6 +464,7 @@ describe("JuliaFlow local-only app redesign", () => {
       }
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(localWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
@@ -465,6 +498,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith("/api/v1/executions")) return json({ items: executionRecords, count: executionRecords.length });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
@@ -530,6 +564,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [] });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
       if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
       if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
       if (url.includes("/models")) return json({ items: [], count: 0 });

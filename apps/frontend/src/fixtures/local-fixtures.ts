@@ -1,5 +1,6 @@
 import type {
   DashboardDatasetRow,
+  DataScienceProject,
   GatewayCheckpointRecord,
   GatewayDataImportProfile,
   GatewayDeployPackageRecord,
@@ -470,6 +471,87 @@ export const dataProfile: GatewayDataImportProfile = {
   ],
   previewRows: churnRows.map(({ churn_risk: _risk, label, ...row }) => ({ ...row, churn: label === "churned" })),
   charts: churnProfileCharts
+};
+
+export const dataScienceProject: DataScienceProject = {
+  schemaVersion: "1.0",
+  projectId: "customer-churn-project",
+  name: "Customer Churn Local Project",
+  description: "Local project aggregate for schema diagnostics, validation discipline, and downstream ML evidence.",
+  localOnly: true,
+  createdAt: "2026-06-21T00:00:00Z",
+  updatedAt: "2026-06-21T00:00:00Z",
+  datasets: [
+    {
+      datasetId: dataProfile.datasetId,
+      name: "Customer Churn",
+      role: "train",
+      sourceUri: dataProfile.sourceUri,
+      localOnly: true,
+      rowCount: dataProfile.rowCount,
+      columnCount: dataProfile.schemaSummary.length,
+      checksumSha256: dataProfile.checksumSha256,
+      artifactRef: dataProfile.artifactRef
+    }
+  ],
+  schemaContracts: [
+    {
+      schemaId: "schema-customer-churn-local",
+      datasetId: dataProfile.datasetId,
+      updatedAt: "2026-06-21T00:00:00Z",
+      columns: [
+        { name: "customer_id", inferredType: "String", logicalType: "identifier", role: "id", nullable: false, description: "Stable customer identifier used for row tracing." },
+        { name: "tenure_months", inferredType: "Int64", logicalType: "continuous", role: "feature", nullable: true, unit: "months", description: "Customer tenure; nullable until imputation is configured." },
+        { name: "monthly_charges", inferredType: "Float64", logicalType: "continuous", role: "feature", nullable: false, unit: "USD", description: "Monthly billing charge." },
+        { name: "contract_type", inferredType: "String", logicalType: "categorical", role: "group", nullable: false, description: "Contract category, also suitable for grouped validation checks." },
+        { name: "churn", inferredType: "Bool", logicalType: "binary", role: "target", nullable: false, description: "Binary churn target." }
+      ]
+    }
+  ],
+  splitPlans: [
+    {
+      splitPlanId: "split-customer-churn-validation",
+      datasetId: dataProfile.datasetId,
+      strategy: "stratified",
+      trainFraction: 0.7,
+      validationFraction: 0.15,
+      testFraction: 0.15,
+      groupColumn: "contract_type",
+      seed: 42,
+      locked: false,
+      createdAt: "2026-06-21T00:00:00Z"
+    }
+  ],
+  splitAssignments: [],
+  validationFolds: [
+    {
+      foldId: "fold-customer-churn-001",
+      splitPlanId: "split-customer-churn-validation",
+      strategy: "stratified",
+      index: 1,
+      trainRef: "data/splits/customer-churn/train-fold-001.arrow",
+      validationRef: "data/splits/customer-churn/validation-fold-001.arrow"
+    }
+  ],
+  finalTestLocks: [],
+  statisticalAnalysisRuns: [],
+  trainingPlans: [],
+  tuningStudies: [],
+  evaluationReports: [],
+  predictionExports: [],
+  modelLifecycleRecords: [],
+  monitoringBaselines: [],
+  driftReports: [],
+  reproducibilityEvidence: [
+    {
+      refId: "schema-contract-customer-churn-local",
+      kind: "schema_contract",
+      localOnly: true,
+      checksumSha256: dataProfile.checksumSha256,
+      path: "data/contracts/schema-customer-churn-local.json",
+      generatedAt: "2026-06-21T00:00:00Z"
+    }
+  ]
 };
 
 export const superstoreDataProfile: GatewayDataImportProfile = {
