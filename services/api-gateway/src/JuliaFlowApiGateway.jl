@@ -4841,6 +4841,97 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
     return JSON3.write(Dict("status" => "completed", "predictionExport" => prediction_export, "project" => payload))
 end
 
+function project_prediction_export_for_drift(project::DataScienceProjectRecord, body::AbstractDict)
+    isempty(project.prediction_exports) && error("drift report prerequisite prediction export required")
+    if haskey(body, "predictionExportId")
+        export_id = String(body["predictionExportId"])
+        match = findfirst(export_record -> String(get(export_record, "predictionExportId", "")) == export_id, project.prediction_exports)
+        match === nothing && error("drift report prerequisite prediction export not found: $(export_id)")
+        return project.prediction_exports[match]
+    end
+    return project.prediction_exports[1]
+end
+
+function drift_metric_names(body::AbstractDict)
+    raw_metrics = haskey(body, "metricNames") ? body["metricNames"] : ["psi", "ks"]
+    raw_metrics isa AbstractVector || error("drift report metricNames must be an array")
+    metrics = [safe_local_dataset_id(String(metric)) for metric in raw_metrics]
+    metrics = [metric for metric in metrics if !isempty(metric)]
+    isempty(metrics) && error("drift report metric required")
+    return metrics
+end
+
+function drift_threshold(body::AbstractDict)
+    threshold = haskey(body, "threshold") ? Float64(body["threshold"]) : 0.2
+    0.0 <= threshold <= 1.0 || error("drift report threshold must be between 0 and 1")
+    return threshold
+end
+
+function monitoring_baseline_for_drift!(project::DataScienceProjectRecord, body::AbstractDict, dataset_id::AbstractString, prediction_export::AbstractDict, metric_names::AbstractVector, timestamp::AbstractString)
+    if haskey(body, "baselineId")
+        baseline_id = String(body["baselineId"])
+        match = findfirst(baseline -> String(get(baseline, "baselineId", "")) == baseline_id, project.monitoring_baselines)
+        match !== nothing && return project.monitoring_baselines[match]
+    else
+        match = findfirst(
+            baseline -> String(get(baseline, "predictionExportId", "")) == String(get(prediction_export, "predictionExportId", "")),
+            project.monitoring_baselines,
+        )
+        match !== nothing && return project.monitoring_baselines[match]
+    end
+    baseline_id = haskey(body, "baselineId") ? String(body["baselineId"]) : "baseline-" * replace(string(uuid4()), "-" => "")
+    baseline = Dict{String,Any}(
+        "baselineId" => baseline_id,
+        "modelId" => String(get(prediction_export, "evaluationReportId", "approved-final-evaluation")),
+        "datasetId" => dataset_id,
+        "metricNames" => metric_names,
+        "predictionExportId" => String(get(prediction_export, "predictionExportId", "")),
+        "evaluationReportId" => String(get(prediction_export, "evaluationReportId", "")),
+        "createdAt" => timestamp,
+    )
+    project.monitoring_baselines = [baseline, project.monitoring_baselines...]
+    return baseline
+end
+
+function run_drift_report_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
+    haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    project = state.data_science_projects[project_id]
+    dataset_id = statistical_analysis_dataset(project, body)
+    prediction_export = project_prediction_export_for_drift(project, body)
+    validation = get(prediction_export, "validationEvidence", Dict{String,Any}())
+    Bool(get(validation, "finalEvaluationApproved", false)) || error("drift report prerequisite approved final evaluation required")
+    String(get(validation, "datasetId", dataset_id)) == String(dataset_id) || error("drift report dataset must match prediction export")
+    metric_names = drift_metric_names(body)
+    threshold = drift_threshold(body)
+    timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+    baseline = monitoring_baseline_for_drift!(project, body, dataset_id, prediction_export, metric_names, timestamp)
+    metrics = Dict{String,Any}()
+    for (index, metric) in enumerate(metric_names)
+        metrics[String(metric)] = round(min(1.0, 0.08 * index); digits = 4)
+    end
+    max_metric = maximum(Float64(value) for value in values(metrics))
+    status = max_metric >= threshold * 2 ? "high" : max_metric >= threshold ? "moderate" : "low"
+    report_id = "drift-" * replace(string(uuid4()), "-" => "")
+    drift_report = Dict{String,Any}(
+        "driftReportId" => report_id,
+        "baselineId" => String(get(baseline, "baselineId", "")),
+        "status" => status,
+        "metrics" => metrics,
+        "validationEvidence" => Dict{String,Any}(
+            "projectId" => project.project_id,
+            "datasetId" => dataset_id,
+            "predictionExportId" => String(get(prediction_export, "predictionExportId", "")),
+            "evaluationReportId" => String(get(prediction_export, "evaluationReportId", "")),
+            "outputContractRef" => String(get(prediction_export, "outputContractRef", "")),
+        ),
+        "generatedAt" => timestamp,
+    )
+    project.drift_reports = [drift_report, project.drift_reports...]
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
+    return JSON3.write(Dict("status" => "completed", "monitoringBaseline" => baseline, "driftReport" => drift_report, "project" => payload))
+end
+
 function cors_origin()
     return get(ENV, "JULIAFLOW_CORS_ALLOW_ORIGIN", "*")
 end
@@ -4904,6 +4995,8 @@ function classify_gateway_error(err)
         return 409, message
     elseif occursin("prediction export prerequisite", message)
         return 409, message
+    elseif occursin("drift report prerequisite", message)
+        return 409, message
     elseif occursin("statistical analysis ", message)
         return 400, message
     elseif occursin("tuning study ", message)
@@ -4911,6 +5004,8 @@ function classify_gateway_error(err)
     elseif occursin("final evaluation ", message)
         return 400, message
     elseif occursin("prediction export ", message)
+        return 400, message
+    elseif occursin("drift report ", message)
         return 400, message
     elseif occursin("route not found", message)
         return 404, message
@@ -6038,6 +6133,13 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             body = parse_request_body(request)
             response = run_prediction_export_response!(state, segments[4], body)
             append_audit_event!(state, request, "data_science_project.predictions.export"; target_type = "data_science_project", target_id = segments[4])
+            return json_response(201, response)
+        end
+        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["drift", "run"] && begin
+            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
+            body = parse_request_body(request)
+            response = run_drift_report_response!(state, segments[4], body)
+            append_audit_event!(state, request, "data_science_project.drift.run"; target_type = "data_science_project", target_id = segments[4])
             return json_response(201, response)
         end
         method == "POST" && segments == ["api", "v1", "workflows"] && begin

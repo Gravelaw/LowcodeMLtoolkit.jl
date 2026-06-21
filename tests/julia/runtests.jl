@@ -1929,6 +1929,37 @@ end
                 ),
             ),
         )
+        drift_report_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/drift/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "baselineId" => "baseline-foundation-drift",
+                        "metricNames" => ["psi", "ks"],
+                        "threshold" => 0.2,
+                    ),
+                ),
+            ),
+        )
+        drift_report_bad_threshold_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/drift/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "metricNames" => ["psi"],
+                        "threshold" => 2.0,
+                    ),
+                ),
+            ),
+        )
         prediction_export_bad_format_response = route_request(
             state,
             HTTP.Request(
@@ -3365,6 +3396,15 @@ end
         @test occursin("format must be csv", String(prediction_export_bad_format_response.body))
         @test prediction_export_missing_contract_response.status == 400
         @test occursin("outputContractRef required", String(prediction_export_missing_contract_response.body))
+        @test drift_report_response.status == 201
+        drift_report_payload = JSON3.read(String(drift_report_response.body), Dict{String,Any})
+        @test drift_report_payload["status"] == "completed"
+        @test drift_report_payload["monitoringBaseline"]["baselineId"] == "baseline-foundation-drift"
+        @test drift_report_payload["driftReport"]["validationEvidence"]["outputContractRef"] == "contract://outputs/foundation-predictions"
+        @test length(drift_report_payload["project"]["monitoringBaselines"]) >= 1
+        @test length(drift_report_payload["project"]["driftReports"]) >= 1
+        @test drift_report_bad_threshold_response.status == 400
+        @test occursin("threshold must be between 0 and 1", String(drift_report_bad_threshold_response.body))
         @test transform_run_response.status == 202
         transform_run_payload = JSON3.read(String(transform_run_response.body), Dict{String,Any})
         @test transform_run_payload["status"] == "accepted"

@@ -13,6 +13,7 @@ import {
   type GatewayModelRegistryRequest,
   type GatewayTransformRunRequest,
   type GatewayVisualizeCheckpointExportRequest,
+  type RunDriftReportRequest,
   type RunFinalEvaluationRequest,
   type RunPredictionExportRequest,
   type RunStatisticalAnalysisRequest,
@@ -108,6 +109,13 @@ const predictionExportRequest: RunPredictionExportRequest = {
   format: "csv",
   rowCount: 12
 };
+const driftReportRequest: RunDriftReportRequest = {
+  datasetId: "contracts-train",
+  predictionExportId: "pred-contracts",
+  baselineId: "baseline-contracts",
+  metricNames: ["psi", "ks"],
+  threshold: 0.2
+};
 const transformRunRequest: GatewayTransformRunRequest = {
   executionMode: "cpu_only",
   flowVariables: { JULIAFLOW_GPU_DEVICE: "cpu" }
@@ -175,6 +183,7 @@ client.runDataScienceProjectStatisticalAnalysis("contracts-project", statistical
 client.runDataScienceProjectTuningStudy("contracts-project", tuningStudyRequest);
 client.runDataScienceProjectFinalEvaluation("contracts-project", finalEvaluationRequest);
 client.runDataScienceProjectPredictionExport("contracts-project", predictionExportRequest);
+client.runDataScienceProjectDriftReport("contracts-project", driftReportRequest);
 client.runWorkflowTransform("wf-foundation", transformRunRequest);
 client.getWorkflowTransformHistory("wf-foundation");
 client.runWorkflowMlExperiment("wf-foundation", mlExperimentRunRequest);
@@ -194,6 +203,7 @@ gatewayEndpointPaths.dataScienceProjectStatisticalAnalysisRun("contracts-project
 gatewayEndpointPaths.dataScienceProjectTuningRun("contracts-project");
 gatewayEndpointPaths.dataScienceProjectFinalEvaluationRun("contracts-project");
 gatewayEndpointPaths.dataScienceProjectPredictionExport("contracts-project");
+gatewayEndpointPaths.dataScienceProjectDriftRun("contracts-project");
 gatewayEndpointPaths.workflowTransformRun("wf-foundation");
 gatewayEndpointPaths.workflowTransformHistory("wf-foundation");
 gatewayEndpointPaths.workflowMlExperimentRun("wf-foundation");

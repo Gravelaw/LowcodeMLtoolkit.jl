@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Drift Report Gate Slice (2026-06-21)
+
+- Added TypeScript contracts, OpenAPI path/schema coverage, endpoint-path coverage, and typed client support for `POST /api/v1/data-science-projects/{projectId}/drift/run`.
+- Added a project-scoped gateway drift route that validates project/dataset membership and blocks drift reporting until prediction export evidence exists.
+- Created or reused monitoring baselines and persisted drift reports into `DataScienceProject.monitoringBaselines` and `DataScienceProject.driftReports`.
+- Added validation evidence to drift reports linking project, dataset, prediction export, evaluation report, and output contract.
+- Added contract assertions and Julia route assertions for successful baseline/report persistence and invalid threshold rejection.
+- Verification passed: `npm run validate:contracts` and focused Julia route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice records deterministic drift substrate evidence, but real drift statistics, production baseline refresh semantics, monitoring UI coverage, alert/retraining workflow, and typed drift job lifecycle remain open.
+- Transform fit/apply semantics, gateway module split, local source trust-boundary hardening, typed jobs, and first-class lifecycle records remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Replace deterministic drift evidence with real drift statistics and monitoring artifacts.
+- Add transform fit/apply semantics with split/evaluation evidence discipline.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+
 ### AKS-36 Prediction Export Gate Slice (2026-06-21)
 
 - Added TypeScript contracts, OpenAPI path/schema coverage, endpoint-path coverage, and typed client support for `POST /api/v1/data-science-projects/{projectId}/predictions/export`.

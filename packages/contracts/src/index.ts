@@ -682,6 +682,21 @@ export interface RunPredictionExportResponse {
   project: DataScienceProject;
 }
 
+export interface RunDriftReportRequest {
+  datasetId?: string;
+  predictionExportId?: string;
+  baselineId?: string;
+  metricNames?: string[];
+  threshold?: number;
+}
+
+export interface RunDriftReportResponse {
+  status: "completed";
+  monitoringBaseline: MonitoringBaseline;
+  driftReport: DriftReport;
+  project: DataScienceProject;
+}
+
 export interface TrainingPlan {
   trainingPlanId: string;
   targetColumn: string;
@@ -769,6 +784,8 @@ export interface MonitoringBaseline {
   modelId: string;
   datasetId: string;
   metricNames: string[];
+  predictionExportId?: string;
+  evaluationReportId?: string;
   createdAt: string;
 }
 
@@ -777,6 +794,13 @@ export interface DriftReport {
   baselineId: string;
   status: "not_available" | "low" | "moderate" | "high";
   metrics: Record<string, number>;
+  validationEvidence?: {
+    projectId?: string;
+    datasetId?: string;
+    predictionExportId?: string;
+    evaluationReportId?: string;
+    outputContractRef?: string;
+  };
   generatedAt: string;
 }
 
@@ -1956,6 +1980,8 @@ export const gatewayEndpointPaths = {
     `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/evaluation/run`,
   dataScienceProjectPredictionExport: (projectId: string) =>
     `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/predictions/export`,
+  dataScienceProjectDriftRun: (projectId: string) =>
+    `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/drift/run`,
   publishedDashboard: (dashboardId: string, request?: GatewayPublishedDashboardReadRequest) => {
     const path = `/api/v1/dashboards/${encodeURIComponent(dashboardId)}`;
     const params = new URLSearchParams();
@@ -2287,6 +2313,11 @@ export interface GatewayApiClient {
     request?: RunPredictionExportRequest,
     options?: GatewayRequestOptions
   ): Promise<RunPredictionExportResponse>;
+  runDataScienceProjectDriftReport(
+    projectId: string,
+    request?: RunDriftReportRequest,
+    options?: GatewayRequestOptions
+  ): Promise<RunDriftReportResponse>;
   runWorkflowTransform(
     workflowId: string,
     request?: GatewayTransformRunRequest,
@@ -2665,6 +2696,13 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "POST",
         gatewayEndpointPaths.dataScienceProjectPredictionExport(projectId),
         predictionRequest ?? {},
+        requestOptions
+      ),
+    runDataScienceProjectDriftReport: (projectId, driftRequest, requestOptions) =>
+      request<RunDriftReportResponse>(
+        "POST",
+        gatewayEndpointPaths.dataScienceProjectDriftRun(projectId),
+        driftRequest ?? {},
         requestOptions
       ),
     runWorkflowTransform: (workflowId, transformRequest, requestOptions) =>

@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Drift Report Gate Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added `RunDriftReportRequest` and `RunDriftReportResponse` contracts plus a project-scoped OpenAPI route for local drift reporting.
+- Added typed gateway client and endpoint-path coverage for the new route.
+- Implemented `POST /api/v1/data-science-projects/{projectId}/drift/run` in the gateway.
+- The route validates project/dataset membership, blocks drift reporting until prediction export evidence exists, creates or reuses monitoring baselines, validates metric names and thresholds, and persists deterministic drift report evidence.
+- Persisted monitoring baselines and drift reports into `DataScienceProject.monitoringBaselines` and `DataScienceProject.driftReports` with validation evidence linking project, dataset, prediction export, evaluation report, and output contract.
+- Added focused contract assertions and Julia route assertions for successful baseline/report persistence and invalid threshold rejection.
+- Verified the slice with `npm run validate:contracts` and a focused Julia route smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Drift reporting now has a project-backed gated route, but real drift statistics, production baseline refresh semantics, monitoring UI coverage, alert/retraining workflow, and typed drift job lifecycle remain open.
+- Transform fit/apply semantics, gateway module split, local source trust-boundary hardening, typed jobs, and first-class lifecycle records remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Replace deterministic drift evidence with real drift statistics and monitoring artifacts.
+- Add transform fit/apply semantics with split/evaluation evidence discipline.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Prediction Export Gate Slice - 2026-06-21
 
 ### Work Done Till Date

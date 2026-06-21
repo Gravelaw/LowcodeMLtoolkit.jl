@@ -1481,6 +1481,73 @@
         }
       }
     },
+    "/api/v1/data-science-projects/{projectId}/drift/run": {
+      "post": {
+        "summary": "Run a local drift report for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunDriftReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Drift report persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDriftReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid drift request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Drift prerequisites are missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflows/{workflowId}/transforms/run": {
       "post": {
         "summary": "Run a workflow transform and return local artifact evidence",
@@ -2437,6 +2504,57 @@
             ]
           },
           "predictionExport": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "RunDriftReportRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "predictionExportId": {
+            "type": "string"
+          },
+          "baselineId": {
+            "type": "string"
+          },
+          "metricNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "RunDriftReportResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "monitoringBaseline",
+          "driftReport",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "monitoringBaseline": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "driftReport": {
             "$ref": "#/components/schemas/DataScienceProjectChildRecord"
           },
           "project": {
