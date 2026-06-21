@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local Import File Check Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added bounded filesystem import checks for `/api/v1/local-data/import`.
+- Raw local file imports now reject empty files, files larger than `JULIAFLOW_IMPORT_MAX_BYTES` (default 512 MiB), unsupported file extensions/formats, and credential/secret-looking filenames.
+- Managed `local://` refs remain accepted without filesystem checks because they refer to managed local artifact refs rather than raw host files.
+- Added focused Julia route smoke coverage for valid import, secret-looking filename rejection, oversized file rejection, unsupported extension rejection, and unsupported format rejection.
+- Verified the slice with a focused Julia file-check smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. File safety checks are now bounded, but content sniffing, PII detection, credential scanning inside file contents, richer audit evidence, and connector-specific import policies remain open.
+- Gateway module split, execution-backed jobs, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Add content sniffing and richer audit evidence for local imports.
+- Replace deterministic project route evidence with real execution-backed Julia jobs and local artifact materialization.
+- Start gateway internal module extraction for project/data source handling.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Raw Local Import Source Boundary Slice - 2026-06-21
 
 ### Work Done Till Date
@@ -34,13 +56,13 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 parent remains open. Import-root confinement is in place, but file size caps, content-type checks, sensitive-path policy, credential redaction, PII handling, and richer audit evidence remain open before broad import/connector enablement.
+- AKS-36 parent remains open. Import-root confinement is in place, but content-type checks, credential scanning/redaction, PII handling, and richer audit evidence remain open before broad import/connector enablement.
 - Gateway module split, execution-backed jobs, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
 - Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
 
 ### Next Items To Implement
 
-- Add file size/content validation and sensitive-path/credential redaction evidence for local imports.
+- Add content validation and richer audit evidence for local imports.
 - Replace deterministic project route evidence with real execution-backed Julia jobs and local artifact materialization.
 - Start gateway internal module extraction for project/data source handling.
 

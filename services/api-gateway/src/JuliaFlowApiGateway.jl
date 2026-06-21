@@ -2683,6 +2683,31 @@ function path_within_root(path::AbstractString, root::AbstractString)
     return !isabspath(relative) && !isempty(parts) && first(parts) != ".."
 end
 
+function local_data_import_max_bytes()
+    return positive_env_int("JULIAFLOW_IMPORT_MAX_BYTES", 512 * 1024 * 1024)
+end
+
+function sensitive_import_path(path::AbstractString)
+    filename = lowercase(basename(path))
+    sensitive_names = Set([".env", "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", "credentials", "credentials.json", "secrets.json"])
+    filename in sensitive_names && return true
+    return occursin("secret", filename) || occursin("password", filename) || occursin("token", filename) || occursin("credential", filename)
+end
+
+function validate_local_data_import_file!(path::AbstractString, source_format::AbstractString)
+    sensitive_import_path(path) && error("local data import source appears to contain credentials or secrets")
+    size = filesize(path)
+    size > 0 || error("local data import source file is empty")
+    size <= local_data_import_max_bytes() || error("local data import source file exceeds size limit")
+    format = safe_local_dataset_id(source_format)
+    allowed_formats = Set(["csv", "json", "jsonl", "parquet", "arrow_ipc", "arrow", "ipc", "feather"])
+    format in allowed_formats || error("local data import format must be csv, json, jsonl, parquet, arrow_ipc, arrow, ipc, or feather")
+    extension = lowercase(splitext(path)[2])
+    allowed_extensions = Set([".csv", ".json", ".jsonl", ".parquet", ".arrow", ".ipc", ".feather"])
+    extension in allowed_extensions || error("local data import source extension is not supported")
+    return nothing
+end
+
 function validate_local_data_import_source!(source_uri::AbstractString)
     uri = strip(String(source_uri))
     isempty(uri) && error("local data import sourceUri cannot be empty")
@@ -2709,8 +2734,9 @@ function data_import_profile_response!(state::GatewayState, body::AbstractDict)
     requested_dataset_id = String(get(body, "datasetId", dataset_card["datasetId"]))
     dataset_id = safe_local_dataset_id(requested_dataset_id)
     default_source_uri = "local://data/raw/$(dataset_id).csv"
-    source_uri = validate_local_data_import_source!(String(get(body, "sourceUri", default_source_uri)))
     source_format = String(get(body, "format", "csv"))
+    source_uri = validate_local_data_import_source!(String(get(body, "sourceUri", default_source_uri)))
+    startswith(lowercase(replace(source_uri, "\\" => "/")), "local://") || validate_local_data_import_file!(source_uri, source_format)
     target_zone = String(get(body, "targetZone", "raw"))
     read_mode = String(get(body, "readMode", source_format == "arrow_ipc" ? "arrow_ipc" : source_format == "parquet" ? "parquet" : source_format == "duckdb" ? "duckdb" : "csv"))
     zones = [String(zone["name"]) for zone in health["dataEstateZones"]]

@@ -1216,8 +1216,15 @@ end
         reloaded = load_state(store_root)
         import_root = mktempdir()
         import_source_path = joinpath(import_root, "foundation-profile.csv")
+        secret_source_path = joinpath(import_root, "secrets.csv")
+        large_source_path = joinpath(import_root, "large-profile.csv")
+        unsupported_source_path = joinpath(import_root, "profile.exe")
         write(import_source_path, "region,amount,window\nnorth,12.5,2026-Q2\nsouth,9.5,2026-Q2\n")
+        write(secret_source_path, "api_key,value\nredacted,1\n")
+        write(large_source_path, repeat("x", 2048))
+        write(unsupported_source_path, "not,a,dataset\n")
         ENV["JULIAFLOW_IMPORT_ROOTS"] = import_root
+        ENV["JULIAFLOW_IMPORT_MAX_BYTES"] = "1024"
         updated_toml = replace(read(foundation_path, String), "Foundation PoC" => "Foundation PoC Updated")
         foundation_workflow_payload = Dict{String,Any}(
             "workflow" => Dict(
@@ -1677,6 +1684,54 @@ end
                     Dict(
                         "datasetId" => "Escaped Profile",
                         "sourceUri" => foundation_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_secret_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Secret Profile",
+                        "sourceUri" => secret_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_large_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Large Profile",
+                        "sourceUri" => large_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_unsupported_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Unsupported Profile",
+                        "sourceUri" => unsupported_source_path,
                         "format" => "csv",
                         "targetZone" => "raw",
                     ),
@@ -3482,6 +3537,12 @@ end
         @test occursin("sourceUri must be a local file path or local://", String(data_import_remote_source_response.body))
         @test data_import_escape_source_response.status == 400
         @test occursin("source escapes allowed import roots", String(data_import_escape_source_response.body))
+        @test data_import_secret_source_response.status == 400
+        @test occursin("appears to contain credentials or secrets", String(data_import_secret_source_response.body))
+        @test data_import_large_source_response.status == 400
+        @test occursin("source file exceeds size limit", String(data_import_large_source_response.body))
+        @test data_import_unsupported_source_response.status == 400
+        @test occursin("source extension is not supported", String(data_import_unsupported_source_response.body))
         @test data_science_project_create_response.status == 201
         data_science_project_create_payload = JSON3.read(String(data_science_project_create_response.body), Dict{String,Any})
         @test data_science_project_create_payload["schemaVersion"] == "1.0"
