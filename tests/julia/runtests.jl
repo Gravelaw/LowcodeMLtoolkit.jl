@@ -3844,6 +3844,9 @@ end
         @test prediction_export_payload["project"]["predictionExports"][1]["artifactRefs"][1]["checksumSha256"] == prediction_export_payload["predictionExport"]["artifactRefs"][1]["checksumSha256"]
         prediction_export_job = first(filter(job -> job["jobType"] == "prediction_export", prediction_export_payload["project"]["projectJobs"]))
         @test prediction_export_job["outputRefs"][1]["sizeBytes"] == prediction_export_payload["predictionExport"]["artifactRefs"][1]["sizeBytes"]
+        @test prediction_export_job["resourceEvidence"]["executionMode"] == "prediction_export"
+        @test prediction_export_job["resourceEvidence"]["dispatchLane"] in ["cpu", "gpu"]
+        @test prediction_export_job["resourceEvidence"]["cpuWorkerConcurrency"] >= 1
         @test prediction_export_bad_format_response.status == 400
         @test occursin("format must be csv", String(prediction_export_bad_format_response.body))
         @test prediction_export_missing_contract_response.status == 400
@@ -3865,6 +3868,11 @@ end
         )
         @test all(job -> String(job["status"]) == "completed", drift_report_payload["project"]["projectJobs"])
         @test all(job -> haskey(job, "outputRefs"), drift_report_payload["project"]["projectJobs"])
+        @test all(job -> haskey(job, "resourceEvidence"), drift_report_payload["project"]["projectJobs"])
+        @test all(job -> haskey(job["resourceEvidence"], "selectedBackend"), drift_report_payload["project"]["projectJobs"])
+        @test all(job -> haskey(job["resourceEvidence"], "gpuFallbackReason"), drift_report_payload["project"]["projectJobs"])
+        drift_job = first(filter(job -> job["jobType"] == "drift_report", drift_report_payload["project"]["projectJobs"]))
+        @test drift_job["resourceEvidence"]["executionMode"] == "drift_report"
         @test drift_report_bad_threshold_response.status == 400
         @test occursin("threshold must be between 0 and 1", String(drift_report_bad_threshold_response.body))
         @test transform_run_response.status == 202
@@ -3984,7 +3992,10 @@ end
         @test rollback_ready_payload["lifecycleRecord"]["rollbackReason"] == "local drift review approved fallback model"
         @test rollback_ready_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "deployed"
         @test rollback_ready_payload["lifecycleRecord"]["validationEvidence"]["deployedEndpointId"] == deploy_package_payload["package"]["packageId"]
-        @test first(filter(job -> job["jobType"] == "model_lifecycle", rollback_ready_payload["project"]["projectJobs"]))["sourceRecordId"] == "foundation-linear-baseline"
+        rollback_lifecycle_job = first(filter(job -> job["jobType"] == "model_lifecycle", rollback_ready_payload["project"]["projectJobs"]))
+        @test rollback_lifecycle_job["sourceRecordId"] == "foundation-linear-baseline"
+        @test rollback_lifecycle_job["resourceEvidence"]["executionMode"] == "model_lifecycle_action"
+        @test rollback_lifecycle_job["resourceEvidence"]["cpuThreadCount"] >= 1
         @test model_lifecycle_rolled_back_response.status == 201
         rolled_back_payload = JSON3.read(String(model_lifecycle_rolled_back_response.body), Dict{String,Any})
         @test rolled_back_payload["lifecycleRecord"]["state"] == "rolled_back"

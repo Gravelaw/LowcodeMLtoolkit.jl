@@ -3215,6 +3215,7 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
         project,
         "model_lifecycle";
         source_record_id = model_id,
+        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "model_lifecycle_action"),
         started_at = timestamp,
         finished_at = timestamp,
     )
@@ -4746,6 +4747,40 @@ function validate_project_id_matches!(body::AbstractDict, project_id::AbstractSt
     return nothing
 end
 
+function data_science_project_job_resource_evidence(state::GatewayState; execution_mode::AbstractString = "local_project_route")
+    compute_settings = load_compute_settings(state)
+    gpu_registry = JuliaFlowWorkerService.gpu_registry_health()
+    requested_backend = String(compute_settings["selectedBackend"])
+    devices = get(gpu_registry, "devices", Any[])
+    hardware_count = count(device -> String(get(device, "mode", "hardware")) == "hardware", devices)
+    simulated_count = count(device -> String(get(device, "mode", "hardware")) == "simulated", devices)
+    selected_backend =
+        requested_backend == "cuda" && hardware_count == 0 ? "cpu" :
+        requested_backend == "simulated_cuda" && simulated_count == 0 ? "cpu" :
+        requested_backend
+    dispatch_lane = selected_backend == "cpu" ? "cpu" : "gpu"
+    fallback_reason =
+        dispatch_lane == "gpu" ? "none" :
+        requested_backend == "cuda" && hardware_count == 0 ? "no_cuda_device_available" :
+        requested_backend == "simulated_cuda" && simulated_count == 0 ? "no_simulated_cuda_device_available" :
+        "cpu_selected"
+    return Dict{String,Any}(
+        "executionMode" => String(execution_mode),
+        "requestedBackend" => requested_backend,
+        "selectedBackend" => selected_backend,
+        "dispatchLane" => dispatch_lane,
+        "workerPool" => dispatch_lane == "gpu" ? "local-$(selected_backend)" : "local-cpu",
+        "schedulerPolicy" => String(compute_settings["schedulerPolicy"]),
+        "cpuThreadCount" => Threads.nthreads(),
+        "cpuWorkerConcurrency" => Int(compute_settings["cpuWorkerConcurrency"]),
+        "cpuMemoryLimitBytes" => Int(compute_settings["cpuMemoryLimitBytes"]),
+        "gpuReadinessStatus" => Int(get(gpu_registry, "device_count", 0)) > 0 ? "available" : "cpu_fallback",
+        "gpuHardwareDeviceCount" => hardware_count,
+        "gpuSimulatedDeviceCount" => simulated_count,
+        "gpuFallbackReason" => fallback_reason,
+    )
+end
+
 function materialize_data_science_project(
     body::AbstractDict;
     existing::Union{Nothing,DataScienceProjectRecord} = nothing,
@@ -4816,6 +4851,7 @@ function data_science_project_job_record(
     split_plan_id::Union{Nothing,AbstractString} = nothing,
     source_record_id::Union{Nothing,AbstractString} = nothing,
     output_refs::AbstractVector = Any[],
+    resource_evidence::Union{Nothing,AbstractDict} = nothing,
     error_message::Union{Nothing,AbstractString} = nothing,
     started_at::Union{Nothing,AbstractString} = nothing,
     finished_at::Union{Nothing,AbstractString} = nothing,
@@ -4827,6 +4863,7 @@ function data_science_project_job_record(
         "jobType" => String(job_type),
         "status" => String(status),
         "outputRefs" => [Dict{String,Any}(String(key) => value for (key, value) in pairs(ref)) for ref in output_refs],
+        "resourceEvidence" => resource_evidence === nothing ? Dict{String,Any}() : Dict{String,Any}(String(key) => value for (key, value) in pairs(resource_evidence)),
         "startedAt" => started_at === nothing ? timestamp : String(started_at),
     )
     dataset_id === nothing || (job["datasetId"] = String(dataset_id))
@@ -4845,6 +4882,7 @@ function record_data_science_project_job!(
     split_plan_id::Union{Nothing,AbstractString} = nothing,
     source_record_id::Union{Nothing,AbstractString} = nothing,
     output_refs::AbstractVector = Any[],
+    resource_evidence::Union{Nothing,AbstractDict} = nothing,
     error_message::Union{Nothing,AbstractString} = nothing,
     started_at::Union{Nothing,AbstractString} = nothing,
     finished_at::Union{Nothing,AbstractString} = nothing,
@@ -4857,6 +4895,7 @@ function record_data_science_project_job!(
         split_plan_id = split_plan_id,
         source_record_id = source_record_id,
         output_refs = output_refs,
+        resource_evidence = resource_evidence,
         error_message = error_message,
         started_at = started_at,
         finished_at = finished_at,
@@ -4937,6 +4976,7 @@ function run_transform_fit_apply_response!(state::GatewayState, project_id::Abst
         split_plan_id = String(get(split_plan, "splitPlanId", "")),
         source_record_id = run_id,
         output_refs = artifact_refs,
+        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "transform_fit_apply"),
         started_at = timestamp,
         finished_at = timestamp,
     )
@@ -5464,6 +5504,7 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
         dataset_id = dataset_id,
         source_record_id = run_id,
         output_refs = artifact_refs,
+        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "statistical_analysis"),
         started_at = timestamp,
         finished_at = timestamp,
     )
@@ -5590,6 +5631,7 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
         split_plan_id = String(get(split_plan, "splitPlanId", "")),
         source_record_id = study_id,
         output_refs = tuning_output_refs,
+        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "validation_only_tuning"),
         started_at = timestamp,
         finished_at = timestamp,
     )
@@ -5706,6 +5748,7 @@ function run_final_evaluation_response!(state::GatewayState, project_id::Abstrac
         split_plan_id = split_plan_id,
         source_record_id = report_id,
         output_refs = get(evaluation_report, "artifactRefs", Dict{String,Any}[]),
+        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "final_evaluation"),
         started_at = timestamp,
         finished_at = timestamp,
     )
@@ -5889,6 +5932,7 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
         dataset_id = dataset_id,
         source_record_id = export_id,
         output_refs = artifact_refs,
+        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "prediction_export"),
         started_at = timestamp,
         finished_at = timestamp,
     )
@@ -5997,6 +6041,7 @@ function run_drift_report_response!(state::GatewayState, project_id::AbstractStr
                 "generatedAt" => timestamp,
             ),
         ],
+        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "drift_report"),
         started_at = timestamp,
         finished_at = timestamp,
     )

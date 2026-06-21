@@ -623,6 +623,22 @@ export type DataScienceProjectJobType =
 
 export type DataScienceProjectJobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
+export interface DataScienceProjectJobResourceEvidence {
+  executionMode: string;
+  requestedBackend: GatewayComputeBackend | string;
+  selectedBackend: GatewayComputeBackend | string;
+  dispatchLane: WorkflowResourceClass | string;
+  workerPool: string;
+  schedulerPolicy: string;
+  cpuThreadCount: number;
+  cpuWorkerConcurrency: number;
+  cpuMemoryLimitBytes: number;
+  gpuReadinessStatus: "available" | "cpu_fallback" | string;
+  gpuHardwareDeviceCount: number;
+  gpuSimulatedDeviceCount: number;
+  gpuFallbackReason: string;
+}
+
 export interface DataScienceProjectJobRecord {
   jobId: string;
   projectId: string;
@@ -632,6 +648,7 @@ export interface DataScienceProjectJobRecord {
   splitPlanId?: string;
   sourceRecordId?: string;
   outputRefs: DataScienceProjectEvidenceRef[];
+  resourceEvidence?: DataScienceProjectJobResourceEvidence;
   startedAt: string;
   finishedAt?: string;
   errorMessage?: string;

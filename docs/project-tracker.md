@@ -21,6 +21,25 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Project Job Resource Evidence Slice (2026-06-21)
+
+- Added `DataScienceProjectJobResourceEvidence` to TypeScript contracts and OpenAPI.
+- Project job records now carry local resource evidence: execution mode, requested/selected backend, dispatch lane, worker pool, scheduler policy, CPU thread/concurrency/memory limits, GPU readiness, GPU device counts, and fallback reason.
+- Gateway project routes now attach resource evidence to transform fit/apply, statistical analysis, tuning, final evaluation, prediction export, drift report, and model lifecycle jobs.
+- Added contract assertions for the resource evidence schema and Julia assertions that every generated project job includes CPU/GPU resource evidence.
+- Verification passed: `npm run validate:contracts`; `npm run build`; `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. Project jobs now expose local resource evidence, but they are still deterministic gateway route records rather than execution-backed worker jobs.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, imported output contract mapping, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Move project jobs behind execution-backed worker orchestration.
+- Add real CPU/GPU trial execution evidence for tuning/retraining/scoring.
+- Continue gateway module split or imported output contract mapping.
+
 ### AKS-36 Model Lifecycle Rollback And Retraining Action Slice (2026-06-21)
 
 - Added contract states for `rollback_ready`, `rolled_back`, and `retraining_requested`.

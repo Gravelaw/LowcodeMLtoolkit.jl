@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Project Job Resource Evidence Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added `DataScienceProjectJobResourceEvidence` to contracts and OpenAPI.
+- Project job records now include local CPU/GPU resource evidence derived from compute settings and GPU registry health.
+- Gateway project routes attach resource evidence to transform fit/apply, statistical analysis, tuning, final evaluation, prediction export, drift report, and model lifecycle jobs.
+- Added contract and Julia route assertions proving project jobs carry dispatch lane, selected backend, CPU concurrency, GPU fallback, and execution-mode evidence.
+- Verified with `npm run validate:contracts`, `npm run build`, and the full Julia suite through `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Resource evidence is now present on project job records, but the jobs are still gateway-substrate records rather than execution-backed worker jobs.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, imported output contract mapping, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Move deterministic project job records to execution-backed worker orchestration.
+- Add real CPU/GPU trial execution evidence for tuning, retraining, and scoring.
+- Continue gateway module split or imported output contract mapping.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Model Lifecycle Rollback And Retraining Action Slice - 2026-06-21
 
 ### Work Done Till Date

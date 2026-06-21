@@ -2238,6 +2238,7 @@
           "jobType",
           "status",
           "outputRefs",
+          "resourceEvidence",
           "startedAt"
         ],
         "properties": {
@@ -2284,6 +2285,9 @@
               "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
             }
           },
+          "resourceEvidence": {
+            "$ref": "#/components/schemas/DataScienceProjectJobResourceEvidence"
+          },
           "startedAt": {
             "type": "string"
           },
@@ -2291,6 +2295,84 @@
             "type": "string"
           },
           "errorMessage": {
+            "type": "string"
+          }
+        }
+      },
+      "DataScienceProjectJobResourceEvidence": {
+        "type": "object",
+        "required": [
+          "executionMode",
+          "requestedBackend",
+          "selectedBackend",
+          "dispatchLane",
+          "workerPool",
+          "schedulerPolicy",
+          "cpuThreadCount",
+          "cpuWorkerConcurrency",
+          "cpuMemoryLimitBytes",
+          "gpuReadinessStatus",
+          "gpuHardwareDeviceCount",
+          "gpuSimulatedDeviceCount",
+          "gpuFallbackReason"
+        ],
+        "properties": {
+          "executionMode": {
+            "type": "string"
+          },
+          "requestedBackend": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "cuda",
+              "simulated_cuda"
+            ]
+          },
+          "selectedBackend": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "cuda",
+              "simulated_cuda"
+            ]
+          },
+          "dispatchLane": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "gpu"
+            ]
+          },
+          "workerPool": {
+            "type": "string"
+          },
+          "schedulerPolicy": {
+            "type": "string"
+          },
+          "cpuThreadCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cpuWorkerConcurrency": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cpuMemoryLimitBytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "gpuReadinessStatus": {
+            "type": "string"
+          },
+          "gpuHardwareDeviceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "gpuSimulatedDeviceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "gpuFallbackReason": {
             "type": "string"
           }
         }
