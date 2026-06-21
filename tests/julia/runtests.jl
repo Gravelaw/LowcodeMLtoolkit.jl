@@ -3812,6 +3812,15 @@ end
         @test model_registry_payload["items"][1]["modelId"] == "foundation-linear-baseline"
         @test model_lifecycle_after_register_response.status == 200
         model_lifecycle_after_register_payload = JSON3.read(String(model_lifecycle_after_register_response.body), Dict{String,Any})
+        register_registry_match = findfirst(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            model_lifecycle_after_register_payload["modelRegistryRecords"],
+        )
+        @test register_registry_match !== nothing
+        registered_registry_record = model_lifecycle_after_register_payload["modelRegistryRecords"][register_registry_match]
+        @test registered_registry_record["status"] == "registered"
+        @test registered_registry_record["deploymentStatus"] == "not_deployed"
+        @test registered_registry_record["validationEvidence"]["projectId"] == "foundation-ml-project"
         register_lifecycle_match = findfirst(
             record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
             model_lifecycle_after_register_payload["modelLifecycleRecords"],
@@ -3839,6 +3848,14 @@ end
         @test deploy_package_history_payload["items"][1]["packageId"] == deploy_package_payload["package"]["packageId"]
         @test model_lifecycle_after_deploy_response.status == 200
         model_lifecycle_after_deploy_payload = JSON3.read(String(model_lifecycle_after_deploy_response.body), Dict{String,Any})
+        deploy_registry_match = findfirst(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            model_lifecycle_after_deploy_payload["modelRegistryRecords"],
+        )
+        @test deploy_registry_match !== nothing
+        deployed_registry_record = model_lifecycle_after_deploy_payload["modelRegistryRecords"][deploy_registry_match]
+        @test deployed_registry_record["deploymentStatus"] == "local_ready"
+        @test length(model_lifecycle_after_deploy_payload["modelRegistryRecords"]) == length(model_lifecycle_after_register_payload["modelRegistryRecords"])
         deploy_lifecycle_match = findfirst(
             record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
             model_lifecycle_after_deploy_payload["modelLifecycleRecords"],

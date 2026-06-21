@@ -882,6 +882,7 @@ export interface DataScienceProject {
   tuningStudies: TuningStudy[];
   evaluationReports: EvaluationReport[];
   predictionExports: PredictionExport[];
+  modelRegistryRecords: GatewayModelRegistryRecord[];
   modelLifecycleRecords: ModelLifecycleRecord[];
   monitoringBaselines: MonitoringBaseline[];
   driftReports: DriftReport[];
@@ -908,6 +909,7 @@ export interface UpdateDataScienceProjectRequest extends Partial<CreateDataScien
   tuningStudies?: TuningStudy[];
   evaluationReports?: EvaluationReport[];
   predictionExports?: PredictionExport[];
+  modelRegistryRecords?: GatewayModelRegistryRecord[];
   modelLifecycleRecords?: ModelLifecycleRecord[];
   monitoringBaselines?: MonitoringBaseline[];
   driftReports?: DriftReport[];

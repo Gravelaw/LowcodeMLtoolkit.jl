@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Project Model Registry Records Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added `modelRegistryRecords` to the `DataScienceProject` contract surface and repository persistence path.
+- Registration and local deploy packaging now upsert the linked project model registry record while preserving the workflow registry API response shape.
+- Workflow model registry listing now prefers project-backed registry records and falls back to execution metadata for older state.
+- Added frontend fixture, OpenAPI, contract, and Julia route coverage for project-backed registry records.
+- Verified the slice with `npm run validate:contracts`, `npm run build`, and the full Julia suite through `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Registry records are now project-backed, but a focused registry repository/module, rollback/retraining transitions, real scoring artifacts, and Models/Deploy/Monitor project migration remain open.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, and real tuning/evaluation/scoring/drift execution remain open.
+
+### Next Items To Implement
+
+- Move registry persistence into a focused registry module/repository as part of the gateway split.
+- Add rollback/retraining lifecycle transitions and scoring artifacts.
+- Continue converting deterministic substrate routes into execution-backed jobs.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Model Lifecycle Records Slice - 2026-06-21
 
 ### Work Done Till Date

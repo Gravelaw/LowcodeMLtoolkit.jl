@@ -285,6 +285,12 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.DataScienceProjectJobRecord);
   assert.deepEqual(schemas.DataScienceProjectJobRecord.properties.status.enum, ["queued", "running", "completed", "failed", "cancelled"]);
   assert.ok(schemas.UpdateDataScienceProjectRequest.properties.projectJobs);
+  assert.ok(schemas.DataScienceProject.properties.modelRegistryRecords);
+  assert.equal(
+    schemas.DataScienceProject.properties.modelRegistryRecords.items.$ref,
+    "#/components/schemas/ModelRegistryRecord",
+  );
+  assert.ok(schemas.UpdateDataScienceProjectRequest.properties.modelRegistryRecords);
   assert.ok(schemas.DataScienceProject.properties.transformFitApplyRecords);
   assert.ok(schemas.UpdateDataScienceProjectRequest.properties.transformFitApplyRecords);
   assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/transforms/fit-apply"]);

@@ -21,6 +21,26 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Project Model Registry Records Slice (2026-06-21)
+
+- Added `DataScienceProject.modelRegistryRecords` to TypeScript contracts, OpenAPI, frontend fixtures, gateway repository persistence, and update payload handling.
+- Model registration now upserts the project-backed registry record when validation evidence links the model to a data science project.
+- Local deploy packaging now updates the same project-backed registry record with `deploymentStatus = local_ready`.
+- Workflow model registry listing now prefers project-backed registry records and falls back to execution metadata for older state.
+- Added contract and Julia route coverage proving project-backed registry records persist through registration/deploy without duplication.
+- Verification passed: `npm run validate:contracts`; `npm run build`; `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. Registry records are now project-backed, but the dedicated registry repository and deeper Models/Deploy/Monitor UI migration are still open.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, rollback/retraining workflow depth, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Extract model registry persistence from the gateway/project aggregate into a focused registry repository/module when the gateway split begins.
+- Add rollback/retraining lifecycle transitions and scoring artifacts tied to approved evaluation and prediction export evidence.
+- Move deterministic project-scoped routes behind execution-backed worker jobs where appropriate.
+
 ### AKS-36 Model Lifecycle Records Slice (2026-06-21)
 
 - Added project-backed model lifecycle upsert behavior for validated model registration and local deploy packaging.

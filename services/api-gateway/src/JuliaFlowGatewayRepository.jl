@@ -148,6 +148,7 @@ Base.@kwdef mutable struct DataScienceProjectRecord
     tuning_studies::Vector{Dict{String,Any}} = Dict{String,Any}[]
     evaluation_reports::Vector{Dict{String,Any}} = Dict{String,Any}[]
     prediction_exports::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    model_registry_records::Vector{Dict{String,Any}} = Dict{String,Any}[]
     model_lifecycle_records::Vector{Dict{String,Any}} = Dict{String,Any}[]
     monitoring_baselines::Vector{Dict{String,Any}} = Dict{String,Any}[]
     drift_reports::Vector{Dict{String,Any}} = Dict{String,Any}[]
@@ -890,6 +891,7 @@ function data_science_project_payload(project::DataScienceProjectRecord)
         "tuningStudies" => project.tuning_studies,
         "evaluationReports" => project.evaluation_reports,
         "predictionExports" => project.prediction_exports,
+        "modelRegistryRecords" => project.model_registry_records,
         "modelLifecycleRecords" => project.model_lifecycle_records,
         "monitoringBaselines" => project.monitoring_baselines,
         "driftReports" => project.drift_reports,
@@ -1328,6 +1330,7 @@ function gateway_data_science_project(item)
         tuning_studies = dict_vector(get(item, "tuningStudies", Any[])),
         evaluation_reports = dict_vector(get(item, "evaluationReports", Any[])),
         prediction_exports = dict_vector(get(item, "predictionExports", Any[])),
+        model_registry_records = dict_vector(get(item, "modelRegistryRecords", Any[])),
         model_lifecycle_records = dict_vector(get(item, "modelLifecycleRecords", Any[])),
         monitoring_baselines = dict_vector(get(item, "monitoringBaselines", Any[])),
         drift_reports = dict_vector(get(item, "driftReports", Any[])),

@@ -541,6 +541,7 @@ export const dataScienceProject: DataScienceProject = {
   tuningStudies: [],
   evaluationReports: [],
   predictionExports: [],
+  modelRegistryRecords: [],
   modelLifecycleRecords: [],
   monitoringBaselines: [],
   driftReports: [],

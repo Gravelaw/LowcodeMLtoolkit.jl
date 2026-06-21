@@ -3091,6 +3091,21 @@ function project_for_model_lifecycle(state::GatewayState, validation_context::Ab
     return state.data_science_projects[project_id]
 end
 
+function upsert_project_model_registry!(state::GatewayState, model_record::AbstractDict)
+    validation_context = get(model_record, "validationEvidence", Dict{String,Any}())
+    project = project_for_model_lifecycle(state, validation_context, "model registry")
+    project === nothing && return nothing
+
+    record = Dict{String,Any}(String(key) => value for (key, value) in pairs(model_record))
+    model_id = String(get(record, "modelId", ""))
+    index = findfirst(item -> String(get(item, "modelId", "")) == model_id, project.model_registry_records)
+    remaining = index === nothing ? project.model_registry_records : [item for (item_index, item) in enumerate(project.model_registry_records) if item_index != index]
+    project.model_registry_records = [record, remaining...]
+    project.updated_at = String(get(record, "updatedAt", JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()))
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    return record
+end
+
 function upsert_project_model_lifecycle!(
     state::GatewayState,
     validation_context::AbstractDict,
@@ -3292,6 +3307,7 @@ function model_register_response!(state::GatewayState, workflow_id::AbstractStri
     execution === nothing && error("model evidence not found for workflow: $(workflow_id)")
     record = model_registry_payload(state, execution; request_body = body)
     execution.metadata["model_registry_record"] = record
+    upsert_project_model_registry!(state, record)
     upsert_project_model_lifecycle!(
         state,
         record["validationEvidence"],
@@ -3305,7 +3321,18 @@ end
 
 function model_registry_list_response(state::GatewayState, workflow_id::AbstractString)
     haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
-    records = [
+    project_records = Dict{String,Any}[]
+    for project in values(state.data_science_projects)
+        append!(
+            project_records,
+            [
+                Dict{String,Any}(String(key) => value for (key, value) in pairs(record))
+                for record in project.model_registry_records
+                if String(get(record, "workflowId", "")) == String(workflow_id)
+            ],
+        )
+    end
+    execution_records = [
         haskey(execution.metadata, "model_registry_record") ?
             execution.metadata["model_registry_record"] :
             model_registry_payload(state, execution)
@@ -3314,6 +3341,7 @@ function model_registry_list_response(state::GatewayState, workflow_id::Abstract
             haskey(execution.metadata, "explainability_evidence") &&
             (haskey(execution.metadata, "model_registry_record") || haskey(execution.metadata, "ml_validation_context"))
     ]
+    records = [project_records..., execution_records...]
     seen = Set{String}()
     deduped = Dict{String,Any}[]
     for record in records
@@ -3427,6 +3455,7 @@ function deploy_package_payload!(state::GatewayState, workflow_id::AbstractStrin
     model_record["updatedAt"] = package_record["createdAt"]
     execution.metadata["model_registry_record"] = model_record
     execution.metadata["deploy_package_records"] = [package_record, deploy_package_records(execution)...]
+    upsert_project_model_registry!(state, model_record)
     upsert_project_model_lifecycle!(
         state,
         validation_context,
@@ -4561,6 +4590,7 @@ const DATA_SCIENCE_PROJECT_ARRAY_FIELDS = Dict(
     "tuningStudies" => :tuning_studies,
     "evaluationReports" => :evaluation_reports,
     "predictionExports" => :prediction_exports,
+    "modelRegistryRecords" => :model_registry_records,
     "modelLifecycleRecords" => :model_lifecycle_records,
     "monitoringBaselines" => :monitoring_baselines,
     "driftReports" => :drift_reports,
