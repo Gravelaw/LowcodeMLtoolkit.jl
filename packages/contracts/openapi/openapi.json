@@ -1347,6 +1347,73 @@
         }
       }
     },
+    "/api/v1/data-science-projects/{projectId}/evaluation/run": {
+      "post": {
+        "summary": "Run a local final evaluation for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunFinalEvaluationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Final evaluation report persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunFinalEvaluationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid final evaluation request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Final evaluation prerequisites are missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflows/{workflowId}/transforms/run": {
       "post": {
         "summary": "Run a workflow transform and return local artifact evidence",
@@ -2199,6 +2266,62 @@
             "$ref": "#/components/schemas/DataScienceProjectChildRecord"
           },
           "tuningStudy": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "RunFinalEvaluationRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "trainingPlanId": {
+            "type": "string"
+          },
+          "tuningStudyId": {
+            "type": "string"
+          },
+          "metricNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "approvalThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "finalTestPolicy": {
+            "type": "string",
+            "enum": [
+              "use_final_test"
+            ]
+          }
+        }
+      },
+      "RunFinalEvaluationResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "evaluationReport",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "evaluationReport": {
             "$ref": "#/components/schemas/DataScienceProjectChildRecord"
           },
           "project": {

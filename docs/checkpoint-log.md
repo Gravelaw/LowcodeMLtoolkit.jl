@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Final Evaluation Gate Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added `RunFinalEvaluationRequest` and `RunFinalEvaluationResponse` contracts plus a project-scoped OpenAPI route for local final evaluation.
+- Added typed gateway client and endpoint-path coverage for the new route.
+- Implemented `POST /api/v1/data-science-projects/{projectId}/evaluation/run` in the gateway.
+- The route validates project/dataset membership, requires locked split evidence with a nonzero test fraction, requires explicit `finalTestPolicy: use_final_test`, blocks missing training/tuning prerequisites, and requires prior validation-only tuning evidence before using the locked test split.
+- Persisted deterministic final-evaluation reports into `DataScienceProject.evaluationReports` with metrics, approval status, local artifact evidence, and validation evidence linking project, split, and tuning study.
+- Added focused contract assertions and Julia route assertions for successful persistence, bad final-test policy rejection, and missing prerequisite rejection.
+- Verified the slice with `npm run validate:contracts` and a focused Julia route smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Final evaluation now has a project-backed gated route, but real Julia scoring/evaluation execution, persisted model-scoring artifacts, metric/threshold semantics, UI workflow coverage, and typed evaluation job lifecycle remain open.
+- Prediction/output export, transform fit/apply semantics, drift/evaluation monitoring records, gateway module split, local source trust-boundary hardening, typed jobs, and first-class lifecycle records remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Replace deterministic final-evaluation evidence with real Julia scoring/evaluation artifacts.
+- Add prediction/export and drift records with the same split/final-test evidence discipline.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Validation-Only Tuning Study Slice - 2026-06-21
 
 ### Work Done Till Date

@@ -1836,11 +1836,46 @@ end
                     Dict(
                         "datasetId" => "foundation-sales-sample",
                         "splitPlanId" => "split-foundation-stratified",
+                        "trainingPlanId" => "training-foundation-eval",
                         "targetColumn" => "amount",
                         "taskType" => "regression",
                         "algorithm" => "MLJ.EvoTreesRegressor",
                         "metricNames" => ["rmse", "mae"],
                         "maxTrials" => 3,
+                        "finalTestPolicy" => "forbid_final_test",
+                    ),
+                ),
+            ),
+        )
+        final_evaluation_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/evaluation/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-stratified",
+                        "trainingPlanId" => "training-foundation-eval",
+                        "metricNames" => ["rmse", "mae"],
+                        "approvalThreshold" => 0.8,
+                        "finalTestPolicy" => "use_final_test",
+                    ),
+                ),
+            ),
+        )
+        final_evaluation_bad_policy_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/evaluation/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-stratified",
+                        "trainingPlanId" => "training-foundation-eval",
                         "finalTestPolicy" => "forbid_final_test",
                     ),
                 ),
@@ -1857,6 +1892,22 @@ end
                         "datasetId" => "foundation-sales-sample",
                         "splitPlanId" => "split-foundation-stratified",
                         "targetColumn" => "amount",
+                        "finalTestPolicy" => "use_final_test",
+                    ),
+                ),
+            ),
+        )
+        final_evaluation_missing_training_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/evaluation/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-stratified",
+                        "trainingPlanId" => "missing-training-plan",
                         "finalTestPolicy" => "use_final_test",
                     ),
                 ),
@@ -3252,6 +3303,17 @@ end
         @test length(tuning_study_payload["project"]["trainingPlans"]) >= 1
         @test tuning_study_final_test_response.status == 400
         @test occursin("final test data cannot be used", String(tuning_study_final_test_response.body))
+        @test final_evaluation_response.status == 201
+        final_evaluation_payload = JSON3.read(String(final_evaluation_response.body), Dict{String,Any})
+        @test final_evaluation_payload["status"] == "completed"
+        @test final_evaluation_payload["evaluationReport"]["finalTestOnly"] == true
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["finalTestPolicy"] == "use_final_test"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["validationOnlyTuning"] == true
+        @test length(final_evaluation_payload["project"]["evaluationReports"]) >= 1
+        @test final_evaluation_bad_policy_response.status == 400
+        @test occursin("finalTestPolicy must be use_final_test", String(final_evaluation_bad_policy_response.body))
+        @test final_evaluation_missing_training_response.status == 409
+        @test occursin("training plan not found", String(final_evaluation_missing_training_response.body))
         @test transform_run_response.status == 202
         transform_run_payload = JSON3.read(String(transform_run_response.body), Dict{String,Any})
         @test transform_run_payload["status"] == "accepted"

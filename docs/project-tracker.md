@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Final Evaluation Gate Slice (2026-06-21)
+
+- Added TypeScript contracts, OpenAPI path/schema coverage, endpoint-path coverage, and typed client support for `POST /api/v1/data-science-projects/{projectId}/evaluation/run`.
+- Added a project-scoped gateway final-evaluation route that validates project/dataset membership, requires a locked split with a nonzero test fraction, requires explicit `finalTestPolicy: use_final_test`, and blocks evaluation when training/tuning prerequisites are missing.
+- Required final evaluation to reference a training plan with prior validation-only tuning evidence, preserving the training/tuning final-test boundary before the locked test split is used.
+- Persisted final evaluation reports into `DataScienceProject.evaluationReports` with metrics, approval status, local artifact evidence, and validation evidence linking the report to the project, split, and tuning study.
+- Added contract assertions and Julia route assertions for successful final-evaluation persistence, bad final-test policy rejection, and missing prerequisite rejection.
+- Verification passed: `npm run validate:contracts` and focused Julia route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice records deterministic final-evaluation substrate evidence, but real Julia evaluation execution, model scoring artifacts, threshold/metric semantics, UI workflow coverage, and typed evaluation job lifecycle remain open.
+- Prediction/output export, transform fit/apply semantics, drift/evaluation monitoring records, gateway module split, local source trust-boundary hardening, typed jobs, and first-class lifecycle records remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Replace deterministic final-evaluation metrics with real Julia scoring/evaluation artifacts.
+- Add prediction/export and drift records with the same split/final-test evidence discipline.
+- Start gateway internal module extraction and local source trust-boundary hardening.
+
 ### AKS-36 Validation-Only Tuning Study Slice (2026-06-21)
 
 - Added TypeScript contracts, OpenAPI path/schema coverage, endpoint-path coverage, and typed client support for `POST /api/v1/data-science-projects/{projectId}/tuning/run`.

@@ -13,6 +13,7 @@ import {
   type GatewayModelRegistryRequest,
   type GatewayTransformRunRequest,
   type GatewayVisualizeCheckpointExportRequest,
+  type RunFinalEvaluationRequest,
   type RunStatisticalAnalysisRequest,
   type RunTuningStudyRequest,
   type UpdateDataScienceProjectRequest,
@@ -90,6 +91,15 @@ const tuningStudyRequest: RunTuningStudyRequest = {
   maxTrials: 3,
   finalTestPolicy: "forbid_final_test"
 };
+const finalEvaluationRequest: RunFinalEvaluationRequest = {
+  datasetId: "contracts-train",
+  splitPlanId: "split-contracts",
+  trainingPlanId: "training-contracts",
+  tuningStudyId: "tuning-contracts",
+  metricNames: ["rmse", "mae"],
+  approvalThreshold: 0.8,
+  finalTestPolicy: "use_final_test"
+};
 const transformRunRequest: GatewayTransformRunRequest = {
   executionMode: "cpu_only",
   flowVariables: { JULIAFLOW_GPU_DEVICE: "cpu" }
@@ -155,6 +165,7 @@ client.getDataScienceProject("contracts-project");
 client.updateDataScienceProject("contracts-project", dataScienceProjectUpdateRequest);
 client.runDataScienceProjectStatisticalAnalysis("contracts-project", statisticalAnalysisRequest);
 client.runDataScienceProjectTuningStudy("contracts-project", tuningStudyRequest);
+client.runDataScienceProjectFinalEvaluation("contracts-project", finalEvaluationRequest);
 client.runWorkflowTransform("wf-foundation", transformRunRequest);
 client.getWorkflowTransformHistory("wf-foundation");
 client.runWorkflowMlExperiment("wf-foundation", mlExperimentRunRequest);
@@ -172,6 +183,7 @@ gatewayEndpointPaths.dataScienceProjects;
 gatewayEndpointPaths.dataScienceProject("contracts-project");
 gatewayEndpointPaths.dataScienceProjectStatisticalAnalysisRun("contracts-project");
 gatewayEndpointPaths.dataScienceProjectTuningRun("contracts-project");
+gatewayEndpointPaths.dataScienceProjectFinalEvaluationRun("contracts-project");
 gatewayEndpointPaths.workflowTransformRun("wf-foundation");
 gatewayEndpointPaths.workflowTransformHistory("wf-foundation");
 gatewayEndpointPaths.workflowMlExperimentRun("wf-foundation");
