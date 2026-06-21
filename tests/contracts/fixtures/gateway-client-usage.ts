@@ -78,7 +78,10 @@ const transformRunRequest: GatewayTransformRunRequest = {
 };
 const mlExperimentRunRequest: GatewayMlExperimentRunRequest = {
   executionMode: "gpu_preferred",
+  projectId: "foundation-project",
   datasetId: "foundation-sales-sample",
+  splitPlanId: "split-foundation-stratified",
+  finalTestPolicy: "forbid_final_test",
   target: "amount",
   algorithm: "deterministic_linear_baseline",
   flowVariables: { JULIAFLOW_GPU_DEVICE: "cpu" }

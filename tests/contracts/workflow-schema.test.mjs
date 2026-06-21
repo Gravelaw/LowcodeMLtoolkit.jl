@@ -285,9 +285,13 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.TransformRunRecord.properties.artifactEvidence);
   assert.ok(schemas.TransformHistoryResponse);
   assert.ok(schemas.MlExperimentRunResponse);
+  assert.ok(schemas.MlExperimentRunRequest.properties.projectId);
+  assert.ok(schemas.MlExperimentRunRequest.properties.splitPlanId);
+  assert.deepEqual(schemas.MlExperimentRunRequest.properties.finalTestPolicy.enum, ["forbid_final_test", "use_final_test"]);
   assert.ok(schemas.MlExperimentRecord.properties.metrics);
   assert.ok(schemas.MlExperimentRecord.properties.featureImportance);
   assert.ok(schemas.MlExperimentRecord.properties.artifactEvidence);
+  assert.ok(schemas.MlExperimentRecord.properties.validationEvidence);
   assert.ok(schemas.MlExperimentHistoryResponse);
   assert.ok(schemas.ModelRegistryResponse);
   assert.ok(schemas.ModelRegistryRecord.properties.primaryMetricName);

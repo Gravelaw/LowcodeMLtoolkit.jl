@@ -1754,6 +1754,53 @@ end
             ),
         )
         data_science_project_missing_response = route_request(state, HTTP.Request("GET", "/api/v1/data-science-projects/missing-project"))
+        data_science_project_foundation_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "foundation-ml-project",
+                        "name" => "Foundation ML Project",
+                        "datasets" => [
+                            Dict(
+                                "datasetId" => "foundation-sales-sample",
+                                "name" => "Foundation sales sample",
+                                "role" => "train",
+                                "sourceUri" => "local://data/raw/foundation-sales-sample.csv",
+                                "localOnly" => true,
+                            ),
+                        ],
+                        "schemaContracts" => [
+                            Dict(
+                                "schemaId" => "schema-foundation-sales",
+                                "datasetId" => "foundation-sales-sample",
+                                "updatedAt" => "2026-06-21T00:00:00Z",
+                                "columns" => [
+                                    Dict("name" => "amount", "inferredType" => "Float64", "logicalType" => "continuous", "role" => "target", "nullable" => false),
+                                    Dict("name" => "region", "inferredType" => "String", "logicalType" => "categorical", "role" => "group", "nullable" => false),
+                                ],
+                            ),
+                        ],
+                        "splitPlans" => [
+                            Dict(
+                                "splitPlanId" => "split-foundation-stratified",
+                                "datasetId" => "foundation-sales-sample",
+                                "strategy" => "stratified",
+                                "trainFraction" => 0.7,
+                                "validationFraction" => 0.15,
+                                "testFraction" => 0.15,
+                                "groupColumn" => "region",
+                                "locked" => true,
+                                "createdAt" => "2026-06-21T00:00:00Z",
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
         transform_run_response = route_request(
             state,
             HTTP.Request(
@@ -1776,9 +1823,47 @@ end
                 JSON3.write(
                     Dict(
                         "executionMode" => "cpu_only",
+                        "projectId" => "foundation-ml-project",
                         "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-stratified",
+                        "finalTestPolicy" => "forbid_final_test",
                         "target" => "amount",
                         "algorithm" => "deterministic_linear_baseline",
+                    ),
+                ),
+            ),
+        )
+        ml_experiment_missing_split_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/ml/experiments/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "executionMode" => "cpu_only",
+                        "projectId" => "foundation-ml-project",
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "missing-split",
+                        "target" => "amount",
+                    ),
+                ),
+            ),
+        )
+        ml_experiment_final_test_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/ml/experiments/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "executionMode" => "cpu_only",
+                        "projectId" => "foundation-ml-project",
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-stratified",
+                        "finalTestPolicy" => "use_final_test",
+                        "target" => "amount",
                     ),
                 ),
             ),
@@ -3065,8 +3150,10 @@ end
         @test data_science_project_id_mismatch_response.status == 400
         @test occursin("project id mismatch", String(data_science_project_id_mismatch_response.body))
         @test data_science_project_missing_response.status == 404
+        @test data_science_project_foundation_response.status == 201
         @test isfile(joinpath(store_root, "data-science-projects.json"))
         @test haskey(load_state(store_root).data_science_projects, "wellbore-geology")
+        @test haskey(load_state(store_root).data_science_projects, "foundation-ml-project")
         @test transform_run_response.status == 202
         transform_run_payload = JSON3.read(String(transform_run_response.body), Dict{String,Any})
         @test transform_run_payload["status"] == "accepted"
@@ -3084,10 +3171,17 @@ end
         @test ml_experiment_payload["experiment"]["datasetId"] == "foundation-sales-sample"
         @test ml_experiment_payload["experiment"]["modelId"] == "foundation-linear-baseline"
         @test ml_experiment_payload["experiment"]["target"] == "amount"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["projectId"] == "foundation-ml-project"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["splitPlanId"] == "split-foundation-stratified"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
         @test haskey(ml_experiment_payload["experiment"]["metrics"], "mae")
         @test length(ml_experiment_payload["experiment"]["featureImportance"]) >= 1
         @test length(ml_experiment_payload["experiment"]["artifactEvidence"]) >= 3
         @test ml_experiment_payload["experiment"]["localOnly"] == true
+        @test ml_experiment_missing_split_response.status == 400
+        @test occursin("ml experiment split plan not found", String(ml_experiment_missing_split_response.body))
+        @test ml_experiment_final_test_response.status == 400
+        @test occursin("final test data cannot be used", String(ml_experiment_final_test_response.body))
         @test ml_experiment_history_response.status == 200
         ml_experiment_history_payload = JSON3.read(String(ml_experiment_history_response.body), Dict{String,Any})
         @test ml_experiment_history_payload["count"] >= 1

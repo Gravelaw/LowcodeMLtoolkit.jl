@@ -1296,6 +1296,14 @@ export interface GatewayMlExperimentRecord {
   hardwareBackend: string;
   gpuReadinessStatus: string;
   artifactEvidence: GatewayMlExperimentArtifactEvidence[];
+  validationEvidence?: {
+    projectId?: string;
+    splitPlanId?: string;
+    splitStrategy?: string;
+    finalTestPolicy?: "forbid_final_test" | "use_final_test";
+    validationFraction?: number;
+    testFraction?: number;
+  };
   startedAt: string;
   finishedAt?: string | null;
   localOnly: boolean;
@@ -1303,7 +1311,10 @@ export interface GatewayMlExperimentRecord {
 
 export interface GatewayMlExperimentRunRequest {
   executionMode?: ExecutionHint;
+  projectId?: string;
   datasetId?: string;
+  splitPlanId?: string;
+  finalTestPolicy?: "forbid_final_test" | "use_final_test";
   target?: string;
   algorithm?: string;
   flowVariables?: Record<string, string | number | boolean>;

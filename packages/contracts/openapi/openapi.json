@@ -6916,6 +6916,33 @@
               "$ref": "#/components/schemas/MlExperimentArtifactEvidence"
             }
           },
+          "validationEvidence": {
+            "type": "object",
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "splitPlanId": {
+                "type": "string"
+              },
+              "splitStrategy": {
+                "type": "string"
+              },
+              "finalTestPolicy": {
+                "type": "string",
+                "enum": [
+                  "forbid_final_test",
+                  "use_final_test"
+                ]
+              },
+              "validationFraction": {
+                "type": "number"
+              },
+              "testFraction": {
+                "type": "number"
+              }
+            }
+          },
           "startedAt": {
             "type": "string"
           },
@@ -6936,8 +6963,21 @@
           "executionMode": {
             "type": "string"
           },
+          "projectId": {
+            "type": "string"
+          },
           "datasetId": {
             "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "finalTestPolicy": {
+            "type": "string",
+            "enum": [
+              "forbid_final_test",
+              "use_final_test"
+            ]
           },
           "target": {
             "type": "string"

@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 ML Experiment Validation Enforcement Slice (2026-06-21)
+
+- Extended ML experiment run contracts and OpenAPI with optional `projectId`, `splitPlanId`, and `finalTestPolicy`, and added `validationEvidence` to experiment records.
+- Updated ML Studio live run requests to send the active `DataScienceProject` id, dataset id, split plan id, and `forbid_final_test` policy.
+- Added gateway validation before accepting workflow ML experiment runs: matching project/dataset is required when provided, split plan evidence is required, validation/test fractions must be nonzero, and `use_final_test` is rejected for training/tuning runs.
+- Persisted accepted-run validation evidence into execution metadata so experiment run/history payloads can show the project split context that produced the metrics.
+- Added contract fixture/schema assertions and Julia route assertions for accepted validation evidence plus missing split and final-test misuse rejection.
+- Verification passed: focused Julia route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`, `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, and `npm run build`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice guards ML experiment runs only; hyperparameter tuning, model registration, deployment packaging, final evaluation, prediction export, and drift/evaluation records still need validation/test gates.
+- Gateway module split, local source trust-boundary hardening, statistical EDA services, typed jobs, model lifecycle records, and broader project-backed Transform/Models/Monitor/Deploy state remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Extend validation/test enforcement to tuning, registration, deployment, final evaluation, and prediction/export paths.
+- Start gateway internal module extraction for project/catalog/analysis/experiment/registry/monitoring responsibilities.
+- Add statistical EDA run records and local source trust-boundary checks before deeper persona workflow features.
+
 ### AKS-36 DataScienceProject API Negative Validation Slice (2026-06-21)
 
 - Hardened gateway `DataScienceProject` materialization to reject unsupported `schemaVersion`, explicit route/body project id mismatches, and non-array child-record fields.

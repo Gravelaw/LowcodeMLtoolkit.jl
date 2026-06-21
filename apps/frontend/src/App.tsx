@@ -974,7 +974,14 @@ function App() {
             onRun={() =>
               withGatewayFallback(
                 "ml-studio",
-                () => client!.runWorkflowMlExperiment(activeWorkflowId(data), { datasetId: "customer-churn-local", target: "churn", algorithm: "MLJ.XGBoostClassifier" }),
+                () => client!.runWorkflowMlExperiment(activeWorkflowId(data), {
+                  projectId: data.dataScienceProject.projectId,
+                  datasetId: data.dataProfile.datasetId,
+                  splitPlanId: data.dataScienceProject.splitPlans.find((plan) => plan.datasetId === data.dataProfile.datasetId)?.splitPlanId,
+                  finalTestPolicy: "forbid_final_test",
+                  target: data.dataProfile.workflowReadiness?.targetColumn ?? "churn",
+                  algorithm: "MLJ.XGBoostClassifier"
+                }),
                 (response) => setData((current) => ({
                   ...current,
                   mlExperiments: prependUnique(current.mlExperiments, response.experiment, (item) => item.experimentId),

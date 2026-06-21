@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 ML Experiment Validation Enforcement Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Extended `GatewayMlExperimentRunRequest` and OpenAPI `MlExperimentRunRequest` with `projectId`, `splitPlanId`, and `finalTestPolicy`.
+- Extended ML experiment records with `validationEvidence` so accepted runs can report the project/split/final-test policy context behind metrics.
+- Updated the frontend ML Studio run action to send active `DataScienceProject` split context to the gateway in live mode.
+- Added gateway-side ML experiment validation before accepting a run: project/dataset consistency, split-plan existence, nonzero validation/test fractions, and rejection of `use_final_test` for training/tuning.
+- Added focused contract and Julia route coverage for accepted validation evidence, missing split rejection, and final-test misuse rejection.
+- Verified the slice with a focused Julia route smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`, `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, and `npm run build`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Validation enforcement currently covers ML experiment runs only.
+- Hyperparameter tuning, model registration, deployment packaging, final evaluation, prediction exports, and drift/evaluation records still need split/final-test gates.
+- Gateway module split, local source trust-boundary hardening, statistical EDA services, typed jobs, model lifecycle records, and broader project-backed feature migration remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Extend the same validation discipline to tuning, registration, deployment, final evaluation, and prediction/export paths.
+- Start gateway internal module extraction before adding deeper stats/tuning/registry/drift behavior.
+- Add local-source trust-boundary checks and statistical EDA run records for the next data-science substrate slices.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject API Negative Validation Slice - 2026-06-21
 
 ### Work Done Till Date
