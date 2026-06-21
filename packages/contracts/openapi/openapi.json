@@ -7140,7 +7140,8 @@
             "type": "string"
           },
           "sourceUri": {
-            "type": "string"
+            "type": "string",
+            "description": "Local import source. Accepts managed local:// refs or existing local files confined to the configured import roots."
           },
           "format": {
             "type": "string"

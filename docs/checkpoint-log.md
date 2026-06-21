@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Raw Local Import Source Boundary Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added source validation to `/api/v1/local-data/import`.
+- Raw local imports now accept managed `local://` refs or existing filesystem files confined to configured import roots (`JULIAFLOW_IMPORT_ROOTS` plus the local data estate root).
+- Remote/provider import URIs, missing local files, and filesystem paths outside allowed import roots now fail with 400 responses.
+- The no-`sourceUri` import default now uses `local://data/raw/<dataset>.csv` instead of an implicit repository fixture path.
+- Updated OpenAPI `DataImportProfileRequest.sourceUri` description to document local file/import-root behavior.
+- Added focused Julia route smoke coverage for valid confined import, default managed import, remote rejection, and escaped-path rejection.
+- Verified the slice with `npm run validate:contracts` and a focused Julia import-boundary smoke using `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Import-root confinement is in place, but file size caps, content-type checks, sensitive-path policy, credential redaction, PII handling, and richer audit evidence remain open before broad import/connector enablement.
+- Gateway module split, execution-backed jobs, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
+
+### Next Items To Implement
+
+- Add file size/content validation and sensitive-path/credential redaction evidence for local imports.
+- Replace deterministic project route evidence with real execution-backed Julia jobs and local artifact materialization.
+- Start gateway internal module extraction for project/data source handling.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Source Boundary Slice - 2026-06-21
 
 ### Work Done Till Date
@@ -33,13 +57,13 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 parent remains open. This hardens project dataset refs, but raw local file intake still needs a fuller import-root threat model, symlink/realpath checks, size caps, credential redaction, and audit evidence before broad import/connector enablement.
+- AKS-36 parent remains open. This hardens project dataset refs, but raw local file intake still needs a fuller threat model, file size/content checks, credential redaction, and audit evidence before broad import/connector enablement.
 - Gateway module split, execution-backed jobs, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
 - Full Julia suite remains blocked on this Windows host by application-control policy for generated/JLL DLLs.
 
 ### Next Items To Implement
 
-- Add import-root confinement and file-level local source validation for raw local uploads/imports.
+- Add file size/content checks and richer audit evidence for raw local uploads/imports.
 - Replace deterministic project route evidence with real execution-backed Julia jobs and local artifact materialization.
 - Start gateway internal module extraction for project/data source handling.
 

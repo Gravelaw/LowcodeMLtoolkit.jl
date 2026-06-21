@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Raw Local Import Source Boundary Slice (2026-06-21)
+
+- Added `/api/v1/local-data/import` source validation for raw local file intake.
+- Local data imports now accept managed `local://` refs or existing filesystem files confined to configured import roots (`JULIAFLOW_IMPORT_ROOTS` plus the local data estate root).
+- Rejected remote/provider import URIs, missing local files, and filesystem paths that escape allowed import roots.
+- Changed the no-`sourceUri` import default to a managed `local://data/raw/<dataset>.csv` ref instead of an implicit repository fixture path.
+- Documented import `sourceUri` behavior in OpenAPI and added focused Julia route coverage for valid confined import, default managed import, remote rejection, and escaped-path rejection.
+- Verification passed: `npm run validate:contracts` and focused Julia import-boundary route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This slice adds import-root confinement, but symlink policy nuance, file size caps, content-type sniffing, credential redaction, PII handling, and richer audit evidence remain open before broad connector enablement.
+- Gateway module split, execution-backed jobs, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
+- Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
+
+### Next Items To Implement
+
+- Add file size/content validation and sensitive-path/credential redaction evidence for local imports.
+- Replace deterministic project route evidence with real Julia execution jobs and concrete local artifacts.
+- Start gateway internal module extraction for project/data source handling.
+
 ### AKS-36 DataScienceProject Source Boundary Slice (2026-06-21)
 
 - Added gateway validation for `DataScienceProject.datasets` so project records only accept managed local `local://` source/artifact refs.
@@ -31,13 +52,13 @@ Tracker always records 3 things:
 
 ### Gaps Pending
 
-- AKS-36 parent is still open. This slice hardens project dataset refs, but raw local file intake still needs a fuller import-root threat model, symlink/realpath checks, size caps, credential redaction, and audit coverage before broad connector enablement.
+- AKS-36 parent is still open. This slice hardens project dataset refs, but raw local file intake still needs a fuller threat model, file size/content checks, credential redaction, and audit coverage before broad connector enablement.
 - Gateway module split, execution-backed jobs, deeper statistical/tuning/evaluation/scoring/drift execution, first-class lifecycle records, and project-backed frontend migration remain open.
 - Full Julia suite remains environment-blocked on this Windows host by application-control policy for generated/JLL DLLs as noted in earlier checkpoints.
 
 ### Next Items To Implement
 
-- Add import-root confinement and file-level local source validation for raw local uploads/imports.
+- Add file size/content checks and richer audit evidence for raw local uploads/imports.
 - Replace deterministic project route evidence with real Julia execution jobs and concrete local artifacts.
 - Start gateway internal module extraction for project/data source handling.
 

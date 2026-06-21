@@ -1214,6 +1214,10 @@ end
     mktempdir() do store_root
         state = foundation_state(foundation_path; store_root = store_root)
         reloaded = load_state(store_root)
+        import_root = mktempdir()
+        import_source_path = joinpath(import_root, "foundation-profile.csv")
+        write(import_source_path, "region,amount,window\nnorth,12.5,2026-Q2\nsouth,9.5,2026-Q2\n")
+        ENV["JULIAFLOW_IMPORT_ROOTS"] = import_root
         updated_toml = replace(read(foundation_path, String), "Foundation PoC" => "Foundation PoC Updated")
         foundation_workflow_payload = Dict{String,Any}(
             "workflow" => Dict(
@@ -1640,6 +1644,38 @@ end
                 JSON3.write(
                     Dict(
                         "datasetId" => "Foundation Profile",
+                        "sourceUri" => import_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_remote_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Remote Profile",
+                        "sourceUri" => "https://example.com/profile.csv",
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_escape_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Escaped Profile",
                         "sourceUri" => foundation_path,
                         "format" => "csv",
                         "targetZone" => "raw",
@@ -3430,6 +3466,7 @@ end
         data_import_payload = JSON3.read(String(data_import_response.body), Dict{String,Any})
         @test data_import_payload["status"] == "profiled"
         @test data_import_payload["profile"]["datasetId"] == "foundation-profile"
+        @test data_import_payload["profile"]["sourceUri"] == realpath(import_source_path)
         @test data_import_payload["profile"]["targetZone"] == "raw"
         @test startswith(data_import_payload["profile"]["artifactRef"], "local://data/raw/foundation-profile")
         @test data_import_payload["profile"]["localOnly"] == true
@@ -3441,6 +3478,10 @@ end
         @test data_import_payload["profile"]["workflowReadiness"]["downstreamReady"] == true
         @test length(data_import_payload["profile"]["quickPlots"]) >= 1
         @test length(data_import_payload["profile"]["previewRows"]) >= 1
+        @test data_import_remote_source_response.status == 400
+        @test occursin("sourceUri must be a local file path or local://", String(data_import_remote_source_response.body))
+        @test data_import_escape_source_response.status == 400
+        @test occursin("source escapes allowed import roots", String(data_import_escape_source_response.body))
         @test data_science_project_create_response.status == 201
         data_science_project_create_payload = JSON3.read(String(data_science_project_create_response.body), Dict{String,Any})
         @test data_science_project_create_payload["schemaVersion"] == "1.0"

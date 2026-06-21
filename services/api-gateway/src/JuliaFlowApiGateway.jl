@@ -2657,13 +2657,59 @@ function data_profile_chart_specs(dataset_id::AbstractString, fixture::AbstractD
     return chart_specs
 end
 
+function split_env_paths(value::AbstractString)
+    separator = Sys.iswindows() ? ';' : ':'
+    return [strip(path) for path in split(String(value), separator) if !isempty(strip(path))]
+end
+
+function local_data_import_roots()
+    home = local_appliance_home()
+    roots = String[local_data_estate_root(home)]
+    if haskey(ENV, "JULIAFLOW_IMPORT_ROOTS")
+        append!(roots, split_env_paths(ENV["JULIAFLOW_IMPORT_ROOTS"]))
+    end
+    normalized = String[]
+    for root in roots
+        isempty(strip(root)) && continue
+        path = normpath(abspath(root))
+        path in normalized || push!(normalized, path)
+    end
+    return normalized
+end
+
+function path_within_root(path::AbstractString, root::AbstractString)
+    relative = relpath(path, root)
+    parts = splitpath(relative)
+    return !isabspath(relative) && !isempty(parts) && first(parts) != ".."
+end
+
+function validate_local_data_import_source!(source_uri::AbstractString)
+    uri = strip(String(source_uri))
+    isempty(uri) && error("local data import sourceUri cannot be empty")
+    (occursin('\0', uri) || occursin('\n', uri) || occursin('\r', uri)) && error("local data import sourceUri contains invalid characters")
+    normalized = replace(uri, "\\" => "/")
+    lower = lowercase(normalized)
+    if startswith(lower, "local://")
+        validate_project_local_ref!(uri, "import sourceUri")
+        return uri
+    end
+    occursin(r"^[a-z][a-z0-9+.-]*://"i, uri) && error("local data import sourceUri must be a local file path or local:// managed artifact ref")
+    isfile(uri) || error("local data import source file not found")
+    source_path = realpath(uri)
+    roots = [realpath(root) for root in local_data_import_roots() if isdir(root)]
+    isempty(roots) && error("local data import root not configured")
+    any(root -> path_within_root(source_path, root), roots) || error("local data import source escapes allowed import roots")
+    return source_path
+end
+
 function data_import_profile_response!(state::GatewayState, body::AbstractDict)
     health = JSON3.read(healthcheck(state), Dict{String,Any})
     evidence = gateway_explainability_evidence(state)
     dataset_card = Dict{String,Any}(String(key) => value for (key, value) in pairs(evidence["datasetCard"]))
     requested_dataset_id = String(get(body, "datasetId", dataset_card["datasetId"]))
     dataset_id = safe_local_dataset_id(requested_dataset_id)
-    source_uri = String(get(body, "sourceUri", dataset_card["sourceUri"]))
+    default_source_uri = "local://data/raw/$(dataset_id).csv"
+    source_uri = validate_local_data_import_source!(String(get(body, "sourceUri", default_source_uri)))
     source_format = String(get(body, "format", "csv"))
     target_zone = String(get(body, "targetZone", "raw"))
     read_mode = String(get(body, "readMode", source_format == "arrow_ipc" ? "arrow_ipc" : source_format == "parquet" ? "parquet" : source_format == "duckdb" ? "duckdb" : "csv"))
@@ -5231,6 +5277,8 @@ function classify_gateway_error(err)
     elseif occursin("data science project schemaVersion must be 1.0", message)
         return 400, message
     elseif occursin("data science project dataset", message)
+        return 400, message
+    elseif occursin("local data import ", message)
         return 400, message
     elseif occursin("project child records must be arrays", message)
         return 400, message
