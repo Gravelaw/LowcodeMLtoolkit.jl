@@ -20,6 +20,30 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Model Lifecycle Records Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added a project-backed model lifecycle upsert helper in the API Gateway.
+- Validated model registration now records `DataScienceProject.modelLifecycleRecords` as `validated` when the model evidence has project validation context.
+- Local deploy packaging now advances that same project lifecycle record to `deployed` and stores the local deploy package id as deployed endpoint evidence.
+- Fixed the API Gateway test data-estate root reset before the foundation data-science project flow so managed local CSV statistical evidence remains resolvable after bootstrap health checks modify environment state.
+- Added Julia route regression coverage for lifecycle state transitions and duplicate prevention.
+- Verified the slice with the full Julia suite using `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. The project aggregate now records first lifecycle transitions, but registry state is still execution-metadata-backed rather than repository-backed.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, rollback/retraining lifecycle depth, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Extract model registry state into a first-class model/project repository path.
+- Add rollback/retraining lifecycle transitions plus scoring artifacts tied to approved evaluation and prediction export evidence.
+- Move deterministic project-scoped routes toward execution-backed worker jobs.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Statistical Artifact Persistence Slice - 2026-06-21
 
 ### Work Done Till Date

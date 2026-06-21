@@ -3084,6 +3084,47 @@ function model_validation_context(execution::GatewayExecution, action::AbstractS
     )
 end
 
+function project_for_model_lifecycle(state::GatewayState, validation_context::AbstractDict, action::AbstractString)
+    project_id = String(get(validation_context, "projectId", ""))
+    isempty(strip(project_id)) && return nothing
+    haskey(state.data_science_projects, project_id) || error("$(String(action)) project not found: $(project_id)")
+    return state.data_science_projects[project_id]
+end
+
+function upsert_project_model_lifecycle!(
+    state::GatewayState,
+    validation_context::AbstractDict,
+    model_id::AbstractString,
+    lifecycle_state::AbstractString;
+    evaluation_report_id::Union{Nothing,AbstractString} = nothing,
+    deployed_endpoint_id::Union{Nothing,AbstractString} = nothing,
+    updated_at::Union{Nothing,AbstractString} = nothing,
+)
+    project = project_for_model_lifecycle(state, validation_context, "model lifecycle")
+    project === nothing && return nothing
+
+    timestamp = updated_at === nothing ? JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp() : String(updated_at)
+    index = findfirst(record -> String(get(record, "modelId", "")) == String(model_id), project.model_lifecycle_records)
+    existing = index === nothing ? Dict{String,Any}() : Dict{String,Any}(String(key) => value for (key, value) in pairs(project.model_lifecycle_records[index]))
+    record = Dict{String,Any}(
+        "modelId" => String(model_id),
+        "state" => String(lifecycle_state),
+        "updatedAt" => timestamp,
+    )
+
+    report_id = evaluation_report_id === nothing ? String(get(validation_context, "evaluationReportId", get(existing, "evaluationReportId", ""))) : String(evaluation_report_id)
+    isempty(strip(report_id)) || (record["evaluationReportId"] = report_id)
+    endpoint_id = deployed_endpoint_id === nothing ? String(get(existing, "deployedEndpointId", "")) : String(deployed_endpoint_id)
+    isempty(strip(endpoint_id)) || (record["deployedEndpointId"] = endpoint_id)
+    haskey(existing, "rollbackModelId") && (record["rollbackModelId"] = String(existing["rollbackModelId"]))
+
+    remaining = index === nothing ? project.model_lifecycle_records : [item for (item_index, item) in enumerate(project.model_lifecycle_records) if item_index != index]
+    project.model_lifecycle_records = [record, remaining...]
+    project.updated_at = timestamp
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    return record
+end
+
 function ml_experiment_payload(state::GatewayState, execution::GatewayExecution; request_body::AbstractDict = Dict{String,Any}())
     haskey(state.workflows, execution.workflow_id) || error("workflow not found: $(execution.workflow_id)")
     workflow = state.workflows[execution.workflow_id]
@@ -3251,6 +3292,13 @@ function model_register_response!(state::GatewayState, workflow_id::AbstractStri
     execution === nothing && error("model evidence not found for workflow: $(workflow_id)")
     record = model_registry_payload(state, execution; request_body = body)
     execution.metadata["model_registry_record"] = record
+    upsert_project_model_lifecycle!(
+        state,
+        record["validationEvidence"],
+        String(record["modelId"]),
+        "validated";
+        updated_at = String(record["updatedAt"]),
+    )
     save_execution!(state.repository, execution; producer = "api-gateway")
     return JSON3.write(Dict("status" => "registered", "model" => record))
 end
@@ -3379,6 +3427,14 @@ function deploy_package_payload!(state::GatewayState, workflow_id::AbstractStrin
     model_record["updatedAt"] = package_record["createdAt"]
     execution.metadata["model_registry_record"] = model_record
     execution.metadata["deploy_package_records"] = [package_record, deploy_package_records(execution)...]
+    upsert_project_model_lifecycle!(
+        state,
+        validation_context,
+        String(model_record["modelId"]),
+        "deployed";
+        deployed_endpoint_id = String(package_record["packageId"]),
+        updated_at = String(package_record["createdAt"]),
+    )
     save_execution!(state.repository, execution; producer = "api-gateway")
     return package_record
 end

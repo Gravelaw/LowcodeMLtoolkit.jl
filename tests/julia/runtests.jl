@@ -1956,6 +1956,7 @@ end
             ),
         )
         data_science_project_missing_response = route_request(state, HTTP.Request("GET", "/api/v1/data-science-projects/missing-project"))
+        ENV["JULIAFLOW_DATA_ESTATE_ROOT"] = data_estate_root
         data_science_project_foundation_response = route_request(
             state,
             HTTP.Request(
@@ -2343,6 +2344,10 @@ end
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/models"),
         )
+        model_lifecycle_after_register_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/data-science-projects/foundation-ml-project"),
+        )
         deploy_package_response = route_request(
             state,
             HTTP.Request(
@@ -2363,6 +2368,10 @@ end
         deploy_package_history_response = route_request(
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/deploy/packages"),
+        )
+        model_lifecycle_after_deploy_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/data-science-projects/foundation-ml-project"),
         )
         hub_list_response = route_request(state, HTTP.Request("GET", "/api/v1/hub/extensions"))
         hub_install_response = route_request(
@@ -3801,6 +3810,17 @@ end
         model_registry_payload = JSON3.read(String(model_registry_response.body), Dict{String,Any})
         @test model_registry_payload["count"] >= 1
         @test model_registry_payload["items"][1]["modelId"] == "foundation-linear-baseline"
+        @test model_lifecycle_after_register_response.status == 200
+        model_lifecycle_after_register_payload = JSON3.read(String(model_lifecycle_after_register_response.body), Dict{String,Any})
+        register_lifecycle_match = findfirst(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            model_lifecycle_after_register_payload["modelLifecycleRecords"],
+        )
+        @test register_lifecycle_match !== nothing
+        registered_lifecycle_record = model_lifecycle_after_register_payload["modelLifecycleRecords"][register_lifecycle_match]
+        @test registered_lifecycle_record["state"] == "validated"
+        @test haskey(registered_lifecycle_record, "updatedAt")
+        @test !haskey(registered_lifecycle_record, "deployedEndpointId")
         @test deploy_package_response.status == 201
         deploy_package_payload = JSON3.read(String(deploy_package_response.body), Dict{String,Any})
         @test deploy_package_payload["status"] == "packaged"
@@ -3817,6 +3837,17 @@ end
         deploy_package_history_payload = JSON3.read(String(deploy_package_history_response.body), Dict{String,Any})
         @test deploy_package_history_payload["count"] >= 1
         @test deploy_package_history_payload["items"][1]["packageId"] == deploy_package_payload["package"]["packageId"]
+        @test model_lifecycle_after_deploy_response.status == 200
+        model_lifecycle_after_deploy_payload = JSON3.read(String(model_lifecycle_after_deploy_response.body), Dict{String,Any})
+        deploy_lifecycle_match = findfirst(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            model_lifecycle_after_deploy_payload["modelLifecycleRecords"],
+        )
+        @test deploy_lifecycle_match !== nothing
+        deployed_lifecycle_record = model_lifecycle_after_deploy_payload["modelLifecycleRecords"][deploy_lifecycle_match]
+        @test deployed_lifecycle_record["state"] == "deployed"
+        @test deployed_lifecycle_record["deployedEndpointId"] == deploy_package_payload["package"]["packageId"]
+        @test length(model_lifecycle_after_deploy_payload["modelLifecycleRecords"]) == length(model_lifecycle_after_register_payload["modelLifecycleRecords"])
         @test gpu_execute_response.status == 202
         @test gpu_execute_payload["status"] == "queued"
         @test gpu_execute_payload["dispatchLane"] == "gpu"

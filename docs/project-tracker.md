@@ -21,6 +21,26 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Model Lifecycle Records Slice (2026-06-21)
+
+- Added project-backed model lifecycle upsert behavior for validated model registration and local deploy packaging.
+- `POST /api/v1/workflows/{workflowId}/models/register` now records the linked `DataScienceProject.modelLifecycleRecords` entry as `validated` when model validation evidence includes a project id.
+- `POST /api/v1/workflows/{workflowId}/deploy/package` now advances the same project model lifecycle entry to `deployed` and records the local deploy package id as deployed endpoint evidence.
+- Fixed API Gateway test setup drift by resetting `JULIAFLOW_DATA_ESTATE_ROOT` before the foundation data science project flow so managed CSV statistical analysis resolves the intended local fixture.
+- Added full Julia API Gateway regression coverage proving lifecycle state moves from `validated` to `deployed` without duplicating the model lifecycle record.
+- Verification passed: `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`; `npm run validate:contracts`; `npm run build`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. Project-backed model lifecycle records now exist for validated registration and local deploy package evidence, but registry state still lives on execution metadata.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, registry repository extraction, rollback/retraining workflow depth, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Extract model registry state from execution metadata into a first-class project/model repository path.
+- Add rollback/retraining lifecycle transitions and scoring artifacts tied to evaluation/export evidence.
+- Move deterministic project-scoped routes behind execution-backed worker jobs where appropriate.
+
 ### AKS-36 Statistical Artifact Persistence Slice (2026-06-21)
 
 - Persisted project-scoped statistical EDA artifacts for `POST /api/v1/data-science-projects/{projectId}/statistical-analysis/run`.
