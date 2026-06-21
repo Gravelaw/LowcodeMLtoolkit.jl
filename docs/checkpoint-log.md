@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Prediction Export Artifact Materialization Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Materialized prediction export outputs as local data-estate artifacts.
+- `PredictionExport` now carries `artifactRefs` with checksum and byte-size evidence.
+- Project job ledger output refs now point to the same prediction export artifact evidence.
+- Added Julia route coverage proving the exported file exists and includes evaluation/output-contract evidence.
+- Verified with `npm run validate:contracts`, `npm run build`, and the full Julia suite through `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Prediction export artifacts are now materialized, but real worker-backed model inference, output schema validation, and frontend workflow coverage remain open.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, and rollback/retraining lifecycle depth remain open.
+
+### Next Items To Implement
+
+- Add output contract validation for prediction exports.
+- Move scoring/export to an execution-backed job path.
+- Continue gateway module split or MLOps rollback/retraining lifecycle depth.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Project Model Registry Records Slice - 2026-06-21
 
 ### Work Done Till Date

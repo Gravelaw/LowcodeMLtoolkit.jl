@@ -3736,7 +3736,19 @@ end
         @test prediction_export_payload["predictionExport"]["outputContractRef"] == "contract://outputs/foundation-predictions"
         @test prediction_export_payload["predictionExport"]["format"] == "csv"
         @test prediction_export_payload["predictionExport"]["validationEvidence"]["finalEvaluationApproved"] == true
+        @test length(prediction_export_payload["predictionExport"]["artifactRefs"]) == 1
+        @test all(ref -> haskey(ref, "checksumSha256") && haskey(ref, "sizeBytes"), prediction_export_payload["predictionExport"]["artifactRefs"])
+        prediction_artifact_ref = String(prediction_export_payload["predictionExport"]["artifactRef"])
+        prediction_artifact_path = joinpath(data_estate_root, split(replace(prediction_artifact_ref, "local://" => ""), '/')...)
+        @test isfile(prediction_artifact_path)
+        prediction_artifact_content = read(prediction_artifact_path, String)
+        @test startswith(prediction_artifact_content, "prediction_id,dataset_id,evaluation_report_id,output_contract_ref,prediction")
+        @test occursin("contract://outputs/foundation-predictions", prediction_artifact_content)
+        @test occursin(String(prediction_export_payload["predictionExport"]["evaluationReportId"]), prediction_artifact_content)
         @test length(prediction_export_payload["project"]["predictionExports"]) >= 1
+        @test prediction_export_payload["project"]["predictionExports"][1]["artifactRefs"][1]["checksumSha256"] == prediction_export_payload["predictionExport"]["artifactRefs"][1]["checksumSha256"]
+        prediction_export_job = first(filter(job -> job["jobType"] == "prediction_export", prediction_export_payload["project"]["projectJobs"]))
+        @test prediction_export_job["outputRefs"][1]["sizeBytes"] == prediction_export_payload["predictionExport"]["artifactRefs"][1]["sizeBytes"]
         @test prediction_export_bad_format_response.status == 400
         @test occursin("format must be csv", String(prediction_export_bad_format_response.body))
         @test prediction_export_missing_contract_response.status == 400

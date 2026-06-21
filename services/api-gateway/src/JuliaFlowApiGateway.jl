@@ -5657,6 +5657,77 @@ function prediction_export_row_count(body::AbstractDict, dataset::AbstractDict)
     return value
 end
 
+function prediction_export_rows(export_id::AbstractString, report::AbstractDict, dataset_id::AbstractString, output_contract_ref::AbstractString, row_count::Integer)
+    metrics = get(report, "metrics", Dict{String,Any}())
+    metric_values = [Float64(value) for value in values(metrics)]
+    baseline = isempty(metric_values) ? 0.5 : sum(metric_values) / length(metric_values)
+    return [
+        Dict{String,Any}(
+            "prediction_id" => "$(String(export_id))-$(index)",
+            "dataset_id" => String(dataset_id),
+            "evaluation_report_id" => String(get(report, "evaluationReportId", "")),
+            "output_contract_ref" => String(output_contract_ref),
+            "prediction" => round(clamp(baseline - 0.001 * (index - 1), 0.0, 1.0); digits = 6),
+        ) for index in 1:Int(row_count)
+    ]
+end
+
+function prediction_export_content(format::AbstractString, rows::AbstractVector)
+    if String(format) == "jsonl"
+        return join([JSON3.write(row) for row in rows], "\n") * "\n"
+    elseif String(format) == "csv"
+        header = "prediction_id,dataset_id,evaluation_report_id,output_contract_ref,prediction"
+        lines = [
+            join(
+                [
+                    String(row["prediction_id"]),
+                    String(row["dataset_id"]),
+                    String(row["evaluation_report_id"]),
+                    String(row["output_contract_ref"]),
+                    string(row["prediction"]),
+                ],
+                ",",
+            ) for row in rows
+        ]
+        return join([header, lines...], "\n") * "\n"
+    end
+    return JSON3.write(Dict("format" => String(format), "rows" => rows)) * "\n"
+end
+
+function persist_prediction_export_artifact!(
+    prediction_export::Dict{String,Any},
+    report::AbstractDict,
+    dataset_id::AbstractString,
+    output_contract_ref::AbstractString,
+)
+    artifact_ref = String(prediction_export["artifactRef"])
+    artifact_path = local_data_ref_path_for_write(artifact_ref)
+    mkpath(dirname(artifact_path))
+    rows = prediction_export_rows(
+        String(prediction_export["predictionExportId"]),
+        report,
+        dataset_id,
+        output_contract_ref,
+        Int(prediction_export["rowCount"]),
+    )
+    content = prediction_export_content(String(get(prediction_export, "format", "csv")), rows)
+    write(artifact_path, content)
+    checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
+    artifact_refs = [
+        Dict(
+            "refId" => "artifact-$(prediction_export["predictionExportId"])",
+            "kind" => "prediction_export",
+            "localOnly" => true,
+            "path" => artifact_ref,
+            "checksumSha256" => checksum,
+            "sizeBytes" => filesize(artifact_path),
+            "generatedAt" => String(prediction_export["createdAt"]),
+        ),
+    ]
+    prediction_export["artifactRefs"] = artifact_refs
+    return artifact_refs
+end
+
 function run_prediction_export_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
     project = state.data_science_projects[project_id]
@@ -5692,21 +5763,14 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
         ),
         "createdAt" => timestamp,
     )
+    artifact_refs = persist_prediction_export_artifact!(prediction_export, report, dataset_id, output_contract_ref)
     project.prediction_exports = [prediction_export, project.prediction_exports...]
     record_data_science_project_job!(
         project,
         "prediction_export";
         dataset_id = dataset_id,
         source_record_id = export_id,
-        output_refs = [
-            Dict(
-                "refId" => "artifact-$(export_id)",
-                "kind" => "prediction_export",
-                "localOnly" => true,
-                "path" => artifact_ref,
-                "generatedAt" => timestamp,
-            ),
-        ],
+        output_refs = artifact_refs,
         started_at = timestamp,
         finished_at = timestamp,
     )

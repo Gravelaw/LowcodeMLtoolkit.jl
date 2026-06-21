@@ -192,6 +192,9 @@ client.runDataScienceProjectStatisticalAnalysis("contracts-project", statistical
 client.runDataScienceProjectTuningStudy("contracts-project", tuningStudyRequest);
 client.runDataScienceProjectFinalEvaluation("contracts-project", finalEvaluationRequest);
 client.runDataScienceProjectPredictionExport("contracts-project", predictionExportRequest);
+client.runDataScienceProjectPredictionExport("contracts-project", predictionExportRequest).then((response) => {
+  response.predictionExport.artifactRefs?.forEach((artifactRef) => artifactRef.checksumSha256?.toLowerCase());
+});
 client.runDataScienceProjectDriftReport("contracts-project", driftReportRequest);
 client.runWorkflowTransform("wf-foundation", transformRunRequest);
 client.getWorkflowTransformHistory("wf-foundation");

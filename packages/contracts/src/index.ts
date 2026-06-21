@@ -817,6 +817,7 @@ export interface PredictionExport {
   artifactRef: string;
   rowCount: number;
   format?: string;
+  artifactRefs?: DataScienceProjectEvidenceRef[];
   validationEvidence?: {
     projectId?: string;
     datasetId?: string;

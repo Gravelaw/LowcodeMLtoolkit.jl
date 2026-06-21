@@ -21,6 +21,26 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Prediction Export Artifact Materialization Slice (2026-06-21)
+
+- Materialized prediction export artifacts for `POST /api/v1/data-science-projects/{projectId}/predictions/export`.
+- Prediction exports now write a local CSV/JSONL-compatible scoring artifact under the configured data-estate root from the existing `local://predictions/...` ref.
+- `PredictionExport.artifactRefs` now exposes local-only artifact refs with SHA-256 checksums, byte sizes, and generated timestamps.
+- Project job `outputRefs` now reuse the prediction export artifact evidence instead of a metadata-only ref.
+- Added contract usage and Julia route coverage proving the prediction file exists, contains output contract/evaluation evidence, and carries checksum/size evidence through the project record and job ledger.
+- Verification passed: `npm run validate:contracts`; `npm run build`; `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. Prediction exports now materialize local scoring artifacts, but scoring is still deterministic substrate evidence rather than worker-backed model inference.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, richer output schema validation, rollback/retraining workflow depth, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Add stronger output contract validation for prediction export columns and formats.
+- Move prediction scoring/export behind an execution-backed worker job path.
+- Continue gateway module split or rollback/retraining lifecycle transitions.
+
 ### AKS-36 Project Model Registry Records Slice (2026-06-21)
 
 - Added `DataScienceProject.modelRegistryRecords` to TypeScript contracts, OpenAPI, frontend fixtures, gateway repository persistence, and update payload handling.
