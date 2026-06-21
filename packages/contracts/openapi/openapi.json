@@ -1099,6 +1099,140 @@
         }
       }
     },
+    "/api/v1/data-science-projects": {
+      "get": {
+        "summary": "List local data-science projects",
+        "responses": {
+          "200": {
+            "description": "Data-science project records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataScienceProjectListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a local data-science project",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDataScienceProjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Data-science project created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataScienceProject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}": {
+      "get": {
+        "summary": "Get local data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data-science project record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataScienceProject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update local data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDataScienceProjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Data-science project updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataScienceProject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflows/{workflowId}/transforms/run": {
       "post": {
         "summary": "Run a workflow transform and return local artifact evidence",
@@ -1464,6 +1598,379 @@
         "properties": {
           "error": {
             "type": "string"
+          }
+        }
+      },
+      "DataScienceProjectEvidenceRef": {
+        "type": "object",
+        "required": [
+          "refId",
+          "kind",
+          "localOnly"
+        ],
+        "properties": {
+          "refId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          },
+          "checksumSha256": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "ProjectDataset": {
+        "type": "object",
+        "required": [
+          "datasetId",
+          "name",
+          "role",
+          "sourceUri",
+          "localOnly"
+        ],
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "train",
+              "validation",
+              "test",
+              "evaluation",
+              "output",
+              "reference"
+            ]
+          },
+          "sourceUri": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          },
+          "rowCount": {
+            "type": "integer"
+          },
+          "columnCount": {
+            "type": "integer"
+          },
+          "checksumSha256": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "type": "string"
+          }
+        }
+      },
+      "SchemaColumnContract": {
+        "type": "object",
+        "required": [
+          "name",
+          "inferredType",
+          "logicalType",
+          "role",
+          "nullable"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "inferredType": {
+            "type": "string"
+          },
+          "logicalType": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "feature",
+              "target",
+              "id",
+              "group",
+              "time",
+              "depth",
+              "sensitive",
+              "ignore"
+            ]
+          },
+          "nullable": {
+            "type": "boolean"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "SchemaContract": {
+        "type": "object",
+        "required": [
+          "schemaId",
+          "datasetId",
+          "columns",
+          "updatedAt"
+        ],
+        "properties": {
+          "schemaId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchemaColumnContract"
+            }
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "DatasetSplitPlan": {
+        "type": "object",
+        "required": [
+          "splitPlanId",
+          "datasetId",
+          "strategy",
+          "locked",
+          "createdAt"
+        ],
+        "properties": {
+          "splitPlanId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "random",
+              "stratified",
+              "grouped",
+              "time",
+              "depth",
+              "external"
+            ]
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "DataScienceProjectChildRecord": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "DataScienceProject": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "projectId",
+          "name",
+          "localOnly",
+          "createdAt",
+          "updatedAt",
+          "datasets",
+          "schemaContracts",
+          "splitPlans",
+          "splitAssignments",
+          "validationFolds",
+          "finalTestLocks",
+          "statisticalAnalysisRuns",
+          "trainingPlans",
+          "tuningStudies",
+          "evaluationReports",
+          "predictionExports",
+          "modelLifecycleRecords",
+          "monitoringBaselines",
+          "driftReports",
+          "reproducibilityEvidence"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "enum": [
+              "1.0"
+            ]
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "datasets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectDataset"
+            }
+          },
+          "schemaContracts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchemaContract"
+            }
+          },
+          "splitPlans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatasetSplitPlan"
+            }
+          },
+          "splitAssignments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "validationFolds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "finalTestLocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "statisticalAnalysisRuns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "trainingPlans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "tuningStudies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "evaluationReports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "predictionExports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "modelLifecycleRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "monitoringBaselines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "driftReports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+            }
+          },
+          "reproducibilityEvidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          }
+        }
+      },
+      "CreateDataScienceProjectRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "datasets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectDataset"
+            }
+          },
+          "schemaContracts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchemaContract"
+            }
+          }
+        }
+      },
+      "UpdateDataScienceProjectRequest": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "DataScienceProjectListResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProject"
+            }
           }
         }
       },

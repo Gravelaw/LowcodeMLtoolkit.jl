@@ -18,9 +18,86 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-20`
+- Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Substrate First Slice (2026-06-21)
+
+- Added additive `DataScienceProject` TypeScript contracts and OpenAPI paths for `/api/v1/data-science-projects` and `/api/v1/data-science-projects/{projectId}`.
+- Added generated-client surface coverage for list/create/get/update project calls and project endpoint paths.
+- Added gateway repository records for `DataScienceProject`, file-backed persistence, PostgreSQL-compatible table/load/save methods, and lazy `LibPQ` loading so file-mode gateway startup does not require PostgreSQL artifacts.
+- Added thin gateway create/list/read/update project routes with audit events and 404 handling.
+- Added contract assertions, gateway-client fixture coverage, repository contract coverage, and route-level Julia assertions for create/list/get/update/reload behavior.
+- Verification passed: `npm run validate:contracts`, `npm run build`, `git diff --check`, and a focused Julia route smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`.
+
+### Gaps Pending
+
+- Parent AKS-36 is not complete: design review closure, gateway product module split, local import trust-boundary hardening, validation/test locks, typed DS/ML jobs, statistical EDA execution, model lifecycle gates, drift records, project-backed frontend state, and persona-flow browser coverage remain open.
+- Full `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl` is blocked on this Windows host by application-control policy for generated/JLL DLLs; full suite with `--compiled-modules=no` exceeded the current timeout.
+
+### Next Items To Implement
+
+- Add negative contract/API tests for missing/invalid project fields and project id mismatch.
+- Run the required contract/API, security, ML-validity, and MLOps design reviews against the concrete project contract.
+- Start gateway module split and local trust-boundary hardening before broad local source enablement.
+
+### Principal Persona Readiness Multi-Review (2026-06-21)
+
+- Added `docs/principal-persona-readiness-review.md`.
+- Ran domain-specific read-only reviews in parallel for contract/API, Julia gateway/runtime, frontend/UX workflow, data science/ML validity, security/local trust boundary, and MLOps/model ops.
+- Collated the specialist findings through a principal reviewer synthesis.
+- Principal gate decision: P0 block for implementation readiness. JuliaFlow can continue design/refactor planning, but it should not claim daily data/ML workstation readiness or deepen ML Studio, Models, Deploy, Monitor, drift, tuning, or broad connector behavior until the project architecture substrate exists.
+- Updated `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/architecture.md`, and `docs/persona-architecture-review.md` to make `DataScienceProject` substrate and persona architecture refactor the next active lane.
+
+### Gaps Pending
+
+- No implementation was added for `DataScienceProject`, project repository, gateway module split, typed jobs, validation/test locks, statistical EDA calculations, registry lifecycle gates, drift reports, local import trust hardening, or project-backed frontend modules.
+- The principal review requires follow-up design reviews against concrete design artifacts before implementation readiness: contract/API, security threat model, ML validity, MLOps lifecycle, and frontend accessibility/persona-flow.
+
+### Next Items To Implement
+
+- Start with additive `DataScienceProject` contracts/OpenAPI, generated-client coverage, file-backed project repository, and thin gateway project routes.
+- Preserve existing workflow/data/ML endpoints as backward-compatible adapters.
+- Add negative contract and Julia tests for missing required project fields before claiming the first substrate slice.
+
+### Persona-Driven Architecture Review (2026-06-21)
+
+- Added `docs/persona-architecture-review.md` to review the architecture against the senior data engineer, principal data scientist, MLOps, and non-coding statistics/ML personas.
+- The review concluded that JuliaFlow's contract-first/local-first foundation can host the workflows, but daily-workstation readiness should be blocked until a shared `DataScienceProject` aggregate exists across Data, Transform, ML Studio, Models, Monitor, Deploy, and reports.
+- Identified required architecture additions: schema/type contracts, validation/test strategy, statistical EDA run records, training/tuning/evaluation/scoring job records, prediction exports, model lifecycle records, monitoring baselines, drift reports, local source trust boundaries, and project-backed frontend actions.
+- Identified required refactors: split `JuliaFlowApiGateway.jl` product logic into focused internal modules, separate fixture/demo adapters from local-appliance services, move registry state out of execution metadata, and move route-local frontend state into feature modules after contracts land.
+
+### Gaps Pending
+
+- This is an architecture review only; no `DataScienceProject` contracts, gateway modules, repository records, typed execution jobs, registry lifecycle gates, drift reports, or frontend feature modules were implemented in this slice.
+- Existing route-specific product evidence remains useful, but it is not sufficient for daily local-workstation adoption until the architecture substrate is implemented.
+
+### Next Items To Implement
+
+- Start with the contract-first `DataScienceProject` substrate in `packages/contracts/`, OpenAPI, and gateway repository records.
+- Refactor gateway internals into chart, data catalog, analysis, experiment, registry, monitoring, and route modules before adding deep persona features.
+- Add validation/test lock enforcement and statistical EDA run records before hyperparameter tuning or domain templates.
+
+### Data Scientist Competition Persona Readiness Report (2026-06-20)
+
+- Added `docs/data-scientist-persona-competition-readiness-report.md` to evaluate JuliaFlow against three representative data-science workflows: Titanic binary classification, House Prices tabular regression, and ROGII wellbore/geoscience sequential-spatial regression.
+- The review concluded that the app has the correct local-first product skeleton, but still needs a generalized project layer: local train/validation/test import, optional output contract import, schema/type role mapping, task/metric selection, train/validation/test transform alignment, validation/test strategy, and prediction export.
+- The report identifies P0/P1/P2 backlog implications across Explorer, Data, Transform, Visualize, ML Studio, Models, Deploy, Monitor, and Settings, with wellbore-specific depth/trajectory/typewell requirements layered on the generalized substrate.
+- Updated the report scope to treat Kaggle competitions as examples only and use broader data-science workflow language: train/validation/test separation, editable schema/type diagnostics, statistical EDA, hyperparameter tuning, final test locks, and prediction/export artifacts.
+- Extended the report with four daily local-workstation personas: senior data engineer, principal data scientist, MLOps engineer focused on training/drift/evaluation, and non-coding statistics/ML user. The analysis maps KNIME, Orange, and H2O-style low-code expectations into JuliaFlow gaps for local connectors, quality rules, guided no-code workflows, AutoML/tuning, model registry lifecycle, drift/evaluation monitoring, CPU/GPU run evidence, and reproducible reporting.
+
+### Gaps Pending
+
+- The report is analysis only; no new local file picker, schema mapper/type editor, statistical EDA surface, validation/test manager, hyperparameter tuning workflow, or prediction exporter has been implemented in this slice.
+- The daily-use persona expansion is analysis only; no new connector pack, data quality rule engine, local scheduling, model registry lifecycle, drift monitor, CPU/GPU run profiler, AutoML recommendation layer, or guided no-code workflow has been implemented in this slice.
+- ROGII/wellbore support remains a domain template proposal until the generic tabular competition workflow exists.
+
+### Next Items To Implement
+
+- Convert the report's P0 items into Linear issues or map them to the existing AKS backlog.
+- Start with the generic tabular data-science MVP: local dataset wizard, schema/type mapper, statistical EDA, task/metric selector, validation/test workflow, hyperparameter tuning, train/validation/test aligned transforms, and prediction CSV export.
+- Add daily-workflow follow-up backlog for data-engineering connectors/quality rules, MLOps evaluation/drift dashboards, model registry lifecycle, CPU/GPU run evidence, and guided no-code defaults.
+
 ### AKS-29 Through AKS-35 Parity Hardening (2026-06-20)
 
 - Merged PR #37 into `main` and started the follow-up branch from the updated baseline.

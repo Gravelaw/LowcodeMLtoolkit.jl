@@ -58,6 +58,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(spec.paths["/api/v1/local-backups"]);
   assert.ok(spec.paths["/api/v1/local-backups/import"]);
   assert.ok(spec.paths["/api/v1/local-data/import"]);
+  assert.ok(spec.paths["/api/v1/data-science-projects"]);
+  assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/transforms/run"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/transforms/history"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/ml/experiments/run"]);
@@ -259,6 +261,22 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.DataImportProfile.properties.workflowReadiness);
   assert.ok(schemas.DataImportProfile.properties.quickPlots);
   assert.ok(schemas.DataImportProfile.properties.previewRows);
+  assert.ok(schemas.DataScienceProject);
+  assert.ok(schemas.DataScienceProject.properties.schemaVersion);
+  assert.deepEqual(schemas.DataScienceProject.properties.schemaVersion.enum, ["1.0"]);
+  assert.ok(schemas.ProjectDataset);
+  assert.deepEqual(schemas.ProjectDataset.properties.role.enum, [
+    "train",
+    "validation",
+    "test",
+    "evaluation",
+    "output",
+    "reference"
+  ]);
+  assert.ok(schemas.SchemaContract);
+  assert.ok(schemas.DatasetSplitPlan);
+  assert.ok(schemas.DataScienceProjectListResponse);
+  assert.ok(schemas.CreateDataScienceProjectRequest.required.includes("name"));
   assert.ok(schemas.TransformRunResponse);
   assert.ok(schemas.TransformRunRecord.properties.artifactEvidence);
   assert.ok(schemas.TransformHistoryResponse);

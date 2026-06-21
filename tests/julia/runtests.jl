@@ -1647,6 +1647,68 @@ end
                 ),
             ),
         )
+        data_science_project_create_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "wellbore-geology",
+                        "name" => "Wellbore Geology",
+                        "description" => "Local workstation project",
+                        "datasets" => [
+                            Dict(
+                                "datasetId" => "wellbore-train",
+                                "name" => "Wellbore train",
+                                "role" => "train",
+                                "sourceUri" => "local://data/raw/wellbore/train.csv",
+                                "localOnly" => true,
+                                "rowCount" => 100,
+                                "columnCount" => 8,
+                            ),
+                        ],
+                        "schemaContracts" => [
+                            Dict(
+                                "schemaId" => "schema-wellbore",
+                                "datasetId" => "wellbore-train",
+                                "updatedAt" => "2026-06-21T00:00:00Z",
+                                "columns" => [
+                                    Dict("name" => "depth", "inferredType" => "Float64", "logicalType" => "continuous", "role" => "depth", "nullable" => false),
+                                    Dict("name" => "lithology", "inferredType" => "String", "logicalType" => "categorical", "role" => "target", "nullable" => false),
+                                ],
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
+        data_science_project_list_response = route_request(state, HTTP.Request("GET", "/api/v1/data-science-projects"))
+        data_science_project_get_response = route_request(state, HTTP.Request("GET", "/api/v1/data-science-projects/wellbore-geology"))
+        data_science_project_update_response = route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/data-science-projects/wellbore-geology",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "name" => "Wellbore Geology Updated",
+                        "splitPlans" => [
+                            Dict(
+                                "splitPlanId" => "split-wellbore-depth",
+                                "datasetId" => "wellbore-train",
+                                "strategy" => "depth",
+                                "locked" => true,
+                                "createdAt" => "2026-06-21T00:00:00Z",
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
+        data_science_project_missing_response = route_request(state, HTTP.Request("GET", "/api/v1/data-science-projects/missing-project"))
         transform_run_response = route_request(
             state,
             HTTP.Request(
@@ -2931,6 +2993,25 @@ end
         @test data_import_payload["profile"]["workflowReadiness"]["downstreamReady"] == true
         @test length(data_import_payload["profile"]["quickPlots"]) >= 1
         @test length(data_import_payload["profile"]["previewRows"]) >= 1
+        @test data_science_project_create_response.status == 201
+        data_science_project_create_payload = JSON3.read(String(data_science_project_create_response.body), Dict{String,Any})
+        @test data_science_project_create_payload["schemaVersion"] == "1.0"
+        @test data_science_project_create_payload["projectId"] == "wellbore-geology"
+        @test data_science_project_create_payload["localOnly"] == true
+        @test data_science_project_create_payload["datasets"][1]["role"] == "train"
+        @test data_science_project_create_payload["schemaContracts"][1]["columns"][1]["role"] == "depth"
+        data_science_project_list_payload = JSON3.read(String(data_science_project_list_response.body), Dict{String,Any})
+        @test data_science_project_list_response.status == 200
+        @test length(data_science_project_list_payload["items"]) == 1
+        @test data_science_project_get_response.status == 200
+        @test occursin("\"projectId\":\"wellbore-geology\"", String(data_science_project_get_response.body))
+        @test data_science_project_update_response.status == 200
+        data_science_project_update_payload = JSON3.read(String(data_science_project_update_response.body), Dict{String,Any})
+        @test data_science_project_update_payload["name"] == "Wellbore Geology Updated"
+        @test data_science_project_update_payload["splitPlans"][1]["strategy"] == "depth"
+        @test data_science_project_missing_response.status == 404
+        @test isfile(joinpath(store_root, "data-science-projects.json"))
+        @test haskey(load_state(store_root).data_science_projects, "wellbore-geology")
         @test transform_run_response.status == 202
         transform_run_payload = JSON3.read(String(transform_run_response.body), Dict{String,Any})
         @test transform_run_payload["status"] == "accepted"

@@ -511,6 +511,235 @@ export interface GatewayInteractiveChartSpec {
   export?: GatewayInteractiveChartExport;
 }
 
+export type DataScienceProjectDatasetRole = "train" | "validation" | "test" | "evaluation" | "output" | "reference";
+export type DataScienceColumnRole =
+  | "feature"
+  | "target"
+  | "id"
+  | "group"
+  | "time"
+  | "depth"
+  | "sensitive"
+  | "ignore";
+export type DataScienceSplitStrategy = "random" | "stratified" | "grouped" | "time" | "depth" | "external";
+export type DataScienceModelLifecycleState =
+  | "candidate"
+  | "validated"
+  | "approved"
+  | "deployed"
+  | "deprecated"
+  | "archived";
+
+export interface DataScienceProjectEvidenceRef {
+  refId: string;
+  kind: string;
+  localOnly: boolean;
+  checksumSha256?: string;
+  path?: string;
+  generatedAt?: string;
+}
+
+export interface ProjectDataset {
+  datasetId: string;
+  name: string;
+  role: DataScienceProjectDatasetRole;
+  sourceUri: string;
+  localOnly: boolean;
+  rowCount?: number;
+  columnCount?: number;
+  checksumSha256?: string;
+  artifactRef?: string;
+}
+
+export interface SchemaColumnContract {
+  name: string;
+  inferredType: string;
+  logicalType: string;
+  role: DataScienceColumnRole;
+  nullable: boolean;
+  unit?: string;
+  description?: string;
+}
+
+export interface SchemaContract {
+  schemaId: string;
+  datasetId: string;
+  columns: SchemaColumnContract[];
+  updatedAt: string;
+}
+
+export interface DatasetSplitPlan {
+  splitPlanId: string;
+  datasetId: string;
+  strategy: DataScienceSplitStrategy;
+  trainFraction?: number;
+  validationFraction?: number;
+  testFraction?: number;
+  groupColumn?: string;
+  timeColumn?: string;
+  depthColumn?: string;
+  seed?: number;
+  locked: boolean;
+  createdAt: string;
+}
+
+export interface SplitAssignment {
+  splitAssignmentId: string;
+  splitPlanId: string;
+  datasetId: string;
+  split: "train" | "validation" | "test" | "evaluation";
+  rowRef: string;
+}
+
+export interface ValidationFold {
+  foldId: string;
+  splitPlanId: string;
+  strategy: DataScienceSplitStrategy | "kfold";
+  index: number;
+  trainRef: string;
+  validationRef: string;
+}
+
+export interface FinalTestLock {
+  lockId: string;
+  splitPlanId: string;
+  lockedAt: string;
+  reason: string;
+  lockedBy: string;
+}
+
+export interface StatisticalAnalysisRun {
+  analysisRunId: string;
+  datasetId: string;
+  method: string;
+  status: "queued" | "running" | "completed" | "failed" | "unavailable";
+  generatedCodeRef?: string;
+  resultRef?: string;
+  charts?: GatewayInteractiveChartSpec[];
+  warnings: string[];
+  createdAt: string;
+}
+
+export interface TrainingPlan {
+  trainingPlanId: string;
+  targetColumn: string;
+  taskType: "classification" | "regression" | "ranking" | "clustering" | string;
+  metricNames: string[];
+  splitPlanId: string;
+  transformRef?: string;
+  seed?: number;
+  createdAt: string;
+}
+
+export interface TuningTrial {
+  trialId: string;
+  parameters: Record<string, string | number | boolean>;
+  metrics: Record<string, number>;
+  artifactRefs: DataScienceProjectEvidenceRef[];
+}
+
+export interface TuningStudy {
+  tuningStudyId: string;
+  trainingPlanId: string;
+  validationOnly: boolean;
+  trials: TuningTrial[];
+  bestTrialId?: string;
+  createdAt: string;
+}
+
+export interface EvaluationReport {
+  evaluationReportId: string;
+  trainingPlanId: string;
+  splitPlanId: string;
+  metrics: Record<string, number>;
+  approved: boolean;
+  generatedAt: string;
+  artifactRefs: DataScienceProjectEvidenceRef[];
+}
+
+export interface PredictionExport {
+  predictionExportId: string;
+  evaluationReportId?: string;
+  outputContractRef?: string;
+  artifactRef: string;
+  rowCount: number;
+  createdAt: string;
+}
+
+export interface ModelLifecycleRecord {
+  modelId: string;
+  state: DataScienceModelLifecycleState;
+  evaluationReportId?: string;
+  deployedEndpointId?: string;
+  rollbackModelId?: string;
+  updatedAt: string;
+}
+
+export interface MonitoringBaseline {
+  baselineId: string;
+  modelId: string;
+  datasetId: string;
+  metricNames: string[];
+  createdAt: string;
+}
+
+export interface DriftReport {
+  driftReportId: string;
+  baselineId: string;
+  status: "not_available" | "low" | "moderate" | "high";
+  metrics: Record<string, number>;
+  generatedAt: string;
+}
+
+export interface DataScienceProject {
+  schemaVersion: "1.0";
+  projectId: string;
+  name: string;
+  description?: string;
+  localOnly: boolean;
+  createdAt: string;
+  updatedAt: string;
+  datasets: ProjectDataset[];
+  schemaContracts: SchemaContract[];
+  splitPlans: DatasetSplitPlan[];
+  splitAssignments: SplitAssignment[];
+  validationFolds: ValidationFold[];
+  finalTestLocks: FinalTestLock[];
+  statisticalAnalysisRuns: StatisticalAnalysisRun[];
+  trainingPlans: TrainingPlan[];
+  tuningStudies: TuningStudy[];
+  evaluationReports: EvaluationReport[];
+  predictionExports: PredictionExport[];
+  modelLifecycleRecords: ModelLifecycleRecord[];
+  monitoringBaselines: MonitoringBaseline[];
+  driftReports: DriftReport[];
+  reproducibilityEvidence: DataScienceProjectEvidenceRef[];
+}
+
+export interface CreateDataScienceProjectRequest {
+  projectId?: string;
+  name: string;
+  description?: string;
+  datasets?: ProjectDataset[];
+  schemaContracts?: SchemaContract[];
+}
+
+export interface UpdateDataScienceProjectRequest extends Partial<CreateDataScienceProjectRequest> {
+  splitPlans?: DatasetSplitPlan[];
+  splitAssignments?: SplitAssignment[];
+  validationFolds?: ValidationFold[];
+  finalTestLocks?: FinalTestLock[];
+  statisticalAnalysisRuns?: StatisticalAnalysisRun[];
+  trainingPlans?: TrainingPlan[];
+  tuningStudies?: TuningStudy[];
+  evaluationReports?: EvaluationReport[];
+  predictionExports?: PredictionExport[];
+  modelLifecycleRecords?: ModelLifecycleRecord[];
+  monitoringBaselines?: MonitoringBaseline[];
+  driftReports?: DriftReport[];
+  reproducibilityEvidence?: DataScienceProjectEvidenceRef[];
+}
+
 export interface GatewayLocalWorkspaceActivity {
   label: string;
   detail: string;
@@ -1600,6 +1829,9 @@ export const gatewayEndpointPaths = {
   localBackups: "/api/v1/local-backups",
   localBackupImport: "/api/v1/local-backups/import",
   localDataImport: "/api/v1/local-data/import",
+  dataScienceProjects: "/api/v1/data-science-projects",
+  dataScienceProject: (projectId: string) =>
+    `/api/v1/data-science-projects/${encodeURIComponent(projectId)}`,
   publishedDashboard: (dashboardId: string, request?: GatewayPublishedDashboardReadRequest) => {
     const path = `/api/v1/dashboards/${encodeURIComponent(dashboardId)}`;
     const params = new URLSearchParams();
@@ -1897,6 +2129,20 @@ export interface GatewayApiClient {
     request: GatewayDataImportProfileRequest,
     options?: GatewayRequestOptions
   ): Promise<GatewayDataImportProfileResponse>;
+  listDataScienceProjects(options?: GatewayRequestOptions): Promise<GatewayListResponse<DataScienceProject>>;
+  createDataScienceProject(
+    request: CreateDataScienceProjectRequest,
+    options?: GatewayRequestOptions
+  ): Promise<DataScienceProject>;
+  getDataScienceProject(
+    projectId: string,
+    options?: GatewayRequestOptions
+  ): Promise<DataScienceProject>;
+  updateDataScienceProject(
+    projectId: string,
+    request: UpdateDataScienceProjectRequest,
+    options?: GatewayRequestOptions
+  ): Promise<DataScienceProject>;
   runWorkflowTransform(
     workflowId: string,
     request?: GatewayTransformRunRequest,
@@ -2219,6 +2465,34 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         "POST",
         gatewayEndpointPaths.localDataImport,
         dataImportRequest,
+        requestOptions
+      ),
+    listDataScienceProjects: (requestOptions) =>
+      request<GatewayListResponse<DataScienceProject>>(
+        "GET",
+        gatewayEndpointPaths.dataScienceProjects,
+        undefined,
+        requestOptions
+      ),
+    createDataScienceProject: (projectRequest, requestOptions) =>
+      request<DataScienceProject>(
+        "POST",
+        gatewayEndpointPaths.dataScienceProjects,
+        projectRequest,
+        requestOptions
+      ),
+    getDataScienceProject: (projectId, requestOptions) =>
+      request<DataScienceProject>(
+        "GET",
+        gatewayEndpointPaths.dataScienceProject(projectId),
+        undefined,
+        requestOptions
+      ),
+    updateDataScienceProject: (projectId, projectRequest, requestOptions) =>
+      request<DataScienceProject>(
+        "PUT",
+        gatewayEndpointPaths.dataScienceProject(projectId),
+        projectRequest,
         requestOptions
       ),
     runWorkflowTransform: (workflowId, transformRequest, requestOptions) =>

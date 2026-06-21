@@ -14,6 +14,7 @@ using UUIDs
 
 export GatewayCheckpoint,
     GatewayExecution,
+    DataScienceProjectRecord,
     GatewayState,
     load_state,
     reload_state!,
@@ -36,6 +37,10 @@ export GatewayCheckpoint,
     reproducibility_bundle_import_response!,
     local_backup_export_response!,
     local_backup_restore_response!,
+    list_data_science_projects_response,
+    create_data_science_project_response!,
+    get_data_science_project_response,
+    update_data_science_project_response!,
     import_workflow_response!,
     create_workflow_response!,
     update_workflow_response!,
@@ -47,6 +52,7 @@ export GatewayCheckpoint,
 
 const GatewayCheckpoint = JuliaFlowGatewayRepository.GatewayCheckpoint
 const GatewayExecution = JuliaFlowGatewayRepository.GatewayExecution
+const DataScienceProjectRecord = JuliaFlowGatewayRepository.DataScienceProjectRecord
 const COMPUTE_BACKENDS = Set(["cpu", "cuda", "simulated_cuda"])
 const GPU_PREFERENCES = Set(["auto", "cpu_fallback", "cuda_required"])
 
@@ -57,6 +63,7 @@ Base.@kwdef mutable struct GatewayState
     executions::Vector{GatewayExecution} = GatewayExecution[]
     hub_extensions::Dict{String,JuliaFlowGatewayRepository.HubExtensionRecord} = Dict{String,JuliaFlowGatewayRepository.HubExtensionRecord}()
     published_dashboards::Dict{String,JuliaFlowGatewayRepository.PublishedDashboardRecord} = Dict{String,JuliaFlowGatewayRepository.PublishedDashboardRecord}()
+    data_science_projects::Dict{String,DataScienceProjectRecord} = Dict{String,DataScienceProjectRecord}()
     worker_service::JuliaFlowWorkerService.WorkerServiceState = JuliaFlowWorkerService.WorkerServiceState()
     canvas_subscriptions::Dict{String,Any} = Dict{String,Any}()
     dashboard_subscriptions::Dict{String,Any} = Dict{String,Any}()
@@ -88,6 +95,7 @@ function reload_state!(state::GatewayState)
     state.executions = load_executions(state.repository)
     state.hub_extensions = Dict(item.extension_id => item for item in JuliaFlowGatewayRepository.load_hub_extensions(state.repository))
     state.published_dashboards = Dict(item.dashboard_id => item for item in JuliaFlowGatewayRepository.load_published_dashboards(state.repository))
+    state.data_science_projects = Dict(item.project_id => item for item in JuliaFlowGatewayRepository.load_data_science_projects(state.repository))
     sync_worker_service!(state.worker_service, state.executions)
     return state
 end
@@ -4258,6 +4266,104 @@ function update_workflow_response_from_body!(state::GatewayState, workflow_id::A
     return update_workflow_response!(state, workflow_id; workflow_toml = workflow_toml_from_request(request_body))
 end
 
+const DATA_SCIENCE_PROJECT_ARRAY_FIELDS = Dict(
+    "datasets" => :datasets,
+    "schemaContracts" => :schema_contracts,
+    "splitPlans" => :split_plans,
+    "splitAssignments" => :split_assignments,
+    "validationFolds" => :validation_folds,
+    "finalTestLocks" => :final_test_locks,
+    "statisticalAnalysisRuns" => :statistical_analysis_runs,
+    "trainingPlans" => :training_plans,
+    "tuningStudies" => :tuning_studies,
+    "evaluationReports" => :evaluation_reports,
+    "predictionExports" => :prediction_exports,
+    "modelLifecycleRecords" => :model_lifecycle_records,
+    "monitoringBaselines" => :monitoring_baselines,
+    "driftReports" => :drift_reports,
+    "reproducibilityEvidence" => :reproducibility_evidence,
+)
+
+function normalized_record_vector(value)
+    value isa AbstractVector || error("project child records must be arrays")
+    return [Dict{String,Any}(String(key) => item for (key, item) in pairs(entry)) for entry in value]
+end
+
+function validate_project_name(body::AbstractDict)
+    haskey(body, "name") || error("data science project missing name")
+    name = strip(String(body["name"]))
+    isempty(name) && error("data science project name cannot be empty")
+    return name
+end
+
+function project_id_from_body(body::AbstractDict, name::AbstractString)
+    requested = haskey(body, "projectId") ? String(body["projectId"]) : name
+    project_id = safe_local_dataset_id(requested)
+    isempty(project_id) && error("data science project id cannot be empty")
+    return project_id
+end
+
+function materialize_data_science_project(
+    body::AbstractDict;
+    existing::Union{Nothing,DataScienceProjectRecord} = nothing,
+    project_id_override::Union{Nothing,AbstractString} = nothing,
+)
+    timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+    name = haskey(body, "name") ? strip(String(body["name"])) : (existing === nothing ? validate_project_name(body) : existing.name)
+    isempty(name) && error("data science project name cannot be empty")
+    project_id = project_id_override === nothing ? project_id_from_body(body, name) : String(project_id_override)
+    if haskey(body, "projectId") && String(body["projectId"]) != project_id
+        safe_local_dataset_id(String(body["projectId"])) == project_id || error("project id mismatch")
+    end
+
+    project = DataScienceProjectRecord(
+        project_id = project_id,
+        schema_version = String(get(body, "schemaVersion", existing === nothing ? "1.0" : existing.schema_version)),
+        name = name,
+        description = haskey(body, "description") && body["description"] !== nothing ? String(body["description"]) : (existing === nothing ? nothing : existing.description),
+        local_only = Bool(get(body, "localOnly", existing === nothing ? true : existing.local_only)),
+        created_at = existing === nothing ? timestamp : existing.created_at,
+        updated_at = timestamp,
+    )
+
+    for (json_key, field_name) in DATA_SCIENCE_PROJECT_ARRAY_FIELDS
+        if haskey(body, json_key)
+            setfield!(project, field_name, normalized_record_vector(body[json_key]))
+        elseif existing !== nothing
+            setfield!(project, field_name, getfield(existing, field_name))
+        end
+    end
+
+    return project
+end
+
+function list_data_science_projects_response(state::GatewayState)
+    items = [JuliaFlowGatewayRepository.data_science_project_payload(project) for project in values(state.data_science_projects)]
+    sort!(items; by = item -> String(item["projectId"]))
+    return JSON3.write(Dict("items" => items))
+end
+
+function create_data_science_project_response!(state::GatewayState, body::AbstractDict)
+    name = validate_project_name(body)
+    project_id = project_id_from_body(body, name)
+    haskey(state.data_science_projects, project_id) && error("data science project already exists: $(project_id)")
+    project = materialize_data_science_project(body; project_id_override = project_id)
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    return JSON3.write(JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id]))
+end
+
+function get_data_science_project_response(state::GatewayState, project_id::AbstractString)
+    haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    return JSON3.write(JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project_id]))
+end
+
+function update_data_science_project_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
+    haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    project = materialize_data_science_project(body; existing = state.data_science_projects[project_id], project_id_override = project_id)
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    return JSON3.write(JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id]))
+end
+
 function cors_origin()
     return get(ENV, "JULIAFLOW_CORS_ALLOW_ORIGIN", "*")
 end
@@ -4291,6 +4397,8 @@ function classify_gateway_error(err)
     message = sprint(showerror, err)
 
     if occursin("published dashboard not found", message)
+        return 404, message
+    elseif occursin("data science project not found", message)
         return 404, message
     elseif occursin("route not found", message)
         return 404, message
@@ -5368,6 +5476,29 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             target_id = haskey(body, "datasetId") ? String(body["datasetId"]) : "workflow-dataset"
             append_audit_event!(state, request, "local.data.import"; target_type = "dataset", target_id = target_id)
             return json_response(201, response)
+        end
+        method == "GET" && segments == ["api", "v1", "data-science-projects"] && begin
+            require_permission!(state, request, "workflow:read")
+            return json_response(200, list_data_science_projects_response(state))
+        end
+        method == "POST" && segments == ["api", "v1", "data-science-projects"] && begin
+            require_permission!(state, request, "workflow:write")
+            body = parse_request_body(request)
+            response = create_data_science_project_response!(state, body)
+            project = JSON3.read(response, Dict{String,Any})
+            append_audit_event!(state, request, "data_science_project.create"; target_type = "data_science_project", target_id = String(project["projectId"]))
+            return json_response(201, response)
+        end
+        method == "GET" && length(segments) == 4 && segments[1:3] == ["api", "v1", "data-science-projects"] && begin
+            require_permission!(state, request, "workflow:read"; resource_type = "data_science_project", resource_id = segments[4])
+            return json_response(200, get_data_science_project_response(state, segments[4]))
+        end
+        method == "PUT" && length(segments) == 4 && segments[1:3] == ["api", "v1", "data-science-projects"] && begin
+            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
+            body = parse_request_body(request)
+            response = update_data_science_project_response!(state, segments[4], body)
+            append_audit_event!(state, request, "data_science_project.update"; target_type = "data_science_project", target_id = segments[4])
+            return json_response(200, response)
         end
         method == "POST" && segments == ["api", "v1", "workflows"] && begin
             require_permission!(state, request, "workflow:write")

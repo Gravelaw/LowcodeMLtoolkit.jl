@@ -28,6 +28,48 @@ function sample_execution(execution_id::String; workflow_id::String = "wf-founda
     )
 end
 
+function sample_data_science_project(project_id::String = "wellbore-geology-project")
+    return JuliaFlowApiGateway.JuliaFlowGatewayRepository.DataScienceProjectRecord(
+        project_id = project_id,
+        name = "Wellbore Geology Project",
+        description = "Repository contract fixture",
+        datasets = [
+            Dict{String,Any}(
+                "datasetId" => "wellbore-train",
+                "name" => "Well logs train",
+                "role" => "train",
+                "sourceUri" => "local://data/raw/wellbore/train.csv",
+                "localOnly" => true,
+                "rowCount" => 100,
+                "columnCount" => 8,
+            ),
+        ],
+        schema_contracts = [
+            Dict{String,Any}(
+                "schemaId" => "schema-wellbore",
+                "datasetId" => "wellbore-train",
+                "updatedAt" => "2026-06-21T00:00:00Z",
+                "columns" => [
+                    Dict(
+                        "name" => "depth",
+                        "inferredType" => "Float64",
+                        "logicalType" => "continuous",
+                        "role" => "depth",
+                        "nullable" => false,
+                    ),
+                    Dict(
+                        "name" => "lithology",
+                        "inferredType" => "String",
+                        "logicalType" => "categorical",
+                        "role" => "target",
+                        "nullable" => false,
+                    ),
+                ],
+            ),
+        ],
+    )
+end
+
 function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGatewayRepository.AbstractGatewayRepository; label::AbstractString)
     foundation_toml = read(FOUNDATION_PATH, String)
     parallel_toml = read(PARALLEL_PATH, String)
@@ -136,6 +178,30 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
         @test persisted_dashboards[1].dashboard_id == "dashboard-foundation"
         @test persisted_dashboards[1].version == 1
 
+        data_science_project = JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_data_science_project!(
+            repo,
+            sample_data_science_project(),
+        )
+        @test data_science_project.project_id == "wellbore-geology-project"
+        updated_project = sample_data_science_project()
+        updated_project.name = "Wellbore Geology Project Updated"
+        updated_project.split_plans = [
+            Dict{String,Any}(
+                "splitPlanId" => "split-wellbore",
+                "datasetId" => "wellbore-train",
+                "strategy" => "depth",
+                "locked" => true,
+                "createdAt" => "2026-06-21T00:00:00Z",
+            ),
+        ]
+        JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_data_science_project!(repo, updated_project)
+        persisted_projects = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_data_science_projects(repo)
+        @test length(persisted_projects) == 1
+        @test persisted_projects[1].name == "Wellbore Geology Project Updated"
+        @test persisted_projects[1].datasets[1]["role"] == "train"
+        @test persisted_projects[1].schema_contracts[1]["columns"][1]["role"] == "depth"
+        @test persisted_projects[1].split_plans[1]["strategy"] == "depth"
+
         invalid_toml = replace(foundation_toml, "wf-foundation" => "wf-invalid", count = 1)
         invalid_toml = replace(invalid_toml, "direction = \"input\"" => "direction = \"output\"", count = 1)
         @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_workflow!(repo, invalid_toml)
@@ -158,7 +224,7 @@ function with_postgres_repository(f::Function)
         return f(repo)
     finally
         try
-            JuliaFlowApiGateway.JuliaFlowGatewayRepository.LibPQ.execute(conn, "DROP SCHEMA IF EXISTS $(repo.schema) CASCADE;")
+            JuliaFlowApiGateway.JuliaFlowGatewayRepository.libpq().execute(conn, "DROP SCHEMA IF EXISTS $(repo.schema) CASCADE;")
         finally
             close(conn)
         end

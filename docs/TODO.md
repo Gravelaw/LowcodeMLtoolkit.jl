@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-06-20
+Last updated: 2026-06-21
 Source: BRD gap review against `business-requirements-v0.3.0.md` and current code.
 Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning context is preserved in `docs/project-tracker.md` and `docs/checkpoint-log.md`.
 
@@ -61,6 +61,17 @@ Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning
 24. [x] AKS-13 live workflow metadata recovery: release/local-appliance mode reports incomplete workflow metadata as unavailable with recovery guidance instead of substituting fixture workflow/canvas state, while demo/development fixture fallback remains preserved.
 25. [x] Explorer/Data/Transform mock parity and interactive local analytics: Julia/gateway responses produce local Plotly-compatible chart specs, Explorer renders workspace summary/artifact evidence, Data controls mutate preview/profile state, and Transform uses a React Flow node canvas with settings, validation, history, previews, generated Julia code, logs, and local metric charts.
 26. [x] AKS-29 through AKS-35 parity hardening: per-task plans are recorded for AKS-30 through AKS-35, chart readiness/export behavior is shared, Explorer/Data/Transform expose stronger source/config/stale/empty states, and focused unit/browser coverage verifies sampling, stale charts, Transform config validation, and readiness wrapping.
+
+## Product Analysis Backlog Notes
+
+- [ ] Generalized data-science workflow substrate: local train/validation/test onboarding, optional output contract import, schema/type override workflow, statistical EDA, task/metric selection, validation/test manager, hyperparameter tuning, train/validation/test aligned transforms, and prediction/output export. Documented in `docs/data-scientist-persona-competition-readiness-report.md`; not yet implemented.
+- [ ] Daily local-workstation personas: senior data engineer, principal data scientist, MLOps engineer, and non-coding statistics/ML user workflows need connector/quality-rule depth, guided schema/type correction, statistical EDA, validation/test guardrails, tuning, model registry lifecycle, drift/evaluation monitoring, CPU/GPU run evidence, and reproducible report/export flows. Documented in `docs/data-scientist-persona-competition-readiness-report.md`; not yet implemented.
+- [ ] Persona-driven architecture refactor: add contract-first `DataScienceProject` aggregate, schema/validation/statistics/tuning/evaluation/export/drift records, focused gateway internal modules, data-project repository, typed execution jobs, model lifecycle gates, monitoring/drift reports, and project-backed frontend feature modules. Documented in `docs/persona-architecture-review.md`; not yet implemented.
+- [ ] Principal review P0 blocker: complete `DataScienceProject` substrate before feature depth. First slice now adds additive contracts/OpenAPI with `schemaVersion`, generated-client coverage, repository records, and thin gateway create/list/read/update routes. Remaining acceptance still requires full negative contract coverage, design review closure, gateway module split, trust-boundary hardening, validation/test locks, typed jobs, and release/local-appliance no-fixture evidence. Documented in `docs/principal-persona-readiness-review.md`; not yet complete.
+- [ ] Principal review P1 refactor: split gateway product logic into focused internal modules for local health, chart specs, data catalog, statistical analysis, experiments/jobs, registry, monitoring/drift, deploy/export, local source access, and thin route dispatch. Acceptance requires existing endpoint behavior to remain compatible and Julia route/repository tests to cover extracted boundaries; not yet implemented.
+- [ ] Principal review P1 validity gates: add split/fold/final-test-lock contracts, transform fit/apply semantics, validation-only tuning constraints, leakage checks, metric/output contracts, and tests blocking tuning/registration/deployment when evidence is absent or invalid; not yet implemented.
+- [ ] Principal review P1 security/trust boundary: harden local gateway auth/CORS defaults, workflow import path confinement, local data import source validation, backup/export sensitivity, PostgreSQL schema identifier handling, object-store runtime gating, and artifact checksum streaming before broad import or connector enablement; not yet implemented.
+- [ ] Principal review P1 MLOps gates: move registry state out of execution metadata and add lifecycle states, evaluation gates, scoring artifacts, drift baselines/reports, retraining review, rollback lineage, and CPU/GPU job/trial resource evidence before claiming Models/Deploy/Monitor are MLOps-ready; not yet implemented.
 
 ## Optional Compatibility Backlog
 

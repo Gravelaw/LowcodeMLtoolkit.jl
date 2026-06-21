@@ -20,6 +20,94 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Substrate First Slice - 2026-06-21
+
+### Work Done Till Date
+
+- Added additive `DataScienceProject` contracts in `packages/contracts/src/index.ts`.
+- Added OpenAPI paths and schemas for `/api/v1/data-science-projects` and `/api/v1/data-science-projects/{projectId}`.
+- Added gateway client methods and typed fixture coverage for list/create/get/update project calls.
+- Added `DataScienceProjectRecord` persistence in `JuliaFlowGatewayRepository`, including file-backed storage, PostgreSQL-compatible table/load/save methods, project change durable events, and lazy `LibPQ` loading.
+- Added `GatewayState` project loading plus thin gateway create/list/read/update project routes with audit events and not-found classification.
+- Added repository contract coverage and API Gateway route assertions for create/list/get/update/reload behavior.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. The slice does not complete gateway module split, local trust-boundary hardening, validation/test locks, typed jobs, statistical EDA calculations, model lifecycle gates, drift reports, project-backed frontend modules, or persona-flow browser verification.
+- Full Julia suite remains environment-blocked on this Windows host: normal run hits application-control policy on generated/JLL DLLs, and `--compiled-modules=no` full suite timed out. A focused Julia route smoke passed.
+
+### Next Items To Implement
+
+- Add negative project contract/API tests for missing required fields and invalid project id update payloads.
+- Run the required concrete design reviews for contract/API, security, ML validity, and MLOps lifecycle.
+- Continue with gateway module split, trust-boundary hardening, and validation/test strategy enforcement before deep ML Studio/Models/Deploy/Monitor work.
+
+## Checkpoint: `cp/02-alpha-core` Principal Persona Readiness Multi-Review - 2026-06-21
+
+### Work Done Till Date
+
+- Added `docs/principal-persona-readiness-review.md`.
+- Ran six specialist read-only reviews in parallel: contract/API, Julia gateway/runtime, frontend/UX workflow, data science/ML validity, security/local trust boundary, and MLOps/model ops.
+- Collated the specialist findings through a principal reviewer.
+- Principal gate decision: P0 block for implementation readiness. The repo is ready for design/refactor planning, but not ready to claim daily data/ML workstation readiness.
+- Updated `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/architecture.md`, `docs/persona-architecture-review.md`, and `docs/project-tracker.md`.
+
+### Gaps Pending
+
+- No code implementation was added in this review slice.
+- `DataScienceProject` contracts, file-backed project repository, gateway module split, typed stats/training/tuning/evaluation/scoring/drift jobs, validation/test locks, registry lifecycle gates, drift reports, local import trust-boundary hardening, and project-backed frontend modules remain unimplemented.
+- Follow-up design reviews are still required against concrete design artifacts before implementation readiness: contract/API, security threat model, ML validity, MLOps lifecycle, and frontend accessibility/persona-flow.
+
+### Next Items To Implement
+
+- Implement the `DataScienceProject` substrate first: additive contracts/OpenAPI, generated-client coverage, file-backed repository, thin gateway create/read/update/list routes, backward-compatible existing endpoints, and negative tests for missing required fields.
+- Do not deepen ML Studio, Models, Deploy, Monitor, drift, tuning, or broad local connector behavior until the project aggregate, trust boundaries, typed jobs, and validation gates exist.
+
+## Checkpoint: `cp/02-alpha-core` Persona-Driven Architecture Review - 2026-06-21
+
+### Work Done Till Date
+
+- Added `docs/persona-architecture-review.md`.
+- Reviewed the current contract, gateway, execution, worker, frontend, node roadmap, and persona-report architecture against four daily local-workstation personas.
+- Identified the main architecture gap: JuliaFlow needs a shared contract-first `DataScienceProject` aggregate before it can safely implement generic tabular, statistical EDA, validation/test, tuning, registry, drift, and no-code workflow features.
+- Identified refactor needs: split gateway product logic into focused internal modules, add project-backed repositories, add typed statistical/training/tuning/evaluation/scoring/drift jobs, move model registry state out of execution metadata, and refactor frontend route-local state behind project-backed feature modules.
+- Updated `Plan.md`, `docs/TODO.md`, `docs/risk-register.md`, `docs/project-tracker.md`, and `docs/architecture.md` to record the review and open architecture lane.
+
+### Gaps Pending
+
+- This checkpoint is architecture review only; no contracts, gateway modules, repositories, execution jobs, frontend feature modules, registry gates, or drift reports were implemented.
+- Existing Data, Transform, ML Studio, Models, and Monitor route evidence remains route-specific until the `DataScienceProject` substrate exists.
+
+### Next Items To Implement
+
+- Add the `DataScienceProject` contract and OpenAPI substrate first.
+- Refactor `services/api-gateway/src/JuliaFlowApiGateway.jl` into focused internal modules before adding more persona-specific product logic.
+- Implement validation/test locks and statistical EDA run records before tuning, final test, registry promotion, drift monitoring, or wellbore domain templates.
+
+## Checkpoint: `cp/02-alpha-core` Data Scientist Competition Persona Readiness - 2026-06-20
+
+### Work Done Till Date
+
+- Added `docs/data-scientist-persona-competition-readiness-report.md`.
+- Evaluated JuliaFlow as a local-first data-science app against Titanic, House Prices, and ROGII Wellbore workflows.
+- Identified the generalized capabilities required across all three projects: local train/validation/test import, optional output contract import, schema/type role mapping, task/metric selection, validation/test strategy, train/validation/test transform alignment, experiment comparison, prediction export, and reproducibility evidence.
+- Identified wellbore-specific requirements: multi-file well import, MD/depth validation, trajectory/typewell features, grouped validation by well, well log/trajectory visualizations, and domain model cards.
+- Revised the analysis to treat the Kaggle competitions as examples, not product boundaries, and added missing data-science workflows: train/validation/test separation, final test locks, editable schema/type diagnostics, statistical EDA, hyperparameter tuning, and generalized prediction/export artifacts.
+- Extended the analysis to four daily local-workstation personas: senior data engineer, principal data scientist, MLOps engineer focused on training/drift/evaluation, and non-coding statistics/ML user.
+- Compared JuliaFlow's required daily-use depth against KNIME, Orange, and H2O-style low-code expectations: connectors and workflow breadth, no-code widget/canvas simplicity, interactive EDA, AutoML/tuning, explainability, registry, deployment, and drift/model monitoring.
+
+### Gaps Pending
+
+- This checkpoint is a product/persona analysis artifact only; no implementation was added for dataset wizard, schema/type editor, statistical EDA surface, validation/test manager, tuning workflow, training task setup, or prediction export.
+- The daily-use persona expansion is analysis only; no implementation was added for connector packs, quality-rule engines, scheduling, MLOps evaluation/drift dashboards, model registry lifecycle, CPU/GPU run profiles, AutoML recommendations, or guided no-code workflows.
+- The app remains generic/churn-demo oriented until the report's P0 workflow substrate is implemented.
+
+### Next Items To Implement
+
+- Convert the P0 report findings into Linear work items or map them into the current AKS backlog.
+- Implement the generic tabular data-science MVP before building the ROGII-specific wellbore domain template.
+- Add follow-up backlog for senior data-engineer, principal data-scientist, MLOps, and no-code daily-workflow requirements before claiming JuliaFlow is ready for daily local workstation adoption.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-29 Through AKS-35 Parity Hardening - 2026-06-20
 
 ### Work Done Till Date

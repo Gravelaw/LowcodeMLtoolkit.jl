@@ -3,6 +3,7 @@ import {
   gatewayEndpointPaths,
   gatewayExecutionStatuses,
   milestoneCheckpoints,
+  type CreateDataScienceProjectRequest,
   type CreateCheckpointRequest,
   type CreateWorkflowRequest,
   type GatewayDataImportProfileRequest,
@@ -12,6 +13,7 @@ import {
   type GatewayModelRegistryRequest,
   type GatewayTransformRunRequest,
   type GatewayVisualizeCheckpointExportRequest,
+  type UpdateDataScienceProjectRequest,
   type MilestoneCheckpointTag,
   type TransitionExecutionStatusRequest
 } from "../../../packages/contracts/src/index";
@@ -38,6 +40,37 @@ const dataProfileRequest: GatewayDataImportProfileRequest = {
   sourceUri: "local://data/raw/contracts.csv",
   targetZone: "raw",
   readMode: "duckdb"
+};
+const dataScienceProjectRequest: CreateDataScienceProjectRequest = {
+  projectId: "contracts-project",
+  name: "Contracts Project",
+  description: "Typed client fixture",
+  datasets: [
+    {
+      datasetId: "contracts-train",
+      name: "Contracts train",
+      role: "train",
+      sourceUri: "local://data/raw/contracts.csv",
+      localOnly: true,
+      rowCount: 12,
+      columnCount: 3
+    }
+  ]
+};
+const dataScienceProjectUpdateRequest: UpdateDataScienceProjectRequest = {
+  splitPlans: [
+    {
+      splitPlanId: "split-contracts",
+      datasetId: "contracts-train",
+      strategy: "stratified",
+      trainFraction: 0.7,
+      validationFraction: 0.15,
+      testFraction: 0.15,
+      seed: 42,
+      locked: true,
+      createdAt: "2026-06-21T00:00:00Z"
+    }
+  ]
 };
 const transformRunRequest: GatewayTransformRunRequest = {
   executionMode: "cpu_only",
@@ -95,6 +128,10 @@ client.createWorkflow(workflowRequest);
 client.createCheckpoint(checkpointRequest);
 client.transitionExecutionStatus("exec-1", transitionRequest);
 client.importDataProfile(dataProfileRequest);
+client.listDataScienceProjects();
+client.createDataScienceProject(dataScienceProjectRequest);
+client.getDataScienceProject("contracts-project");
+client.updateDataScienceProject("contracts-project", dataScienceProjectUpdateRequest);
 client.runWorkflowTransform("wf-foundation", transformRunRequest);
 client.getWorkflowTransformHistory("wf-foundation");
 client.runWorkflowMlExperiment("wf-foundation", mlExperimentRunRequest);
@@ -108,6 +145,8 @@ client.listWorkflowDeployPackages("wf-foundation");
 gatewayEndpointPaths.workflowDetail("foundation/workflow");
 gatewayEndpointPaths.executionStatus("exec-1");
 gatewayEndpointPaths.localDataImport;
+gatewayEndpointPaths.dataScienceProjects;
+gatewayEndpointPaths.dataScienceProject("contracts-project");
 gatewayEndpointPaths.workflowTransformRun("wf-foundation");
 gatewayEndpointPaths.workflowTransformHistory("wf-foundation");
 gatewayEndpointPaths.workflowMlExperimentRun("wf-foundation");
