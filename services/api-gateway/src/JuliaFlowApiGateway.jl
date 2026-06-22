@@ -8,6 +8,7 @@ include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectStatistics.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectLocalSources.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectCatalog.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectPredictionExport.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectMonitoring.jl"))
 include(joinpath(@__DIR__, "..", "..", "worker-service", "src", "JuliaFlowWorkerService.jl"))
 
 using .JuliaFlowGatewayRepository
@@ -17,6 +18,7 @@ using .JuliaFlowDataScienceProjectStatistics
 using .JuliaFlowDataScienceProjectLocalSources
 using .JuliaFlowDataScienceProjectCatalog
 using .JuliaFlowDataScienceProjectPredictionExport
+using .JuliaFlowDataScienceProjectMonitoring
 using .JuliaFlowWorkerService
 using Base64
 using Dates
@@ -5364,55 +5366,19 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
 end
 
 function project_prediction_export_for_drift(project::DataScienceProjectRecord, body::AbstractDict)
-    isempty(project.prediction_exports) && error("drift report prerequisite prediction export required")
-    if haskey(body, "predictionExportId")
-        export_id = String(body["predictionExportId"])
-        match = findfirst(export_record -> String(get(export_record, "predictionExportId", "")) == export_id, project.prediction_exports)
-        match === nothing && error("drift report prerequisite prediction export not found: $(export_id)")
-        return project.prediction_exports[match]
-    end
-    return project.prediction_exports[1]
+    return JuliaFlowDataScienceProjectMonitoring.project_prediction_export_for_drift(project, body)
 end
 
 function drift_metric_names(body::AbstractDict)
-    raw_metrics = haskey(body, "metricNames") ? body["metricNames"] : ["psi", "ks"]
-    raw_metrics isa AbstractVector || error("drift report metricNames must be an array")
-    metrics = [safe_local_dataset_id(String(metric)) for metric in raw_metrics]
-    metrics = [metric for metric in metrics if !isempty(metric)]
-    isempty(metrics) && error("drift report metric required")
-    return metrics
+    return JuliaFlowDataScienceProjectMonitoring.drift_metric_names(body)
 end
 
 function drift_threshold(body::AbstractDict)
-    threshold = haskey(body, "threshold") ? Float64(body["threshold"]) : 0.2
-    0.0 <= threshold <= 1.0 || error("drift report threshold must be between 0 and 1")
-    return threshold
+    return JuliaFlowDataScienceProjectMonitoring.drift_threshold(body)
 end
 
 function monitoring_baseline_for_drift!(project::DataScienceProjectRecord, body::AbstractDict, dataset_id::AbstractString, prediction_export::AbstractDict, metric_names::AbstractVector, timestamp::AbstractString)
-    if haskey(body, "baselineId")
-        baseline_id = String(body["baselineId"])
-        match = findfirst(baseline -> String(get(baseline, "baselineId", "")) == baseline_id, project.monitoring_baselines)
-        match !== nothing && return project.monitoring_baselines[match]
-    else
-        match = findfirst(
-            baseline -> String(get(baseline, "predictionExportId", "")) == String(get(prediction_export, "predictionExportId", "")),
-            project.monitoring_baselines,
-        )
-        match !== nothing && return project.monitoring_baselines[match]
-    end
-    baseline_id = haskey(body, "baselineId") ? String(body["baselineId"]) : "baseline-" * replace(string(uuid4()), "-" => "")
-    baseline = Dict{String,Any}(
-        "baselineId" => baseline_id,
-        "modelId" => String(get(prediction_export, "evaluationReportId", "approved-final-evaluation")),
-        "datasetId" => dataset_id,
-        "metricNames" => metric_names,
-        "predictionExportId" => String(get(prediction_export, "predictionExportId", "")),
-        "evaluationReportId" => String(get(prediction_export, "evaluationReportId", "")),
-        "createdAt" => timestamp,
-    )
-    project.monitoring_baselines = [baseline, project.monitoring_baselines...]
-    return baseline
+    return JuliaFlowDataScienceProjectMonitoring.monitoring_baseline_for_drift!(project, body, dataset_id, prediction_export, metric_names, timestamp)
 end
 
 function run_drift_report_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
@@ -5427,36 +5393,11 @@ function run_drift_report_response!(state::GatewayState, project_id::AbstractStr
     threshold = drift_threshold(body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     baseline = monitoring_baseline_for_drift!(project, body, dataset_id, prediction_export, metric_names, timestamp)
-    metrics = Dict{String,Any}()
-    for (index, metric) in enumerate(metric_names)
-        metrics[String(metric)] = round(min(1.0, 0.08 * index); digits = 4)
-    end
-    max_metric = maximum(Float64(value) for value in values(metrics))
-    status = max_metric >= threshold * 2 ? "high" : max_metric >= threshold ? "moderate" : "low"
-    report_id = "drift-" * replace(string(uuid4()), "-" => "")
-    drift_report = Dict{String,Any}(
-        "driftReportId" => report_id,
-        "baselineId" => String(get(baseline, "baselineId", "")),
-        "status" => status,
-        "metrics" => metrics,
-        "validationEvidence" => Dict{String,Any}(
-            "projectId" => project.project_id,
-            "datasetId" => dataset_id,
-            "predictionExportId" => String(get(prediction_export, "predictionExportId", "")),
-            "evaluationReportId" => String(get(prediction_export, "evaluationReportId", "")),
-            "outputContractRef" => String(get(prediction_export, "outputContractRef", "")),
-        ),
-        "generatedAt" => timestamp,
-    )
-    output_refs = [
-        Dict(
-            "refId" => "artifact-$(report_id)",
-            "kind" => "drift_report",
-            "localOnly" => true,
-            "path" => "local://drift/$(project.project_id)/$(report_id)/report.json",
-            "generatedAt" => timestamp,
-        ),
-    ]
+    metrics = JuliaFlowDataScienceProjectMonitoring.drift_metric_values(metric_names)
+    status = JuliaFlowDataScienceProjectMonitoring.drift_status(metrics, threshold)
+    drift_report = JuliaFlowDataScienceProjectMonitoring.drift_report_record(project, baseline, prediction_export, dataset_id, metrics, status, timestamp)
+    report_id = String(drift_report["driftReportId"])
+    output_refs = JuliaFlowDataScienceProjectMonitoring.drift_output_refs(project.project_id, report_id, timestamp)
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "drift_report")
     execution_evidence = data_science_project_execution_evidence!(
         state,

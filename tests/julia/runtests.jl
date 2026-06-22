@@ -253,6 +253,70 @@ end
     @test occursin("\"score\":0.85", jsonl_content)
 end
 
+@testset "Data science project monitoring helpers" begin
+    monitoring = JuliaFlowApiGateway.JuliaFlowDataScienceProjectMonitoring
+    project = DataScienceProjectRecord(project_id = "monitoring-helper", name = "Monitoring Helper")
+    prediction_export = Dict{String,Any}(
+        "predictionExportId" => "export-helper",
+        "evaluationReportId" => "eval-helper",
+        "outputContractRef" => "contract://outputs/helper",
+        "validationEvidence" => Dict{String,Any}("finalEvaluationApproved" => true, "datasetId" => "dataset-helper"),
+    )
+    project.prediction_exports = [prediction_export]
+
+    @test monitoring.project_prediction_export_for_drift(project, Dict{String,Any}("predictionExportId" => "export-helper")) === prediction_export
+    @test_throws ErrorException monitoring.project_prediction_export_for_drift(project, Dict{String,Any}("predictionExportId" => "missing-export"))
+    @test monitoring.drift_metric_names(Dict{String,Any}()) == ["psi", "ks"]
+    @test monitoring.drift_metric_names(Dict{String,Any}("metricNames" => ["Population Stability", "KS"])) == ["population-stability", "ks"]
+    @test_throws ErrorException monitoring.drift_metric_names(Dict{String,Any}("metricNames" => []))
+    @test monitoring.drift_threshold(Dict{String,Any}()) == 0.2
+    @test_throws ErrorException monitoring.drift_threshold(Dict{String,Any}("threshold" => 1.5))
+
+    timestamp = "2026-06-22T00:00:00Z"
+    metrics = ["psi", "ks"]
+    baseline = monitoring.monitoring_baseline_for_drift!(
+        project,
+        Dict{String,Any}("baselineId" => "baseline-helper"),
+        "dataset-helper",
+        prediction_export,
+        metrics,
+        timestamp,
+    )
+    @test baseline["baselineId"] == "baseline-helper"
+    @test baseline["metricNames"] == metrics
+    @test length(project.monitoring_baselines) == 1
+    reused = monitoring.monitoring_baseline_for_drift!(
+        project,
+        Dict{String,Any}("baselineId" => "baseline-helper"),
+        "dataset-helper",
+        prediction_export,
+        metrics,
+        timestamp,
+    )
+    @test reused === baseline
+    @test length(project.monitoring_baselines) == 1
+
+    metric_values = monitoring.drift_metric_values(["psi", "ks", "wasserstein"])
+    @test metric_values["psi"] == 0.08
+    @test metric_values["wasserstein"] == 0.24
+    @test monitoring.drift_status(metric_values, 0.2) == "moderate"
+    @test monitoring.drift_status(metric_values, 0.1) == "high"
+    report = monitoring.drift_report_record(
+        project,
+        baseline,
+        prediction_export,
+        "dataset-helper",
+        metric_values,
+        "moderate",
+        timestamp;
+        report_id = "drift-helper",
+    )
+    @test report["driftReportId"] == "drift-helper"
+    @test report["validationEvidence"]["predictionExportId"] == "export-helper"
+    output_refs = monitoring.drift_output_refs(project.project_id, "drift-helper", timestamp)
+    @test output_refs[1]["path"] == "local://drift/monitoring-helper/drift-helper/report.json"
+end
+
 @testset "Data science project statistical helpers" begin
     stats = JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics
     methods = stats.statistical_analysis_methods(

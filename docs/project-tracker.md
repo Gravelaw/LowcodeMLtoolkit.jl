@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-22`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Monitoring Module Split Slice (2026-06-22)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectMonitoring.jl` as a focused gateway-internal module for drift prerequisite prediction-export selection, drift metric normalization, threshold validation, monitoring-baseline creation/reuse, deterministic drift metric values, drift status classification, drift-report record construction, and drift artifact refs.
+- Gateway drift-report route orchestration now delegates monitoring/drift helper behavior to the extracted module while preserving route-owned dataset validation, approved-final-evaluation gating, project persistence, and job/execution evidence.
+- Added direct Julia helper assertions for prediction-export selection/rejection, default/custom metric normalization, threshold validation, baseline creation/reuse, metric generation, status classification, report validation evidence, and output refs.
+- Verification passed locally: focused Julia monitoring helper smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is another focused gateway module split; deploy/export route orchestration, thin dispatch extraction, worker-backed jobs, connector-specific output-contract imports, and project-backed frontend migration remain open.
+- Monitoring/drift helpers are modularized, but drift calculation is still deterministic substrate evidence rather than worker-backed drift computation over scored local datasets.
+
+### Next Items To Implement
+
+- Continue gateway modularization around deploy/export route orchestration or thin route dispatch.
+- Move deterministic drift, prediction export, tuning, and final-evaluation evidence behind worker orchestration.
+- Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Prediction Export Module Split Slice (2026-06-22)
 
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectPredictionExport.jl` as a focused gateway-internal module for prediction-export format validation, row-count validation, output-contract parsing, required output-column checks, output mapping validation, deterministic prediction row construction, selected-row projection, and CSV/JSONL/structured content rendering.

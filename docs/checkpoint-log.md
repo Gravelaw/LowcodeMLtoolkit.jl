@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Monitoring Module Split Slice - 2026-06-22
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectMonitoring.jl` as a focused gateway-internal module for drift prerequisite prediction-export selection, drift metric normalization, threshold validation, monitoring-baseline creation/reuse, deterministic drift metric values, drift status classification, drift-report record construction, and drift artifact refs.
+- Gateway drift-report route orchestration now delegates monitoring/drift helper behavior to the module while preserving dataset validation, approved-final-evaluation gating, persistence, and project job/execution evidence.
+- Added direct Julia helper assertions for prediction-export selection/rejection, metric normalization, threshold validation, baseline creation/reuse, drift status classification, report validation evidence, and output refs.
+- Verified with a focused Julia monitoring helper smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Deploy/export route orchestration, thin dispatch extraction, connector-specific output-contract imports, worker-backed drift execution, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around deploy/export route orchestration or thin dispatch.
+- Keep moving deterministic drift and prediction-export evidence toward worker-backed orchestration.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Prediction Export Module Split Slice - 2026-06-22
 
 ### Work Done Till Date
