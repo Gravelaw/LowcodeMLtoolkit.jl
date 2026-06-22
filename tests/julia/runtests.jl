@@ -197,6 +197,62 @@ end
     @test any(row -> row["name"] == "profit" && row["role"] == "label", superstore_fixture["profileSummary"])
 end
 
+@testset "Data science project prediction export helpers" begin
+    export_helpers = JuliaFlowApiGateway.JuliaFlowDataScienceProjectPredictionExport
+    @test export_helpers.prediction_export_format(Dict{String,Any}()) == "csv"
+    @test export_helpers.prediction_export_format(Dict{String,Any}("format" => "JSONL")) == "jsonl"
+    @test_throws ErrorException export_helpers.prediction_export_format(Dict{String,Any}("format" => "xlsx"))
+    @test export_helpers.prediction_export_row_count(Dict{String,Any}(), Dict{String,Any}("rowCount" => 12)) == 12
+    @test_throws ErrorException export_helpers.prediction_export_row_count(Dict{String,Any}("rowCount" => 0), Dict{String,Any}())
+
+    body = Dict{String,Any}(
+        "outputContractRef" => "contract-local",
+        "outputContract" => Dict{String,Any}(
+            "contractId" => "contract-local",
+            "columns" => [
+                Dict{String,Any}("name" => "prediction_id", "sourceColumn" => "prediction_id", "required" => true),
+                Dict{String,Any}("name" => "score", "sourceColumn" => "prediction", "required" => true),
+                Dict{String,Any}("name" => "dataset", "sourceColumn" => "dataset_id", "required" => false),
+            ],
+        ),
+        "outputColumns" => ["prediction_id", "score"],
+    )
+    contract = export_helpers.prediction_export_contract(body, "contract-local")
+    @test export_helpers.prediction_export_contract_column_names(contract) == ["prediction_id", "score", "dataset"]
+    output_columns = export_helpers.prediction_export_output_columns(body, contract)
+    @test output_columns == ["prediction_id", "score"]
+    output_mappings = export_helpers.prediction_export_output_mappings(body, contract, output_columns)
+    @test output_mappings == [
+        Dict{String,Any}("outputColumn" => "prediction_id", "sourceColumn" => "prediction_id"),
+        Dict{String,Any}("outputColumn" => "score", "sourceColumn" => "prediction"),
+    ]
+    @test_throws ErrorException export_helpers.prediction_export_contract(
+        Dict{String,Any}("outputContract" => Dict{String,Any}("contractId" => "other", "columns" => [])),
+        "contract-local",
+    )
+    @test_throws ErrorException export_helpers.prediction_export_output_columns(
+        Dict{String,Any}("outputColumns" => ["prediction_id"]),
+        contract,
+    )
+    @test_throws ErrorException export_helpers.prediction_export_output_mappings(
+        Dict{String,Any}("outputMappings" => [Dict{String,Any}("outputColumn" => "score", "sourceColumn" => "unknown")]),
+        contract,
+        output_columns,
+    )
+
+    report = Dict{String,Any}("evaluationReportId" => "eval-1", "metrics" => Dict{String,Any}("accuracy" => 0.9, "f1" => 0.8))
+    rows = export_helpers.prediction_export_rows("export-1", report, "dataset-1", "contract-local", 2)
+    @test length(rows) == 2
+    @test rows[1]["prediction_id"] == "export-1-1"
+    @test rows[1]["prediction"] == 0.85
+    selected_rows = export_helpers.selected_prediction_export_rows(rows, output_columns, output_mappings)
+    @test selected_rows[1]["score"] == 0.85
+    csv_content = export_helpers.prediction_export_content("csv", rows, output_columns, output_mappings)
+    @test startswith(csv_content, "prediction_id,score\n")
+    jsonl_content = export_helpers.prediction_export_content("jsonl", rows, output_columns, output_mappings)
+    @test occursin("\"score\":0.85", jsonl_content)
+end
+
 @testset "Data science project statistical helpers" begin
     stats = JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics
     methods = stats.statistical_analysis_methods(

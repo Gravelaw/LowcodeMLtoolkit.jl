@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-22`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Prediction Export Module Split Slice (2026-06-22)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectPredictionExport.jl` as a focused gateway-internal module for prediction-export format validation, row-count validation, output-contract parsing, required output-column checks, output mapping validation, deterministic prediction row construction, selected-row projection, and CSV/JSONL/structured content rendering.
+- Gateway prediction-export artifact persistence and project route orchestration now delegate pure output-contract/export helper behavior to the extracted module while preserving route-owned final-evaluation gating, local artifact writes, checksum/size evidence, project persistence, and job/execution evidence.
+- Added direct Julia helper assertions for supported/unsupported export formats, positive row counts, output-contract parsing, required-column enforcement, unsupported mapping rejection, deterministic prediction row generation, selected-row projection, and CSV/JSONL content rendering.
+- Verification passed locally: focused Julia prediction-export helper smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is another focused gateway module split; route orchestration, monitoring/drift, deploy/export persistence, thin dispatch extraction, worker-backed jobs, connector-specific output-contract imports, and project-backed frontend migration remain open.
+- Prediction-export helpers are modularized, but scoring/export is still deterministic substrate evidence rather than worker-backed model scoring over arbitrary local datasets.
+
+### Next Items To Implement
+
+- Continue gateway modularization around monitoring/drift, deploy/export route orchestration, or thin route dispatch.
+- Move deterministic prediction export, drift, tuning, and final-evaluation evidence behind worker orchestration.
+- Add connector-specific output-contract import support beyond inline local request contracts.
+
 ### AKS-36 DataScienceProject Catalog Module Split Slice (2026-06-22)
 
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectCatalog.jl` as a focused gateway-internal module for data-profile dataset id normalization, fixture-backed schema/profile/preview/readiness summaries, local read-mode source options, and lineage artifact construction.

@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Prediction Export Module Split Slice - 2026-06-22
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectPredictionExport.jl` as a focused gateway-internal module for prediction-export format validation, row-count validation, output-contract parsing, required output-column checks, output mapping validation, deterministic prediction row construction, selected-row projection, and CSV/JSONL/structured content rendering.
+- Gateway prediction-export routes now delegate pure output-contract/export helper behavior to the module while preserving final-evaluation gating, local artifact writes, checksum/size evidence, persistence, and project job/execution evidence.
+- Added direct Julia helper assertions for export formats, row counts, output-contract parsing, required-column enforcement, unsupported mappings, deterministic rows, selected-row projection, and CSV/JSONL output.
+- Verified with a focused Julia prediction-export helper smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Route orchestration, monitoring/drift, deploy/export persistence boundaries, thin dispatch extraction, connector-specific output-contract imports, worker-backed scoring/export execution, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around monitoring/drift, deploy/export route orchestration, or thin dispatch.
+- Keep moving deterministic prediction export and drift evidence toward worker-backed orchestration.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Catalog Module Split Slice - 2026-06-22
 
 ### Work Done Till Date
