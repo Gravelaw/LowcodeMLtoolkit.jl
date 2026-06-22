@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Catalog Module Split Slice - 2026-06-22
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectCatalog.jl` as a focused gateway-internal module for data-profile dataset id normalization, fixture-backed schema/profile/preview/readiness summaries, local source options, and lineage artifact construction.
+- Gateway data import/profile and statistical-analysis wrappers now delegate catalog/profile behavior to the module while preserving route-owned health evidence, checksum construction, chart generation, persistence, and response contracts.
+- Added direct Julia helper assertions for id normalization, source-option status, lineage artifact refs, default churn profile evidence, and Global Superstore profile evidence.
+- Verified with a focused Julia catalog smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Route orchestration, monitoring/drift, deploy/export, thin dispatch extraction, connector-specific policies, worker-backed profile/job execution, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around monitoring/drift, deploy/export, or thin route dispatch.
+- Keep moving deterministic project profile/job evidence toward worker-backed orchestration.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Local Source Module Split Slice - 2026-06-22
 
 ### Work Done Till Date

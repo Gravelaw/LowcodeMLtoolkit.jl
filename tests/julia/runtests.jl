@@ -162,6 +162,41 @@ end
     )
 end
 
+@testset "Data science project catalog helpers" begin
+    catalog = JuliaFlowApiGateway.JuliaFlowDataScienceProjectCatalog
+    @test catalog.safe_local_dataset_id("Foundation Profile!") == "foundation-profile"
+    @test catalog.safe_local_dataset_id("  ") == "workflow-dataset"
+    @test length(catalog.safe_local_dataset_id(repeat("A", 100))) == 80
+
+    health = Dict{String,Any}(
+        "dataEstateDuckdbQueryPath" => "local://data/_duckdb/profile.sql",
+        "dataEstateDuckdbStatus" => "ready",
+    )
+    options = catalog.data_source_options("Foundation Profile!", "local://data/raw/foundation-profile.csv", "raw", "duckdb", health)
+    @test length(options) == 4
+    @test options[1]["mode"] == "csv"
+    @test only(filter(option -> option["mode"] == "duckdb", options))["status"] == "active"
+
+    lineage = catalog.data_lineage_artifacts("Foundation Profile!", "local://data/raw/foundation-profile.csv", "raw", "abc123", 42, health)
+    @test length(lineage) == 4
+    @test lineage[2]["artifactRef"] == "local://data/raw/foundation-profile.arrow"
+    @test lineage[3]["format"] == "parquet"
+    @test lineage[4]["artifactRef"] == "local://data/_duckdb/profile.sql"
+
+    churn_fixture = catalog.data_profile_fixture("foundation-profile", "local://data/raw/foundation-profile.csv")
+    @test churn_fixture["rowCount"] == 12500
+    @test !isempty(churn_fixture["schemaSummary"])
+    @test !isempty(churn_fixture["profileSummary"])
+    @test !isempty(churn_fixture["previewRows"])
+    @test churn_fixture["workflowReadiness"]["downstreamReady"] == true
+    @test !isempty(churn_fixture["quickPlots"])
+
+    superstore_fixture = catalog.data_profile_fixture("global-superstore", "local://data/raw/superstore.csv")
+    @test superstore_fixture["rowCount"] == 9800
+    @test superstore_fixture["workflowReadiness"]["targetColumn"] == "profit"
+    @test any(row -> row["name"] == "profit" && row["role"] == "label", superstore_fixture["profileSummary"])
+end
+
 @testset "Data science project statistical helpers" begin
     stats = JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics
     methods = stats.statistical_analysis_methods(

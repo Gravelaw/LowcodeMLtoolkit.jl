@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-22`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Catalog Module Split Slice (2026-06-22)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectCatalog.jl` as a focused gateway-internal module for data-profile dataset id normalization, fixture-backed schema/profile/preview/readiness summaries, local read-mode source options, and lineage artifact construction.
+- Gateway data import/profile and statistical-analysis wrappers now delegate catalog/profile behavior to the extracted module while preserving route-owned health lookups, checksum construction, chart spec generation, audit/persistence behavior, and JSON response contracts.
+- Added direct Julia helper assertions for safe dataset id normalization, source-option read-mode status, lineage artifact refs, default churn profile evidence, and Global Superstore profile evidence.
+- Verification passed locally: focused Julia catalog smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is another focused gateway module split; route orchestration, monitoring/drift, deploy/export, thin dispatch extraction, worker-backed jobs, connector-specific policy, redaction previews, and project-backed frontend migration remain open.
+- Catalog/profile behavior is modularized, but the current profile evidence is still deterministic substrate evidence and not yet worker-backed profiling over arbitrary local sources.
+
+### Next Items To Implement
+
+- Continue gateway modularization around monitoring/drift, deploy/export, or thin route dispatch.
+- Move deterministic profile/statistics/tuning/evaluation/export/drift evidence behind worker orchestration.
+- Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Local Source Module Split Slice (2026-06-22)
 
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectLocalSources.jl` as a focused gateway-internal module for local import roots, path containment, sensitive filename checks, text sample credential/PII sniffing, bounded file validation, source URI validation, redaction-safe audit source details, managed local data ref resolution, and local artifact write-path confinement.
