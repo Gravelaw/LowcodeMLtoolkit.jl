@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Core Module Split Slice - 2026-06-22
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectCore.jl` as a focused gateway-internal module for pure project payload normalization, project id derivation, schema validation, child-record array validation, managed-local dataset source validation, and `DataScienceProjectRecord` materialization.
+- Gateway project create/update compatibility wrappers now delegate validation/materialization to the extracted module while preserving route-owned duplicate/missing checks, repository writes, and JSON response behavior.
+- Added direct Julia helper assertions for project materialization, update preservation, id normalization, remote source rejection, path traversal rejection, non-array child-record rejection, and unsupported schema-version rejection.
+- Verified locally with `npm run validate:contracts` and `npm run build`. Local Julia verification is blocked on this host because no Julia executable is available on PATH; PR CI is required for `tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Statistical analysis, local-source access, project route orchestration, worker-backed job execution, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around statistical analysis/project route orchestration or local-source access.
+- Keep moving deterministic project jobs toward worker-backed orchestration.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Jobs Module Split Slice - 2026-06-22
 
 ### Work Done Till Date

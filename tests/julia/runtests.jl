@@ -19,6 +19,66 @@ using .JuliaFlowBaseExtension
 
 include(joinpath(@__DIR__, "repository_contract_tests.jl"))
 
+@testset "Data science project core helpers" begin
+    body = Dict{String,Any}(
+        "projectId" => "Wellbore Geology!",
+        "schemaVersion" => "1.0",
+        "name" => "Wellbore Geology",
+        "description" => "Local workstation geology project",
+        "datasets" => [
+            Dict{String,Any}(
+                "datasetId" => "Train Logs",
+                "role" => "train",
+                "sourceUri" => "local://raw/wellbore/train.csv",
+                "artifactRef" => "local://processed/wellbore/train.arrow",
+                "localOnly" => true,
+            ),
+        ],
+        "schemaContracts" => [
+            Dict{String,Any}(
+                "schemaContractId" => "schema-wellbore",
+                "columns" => [Dict{String,Any}("name" => "depth", "logicalType" => "continuous")],
+            ),
+        ],
+    )
+    project = JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(body)
+    @test project.project_id == "wellbore-geology"
+    @test project.name == "Wellbore Geology"
+    @test project.description == "Local workstation geology project"
+    @test project.datasets[1]["sourceUri"] == "local://raw/wellbore/train.csv"
+    @test project.schema_contracts[1]["schemaContractId"] == "schema-wellbore"
+
+    updated = JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
+        Dict{String,Any}(
+            "name" => "Wellbore Geology Updated",
+            "projectId" => "wellbore-geology",
+            "splitPlans" => [Dict{String,Any}("splitPlanId" => "split-depth", "strategy" => "depth")],
+        );
+        existing = project,
+        project_id_override = project.project_id,
+    )
+    @test updated.created_at == project.created_at
+    @test updated.datasets == project.datasets
+    @test updated.split_plans[1]["strategy"] == "depth"
+
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.project_id_from_body(
+        Dict{String,Any}("projectId" => "Titanic / Baseline"),
+        "Fallback",
+    ) == "titanic-baseline"
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
+        Dict{String,Any}("name" => "Remote", "datasets" => [Dict{String,Any}("datasetId" => "remote", "sourceUri" => "https://example.com/data.csv")]),
+    )
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
+        Dict{String,Any}("name" => "Traversal", "datasets" => [Dict{String,Any}("datasetId" => "bad", "sourceUri" => "local://raw/../secret.csv")]),
+    )
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
+        Dict{String,Any}("name" => "Bad Shape", "datasets" => Dict{String,Any}("datasetId" => "bad")),
+    )
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
+        Dict{String,Any}("name" => "Bad Version", "schemaVersion" => "2.0"),
+    )
+end
+
 @testset "Data science project registry helpers" begin
     helper_project = DataScienceProjectRecord(
         project_id = "project-registry-helper",

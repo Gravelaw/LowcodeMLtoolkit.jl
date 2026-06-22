@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-22`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Core Module Split Slice (2026-06-22)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectCore.jl` as a focused gateway-internal module for pure `DataScienceProject` payload normalization, project id materialization, schema-version checks, child-record array checks, managed-local dataset source validation, and record materialization.
+- Gateway project create/update helper wrappers now delegate project validation and materialization to the extracted module while preserving route-owned duplicate/missing checks, repository writes, JSON responses, and compatibility with existing route tests.
+- Added direct Julia helper assertions for project id normalization, create/update materialization, existing child-record preservation, managed `local://` dataset refs, remote source rejection, traversal rejection, non-array child-record rejection, and unsupported schema-version rejection.
+- Verification passed locally: `npm run validate:contracts`; `npm run build`. Local Julia execution remains blocked because no `julia` executable is available in this shell; PR CI must verify `tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is the third focused gateway module split; broader product modules, worker-backed jobs, and project-backed frontend migration remain open.
+- Gateway statistical analysis, data catalog, monitoring/drift, deploy/export, local-source access, and thin dispatch extraction remain open.
+
+### Next Items To Implement
+
+- Continue gateway modularization around statistical analysis/project route orchestration or local-source access.
+- Move deterministic project job execution evidence behind worker orchestration.
+- Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Jobs Module Split Slice (2026-06-22)
 
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectJobs.jl` as a focused gateway-internal module for shared `DataScienceProject` job ledger, resource evidence, and gateway execution-evidence construction.
