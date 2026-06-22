@@ -79,6 +79,89 @@ include(joinpath(@__DIR__, "repository_contract_tests.jl"))
     )
 end
 
+@testset "Data science project local source helpers" begin
+    sources = JuliaFlowApiGateway.JuliaFlowDataScienceProjectLocalSources
+    import_root = mktempdir()
+    data_root = mktempdir()
+    allowed_path = joinpath(import_root, "profile.csv")
+    secret_path = joinpath(import_root, "secret-token.csv")
+    credential_path = joinpath(import_root, "profile-with-auth-column.csv")
+    escape_root = mktempdir()
+    escape_path = joinpath(escape_root, "outside.csv")
+    write(allowed_path, "region,amount\nnorth,12.5\n")
+    write(secret_path, "region,amount\nnorth,12.5\n")
+    write(credential_path, "region,access_token\nnorth,redacted\n")
+    write(escape_path, "region,amount\nsouth,9.5\n")
+    validate_ref = (value, label) -> JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.validate_project_local_ref!(value, label)
+
+    roots = sources.local_data_import_roots(data_root, data_root; import_roots = import_root)
+    @test realpath(import_root) in realpath.(filter(isdir, roots))
+    @test sources.path_within_root(realpath(allowed_path), realpath(import_root))
+    @test !sources.path_within_root(realpath(escape_path), realpath(import_root))
+    @test sources.validate_local_data_import_source!(
+        allowed_path;
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+        import_roots = import_root,
+    ) == realpath(allowed_path)
+    @test sources.validate_local_data_import_source!(
+        "local://data/raw/profile.csv";
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+        import_roots = import_root,
+    ) == "local://data/raw/profile.csv"
+    @test_throws ErrorException sources.validate_local_data_import_source!(
+        "https://example.com/data.csv";
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+        import_roots = import_root,
+    )
+    @test_throws ErrorException sources.validate_local_data_import_source!(
+        escape_path;
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+        import_roots = import_root,
+    )
+    @test_throws ErrorException sources.validate_local_data_import_file!(secret_path, "csv"; max_bytes = 1024)
+    @test_throws ErrorException sources.validate_local_data_import_file!(credential_path, "csv"; max_bytes = 1024)
+    sources.validate_local_data_import_file!(allowed_path, "csv"; max_bytes = 1024)
+
+    audit_details = sources.local_data_import_audit_source_details(allowed_path)
+    @test audit_details["sourceKind"] == "file"
+    @test audit_details["sourceBasename"] == "profile.csv"
+    @test !haskey(audit_details, "sourcePath")
+    remote_details = sources.local_data_import_audit_source_details("https://example.com/data.csv")
+    @test remote_details["sourceKind"] == "remote"
+    @test remote_details["scheme"] == "https"
+
+    managed_data_path = joinpath(data_root, "raw", "profile.csv")
+    mkpath(dirname(managed_data_path))
+    write(managed_data_path, "region,amount\nnorth,12.5\n")
+    @test sources.resolve_local_data_ref_path(
+        "local://data/raw/profile.csv";
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+    ) == managed_data_path
+    artifact_path = sources.local_data_ref_path_for_write(
+        "local://analysis/profile/results.json";
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+    )
+    @test sources.path_within_root(artifact_path, realpath(data_root))
+    @test_throws ErrorException sources.local_data_ref_path_for_write(
+        "local://analysis/../secret.json";
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+    )
+end
+
 @testset "Data science project statistical helpers" begin
     stats = JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics
     methods = stats.statistical_analysis_methods(

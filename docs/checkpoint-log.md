@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Local Source Module Split Slice - 2026-06-22
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectLocalSources.jl` as a focused gateway-internal module for local import roots, path containment, sensitive filename checks, text sample credential/PII sniffing, bounded file validation, source URI validation, audit-safe source details, managed local data ref resolution, and local artifact write-path confinement.
+- Gateway local data import and statistical/artifact helper wrappers now delegate source-boundary behavior to the module while preserving route-owned health/profile construction, audit event writes, persistence, and response contracts.
+- Added direct Julia helper assertions for allowed roots, escaped paths, remote URI rejection, sensitive filename rejection, credential-content rejection, audit redaction, managed local ref resolution, artifact write confinement, and traversal rejection.
+- Verified with a focused Julia local-source smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Data catalog, route orchestration, monitoring/drift, deploy/export, thin dispatch extraction, connector-specific local-source policies, worker-backed job execution, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around data catalog, monitoring/drift, deploy/export, or thin route dispatch.
+- Keep moving deterministic project jobs toward worker-backed orchestration.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Statistics Module Split Slice - 2026-06-22
 
 ### Work Done Till Date

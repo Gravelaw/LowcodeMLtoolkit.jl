@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-22`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Local Source Module Split Slice (2026-06-22)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectLocalSources.jl` as a focused gateway-internal module for local import roots, path containment, sensitive filename checks, text sample credential/PII sniffing, bounded file validation, source URI validation, redaction-safe audit source details, managed local data ref resolution, and local artifact write-path confinement.
+- Gateway local data import and statistical/artifact helper wrappers now delegate source-boundary behavior to the extracted module while preserving route-owned health/profile construction, audit event writes, project persistence, chart generation, and response contracts.
+- Added direct Julia helper assertions for allowed import roots, escaped path rejection, remote URI rejection, sensitive filename rejection, credential-content rejection, audit detail redaction, managed local ref resolution, artifact write confinement, and traversal rejection.
+- Verification passed locally: focused Julia local-source smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is another focused gateway module split; route orchestration, data catalog, monitoring/drift, deploy/export, thin dispatch extraction, worker-backed jobs, connector-specific policy, and project-backed frontend migration remain open.
+- Local source boundaries are modularized, but broader connector-specific trust policy and redaction previews remain open.
+
+### Next Items To Implement
+
+- Continue gateway modularization around data catalog, monitoring/drift, deploy/export, or thin route dispatch.
+- Move deterministic project job execution evidence behind worker orchestration.
+- Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Statistics Module Split Slice (2026-06-22)
 
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectStatistics.jl` as a focused gateway-internal module for statistical EDA method validation, local CSV parsing, numeric summaries, Pearson/Spearman correlation, simple OLS, Welch t-test, one-way ANOVA, chi-square independence, feature-column selection, local CSV evidence construction, and generated Julia analysis-code text.
