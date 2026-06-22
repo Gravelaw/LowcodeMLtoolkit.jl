@@ -21,22 +21,21 @@ Tracker always records 3 things:
 - Last updated: `2026-06-22`
 
 ## Work Done Till Date
-### GitHub CI Webhook Monitor Tooling Slice (2026-06-22)
+### Retired GitHub CI Webhook Monitor Tooling Slice (2026-06-22)
 
-- Added `scripts/github-ci-webhook-monitor.mjs`, a dependency-free local webhook receiver for GitHub PR/CI events with `X-Hub-Signature-256` HMAC validation.
-- Added `npm run monitor:github-ci` and `docs/github-ci-webhook-monitor.md` with setup instructions for a public HTTPS tunnel/server endpoint, required GitHub events, shared secret configuration, health endpoint, and JSONL/latest-event artifacts.
-- Added focused Node tests for signature validation and compact `workflow_run` / `check_run` summaries.
-- Verification passed locally: `npm run validate:contracts`; `node scripts/github-ci-webhook-monitor.mjs --help`.
+- The GitHub webhook receiver experiment was archived locally under `.codex-archive/github-ci-webhook-monitor-20260622/` and removed from the active repo path.
+- Removed `npm run monitor:github-ci`, the webhook receiver script, setup documentation, and focused webhook tests because public or tunneled inbound endpoints are not an acceptable default for this local-first project.
+- `.gitignore` now explicitly covers the archived webhook monitor folder in addition to the repo-local archive root.
 
 ### Gaps Pending
 
-- GitHub webhook registration still requires a reachable public HTTPS URL and shared secret. The repo now has the receiver; the actual GitHub webhook cannot be created until that endpoint is chosen.
+- CI status monitoring still needs a safer design that does not expose a workstation or rely on a custom inbound webhook receiver.
 - This tooling does not change AKS-36 product readiness or issue completion state.
 
 ### Next Items To Implement
 
-- Choose a tunnel or internal endpoint and register the repository webhook for workflow/check/PR/status events.
-- Resume AKS-36 implementation after CI monitoring is configured.
+- Prefer GitHub-native workflow summary/status artifacts or a bounded local ETag/backoff watcher if CI visibility remains painful.
+- Resume AKS-36 product implementation without blocking on CI monitoring tooling.
 
 ### AKS-36 DataScienceProject Core Module Split Slice (2026-06-22)
 

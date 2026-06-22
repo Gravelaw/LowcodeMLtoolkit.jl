@@ -14,7 +14,6 @@
     "test:browser": "playwright test",
     "test:browser:headed": "playwright test --headed",
     "smoke:live-backend-browser": "node scripts/smoke-live-backend-browser.mjs",
-    "monitor:github-ci": "node scripts/github-ci-webhook-monitor.mjs",
     "verify:release": "node scripts/verify-release.mjs",
     "test": "npm run test --workspaces --if-present && node --test tests/contracts/**/*.test.mjs",
     "validate:contracts": "node --test tests/contracts/**/*.test.mjs",

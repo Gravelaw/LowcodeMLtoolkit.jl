@@ -20,24 +20,23 @@ Each checkpoint entry must contain:
 
 ---
 
-## Checkpoint: `cp/02-alpha-core` GitHub CI Webhook Monitor Tooling Slice - 2026-06-22
+## Checkpoint: `cp/02-alpha-core` Retired GitHub CI Webhook Monitor Tooling Slice - 2026-06-22
 
 ### Work Done Till Date
 
-- Added `github-ci-webhook-monitor.mjs` as a dependency-free Node webhook receiver for GitHub workflow, check, PR, and status events.
-- The receiver validates GitHub `X-Hub-Signature-256`, writes accepted events to `artifacts/github-ci-webhook-monitor/events.jsonl`, maintains `latest.json`, and prints compact CI/PR status lines.
-- Added `npm run monitor:github-ci`, setup documentation, and focused tests for HMAC validation plus event summaries.
-- Verified locally with `npm run validate:contracts` and `node scripts/github-ci-webhook-monitor.mjs --help`.
+- Archived the GitHub webhook receiver experiment under `.codex-archive/github-ci-webhook-monitor-20260622/`.
+- Removed the active webhook receiver script, npm command, setup document, and tests from the repo.
+- Recorded the decision that public or tunneled inbound workstation endpoints are not the preferred CI monitoring path for JuliaFlow.
 
 ### Gaps Pending
 
-- A real webhook needs a public HTTPS endpoint through a trusted tunnel or internal server before it can be registered in GitHub.
+- CI monitoring still needs a low-risk implementation path that avoids a public inbound listener.
 - This is workflow tooling only; AKS-36 product work remains in progress.
 
 ### Next Items To Implement
 
-- Pick the public endpoint and register the GitHub repository webhook with the shared secret.
-- Resume AKS-36 once CI events can arrive without manual polling.
+- Consider a GitHub-native workflow summary/status artifact or a bounded local ETag/backoff watcher if manual CI checks remain costly.
+- Resume AKS-36 product work.
 
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Core Module Split Slice - 2026-06-22
 

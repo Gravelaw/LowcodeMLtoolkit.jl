@@ -18,5 +18,6 @@ artifacts/
 .staging/
 .codex/
 .codex-archive/
+.codex-archive/github-ci-webhook-monitor*/
 .codex/config.toml
 *.tsbuildinfo
