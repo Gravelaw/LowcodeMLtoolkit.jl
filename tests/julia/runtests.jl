@@ -3806,6 +3806,8 @@ end
         @test "validation" in transform_fit_apply_payload["transformRun"]["applySplits"]
         @test "test" in transform_fit_apply_payload["transformRun"]["applySplits"]
         @test length(transform_fit_apply_payload["transformRun"]["leakageChecks"]) >= 2
+        @test startswith(String(transform_fit_apply_payload["transformRun"]["executionEvidence"]["executionId"]), "dsjob-")
+        @test transform_fit_apply_payload["transformRun"]["executionEvidence"]["mode"] == "local_project_job"
         @test length(transform_fit_apply_payload["project"]["transformFitApplyRecords"]) >= 1
         @test transform_fit_apply_bad_fit_response.status == 400
         @test occursin("fitSplit must be train", String(transform_fit_apply_bad_fit_response.body))
@@ -3831,6 +3833,8 @@ end
         @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["chiSquare"]["degreesOfFreedom"] == 1
         @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["spearmanCorrelation"]["columns"] == statistical_analysis_payload["analysisRun"]["resultSummary"]["numericColumns"]
         @test length(statistical_analysis_payload["analysisRun"]["artifactRefs"]) == 2
+        @test startswith(String(statistical_analysis_payload["analysisRun"]["executionEvidence"]["executionId"]), "dsjob-")
+        @test statistical_analysis_payload["analysisRun"]["executionEvidence"]["status"] == "completed"
         stats_result_ref = String(statistical_analysis_payload["analysisRun"]["resultRef"])
         stats_code_ref = String(statistical_analysis_payload["analysisRun"]["generatedCodeRef"])
         stats_result_path = joinpath(data_estate_root, split(replace(stats_result_ref, "local://" => ""), '/')...)
@@ -3847,6 +3851,8 @@ end
         @test tuning_study_payload["status"] == "completed"
         @test tuning_study_payload["tuningStudy"]["validationOnly"] == true
         @test tuning_study_payload["tuningStudy"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test startswith(String(tuning_study_payload["tuningStudy"]["executionEvidence"]["executionId"]), "dsjob-")
+        @test tuning_study_payload["tuningStudy"]["validationEvidence"]["executionId"] == tuning_study_payload["tuningStudy"]["executionEvidence"]["executionId"]
         @test length(tuning_study_payload["tuningStudy"]["trials"]) == 3
         @test length(tuning_study_payload["project"]["tuningStudies"]) >= 1
         @test length(tuning_study_payload["project"]["trainingPlans"]) >= 1
@@ -3858,6 +3864,8 @@ end
         @test final_evaluation_payload["evaluationReport"]["finalTestOnly"] == true
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["finalTestPolicy"] == "use_final_test"
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["validationOnlyTuning"] == true
+        @test startswith(String(final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"]), "dsjob-")
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["executionId"] == final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"]
         @test length(final_evaluation_payload["project"]["evaluationReports"]) >= 1
         @test final_evaluation_bad_policy_response.status == 400
         @test occursin("finalTestPolicy must be use_final_test", String(final_evaluation_bad_policy_response.body))
@@ -3935,6 +3943,8 @@ end
         @test drift_report_payload["status"] == "completed"
         @test drift_report_payload["monitoringBaseline"]["baselineId"] == "baseline-foundation-drift"
         @test drift_report_payload["driftReport"]["validationEvidence"]["outputContractRef"] == "contract://outputs/foundation-predictions"
+        @test startswith(String(drift_report_payload["driftReport"]["executionEvidence"]["executionId"]), "dsjob-")
+        @test drift_report_payload["driftReport"]["validationEvidence"]["executionId"] == drift_report_payload["driftReport"]["executionEvidence"]["executionId"]
         @test length(drift_report_payload["project"]["monitoringBaselines"]) >= 1
         @test length(drift_report_payload["project"]["driftReports"]) >= 1
         @test length(drift_report_payload["project"]["projectJobs"]) >= 6
@@ -3950,6 +3960,22 @@ end
         @test all(job -> haskey(job["resourceEvidence"], "gpuFallbackReason"), drift_report_payload["project"]["projectJobs"])
         drift_job = first(filter(job -> job["jobType"] == "drift_report", drift_report_payload["project"]["projectJobs"]))
         @test drift_job["resourceEvidence"]["executionMode"] == "drift_report"
+        execution_backed_job_types = Set(["transform_fit_apply", "statistical_analysis", "tuning_study", "final_evaluation", "prediction_export", "drift_report"])
+        execution_backed_jobs = filter(job -> String(job["jobType"]) in execution_backed_job_types, drift_report_payload["project"]["projectJobs"])
+        @test issubset(execution_backed_job_types, Set(String(job["jobType"]) for job in execution_backed_jobs))
+        @test all(job -> haskey(job, "executionEvidence"), execution_backed_jobs)
+        for job in execution_backed_jobs
+            job_execution_id = String(job["executionEvidence"]["executionId"])
+            @test startswith(job_execution_id, "dsjob-")
+            @test job["executionEvidence"]["status"] == "completed"
+            @test job["executionEvidence"]["mode"] == "local_project_job"
+            persisted_index = findfirst(execution -> execution.execution_id == job_execution_id, state.executions)
+            @test persisted_index !== nothing
+            persisted_execution = state.executions[persisted_index]
+            @test haskey(state.workflows, persisted_execution.workflow_id)
+            @test persisted_execution.metadata["data_science_project_job"]["job_type"] == job["jobType"]
+            @test persisted_execution.metadata["data_science_project_job"]["source_record_id"] == job["sourceRecordId"]
+        end
         @test drift_report_bad_threshold_response.status == 400
         @test occursin("threshold must be between 0 and 1", String(drift_report_bad_threshold_response.body))
         @test transform_run_response.status == 202

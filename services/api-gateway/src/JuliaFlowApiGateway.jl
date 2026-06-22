@@ -3211,11 +3211,24 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
 
     remaining = [item for (item_index, item) in enumerate(project.model_lifecycle_records) if item_index != index]
     project.model_lifecycle_records = [record, remaining...]
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "model_lifecycle_action")
+    execution_evidence = data_science_project_execution_evidence!(
+        state,
+        project,
+        "model_lifecycle";
+        source_record_id = model_id,
+        resource_evidence = resource_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+        plan = ["validate_model_lifecycle_state", "record_local_lifecycle_transition"],
+    )
+    record["validationEvidence"]["executionId"] = execution_evidence["executionId"]
     record_data_science_project_job!(
         project,
         "model_lifecycle";
         source_record_id = model_id,
-        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "model_lifecycle_action"),
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
         started_at = timestamp,
         finished_at = timestamp,
     )
@@ -5041,6 +5054,20 @@ function run_transform_fit_apply_response!(state::GatewayState, project_id::Abst
         "createdAt" => timestamp,
     )
     project.transform_fit_apply_records = [transform_run, project.transform_fit_apply_records...]
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "transform_fit_apply")
+    execution_evidence = data_science_project_execution_evidence!(
+        state,
+        project,
+        "transform_fit_apply";
+        dataset_id = dataset_id,
+        source_record_id = run_id,
+        output_refs = artifact_refs,
+        resource_evidence = resource_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+        plan = ["validate_locked_split", "fit_train_transform_state", "apply_frozen_transform_to_heldout_splits"],
+    )
+    transform_run["executionEvidence"] = execution_evidence
     record_data_science_project_job!(
         project,
         "transform_fit_apply";
@@ -5048,7 +5075,8 @@ function run_transform_fit_apply_response!(state::GatewayState, project_id::Abst
         split_plan_id = String(get(split_plan, "splitPlanId", "")),
         source_record_id = run_id,
         output_refs = artifact_refs,
-        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "transform_fit_apply"),
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
         started_at = timestamp,
         finished_at = timestamp,
     )
@@ -5570,13 +5598,28 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
     artifact_refs = persist_statistical_analysis_artifacts!(analysis_run, dataset_id, methods, body, evidence)
     project.statistical_analysis_runs = [analysis_run, project.statistical_analysis_runs...]
     timestamp = String(analysis_run["createdAt"])
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "statistical_analysis")
+    execution_evidence = data_science_project_execution_evidence!(
+        state,
+        project,
+        "statistical_analysis";
+        dataset_id = dataset_id,
+        source_record_id = run_id,
+        output_refs = artifact_refs,
+        resource_evidence = resource_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+        plan = ["load_local_dataset_profile", "compute_statistical_tests", "materialize_statistical_analysis_artifacts"],
+    )
+    analysis_run["executionEvidence"] = execution_evidence
     record_data_science_project_job!(
         project,
         "statistical_analysis";
         dataset_id = dataset_id,
         source_record_id = run_id,
         output_refs = artifact_refs,
-        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "statistical_analysis"),
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
         started_at = timestamp,
         finished_at = timestamp,
     )
@@ -5696,6 +5739,21 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
     for trial in trials
         append!(tuning_output_refs, get(trial, "artifactRefs", Dict{String,Any}[]))
     end
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "validation_only_tuning")
+    execution_evidence = data_science_project_execution_evidence!(
+        state,
+        project,
+        "tuning_study";
+        dataset_id = dataset_id,
+        source_record_id = study_id,
+        output_refs = tuning_output_refs,
+        resource_evidence = resource_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+        plan = ["validate_training_split_policy", "run_validation_only_trials", "select_best_trial"],
+    )
+    tuning_study["executionEvidence"] = execution_evidence
+    tuning_study["validationEvidence"]["executionId"] = execution_evidence["executionId"]
     record_data_science_project_job!(
         project,
         "tuning_study";
@@ -5703,7 +5761,8 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
         split_plan_id = String(get(split_plan, "splitPlanId", "")),
         source_record_id = study_id,
         output_refs = tuning_output_refs,
-        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "validation_only_tuning"),
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
         started_at = timestamp,
         finished_at = timestamp,
     )
@@ -5813,14 +5872,31 @@ function run_final_evaluation_response!(state::GatewayState, project_id::Abstrac
         ],
     )
     project.evaluation_reports = [evaluation_report, project.evaluation_reports...]
+    output_refs = get(evaluation_report, "artifactRefs", Dict{String,Any}[])
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "final_evaluation")
+    execution_evidence = data_science_project_execution_evidence!(
+        state,
+        project,
+        "final_evaluation";
+        dataset_id = dataset_id,
+        source_record_id = report_id,
+        output_refs = output_refs,
+        resource_evidence = resource_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+        plan = ["validate_final_test_policy", "score_final_test_split", "materialize_evaluation_report"],
+    )
+    evaluation_report["executionEvidence"] = execution_evidence
+    evaluation_report["validationEvidence"]["executionId"] = execution_evidence["executionId"]
     record_data_science_project_job!(
         project,
         "final_evaluation";
         dataset_id = dataset_id,
         split_plan_id = split_plan_id,
         source_record_id = report_id,
-        output_refs = get(evaluation_report, "artifactRefs", Dict{String,Any}[]),
-        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "final_evaluation"),
+        output_refs = output_refs,
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
         started_at = timestamp,
         finished_at = timestamp,
     )
@@ -6222,22 +6298,40 @@ function run_drift_report_response!(state::GatewayState, project_id::AbstractStr
         ),
         "generatedAt" => timestamp,
     )
+    output_refs = [
+        Dict(
+            "refId" => "artifact-$(report_id)",
+            "kind" => "drift_report",
+            "localOnly" => true,
+            "path" => "local://drift/$(project.project_id)/$(report_id)/report.json",
+            "generatedAt" => timestamp,
+        ),
+    ]
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "drift_report")
+    execution_evidence = data_science_project_execution_evidence!(
+        state,
+        project,
+        "drift_report";
+        dataset_id = dataset_id,
+        source_record_id = report_id,
+        output_refs = output_refs,
+        resource_evidence = resource_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+        plan = ["validate_monitoring_baseline", "compute_local_drift_metrics", "materialize_drift_report"],
+    )
+    drift_report["artifactRefs"] = output_refs
+    drift_report["executionEvidence"] = execution_evidence
+    drift_report["validationEvidence"]["executionId"] = execution_evidence["executionId"]
     project.drift_reports = [drift_report, project.drift_reports...]
     record_data_science_project_job!(
         project,
         "drift_report";
         dataset_id = dataset_id,
         source_record_id = report_id,
-        output_refs = [
-            Dict(
-                "refId" => "artifact-$(report_id)",
-                "kind" => "drift_report",
-                "localOnly" => true,
-                "path" => "local://drift/$(project.project_id)/$(report_id)/report.json",
-                "generatedAt" => timestamp,
-            ),
-        ],
-        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "drift_report"),
+        output_refs = output_refs,
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
         started_at = timestamp,
         finished_at = timestamp,
     )

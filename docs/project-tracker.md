@@ -18,9 +18,28 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-21`
+- Last updated: `2026-06-22`
 
 ## Work Done Till Date
+### AKS-36 Project Job Execution Evidence Expansion Slice (2026-06-22)
+
+- Extended the existing project-job execution evidence path from prediction export to transform fit/apply, statistical analysis, tuning study, final evaluation, drift report, and model lifecycle actions.
+- Each covered project route now creates a completed local `GatewayExecution` record with project/job metadata, worker id, plan steps, resource evidence, output artifact refs where available, and status history.
+- Route records now expose compact `executionEvidence`; tuning, final evaluation, drift, and lifecycle validation evidence also carry the linked execution id.
+- Added Julia route assertions that the project job chain exposes execution evidence and that each execution id resolves to a persisted execution tied to an existing workflow.
+- Verification passed locally: `npm run validate:contracts`; `npm run build`; `git diff --check`. Local Julia execution remains blocked because no `julia` executable is available in this shell; PR CI must verify `tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. The job chain is now gateway-execution-record backed, but these are still synchronous deterministic gateway jobs rather than asynchronous worker-backed Julia jobs.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Move project job execution records behind actual worker orchestration.
+- Continue gateway module split or dedicated model registry repository extraction.
+- Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 Prediction Export Execution Evidence Slice (2026-06-22)
 
 - Added `DataScienceProjectJobExecutionEvidence` to TypeScript contracts and OpenAPI.

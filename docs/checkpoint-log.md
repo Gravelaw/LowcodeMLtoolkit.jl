@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Project Job Execution Evidence Expansion Slice - 2026-06-22
+
+### Work Done Till Date
+
+- Extended persisted local project-job execution evidence from prediction export to transform fit/apply, statistical analysis, tuning study, final evaluation, drift report, and model lifecycle actions.
+- Covered route records now expose compact `executionEvidence`; validation evidence carries the linked execution id where the route already has validation evidence.
+- Project job ledger entries now link to the same execution evidence, preserving existing output refs and CPU/GPU resource evidence.
+- Added Julia assertions for route-level execution evidence and persisted execution lookup across the project job chain.
+- Verified locally with `npm run validate:contracts`, `npm run build`, and `git diff --check`. Local Julia verification is blocked on this host because no Julia executable is available on PATH or at `.juliaup/bin/julia`; PR CI is required for `tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Project jobs now have persisted gateway execution records, but not yet asynchronous worker-backed execution.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Move project job execution evidence behind worker orchestration.
+- Continue gateway module split or dedicated model registry repository extraction.
+- Add project-backed frontend workflow state for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Prediction Export Execution Evidence Slice - 2026-06-22
 
 ### Work Done Till Date
