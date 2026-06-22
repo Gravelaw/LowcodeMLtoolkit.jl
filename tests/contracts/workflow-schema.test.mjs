@@ -289,6 +289,16 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
     schemas.DataScienceProjectJobRecord.properties.resourceEvidence.$ref,
     "#/components/schemas/DataScienceProjectJobResourceEvidence",
   );
+  assert.equal(
+    schemas.DataScienceProjectJobRecord.properties.executionEvidence.$ref,
+    "#/components/schemas/DataScienceProjectJobExecutionEvidence",
+  );
+  assert.deepEqual(schemas.DataScienceProjectJobExecutionEvidence.required, [
+    "executionId",
+    "workflowId",
+    "status",
+    "mode",
+  ]);
   assert.deepEqual(schemas.DataScienceProjectJobResourceEvidence.properties.dispatchLane.enum, ["cpu", "gpu"]);
   assert.equal(schemas.DataScienceProjectJobResourceEvidence.properties.cpuWorkerConcurrency.minimum, 1);
   assert.ok(schemas.UpdateDataScienceProjectRequest.properties.projectJobs);

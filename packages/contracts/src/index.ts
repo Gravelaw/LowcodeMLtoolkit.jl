@@ -639,6 +639,17 @@ export interface DataScienceProjectJobResourceEvidence {
   gpuFallbackReason: string;
 }
 
+export interface DataScienceProjectJobExecutionEvidence {
+  executionId: string;
+  workflowId: string;
+  status: GatewayExecutionStatus | string;
+  mode: string;
+  workerId?: string;
+  queuedAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
 export interface DataScienceProjectJobRecord {
   jobId: string;
   projectId: string;
@@ -649,6 +660,7 @@ export interface DataScienceProjectJobRecord {
   sourceRecordId?: string;
   outputRefs: DataScienceProjectEvidenceRef[];
   resourceEvidence?: DataScienceProjectJobResourceEvidence;
+  executionEvidence?: DataScienceProjectJobExecutionEvidence;
   startedAt: string;
   finishedAt?: string;
   errorMessage?: string;
@@ -884,10 +896,12 @@ export interface PredictionExport {
   outputContract?: PredictionOutputContract;
   outputMappings?: PredictionOutputMapping[];
   artifactRefs?: DataScienceProjectEvidenceRef[];
+  executionEvidence?: DataScienceProjectJobExecutionEvidence;
   validationEvidence?: {
     projectId?: string;
     datasetId?: string;
     evaluationReportId?: string;
+    executionId?: string;
     outputContractRef?: string;
     outputColumns?: string[];
     outputContractColumns?: string[];

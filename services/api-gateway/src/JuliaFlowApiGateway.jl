@@ -4852,6 +4852,7 @@ function data_science_project_job_record(
     source_record_id::Union{Nothing,AbstractString} = nothing,
     output_refs::AbstractVector = Any[],
     resource_evidence::Union{Nothing,AbstractDict} = nothing,
+    execution_evidence::Union{Nothing,AbstractDict} = nothing,
     error_message::Union{Nothing,AbstractString} = nothing,
     started_at::Union{Nothing,AbstractString} = nothing,
     finished_at::Union{Nothing,AbstractString} = nothing,
@@ -4869,6 +4870,7 @@ function data_science_project_job_record(
     dataset_id === nothing || (job["datasetId"] = String(dataset_id))
     split_plan_id === nothing || (job["splitPlanId"] = String(split_plan_id))
     source_record_id === nothing || (job["sourceRecordId"] = String(source_record_id))
+    execution_evidence === nothing || (job["executionEvidence"] = Dict{String,Any}(String(key) => value for (key, value) in pairs(execution_evidence)))
     finished_at === nothing || (job["finishedAt"] = String(finished_at))
     error_message === nothing || (job["errorMessage"] = String(error_message))
     return job
@@ -4883,6 +4885,7 @@ function record_data_science_project_job!(
     source_record_id::Union{Nothing,AbstractString} = nothing,
     output_refs::AbstractVector = Any[],
     resource_evidence::Union{Nothing,AbstractDict} = nothing,
+    execution_evidence::Union{Nothing,AbstractDict} = nothing,
     error_message::Union{Nothing,AbstractString} = nothing,
     started_at::Union{Nothing,AbstractString} = nothing,
     finished_at::Union{Nothing,AbstractString} = nothing,
@@ -4896,12 +4899,81 @@ function record_data_science_project_job!(
         source_record_id = source_record_id,
         output_refs = output_refs,
         resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
         error_message = error_message,
         started_at = started_at,
         finished_at = finished_at,
     )
     project.project_jobs = [job, project.project_jobs...]
     return job
+end
+
+function data_science_project_execution_evidence!(
+    state::GatewayState,
+    project::DataScienceProjectRecord,
+    job_type::AbstractString;
+    dataset_id::Union{Nothing,AbstractString} = nothing,
+    source_record_id::Union{Nothing,AbstractString} = nothing,
+    output_refs::AbstractVector = Any[],
+    resource_evidence::Union{Nothing,AbstractDict} = nothing,
+    started_at::Union{Nothing,AbstractString} = nothing,
+    finished_at::Union{Nothing,AbstractString} = nothing,
+    plan::AbstractVector = String[],
+)
+    timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+    started = started_at === nothing ? timestamp : String(started_at)
+    finished = finished_at === nothing ? started : String(finished_at)
+    execution_plan = isempty(plan) ? ["validate_project_state", "materialize_project_artifact"] : [String(item) for item in plan]
+    execution_id = "dsjob-" * replace(string(uuid4()), "-" => "")
+    workflow_ids = sort(String.(collect(keys(state.workflows))))
+    workflow_id = isempty(workflow_ids) ? project.project_id : first(workflow_ids)
+    worker_id = "project-job-worker-" * execution_id[(lastindex(execution_id) - 7):lastindex(execution_id)]
+    metadata = Dict{String,Any}(
+        "data_science_project_job" => Dict{String,Any}(
+            "project_id" => project.project_id,
+            "job_type" => String(job_type),
+            "dataset_id" => dataset_id === nothing ? "" : String(dataset_id),
+            "source_record_id" => source_record_id === nothing ? "" : String(source_record_id),
+        ),
+        "artifact_refs" => [Dict{String,Any}(String(key) => value for (key, value) in pairs(ref)) for ref in output_refs],
+        "worker_id" => worker_id,
+    )
+    resource_evidence === nothing || (metadata["resource_evidence"] = Dict{String,Any}(String(key) => value for (key, value) in pairs(resource_evidence)))
+    execution = GatewayExecution(
+        execution_id = execution_id,
+        workflow_id = workflow_id,
+        workflow_version = project.schema_version,
+        checkpoint_tag = latest_checkpoint_tag(state),
+        status = "completed",
+        mode = "local_project_job",
+        plan = execution_plan,
+        stages = [execution_plan],
+        node_count = length(execution_plan),
+        connection_count = max(0, length(execution_plan) - 1),
+        created_at = started,
+        updated_at = finished,
+        status_history = [
+            Dict{String,Any}("status" => "queued", "at" => started, "message" => "Project job queued"),
+            Dict{String,Any}("status" => "running", "at" => started, "message" => "Project job started"),
+            Dict{String,Any}("status" => "completed", "at" => finished, "message" => "Project job completed"),
+        ],
+        queued_at = started,
+        started_at = started,
+        finished_at = finished,
+        metadata = metadata,
+    )
+    save_execution!(state.repository, execution; producer = "api-gateway")
+    push!(state.executions, execution)
+    return Dict{String,Any}(
+        "executionId" => execution.execution_id,
+        "workflowId" => execution.workflow_id,
+        "status" => execution.status,
+        "mode" => execution.mode,
+        "workerId" => worker_id,
+        "queuedAt" => started,
+        "startedAt" => started,
+        "finishedAt" => finished,
+    )
 end
 
 function transform_apply_splits(body::AbstractDict, split_plan::AbstractDict)
@@ -6033,6 +6105,21 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
         "createdAt" => timestamp,
     )
     artifact_refs = persist_prediction_export_artifact!(prediction_export, report, dataset_id, output_contract_ref, output_columns, output_mappings)
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "prediction_export")
+    execution_evidence = data_science_project_execution_evidence!(
+        state,
+        project,
+        "prediction_export";
+        dataset_id = dataset_id,
+        source_record_id = export_id,
+        output_refs = artifact_refs,
+        resource_evidence = resource_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+        plan = ["validate_final_evaluation", "score_local_predictions", "materialize_prediction_export"],
+    )
+    prediction_export["executionEvidence"] = execution_evidence
+    prediction_export["validationEvidence"]["executionId"] = execution_evidence["executionId"]
     project.prediction_exports = [prediction_export, project.prediction_exports...]
     record_data_science_project_job!(
         project,
@@ -6040,7 +6127,8 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
         dataset_id = dataset_id,
         source_record_id = export_id,
         output_refs = artifact_refs,
-        resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "prediction_export"),
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
         started_at = timestamp,
         finished_at = timestamp,
     )

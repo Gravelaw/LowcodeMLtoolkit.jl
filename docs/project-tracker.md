@@ -21,6 +21,26 @@ Tracker always records 3 things:
 - Last updated: `2026-06-21`
 
 ## Work Done Till Date
+### AKS-36 Prediction Export Execution Evidence Slice (2026-06-22)
+
+- Added `DataScienceProjectJobExecutionEvidence` to TypeScript contracts and OpenAPI.
+- Project job records can now link to persisted gateway execution evidence without replacing existing resource evidence or output artifact refs.
+- Prediction export now creates a completed local project-job execution record with project id, job type, dataset id, source export id, artifact refs, worker id, resource evidence, plan steps, and status history.
+- Prediction export records and validation evidence now carry the execution id, and the corresponding `prediction_export` project job links the same execution evidence.
+- Added contract assertions and Julia route assertions for the linked execution record and project job evidence.
+- Verification passed locally: `npm run validate:contracts`; `npm run build`; `git diff --check`. Local Julia execution was blocked because no `julia` executable or repo-local `.juliaup/bin/julia` is available in this shell; PR CI must verify `tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. Prediction export is now gateway-execution-record backed, but scoring remains synchronous deterministic gateway evidence rather than worker-backed model inference.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Move execution-record-backed project jobs into actual worker orchestration.
+- Continue gateway module split or dedicated model registry repository extraction.
+- Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, and drift.
+
 ### AKS-36 Imported Output Contract Mapping Slice (2026-06-21)
 
 - Added typed prediction output contract and output mapping request shapes to TypeScript contracts and OpenAPI.

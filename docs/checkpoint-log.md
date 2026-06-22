@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Prediction Export Execution Evidence Slice - 2026-06-22
+
+### Work Done Till Date
+
+- Added project job execution evidence contracts to TypeScript and OpenAPI.
+- Gateway prediction export now persists a completed local project-job execution record with status history, worker id, resource evidence, artifact refs, and project/job metadata.
+- Prediction export records, validation evidence, and the `prediction_export` project job now point to the same execution id.
+- Added contract assertions plus Julia route assertions for execution evidence and persisted execution linkage.
+- Verified locally with `npm run validate:contracts`, `npm run build`, and `git diff --check`. Local Julia verification is blocked on this host because no Julia executable is available on PATH or at `.juliaup/bin/julia`; PR CI is required for `tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Prediction export is now backed by a gateway execution record, but not yet by asynchronous worker scoring/inference.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Move project job execution records behind worker orchestration.
+- Continue gateway module split or dedicated model registry repository extraction.
+- Add project-backed frontend workflow state for validation, tuning, final evaluation, prediction export, and drift.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Imported Output Contract Mapping Slice - 2026-06-21
 
 ### Work Done Till Date

@@ -2296,6 +2296,9 @@
           },
           "errorMessage": {
             "type": "string"
+          },
+          "executionEvidence": {
+            "$ref": "#/components/schemas/DataScienceProjectJobExecutionEvidence"
           }
         }
       },
@@ -8629,6 +8632,41 @@
             "type": "string"
           },
           "sourceColumn": {
+            "type": "string"
+          }
+        }
+      },
+      "DataScienceProjectJobExecutionEvidence": {
+        "type": "object",
+        "required": [
+          "executionId",
+          "workflowId",
+          "status",
+          "mode"
+        ],
+        "properties": {
+          "executionId": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GatewayExecutionStatus"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "queuedAt": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "finishedAt": {
             "type": "string"
           }
         }

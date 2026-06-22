@@ -3889,6 +3889,18 @@ end
         @test startswith(prediction_artifact_content, "prediction_id,dataset_id,evaluation_report_id,output_contract_ref,prediction")
         @test occursin("contract://outputs/foundation-predictions", prediction_artifact_content)
         @test occursin(String(prediction_export_payload["predictionExport"]["evaluationReportId"]), prediction_artifact_content)
+        prediction_export_execution_id = String(prediction_export_payload["predictionExport"]["executionEvidence"]["executionId"])
+        @test startswith(prediction_export_execution_id, "dsjob-")
+        @test prediction_export_payload["predictionExport"]["executionEvidence"]["status"] == "completed"
+        @test prediction_export_payload["predictionExport"]["executionEvidence"]["mode"] == "local_project_job"
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["executionId"] == prediction_export_execution_id
+        persisted_prediction_execution_index = findfirst(execution -> execution.execution_id == prediction_export_execution_id, state.executions)
+        @test persisted_prediction_execution_index !== nothing
+        persisted_prediction_execution = state.executions[persisted_prediction_execution_index]
+        @test haskey(state.workflows, persisted_prediction_execution.workflow_id)
+        @test persisted_prediction_execution.status == "completed"
+        @test persisted_prediction_execution.metadata["data_science_project_job"]["job_type"] == "prediction_export"
+        @test persisted_prediction_execution.metadata["data_science_project_job"]["source_record_id"] == prediction_export_payload["predictionExport"]["predictionExportId"]
         @test length(prediction_export_payload["project"]["predictionExports"]) >= 1
         @test prediction_export_payload["project"]["predictionExports"][1]["artifactRefs"][1]["checksumSha256"] == prediction_export_payload["predictionExport"]["artifactRefs"][1]["checksumSha256"]
         prediction_export_job = first(filter(job -> job["jobType"] == "prediction_export", prediction_export_payload["project"]["projectJobs"]))
@@ -3896,6 +3908,8 @@ end
         @test prediction_export_job["resourceEvidence"]["executionMode"] == "prediction_export"
         @test prediction_export_job["resourceEvidence"]["dispatchLane"] in ["cpu", "gpu"]
         @test prediction_export_job["resourceEvidence"]["cpuWorkerConcurrency"] >= 1
+        @test prediction_export_job["executionEvidence"]["executionId"] == prediction_export_execution_id
+        @test prediction_export_job["executionEvidence"]["workerId"] == persisted_prediction_execution.metadata["worker_id"]
         @test prediction_export_bad_format_response.status == 400
         @test occursin("format must be csv", String(prediction_export_bad_format_response.body))
         @test prediction_export_missing_contract_response.status == 400
