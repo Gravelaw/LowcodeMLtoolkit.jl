@@ -101,6 +101,101 @@ include(joinpath(@__DIR__, "repository_contract_tests.jl"))
     @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("delete_model")
 end
 
+@testset "Data science project job helpers" begin
+    helper_project = DataScienceProjectRecord(
+        project_id = "project-job-helper",
+        name = "Job Helper Project",
+        schema_version = "1.0",
+    )
+    compute_settings = Dict{String,Any}(
+        "selectedBackend" => "cuda",
+        "schedulerPolicy" => "bounded_local",
+        "cpuWorkerConcurrency" => 2,
+        "cpuMemoryLimitBytes" => 4096,
+    )
+    empty_gpu_registry = Dict{String,Any}(
+        "device_count" => 0,
+        "devices" => Any[],
+    )
+    resource_evidence = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_resource_evidence(
+        compute_settings,
+        empty_gpu_registry;
+        execution_mode = "unit_test_job",
+        cpu_thread_count = 4,
+    )
+    @test resource_evidence["executionMode"] == "unit_test_job"
+    @test resource_evidence["requestedBackend"] == "cuda"
+    @test resource_evidence["selectedBackend"] == "cpu"
+    @test resource_evidence["dispatchLane"] == "cpu"
+    @test resource_evidence["workerPool"] == "local-cpu"
+    @test resource_evidence["gpuFallbackReason"] == "no_cuda_device_available"
+    @test resource_evidence["cpuThreadCount"] == 4
+
+    artifact_refs = [
+        Dict{String,Any}(
+            "refId" => "artifact-job-helper",
+            "kind" => "unit_test_artifact",
+            "localOnly" => true,
+        ),
+    ]
+    execution_evidence = Dict{String,Any}(
+        "executionId" => "dsjob-helper",
+        "status" => "completed",
+    )
+    job = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.record_project_job!(
+        helper_project,
+        "unit_test_job";
+        dataset_id = "dataset-helper",
+        split_plan_id = "split-helper",
+        source_record_id = "source-helper",
+        output_refs = artifact_refs,
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
+        started_at = "2026-06-22T00:10:00Z",
+        finished_at = "2026-06-22T00:11:00Z",
+    )
+    @test length(helper_project.project_jobs) == 1
+    @test helper_project.project_jobs[1]["jobId"] == job["jobId"]
+    @test job["datasetId"] == "dataset-helper"
+    @test job["splitPlanId"] == "split-helper"
+    @test job["sourceRecordId"] == "source-helper"
+    @test job["outputRefs"][1]["kind"] == "unit_test_artifact"
+    @test job["resourceEvidence"]["selectedBackend"] == "cpu"
+    @test job["executionEvidence"]["executionId"] == "dsjob-helper"
+
+    execution, worker_id = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_execution_record(
+        helper_project,
+        "unit_test_job";
+        workflow_id = "wf-helper",
+        checkpoint_tag = "cp-helper",
+        dataset_id = "dataset-helper",
+        source_record_id = "source-helper",
+        output_refs = artifact_refs,
+        resource_evidence = resource_evidence,
+        started_at = "2026-06-22T00:12:00Z",
+        finished_at = "2026-06-22T00:13:00Z",
+        plan = ["validate_helper", "materialize_helper"],
+    )
+    @test startswith(execution.execution_id, "dsjob-")
+    @test execution.workflow_id == "wf-helper"
+    @test execution.checkpoint_tag == "cp-helper"
+    @test execution.mode == "local_project_job"
+    @test execution.plan == ["validate_helper", "materialize_helper"]
+    @test execution.metadata["data_science_project_job"]["project_id"] == helper_project.project_id
+    @test execution.metadata["data_science_project_job"]["job_type"] == "unit_test_job"
+    @test execution.metadata["data_science_project_job"]["dataset_id"] == "dataset-helper"
+    @test execution.metadata["data_science_project_job"]["source_record_id"] == "source-helper"
+    @test execution.metadata["artifact_refs"][1]["refId"] == "artifact-job-helper"
+    @test execution.metadata["resource_evidence"]["executionMode"] == "unit_test_job"
+    @test execution.metadata["worker_id"] == worker_id
+    compact_evidence = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_execution_evidence(execution, worker_id)
+    @test compact_evidence["executionId"] == execution.execution_id
+    @test compact_evidence["workflowId"] == "wf-helper"
+    @test compact_evidence["workerId"] == worker_id
+    @test compact_evidence["startedAt"] == "2026-06-22T00:12:00Z"
+    @test compact_evidence["finishedAt"] == "2026-06-22T00:13:00Z"
+end
+
 mutable struct FakeRealtimeSocket
     messages::Vector{String}
 end

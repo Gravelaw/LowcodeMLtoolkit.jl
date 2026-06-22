@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-22`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Jobs Module Split Slice (2026-06-22)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectJobs.jl` as a focused gateway-internal module for shared `DataScienceProject` job ledger, resource evidence, and gateway execution-evidence construction.
+- Gateway project job wrappers now delegate resource evidence construction, job record construction, job insertion, execution record construction, and compact execution evidence to the extracted module while preserving gateway-owned compute settings, workflow/checkpoint selection, repository writes, and route behavior.
+- Added direct Julia assertions for CPU fallback resource evidence, job ledger insertion, output/resource/execution evidence normalization, execution record metadata, plan/stage evidence, and compact execution evidence.
+- Verification passed locally: `npm run validate:contracts`; `npm run build`. Local Julia execution remains blocked because no `julia` executable is available in this shell; PR CI must verify `tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is the second focused gateway module split; broader product modules, worker-backed jobs, and project-backed frontend migration remain open.
+- Gateway statistical analysis, data catalog, monitoring/drift, deploy/export, local-source access, and thin dispatch extraction remain open.
+
+### Next Items To Implement
+
+- Continue gateway modularization around statistical analysis/project route orchestration or local-source access.
+- Move deterministic project job execution evidence behind worker orchestration.
+- Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Registry Module Split Slice (2026-06-22)
 
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectRegistry.jl` as the first focused gateway-internal module split for `DataScienceProject` model registry and lifecycle mutation rules.

@@ -20,6 +20,26 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Jobs Module Split Slice - 2026-06-22
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectJobs.jl` as a focused gateway-internal module for shared project job/resource/execution-evidence construction.
+- Gateway wrappers now delegate CPU/GPU resource evidence, job record insertion, gateway execution construction, and compact execution evidence to the module while preserving route and repository behavior.
+- Added direct Julia helper assertions for CPU fallback resource evidence, job ledger normalization, execution record metadata, plan evidence, and compact execution evidence.
+- Verified locally with `npm run validate:contracts` and `npm run build`. Local Julia verification is blocked on this host because no Julia executable is available on PATH or at `.juliaup/bin/julia`; PR CI is required for `tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not worker-backed job orchestration.
+- Statistical analysis, monitoring/drift, deploy/export, local-source access, thin route dispatch, worker-backed jobs, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue module extraction around statistical analysis/project route orchestration or local-source access.
+- Move project job execution evidence behind worker orchestration.
+- Add project-backed frontend workflow state for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Registry Module Split Slice - 2026-06-22
 
 ### Work Done Till Date
