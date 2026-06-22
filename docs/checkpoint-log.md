@@ -20,6 +20,26 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Registry Module Split Slice - 2026-06-22
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectRegistry.jl` as a focused gateway-internal module for pure `DataScienceProject` model registry and lifecycle state mutation rules.
+- Gateway model registration, deploy packaging, and lifecycle routes now delegate project lookup, registry upsert, lifecycle upsert, and lifecycle action-state validation to the extracted module.
+- Added direct Julia helper assertions for project lookup, missing-project errors, registry deduplication, lifecycle evidence preservation, and invalid action rejection.
+- Verified locally with `npm run validate:contracts` and `npm run build`. Local Julia verification is blocked on this host because no Julia executable is available on PATH or at `.juliaup/bin/julia`; PR CI is required for `tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is the first internal module split, not the full gateway modularity refactor.
+- Statistical analysis, project jobs, monitoring/drift, deploy/export, local-source access, thin route dispatch, worker-backed jobs, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue module extraction around statistical analysis/project jobs or local-source access.
+- Move project job execution evidence behind worker orchestration.
+- Add project-backed frontend workflow state for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Project Job Execution Evidence Expansion Slice - 2026-06-22
 
 ### Work Done Till Date

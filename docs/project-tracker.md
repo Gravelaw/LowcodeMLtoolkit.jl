@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-22`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Registry Module Split Slice (2026-06-22)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectRegistry.jl` as the first focused gateway-internal module split for `DataScienceProject` model registry and lifecycle mutation rules.
+- Gateway model registration, deploy packaging, and lifecycle routes now delegate project lookup, registry upsert, lifecycle upsert, and lifecycle action-state validation to the extracted module while preserving route-owned persistence and response behavior.
+- Added direct Julia assertions for project lookup, missing-project errors, registry deduplication, lifecycle evaluation/deploy/rollback evidence preservation, and invalid lifecycle action rejection.
+- Verification passed locally: `npm run validate:contracts`; `npm run build`. Local Julia execution remains blocked because no `julia` executable is available in this shell; PR CI must verify `tests/julia/runtests.jl`.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is only the first gateway module split; the broader data catalog, statistical analysis, experiment/job, monitoring/drift, deploy/export, local-source, and thin route dispatch extractions remain open.
+- Worker-backed project jobs, dedicated registry repository extraction, real rollback/retraining execution jobs, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway modularization into statistical analysis/project jobs or local-source access.
+- Move deterministic project job execution evidence behind worker orchestration.
+- Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 Project Job Execution Evidence Expansion Slice (2026-06-22)
 
 - Extended the existing project-job execution evidence path from prediction export to transform fit/apply, statistical analysis, tuning study, final evaluation, drift report, and model lifecycle actions.

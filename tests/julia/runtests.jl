@@ -19,6 +19,88 @@ using .JuliaFlowBaseExtension
 
 include(joinpath(@__DIR__, "repository_contract_tests.jl"))
 
+@testset "Data science project registry helpers" begin
+    helper_project = DataScienceProjectRecord(
+        project_id = "project-registry-helper",
+        name = "Registry Helper Project",
+    )
+    helper_projects = Dict(helper_project.project_id => helper_project)
+    validation_context = Dict{String,Any}(
+        "projectId" => helper_project.project_id,
+        "evaluationReportId" => "eval-helper",
+    )
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.project_for_validation_context(
+        helper_projects,
+        validation_context,
+        "model registry",
+    ) === helper_project
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.project_for_validation_context(
+        helper_projects,
+        Dict{String,Any}(),
+        "model registry",
+    ) === nothing
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.project_for_validation_context(
+        helper_projects,
+        Dict{String,Any}("projectId" => "missing-project"),
+        "model registry",
+    )
+
+    first_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.upsert_model_registry_record!(
+        helper_project,
+        Dict{String,Any}(
+            "modelId" => "model-helper",
+            "status" => "registered",
+            "updatedAt" => "2026-06-22T00:00:00Z",
+        ),
+    )
+    @test first_record["status"] == "registered"
+    @test length(helper_project.model_registry_records) == 1
+    second_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.upsert_model_registry_record!(
+        helper_project,
+        Dict{String,Any}(
+            "modelId" => "model-helper",
+            "status" => "approved",
+            "updatedAt" => "2026-06-22T00:01:00Z",
+        ),
+    )
+    @test second_record["status"] == "approved"
+    @test length(helper_project.model_registry_records) == 1
+    @test helper_project.model_registry_records[1]["status"] == "approved"
+
+    lifecycle_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.upsert_model_lifecycle_record!(
+        helper_project,
+        validation_context,
+        "model-helper",
+        "validated";
+        updated_at = "2026-06-22T00:02:00Z",
+    )
+    @test lifecycle_record["evaluationReportId"] == "eval-helper"
+    deployed_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.upsert_model_lifecycle_record!(
+        helper_project,
+        validation_context,
+        "model-helper",
+        "deployed";
+        deployed_endpoint_id = "deploy-helper",
+        updated_at = "2026-06-22T00:03:00Z",
+    )
+    @test deployed_record["deployedEndpointId"] == "deploy-helper"
+    helper_project.model_lifecycle_records[1]["rollbackModelId"] = "model-helper-v0"
+    rolled_back_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.upsert_model_lifecycle_record!(
+        helper_project,
+        validation_context,
+        "model-helper",
+        "rolled_back";
+        updated_at = "2026-06-22T00:04:00Z",
+    )
+    @test rolled_back_record["deployedEndpointId"] == "deploy-helper"
+    @test rolled_back_record["rollbackModelId"] == "model-helper-v0"
+    @test length(helper_project.model_lifecycle_records) == 1
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("mark_rollback_ready") == "rollback_ready"
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("mark_rolled_back") == "rolled_back"
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("request_retraining") == "retraining_requested"
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("delete_model")
+end
+
 mutable struct FakeRealtimeSocket
     messages::Vector{String}
 end

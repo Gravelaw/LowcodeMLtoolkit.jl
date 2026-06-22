@@ -1,9 +1,11 @@
 module JuliaFlowApiGateway
 
 include(joinpath(@__DIR__, "JuliaFlowGatewayRepository.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectRegistry.jl"))
 include(joinpath(@__DIR__, "..", "..", "worker-service", "src", "JuliaFlowWorkerService.jl"))
 
 using .JuliaFlowGatewayRepository
+using .JuliaFlowDataScienceProjectRegistry
 using .JuliaFlowWorkerService
 using Base64
 using Dates
@@ -3085,10 +3087,11 @@ function model_validation_context(execution::GatewayExecution, action::AbstractS
 end
 
 function project_for_model_lifecycle(state::GatewayState, validation_context::AbstractDict, action::AbstractString)
-    project_id = String(get(validation_context, "projectId", ""))
-    isempty(strip(project_id)) && return nothing
-    haskey(state.data_science_projects, project_id) || error("$(String(action)) project not found: $(project_id)")
-    return state.data_science_projects[project_id]
+    return JuliaFlowDataScienceProjectRegistry.project_for_validation_context(
+        state.data_science_projects,
+        validation_context,
+        action,
+    )
 end
 
 function upsert_project_model_registry!(state::GatewayState, model_record::AbstractDict)
@@ -3096,12 +3099,7 @@ function upsert_project_model_registry!(state::GatewayState, model_record::Abstr
     project = project_for_model_lifecycle(state, validation_context, "model registry")
     project === nothing && return nothing
 
-    record = Dict{String,Any}(String(key) => value for (key, value) in pairs(model_record))
-    model_id = String(get(record, "modelId", ""))
-    index = findfirst(item -> String(get(item, "modelId", "")) == model_id, project.model_registry_records)
-    remaining = index === nothing ? project.model_registry_records : [item for (item_index, item) in enumerate(project.model_registry_records) if item_index != index]
-    project.model_registry_records = [record, remaining...]
-    project.updated_at = String(get(record, "updatedAt", JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()))
+    record = JuliaFlowDataScienceProjectRegistry.upsert_model_registry_record!(project, model_record)
     state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
     return record
 end
@@ -3118,33 +3116,17 @@ function upsert_project_model_lifecycle!(
     project = project_for_model_lifecycle(state, validation_context, "model lifecycle")
     project === nothing && return nothing
 
-    timestamp = updated_at === nothing ? JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp() : String(updated_at)
-    index = findfirst(record -> String(get(record, "modelId", "")) == String(model_id), project.model_lifecycle_records)
-    existing = index === nothing ? Dict{String,Any}() : Dict{String,Any}(String(key) => value for (key, value) in pairs(project.model_lifecycle_records[index]))
-    record = Dict{String,Any}(
-        "modelId" => String(model_id),
-        "state" => String(lifecycle_state),
-        "updatedAt" => timestamp,
+    record = JuliaFlowDataScienceProjectRegistry.upsert_model_lifecycle_record!(
+        project,
+        validation_context,
+        model_id,
+        lifecycle_state;
+        evaluation_report_id = evaluation_report_id,
+        deployed_endpoint_id = deployed_endpoint_id,
+        updated_at = updated_at,
     )
-
-    report_id = evaluation_report_id === nothing ? String(get(validation_context, "evaluationReportId", get(existing, "evaluationReportId", ""))) : String(evaluation_report_id)
-    isempty(strip(report_id)) || (record["evaluationReportId"] = report_id)
-    endpoint_id = deployed_endpoint_id === nothing ? String(get(existing, "deployedEndpointId", "")) : String(deployed_endpoint_id)
-    isempty(strip(endpoint_id)) || (record["deployedEndpointId"] = endpoint_id)
-    haskey(existing, "rollbackModelId") && (record["rollbackModelId"] = String(existing["rollbackModelId"]))
-
-    remaining = index === nothing ? project.model_lifecycle_records : [item for (item_index, item) in enumerate(project.model_lifecycle_records) if item_index != index]
-    project.model_lifecycle_records = [record, remaining...]
-    project.updated_at = timestamp
     state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
     return record
-end
-
-function model_lifecycle_action_state(action::AbstractString)
-    action == "mark_rollback_ready" && return "rollback_ready"
-    action == "mark_rolled_back" && return "rolled_back"
-    action == "request_retraining" && return "retraining_requested"
-    error("model lifecycle action must be mark_rollback_ready, mark_rolled_back, or request_retraining")
 end
 
 function model_lifecycle_action_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
@@ -3153,7 +3135,7 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
     model_id = haskey(body, "modelId") ? strip(String(body["modelId"])) : ""
     !isempty(model_id) || error("model lifecycle modelId required")
     action = haskey(body, "action") ? strip(String(body["action"])) : ""
-    lifecycle_state = model_lifecycle_action_state(action)
+    lifecycle_state = JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state(action)
 
     index = findfirst(record -> String(get(record, "modelId", "")) == model_id, project.model_lifecycle_records)
     index === nothing && error("model lifecycle record not found: $(model_id)")
