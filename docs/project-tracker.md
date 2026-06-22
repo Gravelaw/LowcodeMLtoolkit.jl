@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-22`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Statistics Module Split Slice (2026-06-22)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectStatistics.jl` as a focused gateway-internal module for statistical EDA method validation, local CSV parsing, numeric summaries, Pearson/Spearman correlation, simple OLS, Welch t-test, one-way ANOVA, chi-square independence, feature-column selection, local CSV evidence construction, and generated Julia analysis-code text.
+- `JuliaFlowApiGateway.jl` now delegates statistical helper behavior to the extracted module while preserving route-owned project lookup, local path confinement, chart spec construction, artifact materialization, repository writes, execution evidence, and JSON responses.
+- Added direct Julia helper assertions for method normalization/rejection, local CSV evidence, numeric summaries, OLS, ANOVA, t-test, chi-square, Spearman evidence, and generated code artifact text.
+- Verification passed locally: `npm run validate:contracts`; `npm run build`; focused Julia statistics smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite is blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while loading dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is the fourth focused gateway module split; route orchestration, local-source access, data catalog, monitoring/drift, deploy/export, thin dispatch extraction, worker-backed jobs, and project-backed frontend migration remain open.
+- Full `tests/julia/runtests.jl` still needs CI or a local shell with the Julia dependency-loading permission issue resolved.
+
+### Next Items To Implement
+
+- Continue gateway modularization around local-source access, data catalog, monitoring/drift, deploy/export, or thin route dispatch.
+- Move deterministic project job execution evidence behind worker orchestration.
+- Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### Retired GitHub CI Webhook Monitor Tooling Slice (2026-06-22)
 
 - The GitHub webhook receiver experiment was archived locally under `.codex-archive/github-ci-webhook-monitor-20260622/` and removed from the active repo path.
@@ -47,11 +65,11 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 parent is still open. This is the third focused gateway module split; broader product modules, worker-backed jobs, and project-backed frontend migration remain open.
-- Gateway statistical analysis, data catalog, monitoring/drift, deploy/export, local-source access, and thin dispatch extraction remain open.
+- Gateway data catalog, monitoring/drift, deploy/export, local-source access, and thin dispatch extraction remain open.
 
 ### Next Items To Implement
 
-- Continue gateway modularization around statistical analysis/project route orchestration or local-source access.
+- Continue gateway modularization around project route orchestration, data catalog, or local-source access.
 - Move deterministic project job execution evidence behind worker orchestration.
 - Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
 

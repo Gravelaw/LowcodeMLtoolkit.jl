@@ -4,11 +4,13 @@ include(joinpath(@__DIR__, "JuliaFlowGatewayRepository.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectCore.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectRegistry.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectJobs.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectStatistics.jl"))
 include(joinpath(@__DIR__, "..", "..", "worker-service", "src", "JuliaFlowWorkerService.jl"))
 
 using .JuliaFlowGatewayRepository
 using .JuliaFlowDataScienceProjectRegistry
 using .JuliaFlowDataScienceProjectJobs
+using .JuliaFlowDataScienceProjectStatistics
 using .JuliaFlowWorkerService
 using Base64
 using Dates
@@ -4877,17 +4879,6 @@ function run_transform_fit_apply_response!(state::GatewayState, project_id::Abst
     return JSON3.write(Dict("status" => "completed", "transformRun" => transform_run, "project" => payload))
 end
 
-const STATISTICAL_ANALYSIS_METHODS = Set([
-    "summary",
-    "correlation",
-    "pearson_correlation",
-    "spearman_correlation",
-    "t_test",
-    "chi_square",
-    "anova",
-    "ols",
-])
-
 function statistical_analysis_dataset(project::DataScienceProjectRecord, body::AbstractDict)
     dataset_id = if haskey(body, "datasetId")
         String(body["datasetId"])
@@ -4901,14 +4892,7 @@ function statistical_analysis_dataset(project::DataScienceProjectRecord, body::A
 end
 
 function statistical_analysis_methods(body::AbstractDict)
-    raw_methods = haskey(body, "methods") ? body["methods"] : ["summary", "correlation"]
-    raw_methods isa AbstractVector || error("statistical analysis methods must be an array")
-    methods = [safe_local_dataset_id(String(method)) for method in raw_methods]
-    methods = [method for method in methods if !isempty(method)]
-    isempty(methods) && error("statistical analysis method required")
-    unsupported = [method for method in methods if !(method in STATISTICAL_ANALYSIS_METHODS)]
-    isempty(unsupported) || error("statistical analysis unsupported methods: $(join(unsupported, ", "))")
-    return methods
+    return JuliaFlowDataScienceProjectStatistics.statistical_analysis_methods(body)
 end
 
 function data_science_project_dataset(project::DataScienceProjectRecord, dataset_id::AbstractString)
@@ -4947,300 +4931,19 @@ function local_data_ref_path_for_write(local_ref::AbstractString)
     return candidate
 end
 
-function parse_simple_csv(path::AbstractString; max_rows::Integer = 1_000)
-    lines = readlines(path)
-    isempty(lines) && return nothing
-    headers = [strip(header) for header in split(first(lines), ',')]
-    isempty(headers) && return nothing
-    rows = Vector{Vector{String}}()
-    for line in Iterators.take(lines[2:end], max_rows)
-        isempty(strip(line)) && continue
-        values = [strip(value) for value in split(line, ',')]
-        length(values) < length(headers) && append!(values, fill("", length(headers) - length(values)))
-        push!(rows, values[1:length(headers)])
-    end
-    return Dict{String,Any}("headers" => headers, "rows" => rows)
-end
-
-function simple_numeric_columns(table::AbstractDict)
-    headers = Vector{String}(table["headers"])
-    rows = table["rows"]
-    columns = Dict{String,Vector{Float64}}()
-    missing_counts = Dict{String,Int}()
-    for (index, header) in enumerate(headers)
-        values = Float64[]
-        missing_count = 0
-        nonmissing_count = 0
-        numeric = true
-        for row in rows
-            value = strip(String(row[index]))
-            if isempty(value) || lowercase(value) in ("missing", "na", "null", "nothing")
-                missing_count += 1
-                continue
-            end
-            nonmissing_count += 1
-            parsed = tryparse(Float64, value)
-            if parsed === nothing
-                numeric = false
-                break
-            end
-            push!(values, parsed)
-        end
-        if numeric && nonmissing_count > 0
-            columns[header] = values
-            missing_counts[header] = missing_count
-        end
-    end
-    return columns, missing_counts
-end
-
-function simple_column_values(table::AbstractDict, column::AbstractString)
-    headers = Vector{String}(table["headers"])
-    column_index = findfirst(header -> header == String(column), headers)
-    column_index === nothing && return String[]
-    return [String(strip(String(row[column_index]))) for row in table["rows"]]
-end
-
-function sample_mean(values::Vector{Float64})
-    return isempty(values) ? 0.0 : sum(values) / length(values)
-end
-
-function sample_std(values::Vector{Float64})
-    length(values) <= 1 && return 0.0
-    mean_value = sample_mean(values)
-    return sqrt(sum((value - mean_value)^2 for value in values) / (length(values) - 1))
-end
-
-function pearson_correlation(left::Vector{Float64}, right::Vector{Float64})
-    n = min(length(left), length(right))
-    n <= 1 && return 0.0
-    left_values = left[1:n]
-    right_values = right[1:n]
-    left_mean = sample_mean(left_values)
-    right_mean = sample_mean(right_values)
-    numerator = sum((left_values[index] - left_mean) * (right_values[index] - right_mean) for index in 1:n)
-    left_denominator = sqrt(sum((value - left_mean)^2 for value in left_values))
-    right_denominator = sqrt(sum((value - right_mean)^2 for value in right_values))
-    denominator = left_denominator * right_denominator
-    denominator == 0.0 && return 0.0
-    return round(numerator / denominator; digits = 6)
-end
-
-function rank_values(values::Vector{Float64})
-    indexed = sort(collect(enumerate(values)); by = item -> item[2])
-    ranks = zeros(Float64, length(values))
-    index = 1
-    while index <= length(indexed)
-        next_index = index
-        while next_index < length(indexed) && indexed[next_index + 1][2] == indexed[index][2]
-            next_index += 1
-        end
-        rank = (index + next_index) / 2
-        for grouped_index in index:next_index
-            ranks[indexed[grouped_index][1]] = rank
-        end
-        index = next_index + 1
-    end
-    return ranks
-end
-
-function spearman_correlation(left::Vector{Float64}, right::Vector{Float64})
-    n = min(length(left), length(right))
-    n <= 1 && return 0.0
-    return pearson_correlation(rank_values(left[1:n]), rank_values(right[1:n]))
-end
-
-function simple_linear_ols(target::Vector{Float64}, feature::Vector{Float64})
-    n = min(length(target), length(feature))
-    n <= 1 && return nothing
-    y = target[1:n]
-    x = feature[1:n]
-    x_mean = sample_mean(x)
-    y_mean = sample_mean(y)
-    ssx = sum((value - x_mean)^2 for value in x)
-    ssx == 0.0 && return nothing
-    slope = sum((x[index] - x_mean) * (y[index] - y_mean) for index in 1:n) / ssx
-    intercept = y_mean - slope * x_mean
-    predictions = [intercept + slope * value for value in x]
-    residuals = [y[index] - predictions[index] for index in 1:n]
-    sse = sum(value^2 for value in residuals)
-    sst = sum((value - y_mean)^2 for value in y)
-    r_squared = sst == 0.0 ? 0.0 : 1.0 - (sse / sst)
-    return Dict{String,Any}(
-        "model" => "simple_linear_ols",
-        "n" => n,
-        "intercept" => round(intercept; digits = 6),
-        "slope" => round(slope; digits = 6),
-        "rSquared" => round(r_squared; digits = 6),
-        "sse" => round(sse; digits = 6),
-    )
-end
-
-function two_sample_t_test(target_values::Vector{Float64}, group_values::AbstractVector)
-    n = min(length(target_values), length(group_values))
-    n <= 2 && return nothing
-    groups = Dict{String,Vector{Float64}}()
-    for index in 1:n
-        group = isempty(group_values[index]) ? "(missing)" : String(group_values[index])
-        push!(get!(groups, group, Float64[]), target_values[index])
-    end
-    length(groups) == 2 || return nothing
-    ordered_groups = sort(collect(keys(groups)))
-    left = groups[ordered_groups[1]]
-    right = groups[ordered_groups[2]]
-    (length(left) <= 1 || length(right) <= 1) && return nothing
-    left_mean = sample_mean(left)
-    right_mean = sample_mean(right)
-    standard_error = sqrt(sample_std(left)^2 / length(left) + sample_std(right)^2 / length(right))
-    standard_error == 0.0 && return nothing
-    return Dict{String,Any}(
-        "method" => "welch_t_test",
-        "groups" => ordered_groups,
-        "n" => Dict(ordered_groups[1] => length(left), ordered_groups[2] => length(right)),
-        "mean" => Dict(ordered_groups[1] => round(left_mean; digits = 6), ordered_groups[2] => round(right_mean; digits = 6)),
-        "meanDifference" => round(left_mean - right_mean; digits = 6),
-        "tStatistic" => round((left_mean - right_mean) / standard_error; digits = 6),
-    )
-end
-
-function one_way_anova(target_values::Vector{Float64}, group_values::AbstractVector)
-    n = min(length(target_values), length(group_values))
-    n <= 1 && return nothing
-    groups = Dict{String,Vector{Float64}}()
-    for index in 1:n
-        group = isempty(group_values[index]) ? "(missing)" : group_values[index]
-        push!(get!(groups, group, Float64[]), target_values[index])
-    end
-    length(groups) <= 1 && return nothing
-    overall = sample_mean(target_values[1:n])
-    group_value_vectors = collect(values(groups))
-    ss_between = sum(length(group_values) * (sample_mean(group_values) - overall)^2 for group_values in group_value_vectors)
-    ss_within = sum(sum((value - sample_mean(group_values))^2 for value in group_values) for group_values in group_value_vectors)
-    df_between = length(groups) - 1
-    df_within = n - length(groups)
-    df_within <= 0 && return nothing
-    ms_between = ss_between / df_between
-    ms_within = ss_within / df_within
-    f_statistic = ms_within == 0.0 ? 0.0 : ms_between / ms_within
-    return Dict{String,Any}(
-        "method" => "one_way_anova",
-        "n" => n,
-        "groups" => sort(collect(keys(groups))),
-        "dfBetween" => df_between,
-        "dfWithin" => df_within,
-        "fStatistic" => round(f_statistic; digits = 6),
-        "ssBetween" => round(ss_between; digits = 6),
-        "ssWithin" => round(ss_within; digits = 6),
-    )
-end
-
-function chi_square_independence(left_values::AbstractVector, right_values::AbstractVector)
-    n = min(length(left_values), length(right_values))
-    n <= 1 && return nothing
-    left_levels = sort(unique([isempty(String(value)) ? "(missing)" : String(value) for value in left_values[1:n]]))
-    right_levels = sort(unique([isempty(String(value)) ? "(missing)" : String(value) for value in right_values[1:n]]))
-    (length(left_levels) <= 1 || length(right_levels) <= 1) && return nothing
-    observed = [0 for _ in left_levels, _ in right_levels]
-    left_index = Dict(level => index for (index, level) in enumerate(left_levels))
-    right_index = Dict(level => index for (index, level) in enumerate(right_levels))
-    for index in 1:n
-        left = isempty(String(left_values[index])) ? "(missing)" : String(left_values[index])
-        right = isempty(String(right_values[index])) ? "(missing)" : String(right_values[index])
-        observed[left_index[left], right_index[right]] += 1
-    end
-    row_totals = [sum(observed[row, :]) for row in 1:length(left_levels)]
-    column_totals = [sum(observed[:, column]) for column in 1:length(right_levels)]
-    statistic = 0.0
-    for row in 1:length(left_levels), column in 1:length(right_levels)
-        expected = row_totals[row] * column_totals[column] / n
-        expected == 0.0 && continue
-        statistic += (observed[row, column] - expected)^2 / expected
-    end
-    return Dict{String,Any}(
-        "method" => "chi_square_independence",
-        "n" => n,
-        "leftLevels" => left_levels,
-        "rightLevels" => right_levels,
-        "degreesOfFreedom" => (length(left_levels) - 1) * (length(right_levels) - 1),
-        "chiSquareStatistic" => round(statistic; digits = 6),
-        "observed" => observed,
-    )
-end
-
 function requested_feature_columns(body::AbstractDict)
-    raw_features = haskey(body, "featureColumns") ? body["featureColumns"] : Any[]
-    raw_features isa AbstractVector || return String[]
-    return [String(feature) for feature in raw_features if !isempty(strip(String(feature)))]
+    return JuliaFlowDataScienceProjectStatistics.requested_feature_columns(body)
 end
 
 function local_csv_statistical_evidence(dataset::AbstractDict, body::AbstractDict, methods::AbstractVector)
     source_uri = String(get(dataset, "sourceUri", ""))
     source_path = resolve_local_data_ref_path(source_uri)
     source_path === nothing && return nothing
-    table = parse_simple_csv(source_path)
-    table === nothing && return nothing
-    numeric_columns, missing_counts = simple_numeric_columns(table)
-    isempty(numeric_columns) && return nothing
-    summaries = [
-        Dict(
-            "column" => column,
-            "count" => length(values),
-            "missingCount" => get(missing_counts, column, 0),
-            "mean" => round(sample_mean(values); digits = 6),
-            "std" => round(sample_std(values); digits = 6),
-            "min" => minimum(values),
-            "max" => maximum(values),
-        ) for (column, values) in sort(collect(numeric_columns); by = item -> item[1])
-    ]
-    ordered_columns = [String(summary["column"]) for summary in summaries]
-    correlations = [
-        [left == right ? 1.0 : pearson_correlation(numeric_columns[left], numeric_columns[right]) for right in ordered_columns]
-        for left in ordered_columns
-    ]
-    spearman = [
-        [left == right ? 1.0 : spearman_correlation(numeric_columns[left], numeric_columns[right]) for right in ordered_columns]
-        for left in ordered_columns
-    ]
-    target_column = haskey(body, "targetColumn") ? String(body["targetColumn"]) : ""
-    feature_columns = requested_feature_columns(body)
-    inferential = Dict{String,Any}()
-    categorical_features = [feature for feature in feature_columns if feature in Vector{String}(table["headers"]) && !haskey(numeric_columns, feature)]
-    if !isempty(target_column) && haskey(numeric_columns, target_column)
-        numeric_features = [feature for feature in feature_columns if haskey(numeric_columns, feature) && feature != target_column]
-        if "ols" in methods && !isempty(numeric_features)
-            ols = simple_linear_ols(numeric_columns[target_column], numeric_columns[first(numeric_features)])
-            ols === nothing || (inferential["ols"] = merge(ols, Dict("targetColumn" => target_column, "featureColumn" => first(numeric_features))))
-        end
-        if "anova" in methods && !isempty(categorical_features)
-            anova = one_way_anova(numeric_columns[target_column], simple_column_values(table, first(categorical_features)))
-            anova === nothing || (inferential["anova"] = merge(anova, Dict("targetColumn" => target_column, "groupColumn" => first(categorical_features))))
-        end
-        if "t_test" in methods && !isempty(categorical_features)
-            t_test = two_sample_t_test(numeric_columns[target_column], simple_column_values(table, first(categorical_features)))
-            t_test === nothing || (inferential["tTest"] = merge(t_test, Dict("targetColumn" => target_column, "groupColumn" => first(categorical_features))))
-        end
-    end
-    if "chi_square" in methods && length(categorical_features) >= 2
-        chi_square = chi_square_independence(simple_column_values(table, categorical_features[1]), simple_column_values(table, categorical_features[2]))
-        chi_square === nothing || (inferential["chiSquare"] = merge(chi_square, Dict("leftColumn" => categorical_features[1], "rightColumn" => categorical_features[2])))
-    end
-    if "spearman_correlation" in methods
-        inferential["spearmanCorrelation"] = Dict(
-            "method" => "spearman_correlation",
-            "columns" => ordered_columns,
-            "matrix" => spearman,
-        )
-    end
-    return Dict{String,Any}(
-        "executionMode" => "local_csv",
-        "sourceKind" => "managed_local_csv",
-        "sourceRef" => source_uri,
-        "rowCount" => length(table["rows"]),
-        "numericColumns" => ordered_columns,
-        "summaries" => summaries,
-        "correlationMatrix" => correlations,
-        "spearmanCorrelationMatrix" => spearman,
-        "inferentialTests" => inferential,
+    return JuliaFlowDataScienceProjectStatistics.local_csv_statistical_evidence_from_path(
+        dataset,
+        source_path,
+        body,
+        methods,
     )
 end
 
@@ -5296,20 +4999,7 @@ function statistical_analysis_charts(dataset_id::AbstractString, run_id::Abstrac
 end
 
 function statistical_analysis_code_artifact(dataset_id::AbstractString, methods::AbstractVector, body::AbstractDict)
-    target = haskey(body, "targetColumn") ? String(body["targetColumn"]) : ""
-    features = requested_feature_columns(body)
-    return join(
-        [
-            "# JuliaFlow local statistical EDA artifact",
-            "# dataset: $(dataset_id)",
-            "# methods: $(join([String(method) for method in methods], ", "))",
-            "# targetColumn: $(target)",
-            "# featureColumns: $(join(features, ", "))",
-            "using Statistics",
-            "# Result evidence is persisted beside this code artifact as results.json.",
-        ],
-        "\n",
-    ) * "\n"
+    return JuliaFlowDataScienceProjectStatistics.statistical_analysis_code_artifact(dataset_id, methods, body)
 end
 
 function persist_statistical_analysis_artifacts!(

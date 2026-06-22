@@ -79,6 +79,60 @@ include(joinpath(@__DIR__, "repository_contract_tests.jl"))
     )
 end
 
+@testset "Data science project statistical helpers" begin
+    stats = JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics
+    methods = stats.statistical_analysis_methods(
+        Dict{String,Any}("methods" => ["summary", "pearson correlation", "spearman_correlation", "ols", "anova", "t_test", "chi_square"]),
+    )
+    @test methods == ["summary", "pearson_correlation", "spearman_correlation", "ols", "anova", "t_test", "chi_square"]
+    @test_throws ErrorException stats.statistical_analysis_methods(Dict{String,Any}("methods" => ["remote_eval"]))
+
+    csv_path = joinpath(mktempdir(), "stats.csv")
+    write(
+        csv_path,
+        join(
+            [
+                "amount,margin,region,segment",
+                "10,1,East,A",
+                "20,2,East,B",
+                "30,3,West,A",
+                "40,4,West,B",
+            ],
+            "\n",
+        ),
+    )
+    dataset = Dict{String,Any}("datasetId" => "stats-sample", "sourceUri" => "local://data/stats.csv")
+    evidence = stats.local_csv_statistical_evidence_from_path(
+        dataset,
+        csv_path,
+        Dict{String,Any}(
+            "targetColumn" => "amount",
+            "featureColumns" => ["margin", "region", "segment"],
+        ),
+        methods,
+    )
+    @test evidence["executionMode"] == "local_csv"
+    @test evidence["rowCount"] == 4
+    @test evidence["numericColumns"] == ["amount", "margin"]
+    amount_summary = only(filter(summary -> summary["column"] == "amount", evidence["summaries"]))
+    @test amount_summary["mean"] == 25.0
+    @test evidence["inferentialTests"]["ols"]["featureColumn"] == "margin"
+    @test evidence["inferentialTests"]["ols"]["rSquared"] == 1.0
+    @test evidence["inferentialTests"]["anova"]["dfBetween"] == 1
+    @test evidence["inferentialTests"]["tTest"]["groups"] == ["East", "West"]
+    @test evidence["inferentialTests"]["chiSquare"]["degreesOfFreedom"] == 1
+    @test evidence["inferentialTests"]["spearmanCorrelation"]["columns"] == ["amount", "margin"]
+
+    code = stats.statistical_analysis_code_artifact(
+        "stats-sample",
+        methods,
+        Dict{String,Any}("targetColumn" => "amount", "featureColumns" => ["margin", "region"]),
+    )
+    @test occursin("# dataset: stats-sample", code)
+    @test occursin("# targetColumn: amount", code)
+    @test occursin("# featureColumns: margin, region", code)
+end
+
 @testset "Data science project registry helpers" begin
     helper_project = DataScienceProjectRecord(
         project_id = "project-registry-helper",

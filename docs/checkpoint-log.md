@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Statistics Module Split Slice - 2026-06-22
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectStatistics.jl` as a focused gateway-internal module for statistical EDA method validation, local CSV parsing, numeric summaries, Pearson/Spearman correlation, simple OLS, Welch t-test, one-way ANOVA, chi-square independence, feature-column selection, evidence construction, and generated Julia analysis-code text.
+- Gateway statistical-analysis routes now delegate pure statistics helpers to the module while preserving route-owned project lookup, path confinement, chart construction, artifact writes, project persistence, and execution/job evidence.
+- Added direct Julia helper assertions for method normalization/rejection, local CSV statistical evidence, inferential statistics, and generated code text.
+- Verified with `npm run validate:contracts`, `npm run build`, and a focused Julia statistics smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` is blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Local-source access, data catalog, route orchestration, monitoring/drift, deploy/export, thin dispatch extraction, worker-backed job execution, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around local-source access, data catalog, monitoring/drift, deploy/export, or thin route dispatch.
+- Keep moving deterministic project jobs toward worker-backed orchestration.
+
 ## Checkpoint: `cp/02-alpha-core` Retired GitHub CI Webhook Monitor Tooling Slice - 2026-06-22
 
 ### Work Done Till Date
