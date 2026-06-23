@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Transform Module Split Slice - 2026-06-23
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectTransforms.jl` as a focused gateway-internal module for transform fit/apply split validation, transform ref defaults/validation, fit/apply artifact ref construction, and transform-run record construction.
+- Gateway transform fit/apply route orchestration now delegates pure transform helper behavior to the module while preserving project lookup, dataset/split lookup, split locking, fit-split policy, persistence, job/resource/execution evidence, and response contracts.
+- Added direct Julia helper assertions for default and duplicate apply split handling, train/apply rejection, missing validation split rejection, default/custom transform refs, blank transform ref rejection, artifact refs, leakage checks, and record shape.
+- Verified with a focused Julia transform helper smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed transform fit/apply jobs, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around ML experiment helpers or thin route dispatch.
+- Keep moving deterministic transform, tuning, final-evaluation, scoring, drift, and deploy evidence toward worker-backed orchestration.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Evaluation Module Split Slice - 2026-06-23
 
 ### Work Done Till Date

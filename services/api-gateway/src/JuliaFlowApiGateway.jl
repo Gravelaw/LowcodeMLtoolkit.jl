@@ -12,6 +12,7 @@ include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectMonitoring.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectDeploy.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectTuning.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectEvaluation.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectTransforms.jl"))
 include(joinpath(@__DIR__, "..", "..", "worker-service", "src", "JuliaFlowWorkerService.jl"))
 
 using .JuliaFlowGatewayRepository
@@ -25,6 +26,7 @@ using .JuliaFlowDataScienceProjectMonitoring
 using .JuliaFlowDataScienceProjectDeploy
 using .JuliaFlowDataScienceProjectTuning
 using .JuliaFlowDataScienceProjectEvaluation
+using .JuliaFlowDataScienceProjectTransforms
 using .JuliaFlowWorkerService
 using Base64
 using Dates
@@ -4568,19 +4570,7 @@ function data_science_project_execution_evidence!(
 end
 
 function transform_apply_splits(body::AbstractDict, split_plan::AbstractDict)
-    raw_splits = haskey(body, "applySplits") ? body["applySplits"] : ["validation", "test"]
-    raw_splits isa AbstractVector || error("transform fit/apply applySplits must be an array")
-    splits = [String(item) for item in raw_splits]
-    all(item -> item in ("validation", "test", "evaluation"), splits) || error("transform fit/apply can only apply to validation, test, or evaluation splits")
-    "train" in splits && error("transform fit/apply cannot apply fitted state back to train as an apply split")
-    if "validation" in splits
-        Float64(get(split_plan, "validationFraction", 0.0)) > 0 || error("transform fit/apply validation split required")
-    end
-    if "test" in splits
-        Float64(get(split_plan, "testFraction", 0.0)) > 0 || error("transform fit/apply test split required")
-    end
-    isempty(splits) && error("transform fit/apply apply split required")
-    return unique(splits)
+    return JuliaFlowDataScienceProjectTransforms.transform_apply_splits(body, split_plan)
 end
 
 function run_transform_fit_apply_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
@@ -4592,44 +4582,18 @@ function run_transform_fit_apply_response!(state::GatewayState, project_id::Abst
     fit_split = String(get(body, "fitSplit", "train"))
     fit_split == "train" || error("transform fit/apply fitSplit must be train")
     apply_splits = transform_apply_splits(body, split_plan)
-    transform_ref = haskey(body, "transformRef") ? String(body["transformRef"]) : "local://transforms/$(project.project_id)/default-fit-apply.jl"
-    isempty(strip(transform_ref)) && error("transform fit/apply transformRef required")
+    transform_ref = JuliaFlowDataScienceProjectTransforms.transform_ref_for_request(body, project.project_id)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     run_id = "transform-fit-apply-" * replace(string(uuid4()), "-" => "")
-    artifact_refs = [
-        Dict(
-            "refId" => "artifact-$(run_id)-fit",
-            "kind" => "transform_fit_state",
-            "localOnly" => true,
-            "path" => "local://transforms/$(project.project_id)/$(run_id)/fit-state.arrow",
-            "generatedAt" => timestamp,
-        ),
-    ]
-    for split in apply_splits
-        push!(
-            artifact_refs,
-            Dict(
-                "refId" => "artifact-$(run_id)-apply-$(split)",
-                "kind" => "transform_apply_output",
-                "localOnly" => true,
-                "path" => "local://transforms/$(project.project_id)/$(run_id)/$(split).arrow",
-                "generatedAt" => timestamp,
-            ),
-        )
-    end
-    transform_run = Dict{String,Any}(
-        "transformRunId" => run_id,
-        "datasetId" => dataset_id,
-        "splitPlanId" => String(get(split_plan, "splitPlanId", "")),
-        "fitSplit" => "train",
-        "applySplits" => apply_splits,
-        "transformRef" => transform_ref,
-        "leakageChecks" => [
-            Dict("checkId" => "fit-split-train-only", "status" => "passed", "detail" => "Transform state is fit only on the training split."),
-            Dict("checkId" => "heldout-apply-only", "status" => "passed", "detail" => "Frozen transform state is applied to held-out splits without refitting."),
-        ],
-        "artifactRefs" => artifact_refs,
-        "createdAt" => timestamp,
+    artifact_refs = JuliaFlowDataScienceProjectTransforms.transform_fit_apply_artifact_refs(project.project_id, run_id, apply_splits, timestamp)
+    transform_run = JuliaFlowDataScienceProjectTransforms.transform_fit_apply_record(
+        run_id,
+        dataset_id,
+        split_plan,
+        apply_splits,
+        transform_ref,
+        artifact_refs,
+        timestamp,
     )
     project.transform_fit_apply_records = [transform_run, project.transform_fit_apply_records...]
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "transform_fit_apply")

@@ -525,6 +525,44 @@ end
     @test evaluation.final_evaluation_output_refs(report)[1]["kind"] == "final_evaluation_report"
 end
 
+@testset "Data science project transform helpers" begin
+    transforms = JuliaFlowApiGateway.JuliaFlowDataScienceProjectTransforms
+    split_plan = Dict{String,Any}(
+        "splitPlanId" => "split-helper",
+        "validationFraction" => 0.2,
+        "testFraction" => 0.2,
+    )
+    @test transforms.transform_apply_splits(Dict{String,Any}(), split_plan) == ["validation", "test"]
+    @test transforms.transform_apply_splits(Dict{String,Any}("applySplits" => ["test", "test"]), split_plan) == ["test"]
+    @test_throws ErrorException transforms.transform_apply_splits(Dict{String,Any}("applySplits" => ["train"]), split_plan)
+    @test_throws ErrorException transforms.transform_apply_splits(
+        Dict{String,Any}("applySplits" => ["validation"]),
+        Dict{String,Any}("splitPlanId" => "split-no-validation", "validationFraction" => 0.0, "testFraction" => 0.2),
+    )
+    @test transforms.transform_ref_for_request(Dict{String,Any}(), "project-helper") == "local://transforms/project-helper/default-fit-apply.jl"
+    @test transforms.transform_ref_for_request(Dict{String,Any}("transformRef" => "local://transforms/project-helper/custom.jl"), "project-helper") == "local://transforms/project-helper/custom.jl"
+    @test_throws ErrorException transforms.transform_ref_for_request(Dict{String,Any}("transformRef" => "   "), "project-helper")
+
+    refs = transforms.transform_fit_apply_artifact_refs("project-helper", "run-helper", ["validation", "test"], "2026-06-23T00:00:00Z")
+    @test length(refs) == 3
+    @test refs[1]["kind"] == "transform_fit_state"
+    @test refs[2]["path"] == "local://transforms/project-helper/run-helper/validation.arrow"
+    record = transforms.transform_fit_apply_record(
+        "run-helper",
+        "dataset-helper",
+        split_plan,
+        ["validation", "test"],
+        "local://transforms/project-helper/custom.jl",
+        refs,
+        "2026-06-23T00:00:00Z",
+    )
+    @test record["transformRunId"] == "run-helper"
+    @test record["fitSplit"] == "train"
+    @test record["applySplits"] == ["validation", "test"]
+    @test length(record["leakageChecks"]) == 2
+    @test record["artifactRefs"][3]["kind"] == "transform_apply_output"
+end
+
 @testset "Data science project statistical helpers" begin
     stats = JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics
     methods = stats.statistical_analysis_methods(
