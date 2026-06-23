@@ -18,9 +18,27 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-22`
+- Last updated: `2026-06-23`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Deploy Module Split Slice (2026-06-23)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectDeploy.jl` as a focused gateway-internal module for local deploy service-code generation, deploy package history normalization, endpoint config normalization, model artifact ref selection, deploy artifact evidence construction, deploy package record construction, and checksum payload construction.
+- Gateway deploy package route orchestration now delegates pure deploy helper behavior to the extracted module while preserving model-evidence lookup, validation-context enforcement, model registry updates, lifecycle updates, execution metadata updates, repository saves, and JSON responses.
+- Added direct Julia helper assertions for endpoint path normalization, service-code generation, model ref selection, deploy artifact evidence, package record construction, checksum payload exclusion, and deploy package record history normalization.
+- Verification passed locally: focused Julia deploy helper smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is another focused gateway module split; thin route dispatch extraction, worker-backed jobs, connector-specific output-contract imports, and project-backed frontend migration remain open.
+- Deploy helpers are modularized, but local deploy packaging still produces deterministic route evidence rather than a worker-backed deploy/scoring runtime job.
+
+### Next Items To Implement
+
+- Continue gateway modularization around thin route dispatch or remaining experiment/evaluation route helpers.
+- Move deterministic deploy, drift, prediction export, tuning, and final-evaluation evidence behind worker orchestration.
+- Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Monitoring Module Split Slice (2026-06-22)
 
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectMonitoring.jl` as a focused gateway-internal module for drift prerequisite prediction-export selection, drift metric normalization, threshold validation, monitoring-baseline creation/reuse, deterministic drift metric values, drift status classification, drift-report record construction, and drift artifact refs.

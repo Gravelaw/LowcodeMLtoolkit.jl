@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Deploy Module Split Slice - 2026-06-23
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectDeploy.jl` as a focused gateway-internal module for local deploy service-code generation, deploy package history normalization, endpoint config normalization, model artifact ref selection, deploy artifact evidence construction, deploy package record construction, and checksum payload construction.
+- Gateway deploy package route orchestration now delegates pure deploy helper behavior to the module while preserving model-evidence lookup, validation-context enforcement, model registry updates, lifecycle updates, execution metadata updates, repository saves, and response contracts.
+- Added direct Julia helper assertions for endpoint path normalization, service-code generation, model ref selection, deploy artifact evidence, package record construction, checksum payload exclusion, and deploy package record history normalization.
+- Verified with a focused Julia deploy helper smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed deploy/scoring jobs, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around thin route dispatch or remaining experiment/evaluation route helpers.
+- Keep moving deterministic deploy and scoring evidence toward worker-backed orchestration.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Monitoring Module Split Slice - 2026-06-22
 
 ### Work Done Till Date

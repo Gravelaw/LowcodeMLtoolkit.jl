@@ -317,6 +317,76 @@ end
     @test output_refs[1]["path"] == "local://drift/monitoring-helper/drift-helper/report.json"
 end
 
+@testset "Data science project deploy helpers" begin
+    deploy = JuliaFlowApiGateway.JuliaFlowDataScienceProjectDeploy
+    endpoint = deploy.deploy_endpoint_config(Dict{String,Any}("host" => "127.0.0.1", "port" => 9000, "endpointPath" => "predict"))
+    @test endpoint["endpointPath"] == "/predict"
+    @test endpoint["endpointUrl"] == "http://127.0.0.1:9000/predict"
+
+    model_record = Dict{String,Any}(
+        "modelId" => "model-helper",
+        "checkpointTag" => "chk-helper",
+        "registryId" => "registry-helper",
+        "artifactEvidence" => [
+            Dict{String,Any}("kind" => "model", "artifactRef" => "local://models/model-helper.jls", "checksumSha256" => repeat("a", 64)),
+            Dict{String,Any}("kind" => "metrics", "artifactRef" => "local://models/model-helper-metrics.json", "checksumSha256" => repeat("b", 64)),
+        ],
+    )
+    @test deploy.deploy_model_ref(model_record) == "local://models/model-helper.jls"
+    service_code = deploy.local_deploy_service_code("model-helper", endpoint["endpointUrl"], "local://models/model-helper.jls")
+    @test occursin("model-helper", service_code)
+    @test occursin(endpoint["endpointUrl"], service_code)
+
+    artifact_evidence = deploy.deploy_artifact_evidence(
+        "wf-helper",
+        model_record,
+        "deploy-helper",
+        service_code,
+        repeat("c", 64),
+        repeat("d", 64),
+    )
+    @test length(artifact_evidence) == 5
+    @test artifact_evidence[1]["artifactRef"] == "local://workflows/wf-helper.toml"
+    @test artifact_evidence[2]["artifactRef"] == "local://deploy/packages/deploy-helper/service.jl"
+    @test artifact_evidence[end]["kind"] == "metrics"
+
+    package_record = deploy.deploy_package_record(
+        "wf-helper",
+        Dict{String,Any}("version" => "1.0.0"),
+        model_record,
+        Dict{String,Any}("projectId" => "project-helper", "splitPlanId" => "split-helper"),
+        "deploy-helper",
+        endpoint,
+        service_code,
+        artifact_evidence,
+        "2026-06-23T00:00:00Z",
+    )
+    @test package_record["workflowId"] == "wf-helper"
+    @test package_record["deploymentStatus"] == "local_ready"
+    @test package_record["localOnly"] == true
+    checksum_payload = deploy.deploy_package_checksum_payload(package_record)
+    @test !haskey(checksum_payload, "packageChecksumSha256")
+    @test checksum_payload["packageId"] == "deploy-helper"
+
+    execution = GatewayExecution(
+        execution_id = "exec-helper",
+        workflow_id = "wf-helper",
+        workflow_version = "1.0.0",
+        checkpoint_tag = "chk-helper",
+        status = "completed",
+        mode = "batch",
+        plan = String[],
+        stages = Vector{String}[],
+        node_count = 0,
+        connection_count = 0,
+        created_at = "2026-06-23T00:00:00Z",
+        metadata = Dict{String,Any}("deploy_package_records" => [package_record]),
+    )
+    records = deploy.deploy_package_records(execution)
+    @test length(records) == 1
+    @test records[1]["packageId"] == "deploy-helper"
+end
+
 @testset "Data science project statistical helpers" begin
     stats = JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics
     methods = stats.statistical_analysis_methods(

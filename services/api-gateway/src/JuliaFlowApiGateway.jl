@@ -9,6 +9,7 @@ include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectLocalSources.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectCatalog.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectPredictionExport.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectMonitoring.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectDeploy.jl"))
 include(joinpath(@__DIR__, "..", "..", "worker-service", "src", "JuliaFlowWorkerService.jl"))
 
 using .JuliaFlowGatewayRepository
@@ -19,6 +20,7 @@ using .JuliaFlowDataScienceProjectLocalSources
 using .JuliaFlowDataScienceProjectCatalog
 using .JuliaFlowDataScienceProjectPredictionExport
 using .JuliaFlowDataScienceProjectMonitoring
+using .JuliaFlowDataScienceProjectDeploy
 using .JuliaFlowWorkerService
 using Base64
 using Dates
@@ -3261,27 +3263,11 @@ function model_registry_list_response(state::GatewayState, workflow_id::Abstract
 end
 
 function local_deploy_service_code(model_id::AbstractString, endpoint_url::AbstractString, model_ref::AbstractString)
-    return """using Genie, JSON3
-
-const MODEL_PATH = "$(String(model_ref))"
-
-route("/v1/predict", method = POST) do
-    payload = JSON3.read(rawpayload())
-    return JSON3.write(Dict(
-        "modelId" => "$(String(model_id))",
-        "endpoint" => "$(String(endpoint_url))",
-        "localOnly" => true,
-        "payload" => payload,
-    ))
-end
-
-up(host = "127.0.0.1", port = 8000)
-"""
+    return JuliaFlowDataScienceProjectDeploy.local_deploy_service_code(model_id, endpoint_url, model_ref)
 end
 
 function deploy_package_records(execution::GatewayExecution)
-    raw_records = get(execution.metadata, "deploy_package_records", Any[])
-    return [Dict{String,Any}(String(key) => value for (key, value) in pairs(record)) for record in raw_records]
+    return JuliaFlowDataScienceProjectDeploy.deploy_package_records(execution)
 end
 
 function deploy_package_payload!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
@@ -3296,67 +3282,39 @@ function deploy_package_payload!(state::GatewayState, workflow_id::AbstractStrin
         model_record = model_registry_payload(state, execution; request_body = Dict{String,Any}("modelId" => String(body["modelId"])))
     end
 
-    host = haskey(body, "host") ? String(body["host"]) : "127.0.0.1"
-    port = haskey(body, "port") ? Int(body["port"]) : 8000
-    endpoint_path = haskey(body, "endpointPath") ? String(body["endpointPath"]) : "/v1/predict"
-    startswith(endpoint_path, "/") || (endpoint_path = "/" * endpoint_path)
-    endpoint_url = "http://$(host):$(port)$(endpoint_path)"
+    endpoint_config = JuliaFlowDataScienceProjectDeploy.deploy_endpoint_config(body)
+    endpoint_url = String(endpoint_config["endpointUrl"])
     package_id = "deploy-" * replace(string(uuid4()), "-" => "")
-    model_artifact = findfirst(item -> String(item["kind"]) == "model", model_record["artifactEvidence"])
-    model_ref = model_artifact === nothing ? "local://models/$(String(model_record["modelId"])).json" : String(model_record["artifactEvidence"][model_artifact]["artifactRef"])
+    model_ref = JuliaFlowDataScienceProjectDeploy.deploy_model_ref(model_record)
     service_code = local_deploy_service_code(String(model_record["modelId"]), endpoint_url, model_ref)
     workflow_payload = JuliaFlowGatewayRepository.workflow_detail_payload(state.workflows[String(workflow_id)])
     config_payload = Dict{String,Any}(
-        "endpointPath" => endpoint_path,
-        "host" => host,
-        "port" => port,
+        "endpointPath" => String(endpoint_config["endpointPath"]),
+        "host" => String(endpoint_config["host"]),
+        "port" => Int(endpoint_config["port"]),
         "checkpointTag" => model_record["checkpointTag"],
         "notes" => haskey(body, "notes") ? String(body["notes"]) : "",
     )
-    artifact_evidence = [
-        Dict{String,Any}(
-            "kind" => "workflow",
-            "artifactRef" => "local://workflows/$(String(workflow_id)).toml",
-            "checksumSha256" => artifact_checksum(workflow_payload),
-        ),
-        Dict{String,Any}(
-            "kind" => "service",
-            "artifactRef" => "local://deploy/packages/$(package_id)/service.jl",
-            "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(service_code)))),
-        ),
-        Dict{String,Any}(
-            "kind" => "config",
-            "artifactRef" => "local://deploy/packages/$(package_id)/juliaflow-deploy.json",
-            "checksumSha256" => artifact_checksum(config_payload),
-        ),
-    ]
-    append!(artifact_evidence, [Dict{String,Any}(String(key) => value for (key, value) in pairs(item)) for item in model_record["artifactEvidence"]])
-
-    package_record = Dict{String,Any}(
-        "packageId" => package_id,
-        "workflowId" => String(workflow_id),
-        "workflowVersion" => String(workflow_payload["version"]),
-        "modelId" => String(model_record["modelId"]),
-        "checkpointTag" => String(model_record["checkpointTag"]),
-        "endpointUrl" => endpoint_url,
-        "endpointPath" => endpoint_path,
-        "host" => host,
-        "port" => port,
-        "serviceRef" => "local://deploy/packages/$(package_id)/service.jl",
-        "packageRef" => "local://deploy/packages/$(package_id).json",
-        "packageChecksumSha256" => "",
-        "serviceCode" => service_code,
-        "runCommand" => "julia --project=. local-deploy/$(package_id)/service.jl",
-        "modelRegistryId" => get(model_record, "registryId", nothing),
-        "deploymentStatus" => "local_ready",
-        "artifactEvidence" => artifact_evidence,
-        "validationEvidence" => validation_context,
-        "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
-        "localOnly" => true,
+    artifact_evidence = JuliaFlowDataScienceProjectDeploy.deploy_artifact_evidence(
+        workflow_id,
+        model_record,
+        package_id,
+        service_code,
+        artifact_checksum(workflow_payload),
+        artifact_checksum(config_payload),
     )
-    checksum_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(package_record))
-    delete!(checksum_payload, "packageChecksumSha256")
-    package_record["packageChecksumSha256"] = artifact_checksum(checksum_payload)
+    package_record = JuliaFlowDataScienceProjectDeploy.deploy_package_record(
+        workflow_id,
+        workflow_payload,
+        model_record,
+        validation_context,
+        package_id,
+        endpoint_config,
+        service_code,
+        artifact_evidence,
+        JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
+    )
+    package_record["packageChecksumSha256"] = artifact_checksum(JuliaFlowDataScienceProjectDeploy.deploy_package_checksum_payload(package_record))
 
     model_record["deploymentStatus"] = "local_ready"
     model_record["updatedAt"] = package_record["createdAt"]
