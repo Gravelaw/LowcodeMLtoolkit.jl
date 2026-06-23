@@ -770,6 +770,32 @@ end
     @test second_record["status"] == "approved"
     @test length(helper_project.model_registry_records) == 1
     @test helper_project.model_registry_records[1]["status"] == "approved"
+    other_project = DataScienceProjectRecord(
+        project_id = "project-registry-other",
+        name = "Registry Other Project",
+    )
+    other_project.model_registry_records = [
+        Dict{String,Any}("modelId" => "model-other", "workflowId" => "workflow-other", "updatedAt" => "2026-06-22T00:01:30Z"),
+    ]
+    helper_project.model_registry_records = [
+        Dict{String,Any}("modelId" => "model-helper", "workflowId" => "workflow-helper", "status" => "approved"),
+        Dict{String,Any}("modelId" => "model-sibling", "workflowId" => "workflow-helper", "status" => "registered"),
+        Dict{String,Any}("modelId" => "model-other-workflow", "workflowId" => "workflow-other", "status" => "registered"),
+    ]
+    workflow_records = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.project_model_registry_records_for_workflow(
+        Dict(helper_project.project_id => helper_project, other_project.project_id => other_project),
+        "workflow-helper",
+    )
+    @test [record["modelId"] for record in workflow_records] == ["model-helper", "model-sibling"]
+    deduped_records = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.dedupe_model_registry_records([
+        Dict{String,Any}("modelId" => "model-helper", "status" => "project"),
+        Dict{String,Any}("modelId" => "model-helper", "status" => "execution"),
+        Dict{String,Any}("status" => "missing-model"),
+        Dict{Symbol,Any}(:modelId => "model-sibling", :status => "execution"),
+    ])
+    @test length(deduped_records) == 2
+    @test deduped_records[1]["status"] == "project"
+    @test deduped_records[2]["modelId"] == "model-sibling"
 
     lifecycle_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.upsert_model_lifecycle_record!(
         helper_project,

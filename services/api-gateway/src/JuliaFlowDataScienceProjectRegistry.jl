@@ -3,6 +3,8 @@ module JuliaFlowDataScienceProjectRegistry
 using ..JuliaFlowGatewayRepository
 
 export project_for_validation_context,
+    project_model_registry_records_for_workflow,
+    dedupe_model_registry_records,
     upsert_model_registry_record!,
     upsert_model_lifecycle_record!,
     model_lifecycle_action_state
@@ -20,6 +22,35 @@ function project_for_validation_context(
     isempty(strip(project_id)) && return nothing
     haskey(projects, project_id) || error("$(String(action)) project not found: $(project_id)")
     return projects[project_id]
+end
+
+function project_model_registry_records_for_workflow(projects::AbstractDict, workflow_id::AbstractString)
+    records = Dict{String,Any}[]
+    for project in values(projects)
+        append!(
+            records,
+            [
+                normalized_dict(record)
+                for record in project.model_registry_records
+                if String(get(record, "workflowId", "")) == String(workflow_id)
+            ],
+        )
+    end
+    return records
+end
+
+function dedupe_model_registry_records(records::AbstractVector)
+    seen = Set{String}()
+    deduped = Dict{String,Any}[]
+    for record in records
+        normalized = normalized_dict(record)
+        model_id = String(get(normalized, "modelId", ""))
+        isempty(strip(model_id)) && continue
+        model_id in seen && continue
+        push!(seen, model_id)
+        push!(deduped, normalized)
+    end
+    return deduped
 end
 
 function upsert_model_registry_record!(

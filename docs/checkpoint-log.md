@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Registry List Module Split Slice - 2026-06-23
+
+### Work Done Till Date
+
+- Extended `JuliaFlowDataScienceProjectRegistry.jl` with workflow-scoped project registry record collection and model-id de-duplication helpers.
+- Gateway model registry list response now delegates project-backed registry filtering and combined project/execution de-duplication to the registry module while preserving workflow validation, execution fallback, and response contracts.
+- Added direct Julia helper assertions for workflow-specific registry filtering, project-first duplicate preservation, malformed missing-model skipping, and symbol-key normalization.
+- Verified with a focused Julia registry list helper smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed model lifecycle jobs, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around dedicated registry persistence, thin route dispatch, or worker-backed project jobs.
+- Keep moving deterministic registry, deploy, scoring, drift, rollback, and retraining evidence toward worker-backed orchestration and dedicated persistence.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Registry Payload Module Split Slice - 2026-06-23
 
 ### Work Done Till Date

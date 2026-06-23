@@ -3156,17 +3156,10 @@ end
 
 function model_registry_list_response(state::GatewayState, workflow_id::AbstractString)
     haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
-    project_records = Dict{String,Any}[]
-    for project in values(state.data_science_projects)
-        append!(
-            project_records,
-            [
-                Dict{String,Any}(String(key) => value for (key, value) in pairs(record))
-                for record in project.model_registry_records
-                if String(get(record, "workflowId", "")) == String(workflow_id)
-            ],
-        )
-    end
+    project_records = JuliaFlowDataScienceProjectRegistry.project_model_registry_records_for_workflow(
+        state.data_science_projects,
+        workflow_id,
+    )
     execution_records = [
         haskey(execution.metadata, "model_registry_record") ?
             execution.metadata["model_registry_record"] :
@@ -3177,14 +3170,7 @@ function model_registry_list_response(state::GatewayState, workflow_id::Abstract
             (haskey(execution.metadata, "model_registry_record") || haskey(execution.metadata, "ml_validation_context"))
     ]
     records = [project_records..., execution_records...]
-    seen = Set{String}()
-    deduped = Dict{String,Any}[]
-    for record in records
-        key = String(record["modelId"])
-        key in seen && continue
-        push!(seen, key)
-        push!(deduped, record)
-    end
+    deduped = JuliaFlowDataScienceProjectRegistry.dedupe_model_registry_records(records)
     return JSON3.write(Dict("items" => deduped, "count" => length(deduped)))
 end
 

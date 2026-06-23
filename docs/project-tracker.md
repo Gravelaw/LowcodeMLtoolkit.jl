@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-23`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Registry List Module Split Slice (2026-06-23)
+
+- Extended `services/api-gateway/src/JuliaFlowDataScienceProjectRegistry.jl` with workflow-scoped project registry record collection and model-id de-duplication helpers.
+- Gateway model registry list response now delegates project-backed registry filtering and combined project/execution de-duplication to the registry module while preserving workflow validation, execution-metadata fallback, payload assembly, and response shape.
+- Added direct Julia helper assertions for workflow-specific registry filtering, preserving project-backed records ahead of execution fallback duplicates, skipping malformed records without `modelId`, and normalizing symbol-keyed records.
+- Verification passed locally: focused Julia registry list helper smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is another focused gateway module split; thin route dispatch extraction, worker-backed jobs, connector-specific output-contract imports, and project-backed frontend migration remain open.
+- Registry list behavior is modularized, but registry persistence still depends on the project aggregate plus execution-metadata fallback rather than a dedicated registry repository.
+
+### Next Items To Implement
+
+- Continue toward dedicated registry repository extraction or thin route dispatch extraction.
+- Move deterministic registry/deploy/drift/scoring evidence behind worker-backed execution and dedicated persistence boundaries.
+- Add project-backed frontend surfaces for validation, transforms, training, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Registry Payload Module Split Slice (2026-06-23)
 
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectRegistryPayloads.jl` as a focused gateway-internal module for model registry metric preference, tag/default selection, registry payload construction, and local artifact checksum evidence.
