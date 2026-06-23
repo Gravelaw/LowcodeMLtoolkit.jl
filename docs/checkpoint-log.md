@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Experiment Module Split Slice - 2026-06-23
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectExperiments.jl` as a focused gateway-internal module for ML experiment project lookup, dataset membership checks, split-plan selection, validation/test split enforcement, and final-test leakage rejection.
+- Gateway ML experiment run orchestration now delegates project/split validation behavior to the module while preserving workflow execution acceptance, execution metadata mutation, repository persistence, and response contracts.
+- Added direct Julia helper assertions for explicit project lookup, inferred project lookup, missing/ambiguous project rejection, split-plan lookup, missing split rejection, validation-context construction, final-test rejection, and missing validation split rejection.
+- Verified with a focused Julia experiment helper smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed experiment training jobs, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around model registry payload helpers or thin route dispatch.
+- Keep moving deterministic experiment, transform, tuning, final-evaluation, scoring, drift, and deploy evidence toward worker-backed orchestration.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Transform Module Split Slice - 2026-06-23
 
 ### Work Done Till Date

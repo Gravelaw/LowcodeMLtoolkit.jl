@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-23`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Experiment Module Split Slice (2026-06-23)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectExperiments.jl` as a focused gateway-internal module for ML experiment project lookup, dataset membership checks, split-plan selection, validation/test split enforcement, and final-test leakage rejection.
+- Gateway ML experiment run orchestration now delegates project/split validation behavior to the extracted module while preserving workflow execution acceptance, execution metadata mutation, repository persistence, and response assembly.
+- Added direct Julia helper assertions for explicit project lookup, inferred project lookup, missing/ambiguous project rejection, split-plan lookup, missing split rejection, validation-context construction, final-test rejection, and missing validation split rejection.
+- Verification passed locally: focused Julia experiment helper smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is another focused gateway module split; thin route dispatch extraction, worker-backed jobs, connector-specific output-contract imports, and project-backed frontend migration remain open.
+- ML experiment validation helpers are modularized, but experiment training still uses existing gateway execution acceptance rather than worker-backed training/tuning execution over real split artifacts.
+
+### Next Items To Implement
+
+- Continue gateway modularization around model registry payload helpers or thin route dispatch.
+- Move deterministic experiment, transform, tuning, final-evaluation, drift, deploy, and prediction-export evidence behind worker orchestration.
+- Add project-backed frontend surfaces for validation, transforms, training, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Transform Module Split Slice (2026-06-23)
 
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectTransforms.jl` as a focused gateway-internal module for transform fit/apply split validation, transform ref defaults/validation, fit/apply artifact ref construction, and transform-run record construction.

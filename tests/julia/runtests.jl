@@ -563,6 +563,62 @@ end
     @test record["artifactRefs"][3]["kind"] == "transform_apply_output"
 end
 
+@testset "Data science project experiment helpers" begin
+    experiments = JuliaFlowApiGateway.JuliaFlowDataScienceProjectExperiments
+    project = DataScienceProjectRecord(project_id = "experiment-helper", name = "Experiment Helper")
+    project.datasets = [Dict{String,Any}("datasetId" => "dataset-helper")]
+    project.split_plans = [
+        Dict{String,Any}(
+            "splitPlanId" => "split-helper",
+            "datasetId" => "dataset-helper",
+            "strategy" => "stratified",
+            "validationFraction" => 0.2,
+            "testFraction" => 0.2,
+        ),
+    ]
+    projects = Dict{String,DataScienceProjectRecord}(project.project_id => project)
+    @test experiments.project_has_dataset(project, "dataset-helper")
+    @test !experiments.project_has_dataset(project, "missing-dataset")
+    @test experiments.ml_project_for_dataset(projects, Dict{String,Any}("projectId" => "experiment-helper"), "dataset-helper") === project
+    @test experiments.ml_project_for_dataset(projects, Dict{String,Any}(), "dataset-helper") === project
+    @test experiments.ml_project_for_dataset(projects, Dict{String,Any}(), "missing-dataset") === nothing
+    @test_throws ErrorException experiments.ml_project_for_dataset(projects, Dict{String,Any}("projectId" => "missing-project"), "dataset-helper")
+
+    second_project = DataScienceProjectRecord(project_id = "experiment-helper-2", name = "Experiment Helper 2")
+    second_project.datasets = [Dict{String,Any}("datasetId" => "dataset-helper")]
+    ambiguous_projects = Dict{String,DataScienceProjectRecord}(
+        project.project_id => project,
+        second_project.project_id => second_project,
+    )
+    @test_throws ErrorException experiments.ml_project_for_dataset(ambiguous_projects, Dict{String,Any}(), "dataset-helper")
+
+    split_plan = experiments.ml_split_plan_for_request(project, Dict{String,Any}("splitPlanId" => "split-helper"), "dataset-helper")
+    @test split_plan["splitPlanId"] == "split-helper"
+    @test_throws ErrorException experiments.ml_split_plan_for_request(project, Dict{String,Any}("splitPlanId" => "missing-split"), "dataset-helper")
+
+    validation_context = experiments.validate_ml_experiment_project_context(
+        projects,
+        Dict{String,Any}("projectId" => "experiment-helper", "splitPlanId" => "split-helper", "finalTestPolicy" => "forbid_final_test"),
+        "dataset-helper",
+    )
+    @test validation_context["projectId"] == "experiment-helper"
+    @test validation_context["splitPlanId"] == "split-helper"
+    @test validation_context["validationFraction"] == 0.2
+    @test_throws ErrorException experiments.validate_ml_experiment_project_context(
+        projects,
+        Dict{String,Any}("projectId" => "experiment-helper", "splitPlanId" => "split-helper", "finalTestPolicy" => "use_final_test"),
+        "dataset-helper",
+    )
+    project_missing_validation = DataScienceProjectRecord(project_id = "experiment-helper-missing-validation", name = "Missing Validation")
+    project_missing_validation.datasets = [Dict{String,Any}("datasetId" => "dataset-helper")]
+    project_missing_validation.split_plans = [Dict{String,Any}("splitPlanId" => "split-missing-validation", "datasetId" => "dataset-helper", "validationFraction" => 0.0, "testFraction" => 0.2)]
+    @test_throws ErrorException experiments.validate_ml_experiment_project_context(
+        Dict{String,DataScienceProjectRecord}(project_missing_validation.project_id => project_missing_validation),
+        Dict{String,Any}("projectId" => project_missing_validation.project_id),
+        "dataset-helper",
+    )
+end
+
 @testset "Data science project statistical helpers" begin
     stats = JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics
     methods = stats.statistical_analysis_methods(
