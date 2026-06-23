@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Registry Payload Module Split Slice - 2026-06-23
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectRegistryPayloads.jl` as a focused gateway-internal module for model registry metric preference, tag/default selection, payload construction, and local artifact checksum evidence.
+- Gateway model registry payload assembly now delegates pure record construction to the module while preserving workflow lookup, explainability evidence selection, validation context, metadata mutation, project registry/lifecycle upserts, persistence, and response contracts.
+- Added direct Julia helper assertions for metric preference, tag/default behavior, owner/status overrides, preserved registration timestamp, updated timestamp, deployment status preservation, artifact refs, dataset checksum evidence, and validation evidence propagation.
+- Verified with a focused Julia registry payload helper smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed model lifecycle jobs, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around thin route dispatch, registry repository extraction, or worker-backed project jobs.
+- Keep moving deterministic registry, deploy, scoring, drift, rollback, and retraining evidence toward worker-backed orchestration and dedicated persistence.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Experiment Module Split Slice - 2026-06-23
 
 ### Work Done Till Date

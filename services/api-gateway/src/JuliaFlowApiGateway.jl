@@ -3,6 +3,7 @@ module JuliaFlowApiGateway
 include(joinpath(@__DIR__, "JuliaFlowGatewayRepository.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectCore.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectRegistry.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectRegistryPayloads.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectJobs.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectStatistics.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectLocalSources.jl"))
@@ -18,6 +19,7 @@ include(joinpath(@__DIR__, "..", "..", "worker-service", "src", "JuliaFlowWorker
 
 using .JuliaFlowGatewayRepository
 using .JuliaFlowDataScienceProjectRegistry
+using .JuliaFlowDataScienceProjectRegistryPayloads
 using .JuliaFlowDataScienceProjectJobs
 using .JuliaFlowDataScienceProjectStatistics
 using .JuliaFlowDataScienceProjectLocalSources
@@ -3095,17 +3097,7 @@ function ml_experiment_history_response(state::GatewayState, workflow_id::Abstra
 end
 
 function model_registry_metric(model_card::AbstractDict)
-    metrics = model_card["metrics"]
-    preferred = ["mae", "accuracy", "auc", "r2", "loss"]
-    for name in preferred
-        if haskey(metrics, name)
-            return name, Float64(metrics[name])
-        end
-    end
-    for (key, value) in pairs(metrics)
-        return String(key), Float64(value)
-    end
-    return "metric", 0.0
+    return JuliaFlowDataScienceProjectRegistryPayloads.model_registry_metric(model_card)
 end
 
 function model_registry_payload(state::GatewayState, execution::GatewayExecution; request_body::AbstractDict = Dict{String,Any}())
@@ -3116,59 +3108,21 @@ function model_registry_payload(state::GatewayState, execution::GatewayExecution
         gateway_explainability_evidence(state; checkpoint_tag = execution.checkpoint_tag)
     model_card = evidence["modelCard"]
     dataset_card = evidence["datasetCard"]
-    metric_name, metric_value = model_registry_metric(model_card)
-    model_id = haskey(request_body, "modelId") ? String(request_body["modelId"]) : String(model_card["modelId"])
     now = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     existing = haskey(execution.metadata, "model_registry_record") ? execution.metadata["model_registry_record"] : Dict{String,Any}()
-    tags = if haskey(request_body, "tags")
-        [String(tag) for tag in request_body["tags"]]
-    elseif haskey(existing, "tags")
-        [String(tag) for tag in existing["tags"]]
-    else
-        ["local", "checkpointed"]
-    end
-    registered_at = haskey(existing, "registeredAt") ? String(existing["registeredAt"]) : now
     validation_context = model_validation_context(execution, "model registration")
 
-    return Dict{String,Any}(
-        "registryId" => "model-" * model_id,
-        "modelId" => model_id,
-        "workflowId" => execution.workflow_id,
-        "workflowVersion" => workflow.version,
-        "checkpointTag" => execution.checkpoint_tag,
-        "experimentId" => "ml-" * execution.execution_id,
-        "executionId" => execution.execution_id,
-        "modelKind" => String(model_card["kind"]),
-        "target" => String(model_card["target"]),
-        "status" => haskey(request_body, "status") ? String(request_body["status"]) : String(get(existing, "status", "registered")),
-        "tags" => tags,
-        "owner" => haskey(request_body, "owner") ? String(request_body["owner"]) : String(get(existing, "owner", "local-user")),
-        "primaryMetricName" => metric_name,
-        "primaryMetricValue" => metric_value,
-        "datasetId" => String(dataset_card["datasetId"]),
-        "datasetChecksumSha256" => String(dataset_card["checksumSha256"]),
-        "artifactEvidence" => [
-            Dict{String,Any}(
-                "kind" => "model",
-                "artifactRef" => "local://models/$(model_id).json",
-                "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(model_card))))),
-            ),
-            Dict{String,Any}(
-                "kind" => "dataset",
-                "artifactRef" => "local://data/curated/$(String(dataset_card["datasetId"])).arrow",
-                "checksumSha256" => String(dataset_card["checksumSha256"]),
-            ),
-            Dict{String,Any}(
-                "kind" => "config",
-                "artifactRef" => "local://models/$(model_id)-config.json",
-                "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(canonical_json(model_card["config"]))))),
-            ),
-        ],
-        "validationEvidence" => validation_context,
-        "registeredAt" => registered_at,
-        "updatedAt" => now,
-        "deploymentStatus" => String(get(existing, "deploymentStatus", "not_deployed")),
-        "localOnly" => true,
+    return JuliaFlowDataScienceProjectRegistryPayloads.model_registry_record(
+        execution.workflow_id,
+        workflow.version,
+        execution.execution_id,
+        execution.checkpoint_tag,
+        model_card,
+        dataset_card,
+        validation_context,
+        request_body,
+        existing,
+        now,
     )
 end
 

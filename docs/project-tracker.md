@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-23`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Registry Payload Module Split Slice (2026-06-23)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectRegistryPayloads.jl` as a focused gateway-internal module for model registry metric preference, tag/default selection, registry payload construction, and local artifact checksum evidence.
+- Gateway model registry payload assembly now delegates pure record construction to the extracted module while preserving workflow lookup, explainability evidence selection, validation-context lookup, execution metadata mutation, project registry/lifecycle upserts, repository persistence, and response assembly.
+- Added direct Julia helper assertions for primary metric preference, default/existing/request tags, owner/status overrides, preserved `registeredAt`, updated timestamp, deployment status preservation, artifact refs, dataset checksum evidence, and validation evidence propagation.
+- Verification passed locally: focused Julia registry payload helper smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is another focused gateway module split; thin route dispatch extraction, worker-backed jobs, connector-specific output-contract imports, and project-backed frontend migration remain open.
+- Model registry payload construction is modularized, but registry persistence still depends on the current project aggregate plus execution-metadata fallback rather than a dedicated registry repository.
+
+### Next Items To Implement
+
+- Continue gateway modularization around thin route dispatch, registry repository extraction, or worker-backed project jobs.
+- Move deterministic registry/deploy/drift/scoring evidence behind worker-backed execution and dedicated persistence boundaries.
+- Add project-backed frontend surfaces for validation, transforms, training, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Experiment Module Split Slice (2026-06-23)
 
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectExperiments.jl` as a focused gateway-internal module for ML experiment project lookup, dataset membership checks, split-plan selection, validation/test split enforcement, and final-test leakage rejection.

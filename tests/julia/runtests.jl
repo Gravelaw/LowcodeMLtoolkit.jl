@@ -253,6 +253,56 @@ end
     @test occursin("\"score\":0.85", jsonl_content)
 end
 
+@testset "Data science project registry payload helpers" begin
+    payloads = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistryPayloads
+    model_card = Dict{String,Any}(
+        "modelId" => "wellbore-linear",
+        "kind" => "regression",
+        "target" => "formation",
+        "metrics" => Dict{String,Any}("loss" => 0.22, "mae" => 0.11, "accuracy" => 0.91),
+        "config" => Dict{String,Any}("algorithm" => "linear", "seed" => 42),
+    )
+    dataset_card = Dict{String,Any}("datasetId" => "wellbore-train", "checksumSha256" => "abc123")
+    validation_context = Dict{String,Any}("projectId" => "wellbore", "splitPlanId" => "split-depth")
+
+    metric_name, metric_value = payloads.model_registry_metric(model_card)
+    @test metric_name == "mae"
+    @test metric_value == 0.11
+    @test payloads.model_registry_tags(Dict{String,Any}(), Dict{String,Any}()) == ["local", "checkpointed"]
+    @test payloads.model_registry_tags(Dict{String,Any}(), Dict{String,Any}("tags" => ["validated"])) == ["validated"]
+    @test payloads.model_registry_tags(Dict{String,Any}("tags" => ["champion"]), Dict{String,Any}("tags" => ["old"])) == ["champion"]
+
+    record = payloads.model_registry_record(
+        "wf-wellbore",
+        "1.2.0",
+        "exec-1",
+        "cp-1",
+        model_card,
+        dataset_card,
+        validation_context,
+        Dict{String,Any}("modelId" => "wellbore-champion", "owner" => "principal-ds", "status" => "approved"),
+        Dict{String,Any}("registeredAt" => "2026-06-22T00:00:00Z", "deploymentStatus" => "deployed", "tags" => ["old"]),
+        "2026-06-23T00:00:00Z",
+    )
+    @test record["modelId"] == "wellbore-champion"
+    @test record["workflowId"] == "wf-wellbore"
+    @test record["workflowVersion"] == "1.2.0"
+    @test record["experimentId"] == "ml-exec-1"
+    @test record["owner"] == "principal-ds"
+    @test record["status"] == "approved"
+    @test record["tags"] == ["old"]
+    @test record["primaryMetricName"] == "mae"
+    @test record["primaryMetricValue"] == 0.11
+    @test record["registeredAt"] == "2026-06-22T00:00:00Z"
+    @test record["updatedAt"] == "2026-06-23T00:00:00Z"
+    @test record["deploymentStatus"] == "deployed"
+    @test record["localOnly"] == true
+    @test length(record["artifactEvidence"]) == 3
+    @test record["artifactEvidence"][1]["artifactRef"] == "local://models/wellbore-champion.json"
+    @test record["artifactEvidence"][2]["checksumSha256"] == "abc123"
+    @test record["validationEvidence"]["splitPlanId"] == "split-depth"
+end
+
 @testset "Data science project monitoring helpers" begin
     monitoring = JuliaFlowApiGateway.JuliaFlowDataScienceProjectMonitoring
     project = DataScienceProjectRecord(project_id = "monitoring-helper", name = "Monitoring Helper")
