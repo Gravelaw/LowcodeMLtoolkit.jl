@@ -450,6 +450,81 @@ end
     @test output_refs[1]["kind"] == "tuning_trial"
 end
 
+@testset "Data science project evaluation helpers" begin
+    evaluation = JuliaFlowApiGateway.JuliaFlowDataScienceProjectEvaluation
+    project = DataScienceProjectRecord(project_id = "evaluation-helper", name = "Evaluation Helper")
+    training_plan = Dict{String,Any}(
+        "trainingPlanId" => "training-helper",
+        "splitPlanId" => "split-helper",
+        "metricNames" => ["RMSE", "Mean Absolute"],
+    )
+    tuning_study = Dict{String,Any}(
+        "tuningStudyId" => "tuning-helper",
+        "trainingPlanId" => "training-helper",
+        "validationOnly" => true,
+        "validationEvidence" => Dict{String,Any}(
+            "splitPlanId" => "split-helper",
+            "finalTestPolicy" => "forbid_final_test",
+        ),
+    )
+    project.training_plans = [training_plan]
+    project.tuning_studies = [tuning_study]
+    split_plan = Dict{String,Any}(
+        "splitPlanId" => "split-helper",
+        "datasetId" => "dataset-helper",
+        "locked" => true,
+        "testFraction" => 0.2,
+    )
+
+    @test evaluation.project_training_plan_for_request(project, Dict{String,Any}("trainingPlanId" => "training-helper")) === training_plan
+    @test_throws ErrorException evaluation.project_training_plan_for_request(project, Dict{String,Any}("trainingPlanId" => "missing-training"))
+    @test evaluation.project_tuning_study_for_final_evaluation(project, Dict{String,Any}("tuningStudyId" => "tuning-helper"), "training-helper") === tuning_study
+    @test_throws ErrorException evaluation.project_tuning_study_for_final_evaluation(project, Dict{String,Any}("tuningStudyId" => "missing-tuning"), "training-helper")
+    @test evaluation.final_evaluation_metric_names(Dict{String,Any}(), training_plan) == ["rmse", "mean-absolute"]
+    @test evaluation.final_evaluation_metric_names(Dict{String,Any}("metricNames" => ["F1 Score"]), training_plan) == ["f1-score"]
+    @test_throws ErrorException evaluation.final_evaluation_metric_names(Dict{String,Any}("metricNames" => []), training_plan)
+    @test evaluation.final_evaluation_approval_threshold(Dict{String,Any}()) == 0.8
+    @test_throws ErrorException evaluation.final_evaluation_approval_threshold(Dict{String,Any}("approvalThreshold" => 1.2))
+
+    validation_context = evaluation.final_evaluation_validation_context(
+        project,
+        Dict{String,Any}("finalTestPolicy" => "use_final_test"),
+        "dataset-helper",
+        split_plan,
+        training_plan,
+        tuning_study,
+    )
+    @test validation_context["validationOnlyTuning"] == true
+    @test validation_context["testFraction"] == 0.2
+    @test_throws ErrorException evaluation.final_evaluation_validation_context(
+        project,
+        Dict{String,Any}("finalTestPolicy" => "forbid_final_test"),
+        "dataset-helper",
+        split_plan,
+        training_plan,
+        tuning_study,
+    )
+
+    metrics = evaluation.final_evaluation_metrics(["rmse", "mae"])
+    @test metrics["rmse"] == 0.92
+    @test metrics["mae"] == 0.9
+    report = evaluation.final_evaluation_report_record(
+        "eval-helper",
+        project.project_id,
+        training_plan,
+        "split-helper",
+        metrics,
+        true,
+        validation_context,
+        "2026-06-23T00:00:00Z",
+    )
+    @test report["evaluationReportId"] == "eval-helper"
+    @test report["approved"] == true
+    @test report["finalTestOnly"] == true
+    @test report["artifactRefs"][1]["path"] == "local://evaluation/evaluation-helper/eval-helper/report.json"
+    @test evaluation.final_evaluation_output_refs(report)[1]["kind"] == "final_evaluation_report"
+end
+
 @testset "Data science project statistical helpers" begin
     stats = JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics
     methods = stats.statistical_analysis_methods(
