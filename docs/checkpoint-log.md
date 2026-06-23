@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Tuning Module Split Slice - 2026-06-23
+
+### Work Done Till Date
+
+- Added `JuliaFlowDataScienceProjectTuning.jl` as a focused gateway-internal module for split-plan selection, validation-only tuning split policy, metric-name normalization, trial-count validation, training-plan record construction/upsert, deterministic tuning trial construction, tuning-study record construction, and tuning output refs.
+- Gateway tuning-study route orchestration now delegates pure tuning helper behavior to the module while preserving project lookup, dataset validation, target/algorithm route validation, persistence, job/resource/execution evidence, and response contracts.
+- Added direct Julia helper assertions for split-plan lookup, final-test rejection, metric normalization, max-trial bounds, training-plan upsert, trial metrics/artifacts, tuning-study best-trial evidence, and output refs.
+- Verified with a focused Julia tuning helper smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Final-evaluation helper extraction, thin route dispatch extraction, worker-backed tuning jobs, connector-specific output-contract imports, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around final evaluation or thin route dispatch.
+- Keep moving deterministic tuning and final-evaluation evidence toward worker-backed orchestration.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Deploy Module Split Slice - 2026-06-23
 
 ### Work Done Till Date

@@ -10,6 +10,7 @@ include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectCatalog.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectPredictionExport.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectMonitoring.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectDeploy.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectTuning.jl"))
 include(joinpath(@__DIR__, "..", "..", "worker-service", "src", "JuliaFlowWorkerService.jl"))
 
 using .JuliaFlowGatewayRepository
@@ -21,6 +22,7 @@ using .JuliaFlowDataScienceProjectCatalog
 using .JuliaFlowDataScienceProjectPredictionExport
 using .JuliaFlowDataScienceProjectMonitoring
 using .JuliaFlowDataScienceProjectDeploy
+using .JuliaFlowDataScienceProjectTuning
 using .JuliaFlowWorkerService
 using Base64
 using Dates
@@ -4881,51 +4883,19 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
 end
 
 function project_split_plan_for_request(project::DataScienceProjectRecord, body::AbstractDict, dataset_id::AbstractString, action::AbstractString)
-    plans = [plan for plan in project.split_plans if String(get(plan, "datasetId", "")) == String(dataset_id)]
-    isempty(plans) && error("$(String(action)) split plan required for dataset: $(dataset_id)")
-    if haskey(body, "splitPlanId")
-        split_plan_id = String(body["splitPlanId"])
-        match = findfirst(plan -> String(get(plan, "splitPlanId", "")) == split_plan_id, plans)
-        match === nothing && error("$(String(action)) split plan not found: $(split_plan_id)")
-        return plans[match]
-    end
-    length(plans) == 1 || error("$(String(action)) splitPlanId required when multiple split plans exist")
-    return plans[1]
+    return JuliaFlowDataScienceProjectTuning.project_split_plan_for_request(project, body, dataset_id, action)
 end
 
 function validate_tuning_split_context(project::DataScienceProjectRecord, body::AbstractDict, dataset_id::AbstractString)
-    split_plan = project_split_plan_for_request(project, body, dataset_id, "tuning study")
-    validation_fraction = Float64(get(split_plan, "validationFraction", 0.0))
-    test_fraction = Float64(get(split_plan, "testFraction", 0.0))
-    validation_fraction > 0 || error("tuning study validation split required")
-    test_fraction > 0 || error("tuning study test split required")
-    final_test_policy = String(get(body, "finalTestPolicy", "forbid_final_test"))
-    final_test_policy in ("forbid_final_test", "use_final_test") || error("tuning study finalTestPolicy invalid")
-    final_test_policy == "use_final_test" && error("tuning study final test data cannot be used for hyperparameter tuning")
-    return split_plan, Dict{String,Any}(
-        "projectId" => project.project_id,
-        "datasetId" => String(dataset_id),
-        "splitPlanId" => String(get(split_plan, "splitPlanId", "")),
-        "splitStrategy" => String(get(split_plan, "strategy", "")),
-        "finalTestPolicy" => final_test_policy,
-        "validationFraction" => validation_fraction,
-        "testFraction" => test_fraction,
-    )
+    return JuliaFlowDataScienceProjectTuning.validate_tuning_split_context(project, body, dataset_id)
 end
 
 function tuning_metric_names(body::AbstractDict)
-    raw_metrics = haskey(body, "metricNames") ? body["metricNames"] : ["rmse", "mae"]
-    raw_metrics isa AbstractVector || error("tuning study metricNames must be an array")
-    metrics = [safe_local_dataset_id(String(metric)) for metric in raw_metrics]
-    metrics = [metric for metric in metrics if !isempty(metric)]
-    isempty(metrics) && error("tuning study metric required")
-    return metrics
+    return JuliaFlowDataScienceProjectTuning.tuning_metric_names(body)
 end
 
 function tuning_max_trials(body::AbstractDict)
-    value = haskey(body, "maxTrials") ? Int(body["maxTrials"]) : 3
-    1 <= value <= 100 || error("tuning study maxTrials must be between 1 and 100")
-    return value
+    return JuliaFlowDataScienceProjectTuning.tuning_max_trials(body)
 end
 
 function run_tuning_study_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
@@ -4941,56 +4911,20 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
     max_trials = tuning_max_trials(body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     training_plan_id = haskey(body, "trainingPlanId") ? String(body["trainingPlanId"]) : "training-" * replace(string(uuid4()), "-" => "")
-    training_plan = Dict{String,Any}(
-        "trainingPlanId" => training_plan_id,
-        "targetColumn" => target_column,
-        "taskType" => task_type,
-        "metricNames" => metric_names,
-        "splitPlanId" => String(get(split_plan, "splitPlanId", "")),
-        "seed" => Int(get(split_plan, "seed", 42)),
-        "createdAt" => timestamp,
+    training_plan = JuliaFlowDataScienceProjectTuning.tuning_training_plan_record(
+        training_plan_id,
+        target_column,
+        task_type,
+        metric_names,
+        split_plan,
+        timestamp,
     )
-    existing_training = findfirst(plan -> String(get(plan, "trainingPlanId", "")) == training_plan_id, project.training_plans)
-    existing_training === nothing ? pushfirst!(project.training_plans, training_plan) : (project.training_plans[existing_training] = training_plan)
+    JuliaFlowDataScienceProjectTuning.upsert_training_plan!(project, training_plan)
     study_id = "tuning-" * replace(string(uuid4()), "-" => "")
-    trials = Dict{String,Any}[]
-    for index in 1:max_trials
-        metrics = Dict{String,Any}()
-        for (metric_index, metric) in enumerate(metric_names)
-            metrics[String(metric)] = round(1.0 / (index + metric_index); digits = 4)
-        end
-        push!(
-            trials,
-            Dict{String,Any}(
-                "trialId" => "$(study_id)-trial-$(index)",
-                "parameters" => Dict("algorithm" => algorithm, "maxDepth" => 2 + index, "learningRate" => round(0.03 * index; digits = 3)),
-                "metrics" => metrics,
-                "artifactRefs" => [
-                    Dict(
-                        "refId" => "artifact-$(study_id)-trial-$(index)",
-                        "kind" => "tuning_trial",
-                        "localOnly" => true,
-                        "path" => "local://tuning/$(project.project_id)/$(study_id)/trial-$(index).json",
-                        "generatedAt" => timestamp,
-                    ),
-                ],
-            ),
-        )
-    end
-    tuning_study = Dict{String,Any}(
-        "tuningStudyId" => study_id,
-        "trainingPlanId" => training_plan_id,
-        "validationOnly" => true,
-        "trials" => trials,
-        "bestTrialId" => trials[1]["trialId"],
-        "validationEvidence" => validation_context,
-        "createdAt" => timestamp,
-    )
+    trials = JuliaFlowDataScienceProjectTuning.tuning_trials(project.project_id, study_id, algorithm, metric_names, max_trials, timestamp)
+    tuning_study = JuliaFlowDataScienceProjectTuning.tuning_study_record(study_id, training_plan_id, trials, validation_context, timestamp)
     project.tuning_studies = [tuning_study, project.tuning_studies...]
-    tuning_output_refs = Dict{String,Any}[]
-    for trial in trials
-        append!(tuning_output_refs, get(trial, "artifactRefs", Dict{String,Any}[]))
-    end
+    tuning_output_refs = JuliaFlowDataScienceProjectTuning.tuning_output_refs(trials)
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "validation_only_tuning")
     execution_evidence = data_science_project_execution_evidence!(
         state,

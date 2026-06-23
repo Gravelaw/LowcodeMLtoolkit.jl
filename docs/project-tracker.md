@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-23`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Tuning Module Split Slice (2026-06-23)
+
+- Added `services/api-gateway/src/JuliaFlowDataScienceProjectTuning.jl` as a focused gateway-internal module for split-plan selection, validation-only tuning split policy, metric-name normalization, trial-count validation, training-plan record construction/upsert, deterministic tuning trial construction, tuning-study record construction, and tuning output refs.
+- Gateway tuning-study route orchestration now delegates pure tuning helper behavior to the extracted module while preserving project lookup, dataset validation, target/algorithm route validation, project persistence, job/resource/execution evidence, and response assembly.
+- Added direct Julia helper assertions for split-plan lookup, final-test rejection, metric normalization, max-trial bounds, training-plan upsert, trial metrics/artifacts, tuning-study best-trial evidence, and output refs.
+- Verification passed locally: focused Julia tuning helper smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is another focused gateway module split; final-evaluation helper extraction, thin route dispatch extraction, worker-backed jobs, connector-specific output-contract imports, and project-backed frontend migration remain open.
+- Tuning helpers are modularized, but validation-only tuning still uses deterministic substrate evidence rather than worker-backed trial execution.
+
+### Next Items To Implement
+
+- Continue gateway modularization around final-evaluation helpers or thin route dispatch.
+- Move deterministic tuning, final-evaluation, deploy, drift, and prediction-export evidence behind worker orchestration.
+- Add project-backed frontend surfaces for validation, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Deploy Module Split Slice (2026-06-23)
 
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectDeploy.jl` as a focused gateway-internal module for local deploy service-code generation, deploy package history normalization, endpoint config normalization, model artifact ref selection, deploy artifact evidence construction, deploy package record construction, and checksum payload construction.

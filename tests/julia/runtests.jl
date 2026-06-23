@@ -387,6 +387,69 @@ end
     @test records[1]["packageId"] == "deploy-helper"
 end
 
+@testset "Data science project tuning helpers" begin
+    tuning = JuliaFlowApiGateway.JuliaFlowDataScienceProjectTuning
+    project = DataScienceProjectRecord(project_id = "tuning-helper", name = "Tuning Helper")
+    project.split_plans = [
+        Dict{String,Any}(
+            "splitPlanId" => "split-helper",
+            "datasetId" => "dataset-helper",
+            "strategy" => "stratified",
+            "validationFraction" => 0.2,
+            "testFraction" => 0.2,
+            "seed" => 99,
+        ),
+    ]
+    split_plan = tuning.project_split_plan_for_request(project, Dict{String,Any}(), "dataset-helper", "tuning study")
+    @test split_plan["splitPlanId"] == "split-helper"
+    split_plan, validation_context = tuning.validate_tuning_split_context(
+        project,
+        Dict{String,Any}("finalTestPolicy" => "forbid_final_test"),
+        "dataset-helper",
+    )
+    @test validation_context["projectId"] == "tuning-helper"
+    @test validation_context["splitPlanId"] == "split-helper"
+    @test validation_context["validationFraction"] == 0.2
+    @test_throws ErrorException tuning.validate_tuning_split_context(
+        project,
+        Dict{String,Any}("finalTestPolicy" => "use_final_test"),
+        "dataset-helper",
+    )
+    @test tuning.tuning_metric_names(Dict{String,Any}()) == ["rmse", "mae"]
+    @test tuning.tuning_metric_names(Dict{String,Any}("metricNames" => ["Root Mean Square", "MAE"])) == ["root-mean-square", "mae"]
+    @test_throws ErrorException tuning.tuning_metric_names(Dict{String,Any}("metricNames" => []))
+    @test tuning.tuning_max_trials(Dict{String,Any}()) == 3
+    @test_throws ErrorException tuning.tuning_max_trials(Dict{String,Any}("maxTrials" => 0))
+
+    training_plan = tuning.tuning_training_plan_record(
+        "training-helper",
+        "target",
+        "regression",
+        ["rmse", "mae"],
+        split_plan,
+        "2026-06-23T00:00:00Z",
+    )
+    @test training_plan["seed"] == 99
+    tuning.upsert_training_plan!(project, training_plan)
+    @test length(project.training_plans) == 1
+    training_plan_updated = merge(training_plan, Dict{String,Any}("taskType" => "classification"))
+    tuning.upsert_training_plan!(project, training_plan_updated)
+    @test length(project.training_plans) == 1
+    @test project.training_plans[1]["taskType"] == "classification"
+
+    trials = tuning.tuning_trials("tuning-helper", "study-helper", "MLJ.EvoTreesRegressor", ["rmse", "mae"], 2, "2026-06-23T00:00:00Z")
+    @test length(trials) == 2
+    @test trials[1]["trialId"] == "study-helper-trial-1"
+    @test trials[1]["metrics"]["rmse"] == 0.5
+    @test trials[2]["artifactRefs"][1]["path"] == "local://tuning/tuning-helper/study-helper/trial-2.json"
+    study = tuning.tuning_study_record("study-helper", "training-helper", trials, validation_context, "2026-06-23T00:00:00Z")
+    @test study["validationOnly"] == true
+    @test study["bestTrialId"] == "study-helper-trial-1"
+    output_refs = tuning.tuning_output_refs(trials)
+    @test length(output_refs) == 2
+    @test output_refs[1]["kind"] == "tuning_trial"
+end
+
 @testset "Data science project statistical helpers" begin
     stats = JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics
     methods = stats.statistical_analysis_methods(
