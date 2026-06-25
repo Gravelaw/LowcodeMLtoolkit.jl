@@ -2935,64 +2935,13 @@ end
 function model_lifecycle_action_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
     project = state.data_science_projects[project_id]
-    model_id = haskey(body, "modelId") ? strip(String(body["modelId"])) : ""
-    !isempty(model_id) || error("model lifecycle modelId required")
-    action = haskey(body, "action") ? strip(String(body["action"])) : ""
-    lifecycle_state = JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state(action)
-
-    index = findfirst(record -> String(get(record, "modelId", "")) == model_id, project.model_lifecycle_records)
-    index === nothing && error("model lifecycle record not found: $(model_id)")
-    existing = Dict{String,Any}(String(key) => value for (key, value) in pairs(project.model_lifecycle_records[index]))
-    previous_state = String(get(existing, "state", ""))
-    deployed_endpoint_id = String(get(existing, "deployedEndpointId", ""))
-    if action == "mark_rollback_ready"
-        previous_state == "deployed" || error("model lifecycle action requires deployed model state")
-        !isempty(strip(deployed_endpoint_id)) || error("model lifecycle deployedEndpointId required")
-    elseif action == "request_retraining"
-        previous_state in ("deployed", "rollback_ready", "rolled_back") || error("model lifecycle retraining requires deployed, rollback_ready, or rolled_back model state")
-        !isempty(strip(deployed_endpoint_id)) || error("model lifecycle deployedEndpointId required")
-    elseif action == "mark_rolled_back"
-        previous_state == "rollback_ready" || error("model lifecycle rollback requires rollback_ready state")
-    end
-
-    rollback_model_id = haskey(body, "rollbackModelId") ? strip(String(body["rollbackModelId"])) : String(get(existing, "rollbackModelId", ""))
-    if action in ("mark_rollback_ready", "mark_rolled_back")
-        !isempty(rollback_model_id) || error("model lifecycle rollbackModelId required")
-        rollback_model_id != model_id || error("model lifecycle rollbackModelId must differ from modelId")
-    end
-
-    drift_report_id = haskey(body, "driftReportId") ? strip(String(body["driftReportId"])) : ""
-    if !isempty(drift_report_id)
-        drift_index = findfirst(report -> String(get(report, "driftReportId", "")) == drift_report_id, project.drift_reports)
-        drift_index === nothing && error("model lifecycle driftReportId not found: $(drift_report_id)")
-    end
-
-    reason = haskey(body, "reason") ? strip(String(body["reason"])) : ""
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
-    record = Dict{String,Any}(
-        "modelId" => model_id,
-        "state" => lifecycle_state,
-        "updatedAt" => timestamp,
-        "lifecycleAction" => action,
-        "validationEvidence" => Dict{String,Any}(
-            "projectId" => project.project_id,
-            "modelId" => model_id,
-            "previousState" => previous_state,
-            "lifecycleAction" => action,
-        ),
+    record, index = JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        project,
+        body,
+        timestamp,
     )
-    haskey(existing, "evaluationReportId") && (record["evaluationReportId"] = String(existing["evaluationReportId"]))
-    isempty(strip(deployed_endpoint_id)) || (record["deployedEndpointId"] = deployed_endpoint_id)
-    isempty(rollback_model_id) || (record["rollbackModelId"] = rollback_model_id)
-    isempty(drift_report_id) || (record["validationEvidence"]["driftReportId"] = drift_report_id)
-    isempty(rollback_model_id) || (record["validationEvidence"]["rollbackModelId"] = rollback_model_id)
-    isempty(deployed_endpoint_id) || (record["validationEvidence"]["deployedEndpointId"] = deployed_endpoint_id)
-    isempty(reason) || (record["validationEvidence"]["reason"] = reason)
-    if action in ("mark_rollback_ready", "mark_rolled_back") && !isempty(reason)
-        record["rollbackReason"] = reason
-    elseif action == "request_retraining" && !isempty(reason)
-        record["retrainingReason"] = reason
-    end
+    model_id = String(record["modelId"])
 
     remaining = [item for (item_index, item) in enumerate(project.model_lifecycle_records) if item_index != index]
     project.model_lifecycle_records = [record, remaining...]

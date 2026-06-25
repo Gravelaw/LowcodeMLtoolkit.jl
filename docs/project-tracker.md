@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-23`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Registry Lifecycle Action Module Split Slice (2026-06-25)
+
+- Extended `services/api-gateway/src/JuliaFlowDataScienceProjectRegistry.jl` with pure model lifecycle action validation and lifecycle record construction for rollback-ready, rolled-back, and retraining-requested actions.
+- Gateway model lifecycle action routing now delegates action-state validation, rollback model validation, drift report lookup, reason mapping, and validation-evidence shaping to the registry module while preserving execution/job evidence creation and project persistence in the gateway.
+- Added direct Julia helper assertions for rollback-ready record construction, previous-state evidence, drift report propagation, rollback reason mapping, rollback target mismatch rejection, and missing drift report rejection.
+- Verification passed locally: focused Julia registry lifecycle action helper smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load. The previous PR head was green in GitHub before this new local slice; this slice still needs the normal post-push CI run.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. This is another focused gateway module split; thin route dispatch extraction, worker-backed jobs, connector-specific output-contract imports, and project-backed frontend migration remain open.
+- Lifecycle action rules are modularized, but rollback/retraining still record deterministic lifecycle evidence instead of launching worker-backed rollback or retraining jobs.
+
+### Next Items To Implement
+
+- Continue toward worker-backed lifecycle/retraining jobs, dedicated registry repository extraction, or thin route dispatch extraction.
+- Move deterministic registry/deploy/drift/scoring evidence behind worker-backed execution and dedicated persistence boundaries.
+- Add project-backed frontend surfaces for validation, transforms, training, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Registry List Module Split Slice (2026-06-23)
 
 - Extended `services/api-gateway/src/JuliaFlowDataScienceProjectRegistry.jl` with workflow-scoped project registry record collection and model-id de-duplication helpers.

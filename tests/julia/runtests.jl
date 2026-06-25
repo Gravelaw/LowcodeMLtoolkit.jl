@@ -829,6 +829,56 @@ end
     @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("mark_rolled_back") == "rolled_back"
     @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("request_retraining") == "retraining_requested"
     @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("delete_model")
+
+    action_project = DataScienceProjectRecord(
+        project_id = "project-lifecycle-action-helper",
+        name = "Lifecycle Action Helper",
+    )
+    action_project.model_lifecycle_records = [
+        Dict{String,Any}(
+            "modelId" => "model-action",
+            "state" => "deployed",
+            "deployedEndpointId" => "deploy-action",
+            "evaluationReportId" => "eval-action",
+        ),
+    ]
+    action_project.drift_reports = [Dict{String,Any}("driftReportId" => "drift-action")]
+    rollback_ready_record, rollback_ready_index = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        action_project,
+        Dict{String,Any}(
+            "modelId" => "model-action",
+            "action" => "mark_rollback_ready",
+            "rollbackModelId" => "model-action-v0",
+            "driftReportId" => "drift-action",
+            "reason" => "validation drift",
+        ),
+        "2026-06-25T00:00:00Z",
+    )
+    @test rollback_ready_index == 1
+    @test rollback_ready_record["state"] == "rollback_ready"
+    @test rollback_ready_record["rollbackModelId"] == "model-action-v0"
+    @test rollback_ready_record["rollbackReason"] == "validation drift"
+    @test rollback_ready_record["evaluationReportId"] == "eval-action"
+    @test rollback_ready_record["validationEvidence"]["driftReportId"] == "drift-action"
+    @test rollback_ready_record["validationEvidence"]["previousState"] == "deployed"
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        action_project,
+        Dict{String,Any}(
+            "modelId" => "model-action",
+            "action" => "mark_rollback_ready",
+            "rollbackModelId" => "model-action",
+        ),
+        "2026-06-25T00:00:00Z",
+    )
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        action_project,
+        Dict{String,Any}(
+            "modelId" => "model-action",
+            "action" => "request_retraining",
+            "driftReportId" => "missing-drift",
+        ),
+        "2026-06-25T00:00:00Z",
+    )
 end
 
 @testset "Data science project job helpers" begin

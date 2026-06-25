@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Registry Lifecycle Action Module Split Slice - 2026-06-25
+
+### Work Done Till Date
+
+- Extended `JuliaFlowDataScienceProjectRegistry.jl` with pure model lifecycle action validation and lifecycle record construction for rollback-ready, rolled-back, and retraining-requested actions.
+- Gateway model lifecycle action routing now delegates action-state validation, rollback target checks, drift report lookup, reason mapping, and validation-evidence shaping to the registry module while preserving execution/job evidence creation and persistence.
+- Added direct Julia helper assertions for rollback-ready record construction, previous-state evidence, drift report propagation, rollback reason mapping, rollback target mismatch rejection, and missing drift report rejection.
+- Verified with a focused Julia registry lifecycle action helper smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages. The previous PR head was green in GitHub before this new local slice.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
+- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed model lifecycle jobs, dedicated registry repository extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue gateway module split around dedicated registry persistence, thin route dispatch, or worker-backed lifecycle/retraining jobs.
+- Keep moving deterministic registry, deploy, scoring, drift, rollback, and retraining evidence toward worker-backed orchestration and dedicated persistence.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Registry List Module Split Slice - 2026-06-23
 
 ### Work Done Till Date
