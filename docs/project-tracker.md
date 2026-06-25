@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-23`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Model Registry Repository Surface Slice (2026-06-25)
+
+- Added `load_model_registry_records` and `save_model_registry_record!` to `services/api-gateway/src/JuliaFlowGatewayRepository.jl` as a dedicated registry repository API backed by the existing `DataScienceProject.modelRegistryRecords` store.
+- Gateway model registry upsert and list routes now use the repository registry API instead of manually walking project registry records in route code.
+- Extended repository contract tests to cover model registry save, update, workflow filtering, and missing-project rejection through the shared repository contract.
+- Verification passed locally: focused Julia model registry repository smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -` and focused file repository contract execution for `run_gateway_repository_contract!`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. The registry now has a repository API surface, but its physical persistence remains project-backed rather than a separate registry table/file.
+- Worker-backed scoring, drift, rollback, and retraining jobs plus project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Extract physical registry storage beyond project-backed persistence or continue toward worker-backed lifecycle/retraining jobs.
+- Move deterministic registry/deploy/drift/scoring evidence behind worker-backed execution and dedicated persistence boundaries.
+- Add project-backed frontend surfaces for validation, transforms, training, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Registry Lifecycle Action Module Split Slice (2026-06-25)
 
 - Extended `services/api-gateway/src/JuliaFlowDataScienceProjectRegistry.jl` with pure model lifecycle action validation and lifecycle record construction for rollback-ready, rolled-back, and retraining-requested actions.

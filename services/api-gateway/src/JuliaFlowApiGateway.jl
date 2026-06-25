@@ -2902,8 +2902,9 @@ function upsert_project_model_registry!(state::GatewayState, model_record::Abstr
     project = project_for_model_lifecycle(state, validation_context, "model registry")
     project === nothing && return nothing
 
-    record = JuliaFlowDataScienceProjectRegistry.upsert_model_registry_record!(project, model_record)
-    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    record = JuliaFlowGatewayRepository.save_model_registry_record!(state.repository, model_record; producer = "api-gateway")
+    refreshed = Dict(item.project_id => item for item in JuliaFlowGatewayRepository.load_data_science_projects(state.repository))
+    haskey(refreshed, project.project_id) && (state.data_science_projects[project.project_id] = refreshed[project.project_id])
     return record
 end
 
@@ -3105,10 +3106,7 @@ end
 
 function model_registry_list_response(state::GatewayState, workflow_id::AbstractString)
     haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
-    project_records = JuliaFlowDataScienceProjectRegistry.project_model_registry_records_for_workflow(
-        state.data_science_projects,
-        workflow_id,
-    )
+    project_records = JuliaFlowGatewayRepository.load_model_registry_records(state.repository; workflow_id = workflow_id)
     execution_records = [
         haskey(execution.metadata, "model_registry_record") ?
             execution.metadata["model_registry_record"] :

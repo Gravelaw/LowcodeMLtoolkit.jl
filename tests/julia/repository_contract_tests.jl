@@ -202,6 +202,43 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
         @test persisted_projects[1].schema_contracts[1]["columns"][1]["role"] == "depth"
         @test persisted_projects[1].split_plans[1]["strategy"] == "depth"
 
+        registry_record = JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
+            repo,
+            Dict{String,Any}(
+                "modelId" => "wellbore-model-v1",
+                "workflowId" => "wf-foundation",
+                "status" => "registered",
+                "updatedAt" => "2026-06-21T00:10:00Z",
+                "validationEvidence" => Dict{String,Any}("projectId" => "wellbore-geology-project"),
+            ),
+        )
+        @test registry_record["modelId"] == "wellbore-model-v1"
+        registry_records = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-foundation")
+        @test length(registry_records) == 1
+        @test registry_records[1]["status"] == "registered"
+        JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
+            repo,
+            Dict{String,Any}(
+                "modelId" => "wellbore-model-v1",
+                "workflowId" => "wf-foundation",
+                "status" => "approved",
+                "updatedAt" => "2026-06-21T00:11:00Z",
+                "validationEvidence" => Dict{String,Any}("projectId" => "wellbore-geology-project"),
+            ),
+        )
+        updated_registry_records = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-foundation")
+        @test length(updated_registry_records) == 1
+        @test updated_registry_records[1]["status"] == "approved"
+        @test isempty(JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-missing"))
+        @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
+            repo,
+            Dict{String,Any}(
+                "modelId" => "missing-project-model",
+                "workflowId" => "wf-foundation",
+                "validationEvidence" => Dict{String,Any}("projectId" => "missing-project"),
+            ),
+        )
+
         invalid_toml = replace(foundation_toml, "wf-foundation" => "wf-invalid", count = 1)
         invalid_toml = replace(invalid_toml, "direction = \"input\"" => "direction = \"output\"", count = 1)
         @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_workflow!(repo, invalid_toml)

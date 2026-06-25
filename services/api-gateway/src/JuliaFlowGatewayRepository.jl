@@ -30,6 +30,7 @@ export GatewayCheckpoint,
     load_auth_policy,
     load_auth_directory,
     load_data_science_projects,
+    load_model_registry_records,
     load_hub_extensions,
     load_published_dashboards,
     save_workflow!,
@@ -38,6 +39,7 @@ export GatewayCheckpoint,
     save_auth_policy!,
     save_auth_directory!,
     save_data_science_project!,
+    save_model_registry_record!,
     save_hub_extension!,
     save_published_dashboard!,
     append_event!,
@@ -1899,6 +1901,58 @@ function save_data_science_project!(
         producer = producer,
     )
     return project
+end
+
+function model_registry_project_id(record::AbstractDict)
+    validation_evidence = get(record, "validationEvidence", Dict{String,Any}())
+    project_id = validation_evidence isa AbstractDict ? String(get(validation_evidence, "projectId", "")) : ""
+    isempty(strip(project_id)) && error("model registry validationEvidence.projectId required")
+    return project_id
+end
+
+function normalized_model_registry_record(record::AbstractDict)
+    normalized = Dict{String,Any}(String(key) => value for (key, value) in pairs(record))
+    model_id = String(get(normalized, "modelId", ""))
+    isempty(strip(model_id)) && error("model registry modelId required")
+    return normalized
+end
+
+function load_model_registry_records(
+    repo::AbstractGatewayRepository;
+    workflow_id::Union{Nothing,AbstractString} = nothing,
+)
+    records = Dict{String,Any}[]
+    for project in load_data_science_projects(repo)
+        for record in project.model_registry_records
+            normalized = Dict{String,Any}(String(key) => value for (key, value) in pairs(record))
+            isempty(strip(String(get(normalized, "modelId", "")))) && continue
+            if workflow_id === nothing || String(get(normalized, "workflowId", "")) == String(workflow_id)
+                push!(records, normalized)
+            end
+        end
+    end
+    return records
+end
+
+function save_model_registry_record!(
+    repo::AbstractGatewayRepository,
+    model_record::AbstractDict;
+    producer::AbstractString = "api-gateway",
+)
+    record = normalized_model_registry_record(model_record)
+    project_id = model_registry_project_id(record)
+    projects = load_data_science_projects(repo)
+    project_index = findfirst(project -> project.project_id == project_id, projects)
+    project_index === nothing && error("model registry project not found: $(project_id)")
+    project = projects[project_index]
+    existing_index = findfirst(item -> String(get(item, "modelId", "")) == String(record["modelId"]), project.model_registry_records)
+    remaining = existing_index === nothing ? project.model_registry_records : [
+        item for (item_index, item) in enumerate(project.model_registry_records) if item_index != existing_index
+    ]
+    project.model_registry_records = [record, remaining...]
+    project.updated_at = String(get(record, "updatedAt", JuliaFlowExecutionService.iso8601_timestamp()))
+    save_data_science_project!(repo, project; producer)
+    return record
 end
 
 function save_hub_extension!(repo::FileGatewayRepository, extension::HubExtensionRecord; producer::AbstractString = "api-gateway")

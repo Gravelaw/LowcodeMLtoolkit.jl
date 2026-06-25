@@ -20,6 +20,25 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Model Registry Repository Surface Slice - 2026-06-25
+
+### Work Done Till Date
+
+- Added `load_model_registry_records` and `save_model_registry_record!` to `JuliaFlowGatewayRepository.jl` as a dedicated registry repository API backed by the existing project registry records.
+- Gateway model registry upsert and list routes now use the repository registry API instead of manually walking project registry records in route code.
+- Extended repository contract tests to cover model registry save, update, workflow filtering, and missing-project rejection through the shared repository contract.
+- Verified with a focused Julia model registry repository smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -` and focused file repository contract execution for `run_gateway_repository_contract!`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. The registry now has a repository API surface, but its physical persistence remains project-backed rather than a separate registry table/file.
+- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed registry/lifecycle jobs, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Continue registry work by extracting physical registry storage beyond project-backed persistence, or move to worker-backed lifecycle/retraining jobs.
+- Keep moving deterministic registry, deploy, scoring, drift, rollback, and retraining evidence toward worker-backed orchestration and dedicated persistence.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Registry Lifecycle Action Module Split Slice - 2026-06-25
 
 ### Work Done Till Date
