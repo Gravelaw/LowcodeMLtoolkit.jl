@@ -5742,6 +5742,8 @@
           "workflows",
           "checkpoints",
           "executions",
+          "dataScienceProjects",
+          "modelRegistryRecords",
           "publishedDashboards",
           "hubExtensions",
           "authPolicy",
@@ -5834,6 +5836,18 @@
               "$ref": "#/components/schemas/GatewayExecutionRecord"
             }
           },
+          "dataScienceProjects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProject"
+            }
+          },
+          "modelRegistryRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayModelRegistryRecord"
+            }
+          },
           "publishedDashboards": {
             "type": "array",
             "items": {
@@ -5900,6 +5914,8 @@
           "workflows",
           "checkpoints",
           "executions",
+          "dataScienceProjects",
+          "modelRegistryRecords",
           "publishedDashboards",
           "hubExtensions",
           "authPolicy",
@@ -5919,6 +5935,18 @@
             }
           },
           "executions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dataScienceProjects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "modelRegistryRecords": {
             "type": "array",
             "items": {
               "type": "string"

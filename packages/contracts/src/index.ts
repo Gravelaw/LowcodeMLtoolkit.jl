@@ -1375,6 +1375,8 @@ export interface GatewayLocalBackupBundle {
   workflows: GatewayWorkflowMetadata[];
   checkpoints: GatewayCheckpointRecord[];
   executions: GatewayExecutionRecord[];
+  dataScienceProjects: DataScienceProject[];
+  modelRegistryRecords: GatewayModelRegistryRecord[];
   publishedDashboards: PublishedDashboardDefinition[];
   hubExtensions: GatewayHubExtensionRecord[];
   authPolicy: GatewayAuthPolicy;
@@ -1401,6 +1403,8 @@ export interface GatewayLocalBackupImportResponse {
     workflows: string[];
     checkpoints: string[];
     executions: string[];
+    dataScienceProjects: string[];
+    modelRegistryRecords: string[];
     publishedDashboards: string[];
     hubExtensions: string[];
     authPolicy: boolean;

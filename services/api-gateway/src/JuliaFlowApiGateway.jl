@@ -3258,6 +3258,11 @@ function local_backup_payload(
         "workflows" => workflows,
         "checkpoints" => [checkpoint_payload(checkpoint, state) for checkpoint in state.checkpoints],
         "executions" => include_executions ? [execution_payload(execution) for execution in state.executions] : Dict{String,Any}[],
+        "dataScienceProjects" => [
+            JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project_id])
+            for project_id in sort(collect(keys(state.data_science_projects)))
+        ],
+        "modelRegistryRecords" => JuliaFlowGatewayRepository.load_model_registry_records(state.repository),
         "publishedDashboards" => [
             JuliaFlowGatewayRepository.published_dashboard_payload(state.published_dashboards[dashboard_id])
             for dashboard_id in sort(collect(keys(state.published_dashboards)))
@@ -3387,6 +3392,32 @@ function restore_dashboards_from_backup!(state::GatewayState, backup::AbstractDi
     return restored
 end
 
+function restore_data_science_projects_from_backup!(state::GatewayState, backup::AbstractDict)
+    restored = String[]
+    for raw_project in get(backup, "dataScienceProjects", Any[])
+        project_payload = Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_project))
+        project = JuliaFlowGatewayRepository.gateway_data_science_project(project_payload)
+        state.data_science_projects[project.project_id] = project
+        JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "local-backup-restore")
+        push!(restored, project.project_id)
+    end
+    return restored
+end
+
+function restore_model_registry_records_from_backup!(state::GatewayState, backup::AbstractDict)
+    restored = String[]
+    for raw_record in get(backup, "modelRegistryRecords", Any[])
+        record = Dict{String,Any}(String(key) => value for (key, value) in pairs(raw_record))
+        saved = JuliaFlowGatewayRepository.save_model_registry_record!(
+            state.repository,
+            record;
+            producer = "local-backup-restore",
+        )
+        push!(restored, String(saved["modelId"]))
+    end
+    return restored
+end
+
 function restore_hub_extensions_from_backup!(state::GatewayState, backup::AbstractDict)
     restored = String[]
     for raw_extension in get(backup, "hubExtensions", Any[])
@@ -3429,6 +3460,8 @@ function local_backup_restore_response!(state::GatewayState, body::AbstractDict)
     restored_workflows = restore_workflows_from_backup!(state, backup)
     restored_checkpoints = restore_checkpoints_from_backup!(state, backup)
     restored_executions = restore_executions_from_backup!(state, backup)
+    restored_projects = restore_data_science_projects_from_backup!(state, backup)
+    restored_model_registry_records = restore_model_registry_records_from_backup!(state, backup)
     restored_dashboards = restore_dashboards_from_backup!(state, backup)
     restored_hub_extensions = restore_hub_extensions_from_backup!(state, backup)
     restore_auth_from_backup!(state, backup)
@@ -3442,6 +3475,8 @@ function local_backup_restore_response!(state::GatewayState, body::AbstractDict)
             "workflows" => restored_workflows,
             "checkpoints" => restored_checkpoints,
             "executions" => restored_executions,
+            "dataScienceProjects" => restored_projects,
+            "modelRegistryRecords" => restored_model_registry_records,
             "publishedDashboards" => restored_dashboards,
             "hubExtensions" => restored_hub_extensions,
             "authPolicy" => haskey(backup, "authPolicy"),

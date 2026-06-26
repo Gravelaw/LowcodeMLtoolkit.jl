@@ -29,11 +29,12 @@ Each checkpoint entry must contain:
 - Added registry-status synchronization for approved, deprecated, and archived actions, persisted through the registry repository path.
 - Added focused helper and route smoke evidence for lifecycle approval plus registry sync; route-level Julia tests now cover approval, blocked early archive, deprecation, archive, and registry status propagation.
 - Updated Models and Deploy to surface lifecycle/package gate reasons from backend evidence, including disabled local packaging when validation evidence is missing, the model is deprecated/archived, or final-test policy is unsafe.
+- Extended local backup/restore migration bundles to include `dataScienceProjects` plus physical `modelRegistryRecords`, and verified model registry restore persistence with `npm run smoke:local-migration`.
 
 ### Gaps Pending
 
 - AKS-36 parent remains open. Lifecycle state transitions and first Models/Deploy gate reasons are stronger, but worker-backed lifecycle/retraining/scoring/drift jobs and broader project-backed frontend migration remain open.
-- AKS-45 remains open until registry backup/restore/migration behavior and worker-backed lifecycle execution are reviewed against the full issue acceptance criteria.
+- AKS-45 remains open until worker-backed lifecycle execution is reviewed against the full issue acceptance criteria.
 
 ### Next Items To Implement
 

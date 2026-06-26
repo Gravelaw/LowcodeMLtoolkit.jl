@@ -44,6 +44,37 @@ dashboard_response = json_post(
 )
 require_condition(dashboard_response.status == 200, "dashboard publish failed: $(String(dashboard_response.body))")
 
+model_project = JuliaFlowApiGateway.JuliaFlowGatewayRepository.DataScienceProjectRecord(
+    project_id = "migration-model-project",
+    name = "Migration Model Project",
+    datasets = [
+        Dict{String,Any}(
+            "datasetId" => "migration-train",
+            "name" => "Migration Train",
+            "role" => "train",
+            "sourceUri" => "local://data/raw/migration-train.csv",
+            "localOnly" => true,
+        ),
+    ],
+)
+JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_data_science_project!(state.repository, model_project; producer = "migration-smoke")
+state.data_science_projects[model_project.project_id] = model_project
+JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
+    state.repository,
+    Dict{String,Any}(
+        "modelId" => "migration-model-v1",
+        "workflowId" => "wf-foundation",
+        "status" => "approved",
+        "updatedAt" => "2026-06-26T00:00:00Z",
+        "validationEvidence" => Dict{String,Any}(
+            "projectId" => model_project.project_id,
+            "splitPlanId" => "split-migration",
+            "finalTestPolicy" => "forbid_final_test",
+        ),
+    );
+    producer = "migration-smoke",
+)
+
 export_response = json_post(
     state,
     "/api/v1/local-backups",
@@ -57,6 +88,8 @@ require_condition(backup["schemaVersion"] == "juliaflow.backup.v1", "backup sche
 require_condition(backup["workflows"][1]["workflowId"] == "wf-foundation", "backup workflow missing")
 require_condition(any(item -> item["tag"] == "cp/migration-smoke", backup["checkpoints"]), "backup checkpoint missing")
 require_condition(any(item -> item["dashboardId"] == "dashboard-foundation", backup["publishedDashboards"]), "backup dashboard missing")
+require_condition(any(item -> item["projectId"] == "migration-model-project", backup["dataScienceProjects"]), "backup data science project missing")
+require_condition(any(item -> item["modelId"] == "migration-model-v1", backup["modelRegistryRecords"]), "backup model registry record missing")
 require_condition(length(backup["backupChecksumSha256"]) == 64, "backup checksum missing")
 require_condition(any(item -> item["relativePath"] == joinpath("processed", "migration-proof.parquet"), backup["dataEstate"]["artifacts"]), "backup artifact reference missing")
 
@@ -83,9 +116,14 @@ require_condition(any(item -> item["relativePath"] == joinpath("processed", "mig
 require_condition("wf-foundation" in import_payload["restored"]["workflows"], "workflow not restored")
 require_condition("cp/migration-smoke" in import_payload["restored"]["checkpoints"], "checkpoint not restored")
 require_condition("dashboard-foundation" in import_payload["restored"]["publishedDashboards"], "dashboard not restored")
+require_condition("migration-model-project" in import_payload["restored"]["dataScienceProjects"], "data science project not restored")
+require_condition("migration-model-v1" in import_payload["restored"]["modelRegistryRecords"], "model registry record not restored")
 require_condition(haskey(import_state.workflows, "wf-foundation"), "imported workflow not persisted")
 require_condition(any(item -> item.tag == "cp/migration-smoke", import_state.checkpoints), "imported checkpoint not persisted")
 require_condition(haskey(import_state.published_dashboards, "dashboard-foundation"), "imported dashboard not persisted")
+require_condition(haskey(import_state.data_science_projects, "migration-model-project"), "imported data science project not persisted")
+restored_model_registry = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(import_state.repository; workflow_id = "wf-foundation")
+require_condition(any(item -> item["modelId"] == "migration-model-v1" && item["status"] == "approved", restored_model_registry), "imported model registry record not persisted")
 
 tampered_backup = Dict{String,Any}(String(key) => value for (key, value) in pairs(backup))
 tampered_backup["notes"] = "tampered"
@@ -104,4 +142,5 @@ println(JSON3.write(Dict(
     "backupChecksumSha256" => backup["backupChecksumSha256"],
     "missingArtifactCount" => length(import_payload["missingArtifacts"]),
     "restoredWorkflowCount" => length(import_payload["restored"]["workflows"]),
+    "restoredModelRegistryCount" => length(import_payload["restored"]["modelRegistryRecords"]),
 )))

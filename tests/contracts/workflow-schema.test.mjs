@@ -489,6 +489,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.LocalBackupBundle.properties.workflows);
   assert.ok(schemas.LocalBackupBundle.properties.checkpoints);
   assert.ok(schemas.LocalBackupBundle.properties.executions);
+  assert.ok(schemas.LocalBackupBundle.properties.dataScienceProjects);
+  assert.ok(schemas.LocalBackupBundle.properties.modelRegistryRecords);
   assert.ok(schemas.LocalBackupBundle.properties.publishedDashboards);
   assert.ok(schemas.LocalBackupBundle.properties.hubExtensions);
   assert.ok(schemas.LocalBackupBundle.properties.authPolicy);
@@ -498,6 +500,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.LocalBackupExportRequest.properties.includeExecutions);
   assert.ok(schemas.LocalBackupExportResponse.properties.backup);
   assert.ok(schemas.LocalBackupImportRequest.properties.backup);
+  assert.ok(schemas.LocalBackupRestoredSummary.properties.dataScienceProjects);
+  assert.ok(schemas.LocalBackupRestoredSummary.properties.modelRegistryRecords);
   assert.ok(schemas.LocalBackupImportResponse.properties.missingArtifacts);
   assert.ok(schemas.LocalBackupImportResponse.properties.checkedArtifacts);
   assert.ok(schemas.LocalBackupImportResponse.properties.checksumMismatches);

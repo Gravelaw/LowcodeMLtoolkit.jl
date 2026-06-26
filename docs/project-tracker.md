@@ -28,10 +28,11 @@ Tracker always records 3 things:
 - Added registry-status synchronization so approved, deprecated, and archived lifecycle actions update the matching model registry record and persist through the registry repository path.
 - Added focused helper and route smoke evidence for lifecycle approval and registry sync; route-level Julia tests now cover approval, blocked early archive, deprecation, archive, and registry status propagation.
 - Updated Models and Deploy to surface lifecycle/package gate reasons from backend evidence, disabling local package creation when a model is missing validation evidence, deprecated, archived, or violates final-test policy.
+- Extended local backup/restore migration to carry `dataScienceProjects` and physical `modelRegistryRecords`, then verified restore persistence with `npm run smoke:local-migration`.
 
 ### Gaps Pending
 
-- AKS-45 remains open until backup/restore/migration behavior for first-class registry records and worker-backed lifecycle execution are verified against the Linear acceptance criteria.
+- AKS-45 remains open until worker-backed lifecycle execution is verified against the Linear acceptance criteria.
 - Worker-backed rollback/retraining, scoring, drift, tuning, evaluation, training, and transform jobs remain open for AKS-36.
 
 ### Next Items To Implement
