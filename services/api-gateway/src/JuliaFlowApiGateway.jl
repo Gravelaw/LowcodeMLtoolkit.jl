@@ -2946,6 +2946,16 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
 
     remaining = [item for (item_index, item) in enumerate(project.model_lifecycle_records) if item_index != index]
     project.model_lifecycle_records = [record, remaining...]
+    registry_record = nothing
+    if String(get(record, "state", "")) in ("approved", "deprecated", "archived")
+        registry_record = JuliaFlowDataScienceProjectRegistry.update_model_registry_lifecycle_status!(
+            project,
+            model_id,
+            String(record["state"]),
+            timestamp;
+            validation_evidence = record["validationEvidence"],
+        )
+    end
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "model_lifecycle_action")
     execution_evidence = data_science_project_execution_evidence!(
         state,
@@ -2969,6 +2979,11 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
     )
     project.updated_at = timestamp
     state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    if registry_record !== nothing
+        JuliaFlowGatewayRepository.save_model_registry_record!(state.repository, registry_record; producer = "api-gateway")
+        refreshed = Dict(item.project_id => item for item in JuliaFlowGatewayRepository.load_data_science_projects(state.repository))
+        haskey(refreshed, project.project_id) && (state.data_science_projects[project.project_id] = refreshed[project.project_id])
+    end
     payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
     return JSON3.write(Dict("status" => "completed", "lifecycleRecord" => record, "project" => payload))
 end

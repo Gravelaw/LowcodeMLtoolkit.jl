@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-26`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Model Lifecycle Approval/Archive Slice (2026-06-26)
+
+- Added explicit model lifecycle actions for `approve_model`, `deprecate_model`, and `archive_model`.
+- Added transition guards: approval requires validated/candidate evidence with an evaluation report, deprecation requires an approved/deployed/reviewed state, and archive requires prior deprecation.
+- Added registry-status synchronization so approved, deprecated, and archived lifecycle actions update the matching model registry record and persist through the registry repository path.
+- Added focused helper and route smoke evidence for lifecycle approval and registry sync; route-level Julia tests now cover approval, blocked early archive, deprecation, archive, and registry status propagation.
+
+### Gaps Pending
+
+- AKS-45 remains open until UI disabled-state reasons and backup/restore/migration review for first-class registry records are verified against the Linear acceptance criteria.
+- Worker-backed rollback/retraining, scoring, drift, tuning, evaluation, training, and transform jobs remain open for AKS-36.
+
+### Next Items To Implement
+
+- Continue worker-backed lifecycle/retraining or scoring/drift execution.
+- Add project-backed frontend surfaces that display lifecycle disabled reasons from backend evidence.
+- Re-run full repo gates and update Linear after CI verifies the pushed slice.
+
 ### AKS-36 DataScienceProject Physical Model Registry Storage Slice (2026-06-26)
 
 - Added file-backed physical model registry persistence at `model-registry.json` behind the existing registry repository API.

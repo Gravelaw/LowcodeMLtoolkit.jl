@@ -20,6 +20,26 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Model Lifecycle Approval/Archive Slice - 2026-06-26
+
+### Work Done Till Date
+
+- Added `approve_model`, `deprecate_model`, and `archive_model` lifecycle actions.
+- Added transition guards so approval requires validated/candidate evaluation evidence, deprecation requires an approved/deployed/reviewed model state, and archive requires prior deprecation.
+- Added registry-status synchronization for approved, deprecated, and archived actions, persisted through the registry repository path.
+- Added focused helper and route smoke evidence for lifecycle approval plus registry sync; route-level Julia tests now cover approval, blocked early archive, deprecation, archive, and registry status propagation.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Lifecycle state transitions are stronger, but worker-backed lifecycle/retraining/scoring/drift jobs and project-backed frontend disabled-state rendering remain open.
+- AKS-45 remains open until registry backup/restore/migration behavior and Models/Deploy UI disabled reasons are reviewed against the full issue acceptance criteria.
+
+### Next Items To Implement
+
+- Move lifecycle/retraining/scoring/drift evidence behind worker-backed orchestration.
+- Add frontend surfaces for backend lifecycle disabled reasons.
+- Keep release/local-appliance no-fixture evidence in the closure gate before any daily-workstation readiness claim.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Physical Model Registry Storage Slice - 2026-06-26
 
 ### Work Done Till Date

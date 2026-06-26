@@ -825,6 +825,24 @@ end
     @test rolled_back_record["deployedEndpointId"] == "deploy-helper"
     @test rolled_back_record["rollbackModelId"] == "model-helper-v0"
     @test length(helper_project.model_lifecycle_records) == 1
+    synced_registry_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.update_model_registry_lifecycle_status!(
+        helper_project,
+        "model-helper",
+        "approved",
+        "2026-06-22T00:05:00Z";
+        validation_evidence = Dict{String,Any}("lifecycleAction" => "approve_model"),
+    )
+    @test synced_registry_record["status"] == "approved"
+    @test synced_registry_record["validationEvidence"]["lifecycleAction"] == "approve_model"
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.update_model_registry_lifecycle_status!(
+        helper_project,
+        "missing-model",
+        "approved",
+        "2026-06-22T00:05:00Z",
+    )
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("approve_model") == "approved"
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("deprecate_model") == "deprecated"
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("archive_model") == "archived"
     @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("mark_rollback_ready") == "rollback_ready"
     @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("mark_rolled_back") == "rolled_back"
     @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("request_retraining") == "retraining_requested"
@@ -843,6 +861,64 @@ end
         ),
     ]
     action_project.drift_reports = [Dict{String,Any}("driftReportId" => "drift-action")]
+    approval_project = DataScienceProjectRecord(
+        project_id = "project-lifecycle-approval-helper",
+        name = "Lifecycle Approval Helper",
+    )
+    approval_project.model_lifecycle_records = [
+        Dict{String,Any}(
+            "modelId" => "model-approval",
+            "state" => "validated",
+            "evaluationReportId" => "eval-approval",
+        ),
+    ]
+    approval_record, approval_index = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        approval_project,
+        Dict{String,Any}(
+            "modelId" => "model-approval",
+            "action" => "approve_model",
+            "reason" => "approved by validation board",
+        ),
+        "2026-06-25T00:00:00Z",
+    )
+    @test approval_index == 1
+    @test approval_record["state"] == "approved"
+    @test approval_record["validationEvidence"]["previousState"] == "validated"
+    @test approval_record["evaluationReportId"] == "eval-approval"
+    approval_project.model_lifecycle_records[1] = approval_record
+    deprecated_record, deprecated_index = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        approval_project,
+        Dict{String,Any}(
+            "modelId" => "model-approval",
+            "action" => "deprecate_model",
+            "reason" => "superseded",
+        ),
+        "2026-06-25T00:01:00Z",
+    )
+    @test deprecated_index == 1
+    @test deprecated_record["state"] == "deprecated"
+    @test deprecated_record["deprecationReason"] == "superseded"
+    approval_project.model_lifecycle_records[1] = deprecated_record
+    archived_record, archived_index = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        approval_project,
+        Dict{String,Any}(
+            "modelId" => "model-approval",
+            "action" => "archive_model",
+            "reason" => "retention period elapsed",
+        ),
+        "2026-06-25T00:02:00Z",
+    )
+    @test archived_index == 1
+    @test archived_record["state"] == "archived"
+    @test archived_record["archiveReason"] == "retention period elapsed"
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        action_project,
+        Dict{String,Any}(
+            "modelId" => "model-action",
+            "action" => "archive_model",
+        ),
+        "2026-06-25T00:00:00Z",
+    )
     rollback_ready_record, rollback_ready_index = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
         action_project,
         Dict{String,Any}(
@@ -3376,6 +3452,21 @@ end
             state,
             HTTP.Request("GET", "/api/v1/data-science-projects/foundation-ml-project"),
         )
+        model_lifecycle_approval_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "approve_model",
+                        "reason" => "final evaluation evidence accepted",
+                    ),
+                ),
+            ),
+        )
         deploy_package_response = route_request(
             state,
             HTTP.Request(
@@ -3459,6 +3550,51 @@ end
                         "modelId" => "foundation-linear-baseline",
                         "action" => "request_retraining",
                         "reason" => "post-rollback retraining requested",
+                    ),
+                ),
+            ),
+        )
+        model_lifecycle_archive_too_early_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "archive_model",
+                        "reason" => "archive requires deprecation first",
+                    ),
+                ),
+            ),
+        )
+        model_lifecycle_deprecated_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "deprecate_model",
+                        "reason" => "superseded by retraining review",
+                    ),
+                ),
+            ),
+        )
+        model_lifecycle_archived_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "archive_model",
+                        "reason" => "local archive after deprecation",
                     ),
                 ),
             ),
@@ -5007,6 +5143,16 @@ end
         @test registered_lifecycle_record["state"] == "validated"
         @test haskey(registered_lifecycle_record, "updatedAt")
         @test !haskey(registered_lifecycle_record, "deployedEndpointId")
+        @test model_lifecycle_approval_response.status == 201
+        approval_payload = JSON3.read(String(model_lifecycle_approval_response.body), Dict{String,Any})
+        @test approval_payload["lifecycleRecord"]["state"] == "approved"
+        @test approval_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "validated"
+        approved_registry_record = first(filter(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            approval_payload["project"]["modelRegistryRecords"],
+        ))
+        @test approved_registry_record["status"] == "approved"
+        @test approved_registry_record["validationEvidence"]["lifecycleAction"] == "approve_model"
         @test deploy_package_response.status == 201
         deploy_package_payload = JSON3.read(String(deploy_package_response.body), Dict{String,Any})
         @test deploy_package_payload["status"] == "packaged"
@@ -5067,6 +5213,27 @@ end
         @test retraining_payload["lifecycleRecord"]["retrainingReason"] == "post-rollback retraining requested"
         @test retraining_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "rolled_back"
         @test length(retraining_payload["project"]["modelLifecycleRecords"]) == length(model_lifecycle_after_deploy_payload["modelLifecycleRecords"])
+        @test model_lifecycle_archive_too_early_response.status == 400
+        @test occursin("archive requires deprecated", String(model_lifecycle_archive_too_early_response.body))
+        @test model_lifecycle_deprecated_response.status == 201
+        deprecated_payload = JSON3.read(String(model_lifecycle_deprecated_response.body), Dict{String,Any})
+        @test deprecated_payload["lifecycleRecord"]["state"] == "deprecated"
+        @test deprecated_payload["lifecycleRecord"]["deprecationReason"] == "superseded by retraining review"
+        deprecated_registry_record = first(filter(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            deprecated_payload["project"]["modelRegistryRecords"],
+        ))
+        @test deprecated_registry_record["status"] == "deprecated"
+        @test model_lifecycle_archived_response.status == 201
+        archived_payload = JSON3.read(String(model_lifecycle_archived_response.body), Dict{String,Any})
+        @test archived_payload["lifecycleRecord"]["state"] == "archived"
+        @test archived_payload["lifecycleRecord"]["archiveReason"] == "local archive after deprecation"
+        archived_registry_record = first(filter(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            archived_payload["project"]["modelRegistryRecords"],
+        ))
+        @test archived_registry_record["status"] == "archived"
+        @test archived_registry_record["validationEvidence"]["lifecycleAction"] == "archive_model"
         @test gpu_execute_response.status == 202
         @test gpu_execute_payload["status"] == "queued"
         @test gpu_execute_payload["dispatchLane"] == "gpu"
