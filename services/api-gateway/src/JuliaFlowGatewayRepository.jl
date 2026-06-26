@@ -1455,6 +1455,10 @@ function data_science_projects_file(repo::FileGatewayRepository)
     return joinpath(repo.root, "data-science-projects.json")
 end
 
+function model_registry_file(repo::FileGatewayRepository)
+    return joinpath(repo.root, "model-registry.json")
+end
+
 function hub_extensions_file(repo::FileGatewayRepository)
     return joinpath(repo.root, "hub-extensions.json")
 end
@@ -1675,6 +1679,26 @@ function create_postgres_schema!(repo::PostgreSQLGatewayRepository)
             );
             """,
         )
+        execute(
+            conn,
+            """
+            CREATE TABLE IF NOT EXISTS $(repo.schema).model_registry (
+                model_id TEXT PRIMARY KEY,
+                workflow_id TEXT NOT NULL DEFAULT '',
+                project_id TEXT NOT NULL DEFAULT '',
+                registry_payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            """,
+        )
+        execute(
+            conn,
+            "CREATE INDEX IF NOT EXISTS $(repo.schema)_model_registry_workflow_idx ON $(repo.schema).model_registry (workflow_id);",
+        )
+        execute(
+            conn,
+            "CREATE INDEX IF NOT EXISTS $(repo.schema)_model_registry_project_idx ON $(repo.schema).model_registry (project_id);",
+        )
     finally
         close_connection(conn)
     end
@@ -1744,6 +1768,51 @@ function load_data_science_projects(repo::FileGatewayRepository)
     end
     sort!(projects; by = project -> project.project_id)
     return projects
+end
+
+function load_project_embedded_model_registry_records(
+    projects::AbstractVector;
+    workflow_id::Union{Nothing,AbstractString} = nothing,
+)
+    records = Dict{String,Any}[]
+    for project in projects
+        for record in project.model_registry_records
+            normalized = Dict{String,Any}(String(key) => value for (key, value) in pairs(record))
+            isempty(strip(String(get(normalized, "modelId", "")))) && continue
+            if workflow_id === nothing || String(get(normalized, "workflowId", "")) == String(workflow_id)
+                push!(records, normalized)
+            end
+        end
+    end
+    return records
+end
+
+function load_model_registry_records(
+    repo::FileGatewayRepository;
+    workflow_id::Union{Nothing,AbstractString} = nothing,
+)
+    projects = load_data_science_projects(repo)
+    if isfile(model_registry_file(repo))
+        raw = JSON3.read(read(model_registry_file(repo), String))
+        records = Dict{String,Any}[]
+        for item in raw
+            normalized = Dict{String,Any}(String(key) => value for (key, value) in pairs(item))
+            isempty(strip(String(get(normalized, "modelId", "")))) && continue
+            if workflow_id === nothing || String(get(normalized, "workflowId", "")) == String(workflow_id)
+                push!(records, normalized)
+            end
+        end
+        embedded_records = load_project_embedded_model_registry_records(projects; workflow_id = workflow_id)
+        seen = Set(String(get(record, "modelId", "")) for record in records)
+        for record in embedded_records
+            model_id = String(get(record, "modelId", ""))
+            model_id in seen && continue
+            push!(seen, model_id)
+            push!(records, record)
+        end
+        return records
+    end
+    return load_project_embedded_model_registry_records(projects; workflow_id = workflow_id)
 end
 
 function load_hub_extensions(repo::FileGatewayRepository)
@@ -1917,25 +1986,8 @@ function normalized_model_registry_record(record::AbstractDict)
     return normalized
 end
 
-function load_model_registry_records(
-    repo::AbstractGatewayRepository;
-    workflow_id::Union{Nothing,AbstractString} = nothing,
-)
-    records = Dict{String,Any}[]
-    for project in load_data_science_projects(repo)
-        for record in project.model_registry_records
-            normalized = Dict{String,Any}(String(key) => value for (key, value) in pairs(record))
-            isempty(strip(String(get(normalized, "modelId", "")))) && continue
-            if workflow_id === nothing || String(get(normalized, "workflowId", "")) == String(workflow_id)
-                push!(records, normalized)
-            end
-        end
-    end
-    return records
-end
-
 function save_model_registry_record!(
-    repo::AbstractGatewayRepository,
+    repo::FileGatewayRepository,
     model_record::AbstractDict;
     producer::AbstractString = "api-gateway",
 )
@@ -1945,11 +1997,19 @@ function save_model_registry_record!(
     project_index = findfirst(project -> project.project_id == project_id, projects)
     project_index === nothing && error("model registry project not found: $(project_id)")
     project = projects[project_index]
-    existing_index = findfirst(item -> String(get(item, "modelId", "")) == String(record["modelId"]), project.model_registry_records)
-    remaining = existing_index === nothing ? project.model_registry_records : [
-        item for (item_index, item) in enumerate(project.model_registry_records) if item_index != existing_index
+    registry_records = isfile(model_registry_file(repo)) ?
+        load_model_registry_records(repo) :
+        load_project_embedded_model_registry_records(projects)
+    remaining = [
+        item for item in registry_records
+        if String(get(item, "modelId", "")) != String(record["modelId"])
     ]
-    project.model_registry_records = [record, remaining...]
+    persist_json_file!(model_registry_file(repo), [record, remaining...])
+    project_remaining = [
+        item for item in project.model_registry_records
+        if String(get(item, "modelId", "")) != String(record["modelId"])
+    ]
+    project.model_registry_records = [record, project_remaining...]
     project.updated_at = String(get(record, "updatedAt", JuliaFlowExecutionService.iso8601_timestamp()))
     save_data_science_project!(repo, project; producer)
     return record
@@ -2186,6 +2246,36 @@ function load_data_science_projects(repo::PostgreSQLGatewayRepository)
         close_connection(conn)
     end
     return projects
+end
+
+function load_model_registry_records(
+    repo::PostgreSQLGatewayRepository;
+    workflow_id::Union{Nothing,AbstractString} = nothing,
+)
+    ensure_repository!(repo)
+    conn = connect(repo)
+    records = Dict{String,Any}[]
+    try
+        if workflow_id === nothing
+            result = execute(conn, "SELECT registry_payload FROM $(repo.schema).model_registry ORDER BY updated_at DESC, model_id ASC;")
+        else
+            result = execute(conn, "SELECT registry_payload FROM $(repo.schema).model_registry WHERE workflow_id = \$1 ORDER BY updated_at DESC, model_id ASC;", [String(workflow_id)])
+        end
+        for row in result
+            push!(records, Dict{String,Any}(String(key) => value for (key, value) in pairs(JSON3.read(String(row[1]), Dict{String,Any}))))
+        end
+    finally
+        close_connection(conn)
+    end
+    embedded_records = load_project_embedded_model_registry_records(load_data_science_projects(repo); workflow_id = workflow_id)
+    seen = Set(String(get(record, "modelId", "")) for record in records)
+    for record in embedded_records
+        model_id = String(get(record, "modelId", ""))
+        model_id in seen && continue
+        push!(seen, model_id)
+        push!(records, record)
+    end
+    return records
 end
 
 function load_workflows(repo::PostgreSQLGatewayRepository)
@@ -2431,6 +2521,51 @@ function save_data_science_project!(
         producer = producer,
     )
     return project
+end
+
+function save_model_registry_record!(
+    repo::PostgreSQLGatewayRepository,
+    model_record::AbstractDict;
+    producer::AbstractString = "api-gateway",
+)
+    record = normalized_model_registry_record(model_record)
+    project_id = model_registry_project_id(record)
+    projects = load_data_science_projects(repo)
+    project_index = findfirst(project -> project.project_id == project_id, projects)
+    project_index === nothing && error("model registry project not found: $(project_id)")
+    project = projects[project_index]
+    ensure_repository!(repo)
+    conn = connect(repo)
+    try
+        execute(
+            conn,
+            """
+            INSERT INTO $(repo.schema).model_registry (model_id, workflow_id, project_id, registry_payload, updated_at)
+            VALUES (\$1, \$2, \$3, \$4::jsonb, NOW())
+            ON CONFLICT (model_id) DO UPDATE
+            SET workflow_id = EXCLUDED.workflow_id,
+                project_id = EXCLUDED.project_id,
+                registry_payload = EXCLUDED.registry_payload,
+                updated_at = NOW();
+            """,
+            [
+                String(record["modelId"]),
+                String(get(record, "workflowId", "")),
+                project_id,
+                JSON3.write(record),
+            ],
+        )
+    finally
+        close_connection(conn)
+    end
+    project_remaining = [
+        item for item in project.model_registry_records
+        if String(get(item, "modelId", "")) != String(record["modelId"])
+    ]
+    project.model_registry_records = [record, project_remaining...]
+    project.updated_at = String(get(record, "updatedAt", JuliaFlowExecutionService.iso8601_timestamp()))
+    save_data_science_project!(repo, project; producer)
+    return record
 end
 
 function save_hub_extension!(repo::PostgreSQLGatewayRepository, extension::HubExtensionRecord; producer::AbstractString = "api-gateway")

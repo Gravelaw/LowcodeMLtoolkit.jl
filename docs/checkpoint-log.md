@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Physical Model Registry Storage Slice - 2026-06-26
+
+### Work Done Till Date
+
+- Added dedicated file-backed model registry persistence through `model-registry.json`.
+- Added PostgreSQL `model_registry` table creation, workflow/project indexes, query filtering, and upsert persistence for lab/team metadata mode.
+- Preserved embedded `DataScienceProject.modelRegistryRecords` compatibility by merging non-duplicate embedded records and seeding dedicated file storage from embedded records on first write.
+- Extended the shared repository contract to prove embedded legacy reads, physical file creation, update semantics, workflow filtering, and missing-project rejection.
+- Verified with focused file repository contract execution for `run_gateway_repository_contract!` through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full `tests/julia/runtests.jl` remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while Julia loads dependency packages.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Physical registry storage is in place, but worker-backed scoring, drift, training, tuning, evaluation, transform, rollback, and retraining jobs remain open.
+- Connector-specific output-contract imports, broader local trust-boundary hardening, route split depth, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Move deterministic registry/deploy/scoring/drift/lifecycle records behind worker-backed orchestration.
+- Continue gateway route extraction or implement worker-backed lifecycle/retraining jobs.
+- Keep release/local-appliance no-fixture evidence in the closure gate before any daily-workstation readiness claim.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Model Registry Repository Surface Slice - 2026-06-25
 
 ### Work Done Till Date
@@ -31,12 +52,12 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 parent remains open. The registry now has a repository API surface, but its physical persistence remains project-backed rather than a separate registry table/file.
+- AKS-36 parent remains open. The registry repository API now has physical file/PostgreSQL storage in the follow-up 2026-06-26 slice, but worker-backed lifecycle/retraining/scoring/drift jobs remain open.
 - Thin route dispatch extraction, connector-specific output-contract imports, worker-backed registry/lifecycle jobs, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
-- Continue registry work by extracting physical registry storage beyond project-backed persistence, or move to worker-backed lifecycle/retraining jobs.
+- Continue registry work by moving deterministic registry/deploy/scoring/drift/lifecycle records behind worker-backed orchestration.
 - Keep moving deterministic registry, deploy, scoring, drift, rollback, and retraining evidence toward worker-backed orchestration and dedicated persistence.
 
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Registry Lifecycle Action Module Split Slice - 2026-06-25
@@ -51,7 +72,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
-- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed model lifecycle jobs, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed model lifecycle jobs, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -70,7 +91,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
-- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed model lifecycle jobs, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed model lifecycle jobs, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -89,7 +110,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 parent remains open. This is another internal module split, not the full gateway modularity refactor.
-- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed model lifecycle jobs, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Thin route dispatch extraction, connector-specific output-contract imports, worker-backed model lifecycle jobs, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -335,7 +356,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 parent remains open. This is another internal module split, not worker-backed job orchestration.
-- Statistical analysis, monitoring/drift, deploy/export, local-source access, thin route dispatch, worker-backed jobs, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Statistical analysis, monitoring/drift, deploy/export, local-source access, thin route dispatch, worker-backed jobs, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -355,7 +376,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 parent remains open. This is the first internal module split, not the full gateway modularity refactor.
-- Statistical analysis, project jobs, monitoring/drift, deploy/export, local-source access, thin route dispatch, worker-backed jobs, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Statistical analysis, project jobs, monitoring/drift, deploy/export, local-source access, thin route dispatch, worker-backed jobs, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -376,7 +397,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 parent remains open. Project jobs now have persisted gateway execution records, but not yet asynchronous worker-backed execution.
-- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -397,7 +418,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 parent remains open. Prediction export is now backed by a gateway execution record, but not yet by asynchronous worker scoring/inference.
-- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -418,7 +439,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 parent remains open. Imported output contract mapping is now supported for inline local request contracts, but scoring remains deterministic gateway substrate evidence rather than worker-backed model inference.
-- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -439,7 +460,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 parent remains open. Resource evidence is now present on project job records, but the jobs are still gateway-substrate records rather than execution-backed worker jobs.
-- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, imported output contract mapping, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, imported output contract mapping, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -461,7 +482,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 parent remains open. Lifecycle actions now have project-backed substrate evidence, but real rollback execution, retraining orchestration, and CPU/GPU job resource evidence remain open.
-- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, imported output contract mapping, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, imported output contract mapping, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 

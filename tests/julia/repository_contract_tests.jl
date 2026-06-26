@@ -194,6 +194,14 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
                 "createdAt" => "2026-06-21T00:00:00Z",
             ),
         ]
+        updated_project.model_registry_records = [
+            Dict{String,Any}(
+                "modelId" => "wellbore-legacy-model",
+                "workflowId" => "wf-foundation",
+                "status" => "legacy",
+                "validationEvidence" => Dict{String,Any}("projectId" => "wellbore-geology-project"),
+            ),
+        ]
         JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_data_science_project!(repo, updated_project)
         persisted_projects = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_data_science_projects(repo)
         @test length(persisted_projects) == 1
@@ -201,6 +209,8 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
         @test persisted_projects[1].datasets[1]["role"] == "train"
         @test persisted_projects[1].schema_contracts[1]["columns"][1]["role"] == "depth"
         @test persisted_projects[1].split_plans[1]["strategy"] == "depth"
+        legacy_registry_records = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-foundation")
+        @test any(record -> record["modelId"] == "wellbore-legacy-model", legacy_registry_records)
 
         registry_record = JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
             repo,
@@ -214,8 +224,12 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
         )
         @test registry_record["modelId"] == "wellbore-model-v1"
         registry_records = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-foundation")
-        @test length(registry_records) == 1
-        @test registry_records[1]["status"] == "registered"
+        @test length(registry_records) >= 2
+        @test any(record -> record["modelId"] == "wellbore-legacy-model", registry_records)
+        @test only(filter(record -> record["modelId"] == "wellbore-model-v1", registry_records))["status"] == "registered"
+        if repo isa JuliaFlowApiGateway.JuliaFlowGatewayRepository.FileGatewayRepository
+            @test isfile(JuliaFlowApiGateway.JuliaFlowGatewayRepository.model_registry_file(repo))
+        end
         JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
             repo,
             Dict{String,Any}(
@@ -227,8 +241,7 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
             ),
         )
         updated_registry_records = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-foundation")
-        @test length(updated_registry_records) == 1
-        @test updated_registry_records[1]["status"] == "approved"
+        @test only(filter(record -> record["modelId"] == "wellbore-model-v1", updated_registry_records))["status"] == "approved"
         @test isempty(JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-missing"))
         @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
             repo,

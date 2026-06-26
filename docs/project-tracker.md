@@ -18,9 +18,28 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-23`
+- Last updated: `2026-06-26`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Physical Model Registry Storage Slice (2026-06-26)
+
+- Added file-backed physical model registry persistence at `model-registry.json` behind the existing registry repository API.
+- Added PostgreSQL-backed `model_registry` table creation, workflow/project indexes, load filtering, and upsert persistence for lab/team metadata mode.
+- Preserved compatibility with legacy embedded `DataScienceProject.modelRegistryRecords` by loading non-duplicate embedded records alongside dedicated registry storage and seeding file storage from embedded records on first write.
+- Extended the shared repository contract to cover legacy embedded reads, physical file creation, registry update semantics, workflow filtering, and missing-project rejection.
+- Verification passed locally: focused file repository contract execution for `run_gateway_repository_contract!` through `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+
+### Gaps Pending
+
+- AKS-36 parent is still open. Physical registry storage now exists, but rollback/retraining, scoring, drift, tuning, evaluation, training, and transform jobs still need worker-backed execution depth.
+- Connector-specific output-contract imports, broader trust-boundary hardening, thin route dispatch extraction, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Move deterministic registry/deploy/scoring/drift/lifecycle evidence behind worker-backed orchestration.
+- Continue gateway route split or start worker-backed lifecycle/retraining jobs.
+- Add project-backed frontend surfaces for validation, transforms, training, tuning, final evaluation, prediction export, drift, and lifecycle review.
+
 ### AKS-36 DataScienceProject Model Registry Repository Surface Slice (2026-06-25)
 
 - Added `load_model_registry_records` and `save_model_registry_record!` to `services/api-gateway/src/JuliaFlowGatewayRepository.jl` as a dedicated registry repository API backed by the existing `DataScienceProject.modelRegistryRecords` store.
@@ -30,12 +49,12 @@ Tracker always records 3 things:
 
 ### Gaps Pending
 
-- AKS-36 parent is still open. The registry now has a repository API surface, but its physical persistence remains project-backed rather than a separate registry table/file.
+- AKS-36 parent is still open. The registry repository API now has physical file/PostgreSQL storage in the follow-up 2026-06-26 slice, but worker-backed lifecycle/retraining/scoring/drift jobs remain open.
 - Worker-backed scoring, drift, rollback, and retraining jobs plus project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
-- Extract physical registry storage beyond project-backed persistence or continue toward worker-backed lifecycle/retraining jobs.
+- Continue toward worker-backed lifecycle/retraining jobs or thin route dispatch extraction.
 - Move deterministic registry/deploy/drift/scoring evidence behind worker-backed execution and dedicated persistence boundaries.
 - Add project-backed frontend surfaces for validation, transforms, training, tuning, final evaluation, prediction export, drift, and lifecycle review.
 
@@ -53,7 +72,7 @@ Tracker always records 3 things:
 
 ### Next Items To Implement
 
-- Continue toward worker-backed lifecycle/retraining jobs, dedicated registry repository extraction, or thin route dispatch extraction.
+- Continue toward worker-backed lifecycle/retraining jobs or thin route dispatch extraction.
 - Move deterministic registry/deploy/drift/scoring evidence behind worker-backed execution and dedicated persistence boundaries.
 - Add project-backed frontend surfaces for validation, transforms, training, tuning, final evaluation, prediction export, drift, and lifecycle review.
 
@@ -71,7 +90,7 @@ Tracker always records 3 things:
 
 ### Next Items To Implement
 
-- Continue toward dedicated registry repository extraction or thin route dispatch extraction.
+- Continue toward worker-backed lifecycle/retraining jobs or thin route dispatch extraction.
 - Move deterministic registry/deploy/drift/scoring evidence behind worker-backed execution and dedicated persistence boundaries.
 - Add project-backed frontend surfaces for validation, transforms, training, tuning, final evaluation, prediction export, drift, and lifecycle review.
 
@@ -335,7 +354,7 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 parent is still open. This is only the first gateway module split; the broader data catalog, statistical analysis, experiment/job, monitoring/drift, deploy/export, local-source, and thin route dispatch extractions remain open.
-- Worker-backed project jobs, dedicated registry repository extraction, real rollback/retraining execution jobs, and project-backed frontend migration remain open.
+- Worker-backed project jobs, worker-backed registry execution hardening, real rollback/retraining execution jobs, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -354,7 +373,7 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 parent is still open. The job chain is now gateway-execution-record backed, but these are still synchronous deterministic gateway jobs rather than asynchronous worker-backed Julia jobs.
-- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -374,7 +393,7 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 parent is still open. Prediction export is now gateway-execution-record backed, but scoring remains synchronous deterministic gateway evidence rather than worker-backed model inference.
-- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -394,7 +413,7 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 parent is still open. Output contract parsing/mapping is now covered for inline local request contracts, but project jobs remain deterministic gateway records rather than execution-backed scoring workers.
-- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, connector-specific trust-boundary policy, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -413,7 +432,7 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 parent is still open. Project jobs now expose local resource evidence, but they are still deterministic gateway route records rather than execution-backed worker jobs.
-- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, imported output contract mapping, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Gateway module split, worker-backed statistical/tuning/evaluation/scoring/drift execution, real rollback/retraining jobs, imported output contract mapping, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
@@ -434,7 +453,7 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 parent is still open. Rollback/retraining lifecycle evidence is now project-backed, but actual rollback execution, retraining job orchestration, and CPU/GPU resource evidence remain open.
-- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, imported output contract mapping, dedicated registry repository extraction, and project-backed frontend migration remain open.
+- Gateway module split, execution-backed jobs, worker-backed statistical jobs, real tuning/evaluation/scoring/drift execution, imported output contract mapping, worker-backed registry execution hardening, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
