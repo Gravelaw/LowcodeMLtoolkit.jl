@@ -811,6 +811,9 @@ export interface RunDriftReportResponse {
 }
 
 export type DataScienceModelLifecycleAction =
+  | "approve_model"
+  | "deprecate_model"
+  | "archive_model"
   | "mark_rollback_ready"
   | "mark_rolled_back"
   | "request_retraining";
@@ -923,6 +926,8 @@ export interface ModelLifecycleRecord {
   lifecycleAction?: DataScienceModelLifecycleAction;
   rollbackReason?: string;
   retrainingReason?: string;
+  deprecationReason?: string;
+  archiveReason?: string;
   validationEvidence?: {
     projectId?: string;
     modelId?: string;
@@ -1623,7 +1628,7 @@ export interface GatewayModelRegistryRecord {
   executionId?: string | null;
   modelKind: string;
   target: string;
-  status: "registered" | "candidate" | "archived" | string;
+  status: "registered" | "candidate" | "approved" | "deprecated" | "archived" | string;
   tags: string[];
   owner: string;
   primaryMetricName: string;
@@ -1647,7 +1652,7 @@ export interface GatewayModelRegistryRecord {
 
 export interface GatewayModelRegistryRequest {
   modelId?: string;
-  status?: "registered" | "candidate" | "archived" | string;
+  status?: "registered" | "candidate" | "approved" | "deprecated" | "archived" | string;
   tags?: string[];
   owner?: string;
 }

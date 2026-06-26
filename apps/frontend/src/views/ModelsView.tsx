@@ -1,6 +1,16 @@
 import { Card, DataTable, MetricCard, StatusPill } from "../components/ui";
 import type { ActionFeedback, AppData } from "../types";
 
+function lifecycleGateReason(state?: string, hasEvaluation?: boolean, hasEndpoint?: boolean) {
+  if (!state) return "No lifecycle record is attached to this model.";
+  if ((state === "candidate" || state === "validated") && !hasEvaluation) return "Approval is blocked until final evaluation evidence is attached.";
+  if (state === "approved") return "Deployment can proceed after local package evidence is created.";
+  if (state === "deployed" && !hasEndpoint) return "Rollback review is blocked until a deployed endpoint id is attached.";
+  if (state === "deprecated") return "Archive is available after deprecation review.";
+  if (state === "archived") return "Lifecycle actions are closed for this archived model.";
+  return "Next lifecycle action is available when the matching review evidence is present.";
+}
+
 export function ModelsView({
   data,
   onRegister,
@@ -12,6 +22,9 @@ export function ModelsView({
 }) {
   const selected = data.modelRegistry[0];
   const artifactEvidence = selected?.artifactEvidence ?? [];
+  const lifecycle = selected ? data.dataScienceProject.modelLifecycleRecords.find((record) => record.modelId === selected.modelId) : undefined;
+  const lifecycleState = lifecycle?.state ?? selected?.status;
+  const gateReason = lifecycleGateReason(lifecycleState, Boolean(lifecycle?.evaluationReportId), Boolean(lifecycle?.deployedEndpointId));
   return (
     <div className="route-grid models-route">
       <section className="page-title">
@@ -55,6 +68,8 @@ export function ModelsView({
               <span>Framework</span><strong>MLJ.jl</strong>
               <span>Training Data</span><strong>25.1 GB local</strong>
               <span>Model Path</span><strong>{artifactEvidence[0]?.artifactRef ?? "No local model artifact"}</strong>
+              <span>Lifecycle</span><strong>{lifecycleState ?? "No lifecycle evidence"}</strong>
+              <span>Gate</span><strong>{gateReason}</strong>
             </div>
             <h3>Artifacts (Stored on Disk)</h3>
             {artifactEvidence.length === 0 ? (

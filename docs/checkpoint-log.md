@@ -28,16 +28,17 @@ Each checkpoint entry must contain:
 - Added transition guards so approval requires validated/candidate evaluation evidence, deprecation requires an approved/deployed/reviewed model state, and archive requires prior deprecation.
 - Added registry-status synchronization for approved, deprecated, and archived actions, persisted through the registry repository path.
 - Added focused helper and route smoke evidence for lifecycle approval plus registry sync; route-level Julia tests now cover approval, blocked early archive, deprecation, archive, and registry status propagation.
+- Updated Models and Deploy to surface lifecycle/package gate reasons from backend evidence, including disabled local packaging when validation evidence is missing, the model is deprecated/archived, or final-test policy is unsafe.
 
 ### Gaps Pending
 
-- AKS-36 parent remains open. Lifecycle state transitions are stronger, but worker-backed lifecycle/retraining/scoring/drift jobs and project-backed frontend disabled-state rendering remain open.
-- AKS-45 remains open until registry backup/restore/migration behavior and Models/Deploy UI disabled reasons are reviewed against the full issue acceptance criteria.
+- AKS-36 parent remains open. Lifecycle state transitions and first Models/Deploy gate reasons are stronger, but worker-backed lifecycle/retraining/scoring/drift jobs and broader project-backed frontend migration remain open.
+- AKS-45 remains open until registry backup/restore/migration behavior and worker-backed lifecycle execution are reviewed against the full issue acceptance criteria.
 
 ### Next Items To Implement
 
 - Move lifecycle/retraining/scoring/drift evidence behind worker-backed orchestration.
-- Add frontend surfaces for backend lifecycle disabled reasons.
+- Continue frontend lifecycle review depth beyond the first Models/Deploy gate reasons.
 - Keep release/local-appliance no-fixture evidence in the closure gate before any daily-workstation readiness claim.
 
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Physical Model Registry Storage Slice - 2026-06-26
@@ -334,10 +335,11 @@ Each checkpoint entry must contain:
 - Archived the GitHub webhook receiver experiment under `.codex-archive/github-ci-webhook-monitor-20260622/`.
 - Removed the active webhook receiver script, npm command, setup document, and tests from the repo.
 - Recorded the decision that public or tunneled inbound workstation endpoints are not the preferred CI monitoring path for JuliaFlow.
+- 2026-06-26 follow-up confirmed the custom-node GitHub CI monitoring direction is also retired; the archived folder is intentionally ignored and should remain local-only.
 
 ### Gaps Pending
 
-- CI monitoring still needs a low-risk implementation path that avoids a public inbound listener.
+- CI monitoring still needs a low-risk implementation path that avoids a public inbound listener or custom-node listener on the workstation.
 - This is workflow tooling only; AKS-36 product work remains in progress.
 
 ### Next Items To Implement

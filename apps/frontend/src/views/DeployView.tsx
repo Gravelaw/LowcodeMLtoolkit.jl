@@ -2,6 +2,17 @@ import { Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
 import { localCode } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
 
+function deployBlockedReason(data: AppData) {
+  const model = data.modelRegistry[0];
+  if (!model) return "No registered model is available.";
+  const lifecycle = data.dataScienceProject.modelLifecycleRecords.find((record) => record.modelId === model.modelId);
+  if (model.status === "archived" || lifecycle?.state === "archived") return "Archived models cannot be packaged.";
+  if (model.status === "deprecated" || lifecycle?.state === "deprecated") return "Deprecated models require a new approval before packaging.";
+  if (!model.validationEvidence?.projectId) return "Validation evidence is required before local packaging.";
+  if (model.validationEvidence.finalTestPolicy !== "forbid_final_test") return "Packaging is blocked until final-test leakage policy is satisfied.";
+  return "";
+}
+
 export function DeployView({
   data,
   onPackage,
@@ -15,6 +26,7 @@ export function DeployView({
   const endpointStatus = current?.deploymentStatus ?? "No package";
   const endpointUrl = current?.endpointUrl ?? "No local endpoint packaged";
   const endpointPort = current?.port ? `127.0.0.1:${current.port}` : "package endpoint first";
+  const packageBlockedReason = deployBlockedReason(data);
   return (
     <div className="route-grid deploy-route">
       <section className="page-title">
@@ -22,8 +34,9 @@ export function DeployView({
           <h1>Deploy</h1>
           <p>Package local endpoints for this machine without cloud registries or managed inference.</p>
         </div>
-        <button type="button" className="jf-button primary" onClick={onPackage}>Package Local Endpoint</button>
+        <button type="button" className="jf-button primary" onClick={onPackage} disabled={Boolean(packageBlockedReason)} title={packageBlockedReason || "Package local endpoint"}>Package Local Endpoint</button>
       </section>
+      {packageBlockedReason ? <p className="feedback info">{packageBlockedReason}</p> : null}
       {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
 
       <Card title="Local Targets">
@@ -50,6 +63,7 @@ export function DeployView({
         <div className="key-values">
           <span>Status</span><strong>{endpointStatus}</strong>
           <span>Endpoint</span><strong>{endpointUrl}</strong>
+          <span>Package Gate</span><strong>{packageBlockedReason || "Ready"}</strong>
           <span>Latency</span><strong>14.2 ms</strong>
           <span>Requests 24h</span><strong>12,842</strong>
         </div>

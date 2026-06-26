@@ -315,6 +315,9 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.UpdateDataScienceProjectRequest.properties.modelLifecycleRecords);
   assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/models/lifecycle"]);
   assert.deepEqual(schemas.RunModelLifecycleActionRequest.properties.action.enum, [
+    "approve_model",
+    "deprecate_model",
+    "archive_model",
     "mark_rollback_ready",
     "mark_rolled_back",
     "request_retraining",

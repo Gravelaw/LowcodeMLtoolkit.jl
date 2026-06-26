@@ -595,6 +595,8 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
     expect(screen.getByText("No backend deploy package records are available yet. Package a local endpoint after a model is registered.")).toBeInTheDocument();
     expect(screen.getByText("No local endpoint packaged")).toBeInTheDocument();
+    expect(screen.getAllByText("No registered model is available.").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /package local endpoint/i })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Release mode unavailable")).not.toBeInTheDocument();

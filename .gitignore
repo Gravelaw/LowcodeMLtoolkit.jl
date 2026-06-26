@@ -17,7 +17,9 @@ artifacts/
 .omx/
 .staging/
 .codex/
+# Local archives for retired/generated Codex tooling.
 .codex-archive/
 .codex-archive/github-ci-webhook-monitor*/
+.codex-archive/github-ci-webhook-monitor-20260622/
 .codex/config.toml
 *.tsbuildinfo

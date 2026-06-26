@@ -744,6 +744,14 @@ export const modelRegistry: GatewayModelRegistryRecord[] = [
     primaryMetricValue: 0.912,
     datasetId: "customer-churn-local",
     datasetChecksumSha256: "b".repeat(64),
+    validationEvidence: {
+      projectId: "customer-churn-project",
+      splitPlanId: "split-churn-stratified",
+      splitStrategy: "stratified",
+      finalTestPolicy: "forbid_final_test",
+      validationFraction: 0.15,
+      testFraction: 0.15
+    },
     artifactEvidence: [
       { kind: "model", artifactRef: "data/models/churn_model_v1.jls", checksumSha256: "c".repeat(64) },
       { kind: "config", artifactRef: "data/models/training_config.toml", checksumSha256: "e".repeat(64) }

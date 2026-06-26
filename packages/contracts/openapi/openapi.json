@@ -2956,6 +2956,9 @@
           "action": {
             "type": "string",
             "enum": [
+              "approve_model",
+              "deprecate_model",
+              "archive_model",
               "mark_rollback_ready",
               "mark_rolled_back",
               "request_retraining"
@@ -3031,6 +3034,9 @@
           "lifecycleAction": {
             "type": "string",
             "enum": [
+              "approve_model",
+              "deprecate_model",
+              "archive_model",
               "mark_rollback_ready",
               "mark_rolled_back",
               "request_retraining"
@@ -3040,6 +3046,12 @@
             "type": "string"
           },
           "retrainingReason": {
+            "type": "string"
+          },
+          "deprecationReason": {
+            "type": "string"
+          },
+          "archiveReason": {
             "type": "string"
           },
           "validationEvidence": {

@@ -27,16 +27,17 @@ Tracker always records 3 things:
 - Added transition guards: approval requires validated/candidate evidence with an evaluation report, deprecation requires an approved/deployed/reviewed state, and archive requires prior deprecation.
 - Added registry-status synchronization so approved, deprecated, and archived lifecycle actions update the matching model registry record and persist through the registry repository path.
 - Added focused helper and route smoke evidence for lifecycle approval and registry sync; route-level Julia tests now cover approval, blocked early archive, deprecation, archive, and registry status propagation.
+- Updated Models and Deploy to surface lifecycle/package gate reasons from backend evidence, disabling local package creation when a model is missing validation evidence, deprecated, archived, or violates final-test policy.
 
 ### Gaps Pending
 
-- AKS-45 remains open until UI disabled-state reasons and backup/restore/migration review for first-class registry records are verified against the Linear acceptance criteria.
+- AKS-45 remains open until backup/restore/migration behavior for first-class registry records and worker-backed lifecycle execution are verified against the Linear acceptance criteria.
 - Worker-backed rollback/retraining, scoring, drift, tuning, evaluation, training, and transform jobs remain open for AKS-36.
 
 ### Next Items To Implement
 
 - Continue worker-backed lifecycle/retraining or scoring/drift execution.
-- Add project-backed frontend surfaces that display lifecycle disabled reasons from backend evidence.
+- Continue hardening project-backed frontend lifecycle review surfaces beyond the first Models/Deploy gate reasons.
 - Re-run full repo gates and update Linear after CI verifies the pushed slice.
 
 ### AKS-36 DataScienceProject Physical Model Registry Storage Slice (2026-06-26)
@@ -315,10 +316,11 @@ Tracker always records 3 things:
 - The GitHub webhook receiver experiment was archived locally under `.codex-archive/github-ci-webhook-monitor-20260622/` and removed from the active repo path.
 - Removed `npm run monitor:github-ci`, the webhook receiver script, setup documentation, and focused webhook tests because public or tunneled inbound endpoints are not an acceptable default for this local-first project.
 - `.gitignore` now explicitly covers the archived webhook monitor folder in addition to the repo-local archive root.
+- 2026-06-26 review confirmed the custom-node GitHub CI route is also retired; do not resurrect an inbound workstation listener for CI monitoring without an explicit threat-model review.
 
 ### Gaps Pending
 
-- CI status monitoring still needs a safer design that does not expose a workstation or rely on a custom inbound webhook receiver.
+- CI status monitoring still needs a safer design that does not expose a workstation or rely on a custom inbound webhook receiver/custom node.
 - This tooling does not change AKS-36 product readiness or issue completion state.
 
 ### Next Items To Implement
