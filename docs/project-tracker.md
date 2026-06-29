@@ -18,9 +18,27 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-26`
+- Last updated: `2026-06-29`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Worker Dispatch Evidence Slice (2026-06-29)
+
+- Added compact worker dispatch evidence to data-science project job execution records, including `orchestrationMode`, `dispatchStatus`, `workerPool`, and `dispatchLane`.
+- Persisted the full worker dispatch descriptor in gateway execution metadata under `worker_dispatch`.
+- Extended TypeScript and OpenAPI contracts for `DataScienceProjectJobExecutionEvidence`.
+- Added helper and route assertions proving model lifecycle rollback/retraining jobs surface dispatch evidence alongside resource evidence and persisted execution ids.
+
+### Gaps Pending
+
+- AKS-36 and AKS-45 remain open because this is dispatch evidence, not full asynchronous worker-backed rollback/retraining execution.
+- Real worker-backed scoring, drift, tuning, evaluation, training, transform, rollback, and retraining execution depth remains open.
+
+### Next Items To Implement
+
+- Convert lifecycle/retraining and scoring/drift project jobs from gateway-completed dispatch evidence to actual worker-processed execution transitions.
+- Continue project-backed frontend lifecycle review surfaces and release/local-appliance no-fixture evidence.
+- Update Linear after local gates and CI evidence are available.
+
 ### AKS-36 DataScienceProject Model Lifecycle Approval/Archive Slice (2026-06-26)
 
 - Added explicit model lifecycle actions for `approve_model`, `deprecate_model`, and `archive_model`.

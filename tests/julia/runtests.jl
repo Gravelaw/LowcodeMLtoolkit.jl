@@ -1044,10 +1044,18 @@ end
     @test execution.metadata["artifact_refs"][1]["refId"] == "artifact-job-helper"
     @test execution.metadata["resource_evidence"]["executionMode"] == "unit_test_job"
     @test execution.metadata["worker_id"] == worker_id
+    @test execution.metadata["worker_dispatch"]["orchestrationMode"] == "gateway_worker_dispatch"
+    @test execution.metadata["worker_dispatch"]["dispatchStatus"] == "completed"
+    @test execution.metadata["worker_dispatch"]["workerPool"] == "local-cpu"
+    @test execution.metadata["worker_dispatch"]["dispatchLane"] == "cpu"
     compact_evidence = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_execution_evidence(execution, worker_id)
     @test compact_evidence["executionId"] == execution.execution_id
     @test compact_evidence["workflowId"] == "wf-helper"
     @test compact_evidence["workerId"] == worker_id
+    @test compact_evidence["orchestrationMode"] == "gateway_worker_dispatch"
+    @test compact_evidence["dispatchStatus"] == "completed"
+    @test compact_evidence["workerPool"] == "local-cpu"
+    @test compact_evidence["dispatchLane"] == "cpu"
     @test compact_evidence["startedAt"] == "2026-06-22T00:12:00Z"
     @test compact_evidence["finishedAt"] == "2026-06-22T00:13:00Z"
 end
@@ -5202,6 +5210,10 @@ end
         @test rollback_lifecycle_job["sourceRecordId"] == "foundation-linear-baseline"
         @test rollback_lifecycle_job["resourceEvidence"]["executionMode"] == "model_lifecycle_action"
         @test rollback_lifecycle_job["resourceEvidence"]["cpuThreadCount"] >= 1
+        @test rollback_lifecycle_job["executionEvidence"]["orchestrationMode"] == "gateway_worker_dispatch"
+        @test rollback_lifecycle_job["executionEvidence"]["dispatchStatus"] == "completed"
+        @test rollback_lifecycle_job["executionEvidence"]["workerPool"] == rollback_lifecycle_job["resourceEvidence"]["workerPool"]
+        @test rollback_lifecycle_job["executionEvidence"]["dispatchLane"] == rollback_lifecycle_job["resourceEvidence"]["dispatchLane"]
         @test model_lifecycle_rolled_back_response.status == 201
         rolled_back_payload = JSON3.read(String(model_lifecycle_rolled_back_response.body), Dict{String,Any})
         @test rolled_back_payload["lifecycleRecord"]["state"] == "rolled_back"
@@ -5213,6 +5225,10 @@ end
         @test retraining_payload["lifecycleRecord"]["retrainingReason"] == "post-rollback retraining requested"
         @test retraining_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "rolled_back"
         @test length(retraining_payload["project"]["modelLifecycleRecords"]) == length(model_lifecycle_after_deploy_payload["modelLifecycleRecords"])
+        retraining_lifecycle_job = first(filter(job -> job["jobType"] == "model_lifecycle", retraining_payload["project"]["projectJobs"]))
+        @test retraining_lifecycle_job["executionEvidence"]["orchestrationMode"] == "gateway_worker_dispatch"
+        @test retraining_lifecycle_job["executionEvidence"]["dispatchStatus"] == "completed"
+        @test retraining_lifecycle_job["executionEvidence"]["workerPool"] == retraining_lifecycle_job["resourceEvidence"]["workerPool"]
         @test model_lifecycle_archive_too_early_response.status == 400
         @test occursin("archive requires deprecated", String(model_lifecycle_archive_too_early_response.body))
         @test model_lifecycle_deprecated_response.status == 201

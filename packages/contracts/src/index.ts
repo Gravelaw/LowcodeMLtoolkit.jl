@@ -645,6 +645,10 @@ export interface DataScienceProjectJobExecutionEvidence {
   status: GatewayExecutionStatus | string;
   mode: string;
   workerId?: string;
+  orchestrationMode?: "gateway_worker_dispatch" | string;
+  dispatchStatus?: "queued" | "running" | "completed" | "failed" | string;
+  workerPool?: string;
+  dispatchLane?: WorkflowResourceClass | string;
   queuedAt?: string;
   startedAt?: string;
   finishedAt?: string;

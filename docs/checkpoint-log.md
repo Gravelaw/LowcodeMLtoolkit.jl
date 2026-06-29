@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Worker Dispatch Evidence Slice - 2026-06-29
+
+### Work Done Till Date
+
+- Added worker dispatch metadata to data-science project execution records under `worker_dispatch`.
+- Surfaced compact dispatch evidence on `DataScienceProjectJobExecutionEvidence`: `orchestrationMode`, `dispatchStatus`, `workerPool`, and `dispatchLane`.
+- Updated TypeScript and OpenAPI contracts for the new dispatch evidence fields.
+- Added Julia helper and route assertions proving lifecycle rollback and retraining project jobs carry dispatch evidence matching their local CPU/GPU resource evidence.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. This slice improves auditable worker dispatch evidence, but it is not full asynchronous worker-backed execution.
+- AKS-45 remains open until real rollback/retraining lifecycle execution is processed by worker transitions and reviewed against Linear acceptance.
+- Worker-backed scoring, drift, tuning, evaluation, training, transform, rollback, and retraining jobs remain open.
+
+### Next Items To Implement
+
+- Move lifecycle/retraining and scoring/drift project jobs from gateway-completed dispatch evidence to actual worker-processed execution transitions.
+- Keep updating Linear only after local verification and CI evidence are available.
+- Continue project-backed frontend migration and release/local-appliance no-fixture evidence before any daily-workstation readiness claim.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Model Lifecycle Approval/Archive Slice - 2026-06-26
 
 ### Work Done Till Date

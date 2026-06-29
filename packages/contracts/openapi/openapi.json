@@ -8700,6 +8700,18 @@
           "workerId": {
             "type": "string"
           },
+          "orchestrationMode": {
+            "type": "string"
+          },
+          "dispatchStatus": {
+            "type": "string"
+          },
+          "workerPool": {
+            "type": "string"
+          },
+          "dispatchLane": {
+            "type": "string"
+          },
           "queuedAt": {
             "type": "string"
           },

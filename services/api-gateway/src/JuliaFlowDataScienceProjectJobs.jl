@@ -116,6 +116,15 @@ function project_job_execution_record(
     execution_plan = isempty(plan) ? ["validate_project_state", "materialize_project_artifact"] : [String(item) for item in plan]
     execution_id = "dsjob-" * replace(string(uuid4()), "-" => "")
     worker_id = "project-job-worker-" * execution_id[(lastindex(execution_id) - 7):lastindex(execution_id)]
+    normalized_resource_evidence = resource_evidence === nothing ? Dict{String,Any}() : normalized_dict(resource_evidence)
+    worker_dispatch = Dict{String,Any}(
+        "orchestrationMode" => "gateway_worker_dispatch",
+        "dispatchStatus" => "completed",
+        "workerId" => worker_id,
+        "workerPool" => String(get(normalized_resource_evidence, "workerPool", "local-cpu")),
+        "dispatchLane" => String(get(normalized_resource_evidence, "dispatchLane", "cpu")),
+        "executionMode" => String(get(normalized_resource_evidence, "executionMode", "local_project_job")),
+    )
     metadata = Dict{String,Any}(
         "data_science_project_job" => Dict{String,Any}(
             "project_id" => project.project_id,
@@ -125,8 +134,9 @@ function project_job_execution_record(
         ),
         "artifact_refs" => normalized_refs(output_refs),
         "worker_id" => worker_id,
+        "worker_dispatch" => worker_dispatch,
     )
-    resource_evidence === nothing || (metadata["resource_evidence"] = normalized_dict(resource_evidence))
+    isempty(normalized_resource_evidence) || (metadata["resource_evidence"] = normalized_resource_evidence)
     execution = JuliaFlowGatewayRepository.GatewayExecution(
         execution_id = execution_id,
         workflow_id = String(workflow_id),
@@ -156,7 +166,7 @@ end
 function project_job_execution_evidence(execution::JuliaFlowGatewayRepository.GatewayExecution, worker_id::AbstractString)
     started = execution.started_at === nothing ? execution.created_at : String(execution.started_at)
     finished = execution.finished_at === nothing ? execution.updated_at : String(execution.finished_at)
-    return Dict{String,Any}(
+    evidence = Dict{String,Any}(
         "executionId" => execution.execution_id,
         "workflowId" => execution.workflow_id,
         "status" => execution.status,
@@ -166,6 +176,14 @@ function project_job_execution_evidence(execution::JuliaFlowGatewayRepository.Ga
         "startedAt" => started,
         "finishedAt" => finished,
     )
+    dispatch = get(execution.metadata, "worker_dispatch", nothing)
+    if dispatch isa AbstractDict
+        normalized_dispatch = normalized_dict(dispatch)
+        for key in ("orchestrationMode", "dispatchStatus", "workerPool", "dispatchLane")
+            haskey(normalized_dispatch, key) && (evidence[key] = String(normalized_dispatch[key]))
+        end
+    end
+    return evidence
 end
 
 end
