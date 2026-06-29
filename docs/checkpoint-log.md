@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Worker-Processed Lifecycle Job Slice - 2026-06-30
+
+### Work Done Till Date
+
+- Added a worker-service data-science project job tick processor.
+- Added opt-in worker-backed project job execution records that start accepted and advance through queued, running, and completed worker transitions.
+- Routed model lifecycle actions through the worker-service tick path, preserving the completed lifecycle route response while recording worker-owned execution metadata.
+- Added Julia helper and route assertions proving rollback/retraining lifecycle jobs have `worker_service_tick` orchestration, completed worker state metadata, and accepted/queued/running/completed status history.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Lifecycle project jobs are now worker-processed, but real rollback artifact switching and real retraining run orchestration are still missing.
+- AKS-45 remains open pending full lifecycle acceptance review; this slice handles worker transitions, not actual rollback/retraining model operations.
+- Worker-backed scoring, drift, tuning, evaluation, training, transform, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Add real rollback artifact/package switching from lifecycle records.
+- Add retraining job creation that launches a validation-safe training/tuning path.
+- Move additional project job routes to worker-service transitions with materialized outputs.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Worker Dispatch Evidence Slice - 2026-06-29
 
 ### Work Done Till Date

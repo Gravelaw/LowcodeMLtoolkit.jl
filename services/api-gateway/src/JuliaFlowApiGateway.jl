@@ -2966,6 +2966,7 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
         started_at = timestamp,
         finished_at = timestamp,
         plan = ["validate_model_lifecycle_state", "record_local_lifecycle_transition"],
+        worker_backed = true,
     )
     record["validationEvidence"]["executionId"] = execution_evidence["executionId"]
     record_data_science_project_job!(
@@ -4451,6 +4452,7 @@ function data_science_project_execution_evidence!(
     started_at::Union{Nothing,AbstractString} = nothing,
     finished_at::Union{Nothing,AbstractString} = nothing,
     plan::AbstractVector = String[],
+    worker_backed::Bool = false,
 )
     workflow_ids = sort(String.(collect(keys(state.workflows))))
     workflow_id = isempty(workflow_ids) ? project.project_id : first(workflow_ids)
@@ -4466,9 +4468,28 @@ function data_science_project_execution_evidence!(
         started_at = started_at,
         finished_at = finished_at,
         plan = plan,
+        worker_backed = worker_backed,
     )
     save_execution!(state.repository, execution; producer = "api-gateway")
     push!(state.executions, execution)
+    if worker_backed
+        for _ in 1:4
+            execution.status == "completed" && break
+            updated = JuliaFlowWorkerService.process_data_science_project_job_tick!(
+                state.worker_service,
+                state.executions;
+                execution_record = execution_record,
+                transition_execution_record = JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record,
+                materialize_execution = materialize_execution,
+            )
+            isempty(updated) && error("data science project worker did not process execution: $(execution.execution_id)")
+            execution_index = findfirst(item -> item.execution_id == execution.execution_id, state.executions)
+            execution_index === nothing && error("data science project worker execution missing: $(execution.execution_id)")
+            execution = state.executions[execution_index]
+            save_execution!(state.repository, execution; producer = "api-gateway")
+        end
+        execution.status == "completed" || error("data science project worker did not complete execution: $(execution.execution_id)")
+    end
     return JuliaFlowDataScienceProjectJobs.project_job_execution_evidence(execution, worker_id)
 end
 

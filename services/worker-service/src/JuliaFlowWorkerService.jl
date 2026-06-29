@@ -11,6 +11,7 @@ export WorkerServiceState,
     process_gpu_compute_tick!,
     process_control_flow_recovery_tick!,
     process_executor_schedule_tick!,
+    process_data_science_project_job_tick!,
     queue_stream_execution!,
     promote_stream_execution!,
     process_stream_worker_tick!,
@@ -26,6 +27,7 @@ Base.@kwdef mutable struct WorkerServiceState
     gpu_execution_ids::Set{String} = Set{String}()
     control_flow_branch_execution_ids::Set{String} = Set{String}()
     executor_execution_ids::Set{String} = Set{String}()
+    data_science_project_job_execution_ids::Set{String} = Set{String}()
 end
 
 function stream_lifecycle_status(execution)
@@ -54,6 +56,51 @@ function executor_state(execution)
     state = get(execution.metadata, "executor_state", nothing)
     state isa AbstractDict || return Dict{String,Any}()
     return Dict{String,Any}(String(key) => value for (key, value) in pairs(state))
+end
+
+function data_science_project_job(execution)
+    job = get(execution.metadata, "data_science_project_job", nothing)
+    job isa AbstractDict || return nothing
+    return Dict{String,Any}(String(key) => value for (key, value) in pairs(job))
+end
+
+function data_science_project_worker_dispatch(execution)
+    dispatch = get(execution.metadata, "worker_dispatch", nothing)
+    dispatch isa AbstractDict || return Dict{String,Any}()
+    return Dict{String,Any}(String(key) => value for (key, value) in pairs(dispatch))
+end
+
+function has_data_science_project_job(execution)
+    return data_science_project_job(execution) !== nothing
+end
+
+function should_process_data_science_project_job(execution)
+    has_data_science_project_job(execution) || return false
+    String(execution.mode) == "local_project_job" || return false
+    execution.status in ("accepted", "queued", "running") || return false
+    return true
+end
+
+function data_science_project_job_worker_metadata(execution, dispatch_status::AbstractString)
+    dispatch = data_science_project_worker_dispatch(execution)
+    worker = String(get(dispatch, "workerId", get(execution.metadata, "worker_id", worker_id("project-job-worker", execution.execution_id))))
+    dispatch["orchestrationMode"] = "worker_service_tick"
+    dispatch["dispatchStatus"] = String(dispatch_status)
+    dispatch["workerId"] = worker
+    haskey(dispatch, "workerPool") || (dispatch["workerPool"] = "local-cpu")
+    haskey(dispatch, "dispatchLane") || (dispatch["dispatchLane"] = "cpu")
+    job = data_science_project_job(execution)
+    return Dict{String,Any}(
+        "worker_id" => worker,
+        "worker_dispatch" => dispatch,
+        "data_science_project_worker_state" => Dict{String,Any}(
+            "status" => String(dispatch_status),
+            "project_id" => String(get(job, "project_id", "")),
+            "job_type" => String(get(job, "job_type", "")),
+            "source_record_id" => String(get(job, "source_record_id", "")),
+            "worker_id" => worker,
+        ),
+    )
 end
 
 function has_executor_schedule(execution)
@@ -886,6 +933,7 @@ function sync_worker_service!(service::WorkerServiceState, executions)
     empty!(service.stream_execution_ids)
     empty!(service.gpu_execution_ids)
     empty!(service.control_flow_branch_execution_ids)
+    empty!(service.data_science_project_job_execution_ids)
 
     for execution in executions
         lifecycle = stream_lifecycle_status(execution)
@@ -894,6 +942,7 @@ function sync_worker_service!(service::WorkerServiceState, executions)
         end
         has_gpu_dispatch(execution) && push!(service.gpu_execution_ids, execution.execution_id)
         has_completed_control_flow_branch(execution) && push!(service.control_flow_branch_execution_ids, execution.execution_id)
+        has_data_science_project_job(execution) && push!(service.data_science_project_job_execution_ids, execution.execution_id)
     end
 
     return service
@@ -1150,6 +1199,51 @@ function process_executor_schedule_tick!(
         materialized = materialize_execution(updated)
         executions[index] = materialized
         push!(service.executor_execution_ids, materialized.execution_id)
+        push!(updated_executions, materialized)
+    end
+    return updated_executions
+end
+
+function process_data_science_project_job_tick!(
+    service::WorkerServiceState,
+    executions;
+    execution_record,
+    transition_execution_record,
+    materialize_execution,
+)
+    updated_executions = Any[]
+    for (index, execution) in pairs(executions)
+        should_process_data_science_project_job(execution) || continue
+
+        if execution.status == "accepted"
+            metadata = data_science_project_job_worker_metadata(execution, "queued")
+            updated = transition_execution_record(
+                execution_record(execution),
+                "queued";
+                message = "Queued for data science project worker",
+                metadata = metadata,
+            )
+        elseif execution.status == "queued"
+            metadata = data_science_project_job_worker_metadata(execution, "running")
+            updated = transition_execution_record(
+                execution_record(execution),
+                "running";
+                message = "Data science project worker started",
+                metadata = metadata,
+            )
+        else
+            metadata = data_science_project_job_worker_metadata(execution, "completed")
+            updated = transition_execution_record(
+                execution_record(execution),
+                "completed";
+                message = "Data science project worker completed",
+                metadata = metadata,
+            )
+        end
+
+        materialized = materialize_execution(updated)
+        executions[index] = materialized
+        push!(service.data_science_project_job_execution_ids, materialized.execution_id)
         push!(updated_executions, materialized)
     end
     return updated_executions

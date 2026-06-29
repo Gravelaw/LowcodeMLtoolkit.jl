@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-06-29`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Worker-Processed Lifecycle Job Slice (2026-06-30)
+
+- Added `process_data_science_project_job_tick!` to the worker service so project job executions advance through accepted, queued, running, and completed states with worker-owned metadata.
+- Added opt-in `worker_backed=true` project job execution records that start accepted and are completed through bounded worker-service ticks.
+- Routed model lifecycle actions through the worker-service tick path while preserving the existing completed route response.
+- Added Julia helper and route evidence proving rollback/retraining lifecycle jobs now carry `worker_service_tick` orchestration, completed worker state metadata, and accepted/queued/running/completed status history.
+
+### Gaps Pending
+
+- AKS-36 and AKS-45 remain open because lifecycle jobs are worker-processed, but rollback still does not swap a deployed model artifact and retraining still does not launch a real training/tuning run.
+- Worker-backed scoring, drift, tuning, evaluation, training, transform, and broader project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Implement real rollback artifact/package switching and retraining job creation from lifecycle records.
+- Convert scoring/drift/tuning/evaluation/training/transform project jobs onto the worker-service transition path with materialized outputs.
+- Update Linear after local and CI verification evidence is available.
+
 ### AKS-36 DataScienceProject Worker Dispatch Evidence Slice (2026-06-29)
 
 - Added compact worker dispatch evidence to data-science project job execution records, including `orchestrationMode`, `dispatchStatus`, `workerPool`, and `dispatchLane`.

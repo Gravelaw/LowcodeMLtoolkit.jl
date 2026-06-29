@@ -1058,6 +1058,53 @@ end
     @test compact_evidence["dispatchLane"] == "cpu"
     @test compact_evidence["startedAt"] == "2026-06-22T00:12:00Z"
     @test compact_evidence["finishedAt"] == "2026-06-22T00:13:00Z"
+
+    worker_execution, worker_backed_id = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_execution_record(
+        helper_project,
+        "unit_test_worker_job";
+        workflow_id = "wf-helper",
+        checkpoint_tag = "cp-helper",
+        source_record_id = "source-helper",
+        resource_evidence = resource_evidence,
+        started_at = "2026-06-22T00:14:00Z",
+        plan = ["validate_worker_helper", "materialize_worker_helper"],
+        worker_backed = true,
+    )
+    @test worker_execution.status == "accepted"
+    @test worker_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+    @test worker_execution.metadata["worker_dispatch"]["dispatchStatus"] == "accepted"
+    worker_service = JuliaFlowApiGateway.JuliaFlowWorkerService.WorkerServiceState()
+    worker_executions = Any[worker_execution]
+    first_worker_tick = JuliaFlowApiGateway.JuliaFlowWorkerService.process_data_science_project_job_tick!(
+        worker_service,
+        worker_executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = JuliaFlowApiGateway.JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test first_worker_tick[1].status == "queued"
+    second_worker_tick = JuliaFlowApiGateway.JuliaFlowWorkerService.process_data_science_project_job_tick!(
+        worker_service,
+        worker_executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = JuliaFlowApiGateway.JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test second_worker_tick[1].status == "running"
+    third_worker_tick = JuliaFlowApiGateway.JuliaFlowWorkerService.process_data_science_project_job_tick!(
+        worker_service,
+        worker_executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = JuliaFlowApiGateway.JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test third_worker_tick[1].status == "completed"
+    @test third_worker_tick[1].metadata["worker_dispatch"]["dispatchStatus"] == "completed"
+    @test third_worker_tick[1].metadata["data_science_project_worker_state"]["job_type"] == "unit_test_worker_job"
+    worker_backed_evidence = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_execution_evidence(third_worker_tick[1], worker_backed_id)
+    @test worker_backed_evidence["status"] == "completed"
+    @test worker_backed_evidence["orchestrationMode"] == "worker_service_tick"
+    @test worker_backed_evidence["dispatchStatus"] == "completed"
 end
 
 mutable struct FakeRealtimeSocket
@@ -5210,10 +5257,18 @@ end
         @test rollback_lifecycle_job["sourceRecordId"] == "foundation-linear-baseline"
         @test rollback_lifecycle_job["resourceEvidence"]["executionMode"] == "model_lifecycle_action"
         @test rollback_lifecycle_job["resourceEvidence"]["cpuThreadCount"] >= 1
-        @test rollback_lifecycle_job["executionEvidence"]["orchestrationMode"] == "gateway_worker_dispatch"
+        @test rollback_lifecycle_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
         @test rollback_lifecycle_job["executionEvidence"]["dispatchStatus"] == "completed"
         @test rollback_lifecycle_job["executionEvidence"]["workerPool"] == rollback_lifecycle_job["resourceEvidence"]["workerPool"]
         @test rollback_lifecycle_job["executionEvidence"]["dispatchLane"] == rollback_lifecycle_job["resourceEvidence"]["dispatchLane"]
+        rollback_lifecycle_execution = first(filter(
+            execution -> execution.execution_id == rollback_lifecycle_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test rollback_lifecycle_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test rollback_lifecycle_execution.metadata["worker_dispatch"]["dispatchStatus"] == "completed"
+        @test rollback_lifecycle_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
+        @test [entry["status"] for entry in rollback_lifecycle_execution.status_history] == ["accepted", "queued", "running", "completed"]
         @test model_lifecycle_rolled_back_response.status == 201
         rolled_back_payload = JSON3.read(String(model_lifecycle_rolled_back_response.body), Dict{String,Any})
         @test rolled_back_payload["lifecycleRecord"]["state"] == "rolled_back"
@@ -5226,9 +5281,15 @@ end
         @test retraining_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "rolled_back"
         @test length(retraining_payload["project"]["modelLifecycleRecords"]) == length(model_lifecycle_after_deploy_payload["modelLifecycleRecords"])
         retraining_lifecycle_job = first(filter(job -> job["jobType"] == "model_lifecycle", retraining_payload["project"]["projectJobs"]))
-        @test retraining_lifecycle_job["executionEvidence"]["orchestrationMode"] == "gateway_worker_dispatch"
+        @test retraining_lifecycle_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
         @test retraining_lifecycle_job["executionEvidence"]["dispatchStatus"] == "completed"
         @test retraining_lifecycle_job["executionEvidence"]["workerPool"] == retraining_lifecycle_job["resourceEvidence"]["workerPool"]
+        retraining_lifecycle_execution = first(filter(
+            execution -> execution.execution_id == retraining_lifecycle_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test retraining_lifecycle_execution.metadata["data_science_project_worker_state"]["job_type"] == "model_lifecycle"
+        @test retraining_lifecycle_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
         @test model_lifecycle_archive_too_early_response.status == 400
         @test occursin("archive requires deprecated", String(model_lifecycle_archive_too_early_response.body))
         @test model_lifecycle_deprecated_response.status == 201

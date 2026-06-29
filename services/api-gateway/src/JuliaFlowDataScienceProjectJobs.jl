@@ -109,17 +109,21 @@ function project_job_execution_record(
     started_at::Union{Nothing,AbstractString} = nothing,
     finished_at::Union{Nothing,AbstractString} = nothing,
     plan::AbstractVector = String[],
+    worker_backed::Bool = false,
 )
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     started = started_at === nothing ? timestamp : String(started_at)
     finished = finished_at === nothing ? started : String(finished_at)
+    initial_status = worker_backed ? "accepted" : "completed"
+    worker_started_at = worker_backed ? nothing : started
+    worker_finished_at = worker_backed ? nothing : finished
     execution_plan = isempty(plan) ? ["validate_project_state", "materialize_project_artifact"] : [String(item) for item in plan]
     execution_id = "dsjob-" * replace(string(uuid4()), "-" => "")
     worker_id = "project-job-worker-" * execution_id[(lastindex(execution_id) - 7):lastindex(execution_id)]
     normalized_resource_evidence = resource_evidence === nothing ? Dict{String,Any}() : normalized_dict(resource_evidence)
     worker_dispatch = Dict{String,Any}(
-        "orchestrationMode" => "gateway_worker_dispatch",
-        "dispatchStatus" => "completed",
+        "orchestrationMode" => worker_backed ? "worker_service_tick" : "gateway_worker_dispatch",
+        "dispatchStatus" => worker_backed ? "accepted" : "completed",
         "workerId" => worker_id,
         "workerPool" => String(get(normalized_resource_evidence, "workerPool", "local-cpu")),
         "dispatchLane" => String(get(normalized_resource_evidence, "dispatchLane", "cpu")),
@@ -142,22 +146,24 @@ function project_job_execution_record(
         workflow_id = String(workflow_id),
         workflow_version = project.schema_version,
         checkpoint_tag = String(checkpoint_tag),
-        status = "completed",
+        status = initial_status,
         mode = "local_project_job",
         plan = execution_plan,
         stages = [execution_plan],
         node_count = length(execution_plan),
         connection_count = max(0, length(execution_plan) - 1),
         created_at = started,
-        updated_at = finished,
-        status_history = [
-            Dict{String,Any}("status" => "queued", "at" => started, "message" => "Project job queued"),
-            Dict{String,Any}("status" => "running", "at" => started, "message" => "Project job started"),
-            Dict{String,Any}("status" => "completed", "at" => finished, "message" => "Project job completed"),
-        ],
-        queued_at = started,
-        started_at = started,
-        finished_at = finished,
+        updated_at = worker_backed ? started : finished,
+        status_history = worker_backed ?
+            [Dict{String,Any}("status" => "accepted", "at" => started, "message" => "Project job accepted")] :
+            [
+                Dict{String,Any}("status" => "queued", "at" => started, "message" => "Project job queued"),
+                Dict{String,Any}("status" => "running", "at" => started, "message" => "Project job started"),
+                Dict{String,Any}("status" => "completed", "at" => finished, "message" => "Project job completed"),
+            ],
+        queued_at = worker_backed ? nothing : started,
+        started_at = worker_started_at,
+        finished_at = worker_finished_at,
         metadata = metadata,
     )
     return execution, worker_id
