@@ -480,6 +480,17 @@ function isGatewayAuthError(error: unknown): boolean {
   return error instanceof GatewayClientError && (error.status === 401 || error.status === 403);
 }
 
+function isDataScienceProject(value: unknown): value is DataScienceProject {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    "projectId" in value &&
+    Array.isArray((value as DataScienceProject).datasets) &&
+    Array.isArray((value as DataScienceProject).schemaContracts) &&
+    Array.isArray((value as DataScienceProject).projectJobs)
+  );
+}
+
 function authUnavailableState(error: unknown): JuliaFlowUnavailableState {
   const reason = error instanceof GatewayClientError ? error.message : "Gateway authentication failed.";
   return unavailableState(
@@ -836,6 +847,24 @@ function App() {
     }));
   }
 
+  async function refreshDataScienceProject(projectId: string) {
+    if (!client) return;
+    try {
+      const project = await client.getDataScienceProject(projectId);
+      if (isDataScienceProject(project)) {
+        applyDataScienceProjectUpdate(project);
+      }
+    } catch (error) {
+      setViewFeedback(
+        activeView,
+        isGatewayAuthError(error)
+          ? "Gateway authentication failed while refreshing project evidence."
+          : "Project evidence refresh could not be completed by the local gateway.",
+        "error"
+      );
+    }
+  }
+
   async function updateDataScienceProject(request: UpdateDataScienceProjectRequest) {
     const projectId = data.dataScienceProject.projectId;
     const localProject: DataScienceProject = {
@@ -851,11 +880,14 @@ function App() {
       splitAssignments: request.splitAssignments ?? data.dataScienceProject.splitAssignments,
       validationFolds: request.validationFolds ?? data.dataScienceProject.validationFolds,
       finalTestLocks: request.finalTestLocks ?? data.dataScienceProject.finalTestLocks,
+      projectJobs: request.projectJobs ?? data.dataScienceProject.projectJobs,
+      transformFitApplyRecords: request.transformFitApplyRecords ?? data.dataScienceProject.transformFitApplyRecords,
       statisticalAnalysisRuns: request.statisticalAnalysisRuns ?? data.dataScienceProject.statisticalAnalysisRuns,
       trainingPlans: request.trainingPlans ?? data.dataScienceProject.trainingPlans,
       tuningStudies: request.tuningStudies ?? data.dataScienceProject.tuningStudies,
       evaluationReports: request.evaluationReports ?? data.dataScienceProject.evaluationReports,
       predictionExports: request.predictionExports ?? data.dataScienceProject.predictionExports,
+      modelRegistryRecords: request.modelRegistryRecords ?? data.dataScienceProject.modelRegistryRecords,
       modelLifecycleRecords: request.modelLifecycleRecords ?? data.dataScienceProject.modelLifecycleRecords,
       monitoringBaselines: request.monitoringBaselines ?? data.dataScienceProject.monitoringBaselines,
       driftReports: request.driftReports ?? data.dataScienceProject.driftReports,
@@ -908,12 +940,16 @@ function App() {
             }
             onProjectUpdate={updateDataScienceProject}
             onImport={(request?: GatewayDataImportProfileRequest) => {
-              const nextRequest = request ?? {
+              const baseRequest = request ?? {
                 datasetId: data.dataProfile.datasetId,
                 sourceUri: data.dataProfile.sourceUri,
                 format: data.dataProfile.activeReadMode ?? data.dataProfile.sourceFormat,
                 targetZone: data.dataProfile.targetZone,
                 readMode: data.dataProfile.activeReadMode ?? data.dataProfile.sourceFormat
+              };
+              const nextRequest: GatewayDataImportProfileRequest = {
+                projectId: data.dataScienceProject.projectId,
+                ...baseRequest
               };
               if (!gatewayBaseUrl && fixtureSubstitutionAllowed && nextRequest.readMode) {
                 setData((current) => {
@@ -940,6 +976,7 @@ function App() {
                   ...current,
                   dataProfile: response.profile,
                   dataProfiles: upsertDataProfile(current.dataProfiles, response.profile),
+                  dataScienceProject: response.project ?? current.dataScienceProject,
                   mode: "live"
                 })),
                 `Synthetic ${nextRequest.readMode ?? data.dataProfile.activeReadMode ?? "csv"} profile loaded from fixture.`
@@ -982,11 +1019,16 @@ function App() {
                   target: data.dataProfile.workflowReadiness?.targetColumn ?? "churn",
                   algorithm: "MLJ.XGBoostClassifier"
                 }),
-                (response) => setData((current) => ({
-                  ...current,
-                  mlExperiments: prependUnique(current.mlExperiments, response.experiment, (item) => item.experimentId),
-                  mode: "live"
-                })),
+                (response) => {
+                  setData((current) => ({
+                    ...current,
+                    mlExperiments: prependUnique(current.mlExperiments, response.experiment, (item) => item.experimentId),
+                    mode: "live"
+                  }));
+                  if (response.experiment.validationEvidence?.projectId) {
+                    void refreshDataScienceProject(response.experiment.validationEvidence.projectId);
+                  }
+                },
                 "Synthetic ML experiment metrics displayed."
               )
             }
@@ -1001,11 +1043,14 @@ function App() {
               withGatewayFallback(
                 "models",
                 () => client!.registerWorkflowModel(activeWorkflowId(data), { modelId: "Churn Prediction", owner: "julia_user", tags: ["churn", "local"] }),
-                (response) => setData((current) => ({
-                  ...current,
-                  modelRegistry: prependUnique(current.modelRegistry, response.model, (item) => item.registryId),
-                  mode: "live"
-                })),
+                (response) => {
+                  setData((current) => ({
+                    ...current,
+                    modelRegistry: prependUnique(current.modelRegistry, response.model, (item) => item.registryId),
+                    mode: "live"
+                  }));
+                  void refreshDataScienceProject(data.dataScienceProject.projectId);
+                },
                 "Synthetic model registry detail displayed."
               )
             }
@@ -1040,11 +1085,14 @@ function App() {
               withGatewayFallback(
                 "deploy",
                 () => client!.packageWorkflowDeploy(activeWorkflowId(data), { modelId: "Churn Prediction", endpointPath: "/predict/churn", host: "127.0.0.1", port: 8099 }),
-                (response) => setData((current) => ({
-                  ...current,
-                  deployPackages: prependUnique(current.deployPackages, response.package, (item) => item.packageId),
-                  mode: "live"
-                })),
+                (response) => {
+                  setData((current) => ({
+                    ...current,
+                    deployPackages: prependUnique(current.deployPackages, response.package, (item) => item.packageId),
+                    mode: "live"
+                  }));
+                  void refreshDataScienceProject(data.dataScienceProject.projectId);
+                },
                 "Synthetic local deploy package displayed."
               )
             }

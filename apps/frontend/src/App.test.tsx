@@ -387,6 +387,116 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("Project schema and validation choices saved to the local gateway.")).toBeInTheDocument();
   });
 
+  it("refreshes project-backed training job evidence after an ML Studio run", async () => {
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: "http://127.0.0.1:8088",
+      runtimeMode: "development"
+    };
+    const trainingExecution = {
+      ...executionRecords[0],
+      executionId: "exec-training-ui-002",
+      status: "completed",
+      createdAt: "2026-06-22T09:00:00Z",
+      updatedAt: "2026-06-22T09:03:00Z",
+      startedAt: "2026-06-22T09:00:10Z",
+      finishedAt: "2026-06-22T09:03:00Z"
+    };
+    const nextExperiment = {
+      ...mlExperiments[0],
+      experimentId: "experiment-training-ui-002",
+      executionId: trainingExecution.executionId,
+      validationEvidence: {
+        ...mlExperiments[0].validationEvidence,
+        projectId: dataScienceProject.projectId,
+        trainingExecutionId: trainingExecution.executionId
+      },
+      executionEvidence: {
+        executionId: trainingExecution.executionId,
+        workflowId: workflowSummary.workflowId,
+        status: "completed",
+        mode: "worker",
+        workerId: "local-cpu-worker",
+        orchestrationMode: "gateway_worker_dispatch",
+        dispatchStatus: "completed",
+        workerPool: "local-cpu",
+        dispatchLane: "cpu",
+        queuedAt: "2026-06-22T09:00:00Z",
+        startedAt: "2026-06-22T09:00:10Z",
+        finishedAt: "2026-06-22T09:03:00Z"
+      }
+    };
+    const refreshedProject = {
+      ...dataScienceProject,
+      projectJobs: [
+        {
+          jobId: "job-training-ui-002",
+          projectId: dataScienceProject.projectId,
+          jobType: "training",
+          status: "completed",
+          datasetId: dataScienceProject.datasets[0]?.datasetId,
+          splitPlanId: dataScienceProject.splitPlans[0]?.splitPlanId,
+          sourceRecordId: nextExperiment.experimentId,
+          outputRefs: [
+            {
+              refId: "model-training-ui-002",
+              kind: "model",
+              localOnly: true,
+              checksumSha256: "a".repeat(64),
+              path: "models/churn-training-ui-002.jls",
+              generatedAt: "2026-06-22T09:03:00Z"
+            }
+          ],
+          executionEvidence: nextExperiment.executionEvidence,
+          startedAt: "2026-06-22T09:00:10Z",
+          finishedAt: "2026-06-22T09:03:00Z"
+        }
+      ]
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url.endsWith("/health")) return json(localHealth);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: executionRecords, count: executionRecords.length });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/ml/experiments/run`) && method === "POST") {
+        return json({ status: "accepted", execution: trainingExecution, experiment: nextExperiment });
+      }
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith(`/api/v1/data-science-projects/${dataScienceProject.projectId}`)) return json(refreshedProject);
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
+      if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
+      if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
+      if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
+      if (url.includes("/deploy/packages")) return json({ items: deployPackages, count: deployPackages.length });
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    fireEvent.click(screen.getByRole("button", { name: "ML Studio" }));
+    expect(screen.getByText("Project Training Job Evidence")).toBeInTheDocument();
+    expect(screen.getByText("No project training job has been recorded yet. Train a model through the local gateway to attach worker dispatch evidence to this project.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /train new model/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/api/v1/workflows/${workflowSummary.workflowId}/ml/experiments/run`),
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining(`"projectId":"${dataScienceProject.projectId}"`)
+      })
+    ));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      `http://127.0.0.1:8088/api/v1/data-science-projects/${dataScienceProject.projectId}`,
+      expect.objectContaining({ method: "GET" })
+    ));
+    await waitFor(() => expect(screen.getByText("job-training-ui-002")).toBeInTheDocument());
+    expect(screen.getByText("exec-training-ui-002")).toBeInTheDocument();
+    expect(screen.getAllByText("completed").length).toBeGreaterThan(0);
+  });
+
   it("polls gateway health and preserves stale values when refresh fails", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     window.__JULIAFLOW_CONFIG__ = {

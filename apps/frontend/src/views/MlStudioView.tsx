@@ -6,6 +6,11 @@ function formatMetric(value: unknown): string {
   return typeof value === "number" && Number.isFinite(value) ? value.toFixed(3) : "n/a";
 }
 
+function formatTimestamp(value?: string) {
+  if (!value) return "pending";
+  return value.replace("T", " ").replace("Z", " UTC");
+}
+
 export function MlStudioView({
   data,
   onRun,
@@ -16,6 +21,9 @@ export function MlStudioView({
   feedback?: ActionFeedback;
 }) {
   const experiment = data.mlExperiments[0];
+  const latestTrainingJob = data.dataScienceProject.projectJobs
+    .filter((job) => job.jobType === "training")
+    .sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
   if (!experiment) {
     return (
       <div className="route-grid ml-route">
@@ -91,6 +99,23 @@ export function MlStudioView({
           rows={data.mlExperiments}
           getRowKey={(row) => String(row.experimentId)}
         />
+      </Card>
+
+      <Card title="Project Training Job Evidence" className="right-panel">
+        {latestTrainingJob ? (
+          <div className="key-values">
+            <span>Job</span><strong>{latestTrainingJob.jobId}</strong>
+            <span>Status</span><strong>{latestTrainingJob.status}</strong>
+            <span>Execution</span><strong>{latestTrainingJob.executionEvidence?.executionId ?? experiment.validationEvidence?.trainingExecutionId ?? "pending"}</strong>
+            <span>Dispatch</span><strong>{latestTrainingJob.executionEvidence?.dispatchStatus ?? latestTrainingJob.executionEvidence?.status ?? "pending"}</strong>
+            <span>Worker</span><strong>{latestTrainingJob.executionEvidence?.workerId ?? latestTrainingJob.executionEvidence?.workerPool ?? "local"}</strong>
+            <span>Finished</span><strong>{formatTimestamp(latestTrainingJob.finishedAt)}</strong>
+          </div>
+        ) : (
+          <p className="empty-state">
+            No project training job has been recorded yet. Train a model through the local gateway to attach worker dispatch evidence to this project.
+          </p>
+        )}
       </Card>
 
       <Card title="Hardware And Hyperparameters" className="right-panel">

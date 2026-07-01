@@ -18,9 +18,30 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-07-01`
+- Last updated: `2026-07-02`
 
 ## Work Done Till Date
+### AKS-36 Frontend Project Job Evidence Slice (2026-07-02)
+
+- Data import/profile actions now send the active `DataScienceProject.projectId` to the local gateway.
+- Data import/profile responses apply the returned project payload when the gateway updates project catalog/schema/job state.
+- ML Studio training, Models registration, and Deploy packaging actions refresh the active `DataScienceProject` after successful gateway actions.
+- Project refresh responses are shape-guarded so malformed/empty gateway payloads cannot replace route state with `{}` and crash downstream views.
+- ML Studio now renders the latest project-backed `training` job from the `projectJobs` ledger, including job id, status, execution id, dispatch status, worker, and finish time.
+- Focused frontend coverage proves ML Studio posts the active project id, refreshes the project endpoint, and displays the refreshed training job evidence.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is only the first project-backed frontend migration slice.
+- Transform, Models, Deploy, Monitor, and broader Data workflows still need deeper project-led UI state and release/local-appliance no-fixture evidence.
+- Deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
+
+### Next Items To Implement
+
+- Continue project-backed frontend migration across Transform, Models, Deploy, and Monitor.
+- Add release/local-appliance browser evidence for project-backed UI flows.
+- Keep reviewer/architect/persona/application-test agents queued until AKS-36 parent evidence is complete.
+
 ### AKS-36 DataScienceProject Training Worker Slice (2026-07-01)
 
 - Validated ML experiment runs now create a typed `training` project job when project/split/final-test validation evidence links the run to a `DataScienceProject`.

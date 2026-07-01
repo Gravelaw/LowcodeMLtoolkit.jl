@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Frontend Project Job Evidence Slice - 2026-07-02
+
+### Work Done Till Date
+
+- Data import/profile actions send the active `DataScienceProject.projectId` to the gateway and apply returned project state when profile/catalog routes update the project.
+- ML Studio training, Models registration, and Deploy packaging refresh the active project after successful gateway actions.
+- Project refresh payloads are validated before being applied, preventing malformed/empty responses from corrupting route state.
+- ML Studio renders the latest project-backed `training` job evidence from `projectJobs`, including worker dispatch and execution identifiers.
+- Focused frontend coverage verifies ML Studio posts the active project id, refreshes the project endpoint, and displays the refreshed training job evidence.
+
+### Gaps Pending
+
+- AKS-36 parent remains open because this only starts the project-backed frontend migration.
+- Transform, Models, Deploy, Monitor, and broader Data project-led UI state still need migration and release/local-appliance no-fixture evidence.
+- Deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
+
+### Next Items To Implement
+
+- Continue project-backed frontend migration across Transform, Models, Deploy, and Monitor.
+- Add release/local-appliance browser evidence for project-backed UI flows.
+- Defer final reviewer/architect/persona/application-test agents until the parent issue evidence is complete.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Training Worker Slice - 2026-07-01
 
 ### Work Done Till Date
