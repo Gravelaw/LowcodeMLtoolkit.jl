@@ -316,6 +316,105 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("Pipeline is locally valid")).toBeInTheDocument();
   });
 
+  it("renders project-backed transform fit/apply evidence from the active project", async () => {
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: "http://127.0.0.1:8088",
+      runtimeMode: "development"
+    };
+    const transformRunId = "tf-project-transform-001";
+    const transformExecutionId = "exec-project-transform-001";
+    const projectWithTransformEvidence = {
+      ...dataScienceProject,
+      transformFitApplyRecords: [
+        {
+          transformRunId,
+          datasetId: dataScienceProject.datasets[0]?.datasetId ?? "customer-churn-local",
+          splitPlanId: dataScienceProject.splitPlans[0]?.splitPlanId ?? "split-customer-churn-validation",
+          fitSplit: "train",
+          applySplits: ["validation", "test"],
+          transformRef: "transforms/customer-churn-fit-apply.jl",
+          leakageChecks: [
+            { checkId: "fit-train-only", status: "passed", detail: "Transform state was fit on train only." },
+            { checkId: "apply-held-out", status: "passed", detail: "Frozen state applied to validation and test." }
+          ],
+          artifactRefs: [
+            {
+              refId: "tf-project-transform-001-artifact",
+              kind: "transform",
+              localOnly: true,
+              checksumSha256: "b".repeat(64),
+              path: "data/features/customer-churn-fit-apply.parquet",
+              generatedAt: "2026-06-23T09:03:00Z"
+            }
+          ],
+          createdAt: "2026-06-23T09:03:00Z"
+        }
+      ],
+      projectJobs: [
+        {
+          jobId: "job-project-transform-001",
+          projectId: dataScienceProject.projectId,
+          jobType: "transform_fit_apply",
+          status: "completed",
+          datasetId: dataScienceProject.datasets[0]?.datasetId,
+          splitPlanId: dataScienceProject.splitPlans[0]?.splitPlanId,
+          sourceRecordId: transformRunId,
+          outputRefs: [
+            {
+              refId: "tf-project-transform-001-artifact",
+              kind: "transform",
+              localOnly: true,
+              checksumSha256: "b".repeat(64),
+              path: "data/features/customer-churn-fit-apply.parquet",
+              generatedAt: "2026-06-23T09:03:00Z"
+            }
+          ],
+          executionEvidence: {
+            executionId: transformExecutionId,
+            workflowId: workflowSummary.workflowId,
+            status: "completed",
+            mode: "local_project_job",
+            workerId: "local-cpu-worker",
+            orchestrationMode: "worker_service_tick",
+            dispatchStatus: "completed",
+            workerPool: "local-cpu",
+            dispatchLane: "cpu",
+            queuedAt: "2026-06-23T09:00:00Z",
+            startedAt: "2026-06-23T09:00:10Z",
+            finishedAt: "2026-06-23T09:03:00Z"
+          },
+          startedAt: "2026-06-23T09:00:10Z",
+          finishedAt: "2026-06-23T09:03:00Z"
+        }
+      ]
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return json(localHealth);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: executionRecords, count: executionRecords.length });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithTransformEvidence], count: 1 });
+      if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
+      if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
+      if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
+      if (url.includes("/deploy/packages")) return json({ items: deployPackages, count: deployPackages.length });
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    fireEvent.click(screen.getByRole("button", { name: "Transform" }));
+    expect(screen.getByText("Project Transform Evidence")).toBeInTheDocument();
+    expect(screen.getByText(transformRunId)).toBeInTheDocument();
+    expect(screen.getByText("validation, test")).toBeInTheDocument();
+    expect(screen.getByText("job-project-transform-001")).toBeInTheDocument();
+    expect(screen.getByText(transformExecutionId)).toBeInTheDocument();
+  });
+
   it("uses runtime gateway config before falling back to fixtures", async () => {
     window.__JULIAFLOW_CONFIG__ = {
       gatewayBaseUrl: "http://127.0.0.1:8088",

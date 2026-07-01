@@ -68,6 +68,16 @@ function afterPreviewRows(rows: Array<Record<string, unknown>>) {
   }));
 }
 
+function latestProjectTransformEvidence(data: AppData) {
+  const record = [...data.dataScienceProject.transformFitApplyRecords]
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+  const job = [...data.dataScienceProject.projectJobs]
+    .filter((item) => item.jobType === "transform_fit_apply")
+    .filter((item) => !record || !item.sourceRecordId || item.sourceRecordId === record.transformRunId)
+    .sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
+  return { record, job };
+}
+
 export function TransformView({
   data,
   onRun,
@@ -95,6 +105,7 @@ export function TransformView({
   };
   const beforeRows = data.dataProfile.previewRows ?? [];
   const afterRows = afterPreviewRows(beforeRows);
+  const projectEvidence = latestProjectTransformEvidence(data);
   const filteredPalette = paletteGroups.map((group) => ({
     ...group,
     items: group.items.filter((item) => item.toLowerCase().includes(query.toLowerCase()) || group.group.toLowerCase().includes(query.toLowerCase()))
@@ -270,6 +281,23 @@ export function TransformView({
             <span>{latest ? `${latest.stageCount} stages, ${latest.nodeResults.length} node results` : "Run the transform pipeline to create local artifacts."}</span>
           </div>
         </div>
+      </Card>
+
+      <Card title="Project Transform Evidence" className="right-panel">
+        {projectEvidence.record ? (
+          <div className="key-values wrap-values">
+            <span>Transform Run</span><strong>{projectEvidence.record.transformRunId}</strong>
+            <span>Fit Split</span><strong>{projectEvidence.record.fitSplit}</strong>
+            <span>Apply Splits</span><strong>{projectEvidence.record.applySplits.join(", ")}</strong>
+            <span>Leakage Checks</span><strong>{projectEvidence.record.leakageChecks.map((check) => check.status).join(", ")}</strong>
+            <span>Job</span><strong>{projectEvidence.job?.jobId ?? "No project job linked"}</strong>
+            <span>Execution</span><strong>{projectEvidence.job?.executionEvidence?.executionId ?? "pending"}</strong>
+          </div>
+        ) : (
+          <p className="empty-state">
+            No project-backed transform fit/apply evidence is attached yet. Run the project transform workflow through the local gateway to record train-only fitting and held-out split application.
+          </p>
+        )}
       </Card>
 
       <Card title="Pipeline Metrics" eyebrow="Julia-generated Plotly specs" className="right-panel">
