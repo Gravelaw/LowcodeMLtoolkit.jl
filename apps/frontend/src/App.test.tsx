@@ -495,6 +495,12 @@ describe("JuliaFlow local-only app redesign", () => {
     await waitFor(() => expect(screen.getByText("job-training-ui-002")).toBeInTheDocument());
     expect(screen.getByText("exec-training-ui-002")).toBeInTheDocument();
     expect(screen.getAllByText("completed").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Monitor" }));
+    expect(screen.getByText("Project Job Ledger")).toBeInTheDocument();
+    expect(screen.getByText("training")).toBeInTheDocument();
+    expect(screen.getByText("experiment-training-ui-002")).toBeInTheDocument();
+    expect(screen.getByText("exec-training-ui-002")).toBeInTheDocument();
   });
 
   it("polls gateway health and preserves stale values when refresh fails", async () => {

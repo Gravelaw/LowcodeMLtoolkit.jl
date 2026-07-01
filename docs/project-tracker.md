@@ -28,17 +28,19 @@ Tracker always records 3 things:
 - ML Studio training, Models registration, and Deploy packaging actions refresh the active `DataScienceProject` after successful gateway actions.
 - Project refresh responses are shape-guarded so malformed/empty gateway payloads cannot replace route state with `{}` and crash downstream views.
 - ML Studio now renders the latest project-backed `training` job from the `projectJobs` ledger, including job id, status, execution id, dispatch status, worker, and finish time.
+- Monitor now renders the refreshed project job ledger with job type, status, source record, execution id, and dispatch status so project-backed worker evidence is visible outside the originating route.
 - Focused frontend coverage proves ML Studio posts the active project id, refreshes the project endpoint, and displays the refreshed training job evidence.
+- Focused frontend coverage also proves the refreshed training job appears in Monitor after navigation.
 
 ### Gaps Pending
 
 - AKS-36 remains open because this is only the first project-backed frontend migration slice.
-- Transform, Models, Deploy, Monitor, and broader Data workflows still need deeper project-led UI state and release/local-appliance no-fixture evidence.
+- Transform, Models, Deploy, and broader Data workflows still need deeper project-led UI state and release/local-appliance no-fixture evidence.
 - Deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
 
 ### Next Items To Implement
 
-- Continue project-backed frontend migration across Transform, Models, Deploy, and Monitor.
+- Continue project-backed frontend migration across Transform, Models, and Deploy.
 - Add release/local-appliance browser evidence for project-backed UI flows.
 - Keep reviewer/architect/persona/application-test agents queued until AKS-36 parent evidence is complete.
 
