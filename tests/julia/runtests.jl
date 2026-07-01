@@ -3594,6 +3594,10 @@ end
                 ),
             ),
         )
+        deploy_package_history_after_rollback_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/workflows/wf-foundation/deploy/packages"),
+        )
         model_lifecycle_retraining_response = route_request(
             state,
             HTTP.Request(
@@ -5274,6 +5278,29 @@ end
         @test rolled_back_payload["lifecycleRecord"]["state"] == "rolled_back"
         @test rolled_back_payload["lifecycleRecord"]["rollbackModelId"] == "foundation-linear-baseline-v0"
         @test rolled_back_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "rollback_ready"
+        @test startswith(rolled_back_payload["lifecycleRecord"]["rollbackPackageId"], "rollback-")
+        @test rolled_back_payload["lifecycleRecord"]["deployedEndpointId"] == rolled_back_payload["lifecycleRecord"]["rollbackPackageId"]
+        @test rolled_back_payload["lifecycleRecord"]["validationEvidence"]["rollbackSourcePackageId"] == deploy_package_payload["package"]["packageId"]
+        @test rolled_back_payload["lifecycleRecord"]["validationEvidence"]["rollbackPackageId"] == rolled_back_payload["lifecycleRecord"]["rollbackPackageId"]
+        rolled_back_registry_record = first(filter(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            rolled_back_payload["project"]["modelRegistryRecords"],
+        ))
+        @test rolled_back_registry_record["status"] == "rolled_back"
+        @test rolled_back_registry_record["deploymentStatus"] == "rolled_back"
+        @test rolled_back_registry_record["rollbackModelId"] == "foundation-linear-baseline-v0"
+        deploy_package_history_after_rollback_payload = JSON3.read(String(deploy_package_history_after_rollback_response.body), Dict{String,Any})
+        rollback_package = first(filter(
+            package -> String(get(package, "packageId", "")) == rolled_back_payload["lifecycleRecord"]["rollbackPackageId"],
+            deploy_package_history_after_rollback_payload["items"],
+        ))
+        @test rollback_package["deploymentStatus"] == "rolled_back"
+        @test rollback_package["modelId"] == "foundation-linear-baseline-v0"
+        @test rollback_package["rollbackFromModelId"] == "foundation-linear-baseline"
+        @test rollback_package["rollbackTargetModelId"] == "foundation-linear-baseline-v0"
+        @test rollback_package["rollbackSourcePackageId"] == deploy_package_payload["package"]["packageId"]
+        @test occursin("foundation-linear-baseline-v0", rollback_package["serviceCode"])
+        @test length(rollback_package["packageChecksumSha256"]) == 64
         @test model_lifecycle_retraining_response.status == 201
         retraining_payload = JSON3.read(String(model_lifecycle_retraining_response.body), Dict{String,Any})
         @test retraining_payload["lifecycleRecord"]["state"] == "retraining_requested"

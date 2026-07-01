@@ -927,6 +927,8 @@ export interface ModelLifecycleRecord {
   evaluationReportId?: string;
   deployedEndpointId?: string;
   rollbackModelId?: string;
+  rollbackPackageId?: string;
+  rollbackPackageRef?: string;
   lifecycleAction?: DataScienceModelLifecycleAction;
   rollbackReason?: string;
   retrainingReason?: string;
@@ -939,6 +941,8 @@ export interface ModelLifecycleRecord {
     lifecycleAction?: DataScienceModelLifecycleAction;
     deployedEndpointId?: string;
     rollbackModelId?: string;
+    rollbackPackageId?: string;
+    rollbackPackageRef?: string;
     driftReportId?: string;
     reason?: string;
   };
@@ -1698,6 +1702,10 @@ export interface GatewayDeployPackageRecord {
   runCommand: string;
   modelRegistryId?: string | null;
   deploymentStatus: "local_ready" | "packaged" | "failed" | string;
+  rollbackFromModelId?: string;
+  rollbackTargetModelId?: string;
+  rollbackSourcePackageId?: string;
+  rollbackReason?: string;
   artifactEvidence: GatewayDeployPackageArtifactEvidence[];
   validationEvidence?: {
     projectId?: string;

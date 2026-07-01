@@ -19,6 +19,7 @@ artifacts/
 .codex/
 # Local archives for retired/generated Codex tooling.
 .codex-archive/
+# Retired GitHub CI webhook/custom-node monitor experiment; keep local-only.
 .codex-archive/github-ci-webhook-monitor*/
 .codex-archive/github-ci-webhook-monitor-20260622/
 .codex/config.toml

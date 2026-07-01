@@ -3031,6 +3031,12 @@
           "rollbackModelId": {
             "type": "string"
           },
+          "rollbackPackageId": {
+            "type": "string"
+          },
+          "rollbackPackageRef": {
+            "type": "string"
+          },
           "lifecycleAction": {
             "type": "string",
             "enum": [
@@ -8511,6 +8517,18 @@
             ]
           },
           "deploymentStatus": {
+            "type": "string"
+          },
+          "rollbackFromModelId": {
+            "type": "string"
+          },
+          "rollbackTargetModelId": {
+            "type": "string"
+          },
+          "rollbackSourcePackageId": {
+            "type": "string"
+          },
+          "rollbackReason": {
             "type": "string"
           },
           "artifactEvidence": {

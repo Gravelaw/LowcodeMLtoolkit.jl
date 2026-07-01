@@ -18,9 +18,45 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-29`
+- Last updated: `2026-06-30`
 
 ## Work Done Till Date
+### Retired GitHub CI Webhook/Custom-Node Monitor Confirmation (2026-06-30)
+
+- Confirmed the retired GitHub CI webhook monitor archive exists at `.codex-archive/github-ci-webhook-monitor-20260622/`.
+- Confirmed `.gitignore` keeps `.codex-archive/` and the webhook monitor archive local-only.
+- Confirmed no active tracked webhook/custom-node CI monitor script, npm command, setup document, or focused test remains in the active repo path.
+- Updated the active control docs to record the custom-node CI monitoring direction as retired, not just the webhook receiver.
+
+### Gaps Pending
+
+- CI visibility still needs a safer workflow if manual checks remain costly.
+- Public/tunneled inbound workstation webhooks and custom-node CI listeners remain rejected unless a future threat-model review explicitly changes that decision.
+
+### Next Items To Implement
+
+- Prefer GitHub-native workflow summaries/status artifacts or a bounded local ETag/backoff watcher for any future CI visibility work.
+- Keep the archive local-only and ignored; do not reintroduce the monitor into the active repo path.
+
+### AKS-36 DataScienceProject Rollback Package Switching Slice (2026-06-30)
+
+- Added rollback deploy-package materialization for `mark_rolled_back` lifecycle actions.
+- The rollback action now creates a local package record for the fallback model, rewrites the lifecycle `deployedEndpointId` to the rollback package, and links `rollbackPackageId`/`rollbackPackageRef` in lifecycle validation evidence.
+- Deploy package history now includes the rollback package with `deploymentStatus = rolled_back`, source package id, source model id, target rollback model id, service code pointing at the fallback model ref, and package checksum evidence.
+- The model registry record for the original model is updated to `status = rolled_back` and `deploymentStatus = rolled_back`.
+- Julia route tests now prove the rollback lifecycle record, registry record, deploy package history, service code, and checksum evidence.
+
+### Gaps Pending
+
+- AKS-36 and AKS-45 remain open because retraining still does not launch a real training/tuning run.
+- Worker-backed scoring, drift, tuning, evaluation, training, transform, and broader project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Add retraining job creation from lifecycle records that launches a validation-safe training/tuning path.
+- Convert scoring/drift/tuning/evaluation/training/transform project jobs onto the worker-service transition path with materialized outputs.
+- Update Linear after local and CI verification evidence is available.
+
 ### AKS-36 DataScienceProject Worker-Processed Lifecycle Job Slice (2026-06-30)
 
 - Added `process_data_science_project_job_tick!` to the worker service so project job executions advance through accepted, queued, running, and completed states with worker-owned metadata.
@@ -30,12 +66,12 @@ Tracker always records 3 things:
 
 ### Gaps Pending
 
-- AKS-36 and AKS-45 remain open because lifecycle jobs are worker-processed, but rollback still does not swap a deployed model artifact and retraining still does not launch a real training/tuning run.
+- AKS-36 and AKS-45 remain open because lifecycle jobs are worker-processed, but retraining still does not launch a real training/tuning run.
 - Worker-backed scoring, drift, tuning, evaluation, training, transform, and broader project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
-- Implement real rollback artifact/package switching and retraining job creation from lifecycle records.
+- Implement retraining job creation from lifecycle records.
 - Convert scoring/drift/tuning/evaluation/training/transform project jobs onto the worker-service transition path with materialized outputs.
 - Update Linear after local and CI verification evidence is available.
 

@@ -2933,6 +2933,104 @@ function upsert_project_model_lifecycle!(
     return record
 end
 
+function deploy_package_record_by_id(state::GatewayState, package_id::AbstractString)
+    for execution in reverse(state.executions)
+        for package_record in deploy_package_records(execution)
+            String(get(package_record, "packageId", "")) == String(package_id) || continue
+            return execution, package_record
+        end
+    end
+    return nothing, nothing
+end
+
+function rollback_deploy_package_payload!(
+    state::GatewayState,
+    lifecycle_record::Dict{String,Any},
+    timestamp::AbstractString,
+)
+    source_package_id = String(get(lifecycle_record, "deployedEndpointId", ""))
+    rollback_model_id = String(get(lifecycle_record, "rollbackModelId", ""))
+    isempty(strip(source_package_id)) && error("model lifecycle rollback source package required")
+    isempty(strip(rollback_model_id)) && error("model lifecycle rollback target model required")
+    source_execution, source_package = deploy_package_record_by_id(state, source_package_id)
+    source_execution === nothing && error("model lifecycle rollback source package not found: $(source_package_id)")
+    workflow_id = String(source_package["workflowId"])
+    haskey(state.workflows, workflow_id) || error("model lifecycle rollback workflow not found: $(workflow_id)")
+
+    endpoint_config = Dict{String,Any}(
+        "endpointUrl" => String(source_package["endpointUrl"]),
+        "endpointPath" => String(source_package["endpointPath"]),
+        "host" => String(source_package["host"]),
+        "port" => Int(source_package["port"]),
+    )
+    package_id = "rollback-" * replace(string(uuid4()), "-" => "")
+    rollback_model_ref = "local://models/$(rollback_model_id).json"
+    service_code = local_deploy_service_code(rollback_model_id, String(endpoint_config["endpointUrl"]), rollback_model_ref)
+    workflow_payload = JuliaFlowGatewayRepository.workflow_detail_payload(state.workflows[workflow_id])
+    config_payload = Dict{String,Any}(
+        "endpointPath" => String(endpoint_config["endpointPath"]),
+        "host" => String(endpoint_config["host"]),
+        "port" => Int(endpoint_config["port"]),
+        "checkpointTag" => String(source_package["checkpointTag"]),
+        "rollbackFromModelId" => String(lifecycle_record["modelId"]),
+        "rollbackTargetModelId" => rollback_model_id,
+        "rollbackSourcePackageId" => source_package_id,
+    )
+    rollback_model_record = Dict{String,Any}(
+        "modelId" => rollback_model_id,
+        "checkpointTag" => String(source_package["checkpointTag"]),
+        "artifactEvidence" => [
+            Dict{String,Any}(
+                "kind" => "model",
+                "artifactRef" => rollback_model_ref,
+                "checksumSha256" => bytes2hex(sha256(Vector{UInt8}(codeunits(rollback_model_ref)))),
+            ),
+        ],
+    )
+    artifact_evidence = JuliaFlowDataScienceProjectDeploy.deploy_artifact_evidence(
+        workflow_id,
+        rollback_model_record,
+        package_id,
+        service_code,
+        artifact_checksum(workflow_payload),
+        artifact_checksum(config_payload),
+    )
+    validation_context = get(source_package, "validationEvidence", Dict{String,Any}())
+    validation_context = validation_context isa AbstractDict ? Dict{String,Any}(String(key) => value for (key, value) in pairs(validation_context)) : Dict{String,Any}()
+    validation_context["lifecycleAction"] = "mark_rolled_back"
+    validation_context["rollbackFromModelId"] = String(lifecycle_record["modelId"])
+    validation_context["rollbackTargetModelId"] = rollback_model_id
+    validation_context["rollbackSourcePackageId"] = source_package_id
+
+    package_record = JuliaFlowDataScienceProjectDeploy.deploy_package_record(
+        workflow_id,
+        workflow_payload,
+        rollback_model_record,
+        validation_context,
+        package_id,
+        endpoint_config,
+        service_code,
+        artifact_evidence,
+        timestamp,
+    )
+    package_record["deploymentStatus"] = "rolled_back"
+    package_record["rollbackFromModelId"] = String(lifecycle_record["modelId"])
+    package_record["rollbackTargetModelId"] = rollback_model_id
+    package_record["rollbackSourcePackageId"] = source_package_id
+    haskey(lifecycle_record, "rollbackReason") && (package_record["rollbackReason"] = String(lifecycle_record["rollbackReason"]))
+    package_record["packageChecksumSha256"] = artifact_checksum(JuliaFlowDataScienceProjectDeploy.deploy_package_checksum_payload(package_record))
+
+    source_execution.metadata["deploy_package_records"] = [package_record, deploy_package_records(source_execution)...]
+    save_execution!(state.repository, source_execution; producer = "api-gateway")
+    lifecycle_record["deployedEndpointId"] = package_id
+    lifecycle_record["rollbackPackageId"] = package_id
+    lifecycle_record["rollbackPackageRef"] = String(package_record["packageRef"])
+    lifecycle_record["validationEvidence"]["rollbackPackageId"] = package_id
+    lifecycle_record["validationEvidence"]["rollbackPackageRef"] = String(package_record["packageRef"])
+    lifecycle_record["validationEvidence"]["rollbackSourcePackageId"] = source_package_id
+    return package_record
+end
+
 function model_lifecycle_action_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
     project = state.data_science_projects[project_id]
@@ -2943,11 +3041,15 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
         timestamp,
     )
     model_id = String(record["modelId"])
+    rollback_package_record = nothing
+    if String(get(record, "lifecycleAction", "")) == "mark_rolled_back"
+        rollback_package_record = rollback_deploy_package_payload!(state, record, timestamp)
+    end
 
     remaining = [item for (item_index, item) in enumerate(project.model_lifecycle_records) if item_index != index]
     project.model_lifecycle_records = [record, remaining...]
     registry_record = nothing
-    if String(get(record, "state", "")) in ("approved", "deprecated", "archived")
+    if String(get(record, "state", "")) in ("approved", "deprecated", "archived", "rolled_back")
         registry_record = JuliaFlowDataScienceProjectRegistry.update_model_registry_lifecycle_status!(
             project,
             model_id,
@@ -2955,6 +3057,11 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
             timestamp;
             validation_evidence = record["validationEvidence"],
         )
+        if String(get(record, "state", "")) == "rolled_back"
+            registry_record["deploymentStatus"] = "rolled_back"
+            registry_record["rollbackModelId"] = String(get(record, "rollbackModelId", ""))
+            registry_record["rollbackPackageId"] = String(get(record, "rollbackPackageId", ""))
+        end
     end
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "model_lifecycle_action")
     execution_evidence = data_science_project_execution_evidence!(
@@ -2969,6 +3076,7 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
         worker_backed = true,
     )
     record["validationEvidence"]["executionId"] = execution_evidence["executionId"]
+    rollback_package_record === nothing || (record["validationEvidence"]["rollbackPackageExecutionId"] = execution_evidence["executionId"])
     record_data_science_project_job!(
         project,
         "model_lifecycle";

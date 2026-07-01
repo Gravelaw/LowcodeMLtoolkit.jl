@@ -20,6 +20,47 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` Retired GitHub CI Webhook/Custom-Node Monitor Confirmation - 2026-06-30
+
+### Work Done Till Date
+
+- Confirmed the retired GitHub CI webhook monitor archive exists at `.codex-archive/github-ci-webhook-monitor-20260622/`.
+- Confirmed `.gitignore` keeps `.codex-archive/` and the webhook monitor archive local-only.
+- Confirmed no active tracked webhook/custom-node CI monitor script, npm command, setup document, or focused test remains in the active repo path.
+- Updated the active control docs to record the custom-node CI monitoring direction as retired alongside the webhook receiver.
+
+### Gaps Pending
+
+- CI visibility still needs a safer workflow if manual checks remain costly.
+- Public/tunneled inbound workstation webhooks and custom-node CI listeners remain rejected unless a future threat-model review explicitly changes that decision.
+
+### Next Items To Implement
+
+- Prefer GitHub-native workflow summaries/status artifacts or a bounded local ETag/backoff watcher for any future CI visibility work.
+- Keep the archive local-only and ignored; do not reintroduce the monitor into the active repo path.
+
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Rollback Package Switching Slice - 2026-06-30
+
+### Work Done Till Date
+
+- Added rollback deploy-package materialization for `mark_rolled_back` lifecycle actions.
+- The rollback action creates a local deploy package for the fallback model and links it to the lifecycle record through `rollbackPackageId`, `rollbackPackageRef`, and lifecycle validation evidence.
+- The rollback package is visible through deploy package history with `deploymentStatus = rolled_back`, source package id, source model id, rollback target model id, service code pointing at the fallback model ref, and checksum evidence.
+- The original model registry record is updated to `status = rolled_back` and `deploymentStatus = rolled_back`.
+- Julia route tests prove lifecycle, registry, deploy-history, service-code, and checksum evidence for rollback package switching.
+
+### Gaps Pending
+
+- AKS-36 parent remains open. Real rollback package switching is now present, but real retraining run orchestration is still missing.
+- AKS-45 remains open until retraining orchestration and full lifecycle acceptance are reviewed.
+- Worker-backed scoring, drift, tuning, evaluation, training, transform, and project-backed frontend migration remain open.
+
+### Next Items To Implement
+
+- Add retraining job creation that launches a validation-safe training/tuning path.
+- Move additional project job routes to worker-service transitions with materialized outputs.
+- Keep release/local-appliance no-fixture evidence in the closure gate before any daily-workstation readiness claim.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Worker-Processed Lifecycle Job Slice - 2026-06-30
 
 ### Work Done Till Date
@@ -31,13 +72,12 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 parent remains open. Lifecycle project jobs are now worker-processed, but real rollback artifact switching and real retraining run orchestration are still missing.
-- AKS-45 remains open pending full lifecycle acceptance review; this slice handles worker transitions, not actual rollback/retraining model operations.
+- AKS-36 parent remains open. Lifecycle project jobs are now worker-processed, but real retraining run orchestration is still missing.
+- AKS-45 remains open pending full lifecycle acceptance review; this slice handles worker transitions, not actual retraining model operations.
 - Worker-backed scoring, drift, tuning, evaluation, training, transform, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
-- Add real rollback artifact/package switching from lifecycle records.
 - Add retraining job creation that launches a validation-safe training/tuning path.
 - Move additional project job routes to worker-service transitions with materialized outputs.
 
