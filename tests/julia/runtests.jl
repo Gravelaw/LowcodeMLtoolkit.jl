@@ -5061,6 +5061,11 @@ end
         @test persisted_prediction_execution.status == "completed"
         @test persisted_prediction_execution.metadata["data_science_project_job"]["job_type"] == "prediction_export"
         @test persisted_prediction_execution.metadata["data_science_project_job"]["source_record_id"] == prediction_export_payload["predictionExport"]["predictionExportId"]
+        @test persisted_prediction_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test persisted_prediction_execution.metadata["worker_dispatch"]["dispatchStatus"] == "completed"
+        @test persisted_prediction_execution.metadata["data_science_project_worker_state"]["job_type"] == "prediction_export"
+        @test persisted_prediction_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
+        @test [entry["status"] for entry in persisted_prediction_execution.status_history] == ["accepted", "queued", "running", "completed"]
         @test length(prediction_export_payload["project"]["predictionExports"]) >= 1
         @test prediction_export_payload["project"]["predictionExports"][1]["artifactRefs"][1]["checksumSha256"] == prediction_export_payload["predictionExport"]["artifactRefs"][1]["checksumSha256"]
         prediction_export_job = first(filter(job -> job["jobType"] == "prediction_export", prediction_export_payload["project"]["projectJobs"]))
@@ -5070,6 +5075,8 @@ end
         @test prediction_export_job["resourceEvidence"]["cpuWorkerConcurrency"] >= 1
         @test prediction_export_job["executionEvidence"]["executionId"] == prediction_export_execution_id
         @test prediction_export_job["executionEvidence"]["workerId"] == persisted_prediction_execution.metadata["worker_id"]
+        @test prediction_export_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test prediction_export_job["executionEvidence"]["dispatchStatus"] == "completed"
         @test prediction_export_bad_format_response.status == 400
         @test occursin("format must be csv", String(prediction_export_bad_format_response.body))
         @test prediction_export_missing_contract_response.status == 400
@@ -5096,7 +5103,18 @@ end
         @test drift_report_payload["monitoringBaseline"]["baselineId"] == "baseline-foundation-drift"
         @test drift_report_payload["driftReport"]["validationEvidence"]["outputContractRef"] == "contract://outputs/foundation-predictions"
         @test startswith(String(drift_report_payload["driftReport"]["executionEvidence"]["executionId"]), "dsjob-")
+        @test drift_report_payload["driftReport"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test drift_report_payload["driftReport"]["executionEvidence"]["dispatchStatus"] == "completed"
         @test drift_report_payload["driftReport"]["validationEvidence"]["executionId"] == drift_report_payload["driftReport"]["executionEvidence"]["executionId"]
+        @test length(drift_report_payload["driftReport"]["artifactRefs"]) == 1
+        @test haskey(drift_report_payload["driftReport"]["artifactRefs"][1], "checksumSha256")
+        @test haskey(drift_report_payload["driftReport"]["artifactRefs"][1], "sizeBytes")
+        drift_artifact_ref = String(drift_report_payload["driftReport"]["artifactRefs"][1]["path"])
+        drift_artifact_path = joinpath(data_estate_root, split(replace(drift_artifact_ref, "local://" => ""), '/')...)
+        @test isfile(drift_artifact_path)
+        drift_artifact_payload = JSON3.read(read(drift_artifact_path, String), Dict{String,Any})
+        @test drift_artifact_payload["driftReportId"] == drift_report_payload["driftReport"]["driftReportId"]
+        @test drift_artifact_payload["predictionExportId"] == prediction_export_payload["predictionExport"]["predictionExportId"]
         @test length(drift_report_payload["project"]["monitoringBaselines"]) >= 1
         @test length(drift_report_payload["project"]["driftReports"]) >= 1
         @test length(drift_report_payload["project"]["projectJobs"]) >= 6
@@ -5112,6 +5130,15 @@ end
         @test all(job -> haskey(job["resourceEvidence"], "gpuFallbackReason"), drift_report_payload["project"]["projectJobs"])
         drift_job = first(filter(job -> job["jobType"] == "drift_report", drift_report_payload["project"]["projectJobs"]))
         @test drift_job["resourceEvidence"]["executionMode"] == "drift_report"
+        @test drift_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test drift_job["executionEvidence"]["dispatchStatus"] == "completed"
+        drift_execution = first(filter(
+            execution -> execution.execution_id == drift_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test drift_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test drift_execution.metadata["data_science_project_worker_state"]["job_type"] == "drift_report"
+        @test drift_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
         execution_backed_job_types = Set(["transform_fit_apply", "statistical_analysis", "tuning_study", "final_evaluation", "prediction_export", "drift_report"])
         execution_backed_jobs = filter(job -> String(job["jobType"]) in execution_backed_job_types, drift_report_payload["project"]["projectJobs"])
         @test issubset(execution_backed_job_types, Set(String(job["jobType"]) for job in execution_backed_jobs))

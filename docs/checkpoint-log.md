@@ -20,6 +20,44 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Prediction/Drift Worker Slice - 2026-07-01
+
+### Work Done Till Date
+
+- Prediction export jobs now run through worker-service accepted/queued/running/completed transitions instead of gateway-completed evidence only.
+- Drift report jobs now run through the same worker-backed project-job path.
+- Drift reports now write a local JSON report artifact and add checksum/size evidence to the report artifact ref.
+- Julia route tests prove prediction export worker dispatch metadata, drift report worker state, status history, artifact checksum/size, and persisted drift report file content.
+
+### Gaps Pending
+
+- AKS-36 remains open because deeper real-model scoring/drift semantics, tuning/evaluation/training/transform/statistical/profile/deploy worker depth, project-backed UI migration, and release/local-appliance no-fixture evidence are still pending.
+- The current slice proves worker-backed substrate and materialized drift-report evidence, not full production scoring or drift methodology.
+
+### Next Items To Implement
+
+- Move tuning/evaluation/training/transform/statistical/profile/deploy work to deeper worker outputs or start the project-backed frontend migration.
+- Add broader real-model scoring/drift semantics and UI coverage before any MLOps readiness claim.
+
+## Checkpoint: `cp/02-alpha-core` Retired GitHub CI Webhook/Custom-Node Archive Closure - 2026-07-01
+
+### Work Done Till Date
+
+- Reconfirmed the retired GitHub CI webhook/custom-node monitor archive exists at `.codex-archive/github-ci-webhook-monitor-20260622/`.
+- Reconfirmed `.gitignore` excludes `.codex-archive/` and the specific `github-ci-webhook-monitor` archive path so the retired monitor remains local-only.
+- Reconfirmed there is no active tracked webhook/custom-node CI monitor script, npm command, setup document, or focused test in the active repo path.
+- Recorded the final decision that the custom-node GitHub CI path will not be used for this project.
+
+### Gaps Pending
+
+- CI visibility still needs a safer workflow only if manual checks remain costly.
+- Public/tunneled inbound workstation webhooks and custom-node GitHub CI listeners remain rejected unless a future threat-model review explicitly changes that decision.
+
+### Next Items To Implement
+
+- Prefer GitHub-native workflow summaries/status artifacts or a bounded local ETag/backoff watcher for any future CI visibility work.
+- Keep the archive local-only and ignored; do not reintroduce the monitor into the active repo path.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Retraining Orchestration Slice - 2026-07-01
 
 ### Work Done Till Date

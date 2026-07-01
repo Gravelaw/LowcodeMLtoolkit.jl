@@ -5293,6 +5293,7 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
         started_at = timestamp,
         finished_at = timestamp,
         plan = ["validate_final_evaluation", "score_local_predictions", "materialize_prediction_export"],
+        worker_backed = true,
     )
     prediction_export["executionEvidence"] = execution_evidence
     prediction_export["validationEvidence"]["executionId"] = execution_evidence["executionId"]
@@ -5311,6 +5312,40 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
     state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
     payload = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
     return JSON3.write(Dict("status" => "completed", "predictionExport" => prediction_export, "project" => payload))
+end
+
+function persist_drift_report_artifact!(
+    drift_report::Dict{String,Any},
+    baseline::AbstractDict,
+    prediction_export::AbstractDict,
+    output_refs::AbstractVector,
+)
+    isempty(output_refs) && return output_refs
+    artifact_ref = String(get(output_refs[1], "path", ""))
+    isempty(strip(artifact_ref)) && return output_refs
+    artifact_path = local_data_ref_path_for_write(artifact_ref)
+    mkpath(dirname(artifact_path))
+    content = JSON3.write(
+        Dict{String,Any}(
+            "driftReportId" => String(drift_report["driftReportId"]),
+            "baselineId" => String(get(baseline, "baselineId", "")),
+            "predictionExportId" => String(get(prediction_export, "predictionExportId", "")),
+            "status" => String(drift_report["status"]),
+            "metrics" => drift_report["metrics"],
+            "validationEvidence" => drift_report["validationEvidence"],
+            "generatedAt" => String(drift_report["generatedAt"]),
+        ),
+    )
+    write(artifact_path, content)
+    checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
+    materialized_refs = [
+        Dict{String,Any}(String(key) => value for (key, value) in pairs(ref))
+        for ref in output_refs
+    ]
+    materialized_refs[1]["checksumSha256"] = checksum
+    materialized_refs[1]["sizeBytes"] = filesize(artifact_path)
+    drift_report["artifactRefs"] = materialized_refs
+    return materialized_refs
 end
 
 function project_prediction_export_for_drift(project::DataScienceProjectRecord, body::AbstractDict)
@@ -5346,6 +5381,7 @@ function run_drift_report_response!(state::GatewayState, project_id::AbstractStr
     drift_report = JuliaFlowDataScienceProjectMonitoring.drift_report_record(project, baseline, prediction_export, dataset_id, metrics, status, timestamp)
     report_id = String(drift_report["driftReportId"])
     output_refs = JuliaFlowDataScienceProjectMonitoring.drift_output_refs(project.project_id, report_id, timestamp)
+    output_refs = persist_drift_report_artifact!(drift_report, baseline, prediction_export, output_refs)
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "drift_report")
     execution_evidence = data_science_project_execution_evidence!(
         state,
@@ -5358,8 +5394,8 @@ function run_drift_report_response!(state::GatewayState, project_id::AbstractStr
         started_at = timestamp,
         finished_at = timestamp,
         plan = ["validate_monitoring_baseline", "compute_local_drift_metrics", "materialize_drift_report"],
+        worker_backed = true,
     )
-    drift_report["artifactRefs"] = output_refs
     drift_report["executionEvidence"] = execution_evidence
     drift_report["validationEvidence"]["executionId"] = execution_evidence["executionId"]
     project.drift_reports = [drift_report, project.drift_reports...]
