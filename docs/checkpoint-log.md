@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Retraining Orchestration Slice - 2026-07-01
+
+### Work Done Till Date
+
+- Added `retraining` as a typed `DataScienceProjectJobType` in TypeScript and OpenAPI contracts.
+- `request_retraining` lifecycle actions now create a validation-only retraining training plan and tuning study from model registry validation evidence.
+- Retraining jobs run through the existing worker-backed project-job tick path and carry local CPU/GPU resource evidence plus accepted/queued/running/completed execution metadata.
+- Lifecycle records link `retrainingTrainingPlanId`, `retrainingTuningStudyId`, `retrainingJobId`, and retraining execution evidence.
+- Model registry records move to `status = retraining_requested` and carry the linked retraining plan/study/job ids.
+- Julia route tests prove lifecycle response, training plan, tuning study, retraining project job, registry state, and worker execution metadata.
+
+### Gaps Pending
+
+- AKS-36 parent remains open because deeper worker-backed scoring, drift, tuning, evaluation, training, transform, release/local-appliance no-fixture evidence, and project-backed frontend migration remain open.
+- AKS-45 should be reviewed against lifecycle acceptance now that rollback package switching and retraining orchestration are present.
+
+### Next Items To Implement
+
+- Convert scoring/drift/tuning/evaluation/training/transform project jobs onto deeper worker-service transitions with materialized outputs.
+- Update Linear and CI evidence after local gates and GitHub checks complete.
+- Defer final reviewer/architect/persona/application-test agents until parent issue evidence is complete.
+
 ## Checkpoint: `cp/02-alpha-core` Retired GitHub CI Webhook/Custom-Node Monitor Confirmation - 2026-06-30
 
 ### Work Done Till Date
@@ -51,13 +73,13 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 parent remains open. Real rollback package switching is now present, but real retraining run orchestration is still missing.
+- Superseded by the 2026-07-01 retraining orchestration slice: real rollback package switching and retraining job-chain creation are now present.
 - AKS-45 remains open until retraining orchestration and full lifecycle acceptance are reviewed.
 - Worker-backed scoring, drift, tuning, evaluation, training, transform, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
-- Add retraining job creation that launches a validation-safe training/tuning path.
+- Continue from the retraining orchestration slice into deeper worker-backed training/scoring/drift materialization.
 - Move additional project job routes to worker-service transitions with materialized outputs.
 - Keep release/local-appliance no-fixture evidence in the closure gate before any daily-workstation readiness claim.
 
@@ -72,13 +94,13 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 parent remains open. Lifecycle project jobs are now worker-processed, but real retraining run orchestration is still missing.
+- Superseded by the 2026-07-01 retraining orchestration slice: lifecycle project jobs are worker-processed and retraining requests now create validation-safe training/tuning evidence.
 - AKS-45 remains open pending full lifecycle acceptance review; this slice handles worker transitions, not actual retraining model operations.
 - Worker-backed scoring, drift, tuning, evaluation, training, transform, and project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
-- Add retraining job creation that launches a validation-safe training/tuning path.
+- Continue from the retraining orchestration slice into deeper worker-backed training/scoring/drift materialization.
 - Move additional project job routes to worker-service transitions with materialized outputs.
 
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Worker Dispatch Evidence Slice - 2026-06-29

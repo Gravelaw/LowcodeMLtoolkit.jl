@@ -18,9 +18,29 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-06-30`
+- Last updated: `2026-07-01`
 
 ## Work Done Till Date
+### AKS-36 DataScienceProject Retraining Orchestration Slice (2026-07-01)
+
+- Added `retraining` as a typed `DataScienceProjectJobType` in TypeScript and OpenAPI contracts.
+- `request_retraining` lifecycle actions now create a validation-only retraining training plan and tuning study from the model registry validation evidence.
+- Retraining jobs are worker-backed through the existing project-job worker tick path and carry CPU/GPU resource evidence plus accepted/queued/running/completed execution evidence.
+- Lifecycle records now link `retrainingTrainingPlanId`, `retrainingTuningStudyId`, `retrainingJobId`, and retraining execution evidence.
+- Model registry records move to `status = retraining_requested` and carry the linked retraining plan/study/job ids.
+- Julia route tests prove the lifecycle response, training plan, tuning study, retraining project job, registry state, and worker execution metadata.
+
+### Gaps Pending
+
+- AKS-36 remains open because broader worker-backed scoring, drift, tuning, evaluation, training, transform, release/local-appliance no-fixture evidence, and project-backed frontend migration are still pending.
+- AKS-45 should be reviewed against lifecycle acceptance now that rollback package switching and retraining orchestration are present.
+
+### Next Items To Implement
+
+- Convert scoring/drift/tuning/evaluation/training/transform project jobs onto deeper worker-service transitions with materialized outputs.
+- Update Linear and CI evidence after local gates and GitHub checks complete.
+- Continue toward the final reviewer/architect/persona/application-test passes only after the parent issue evidence is complete.
+
 ### Retired GitHub CI Webhook/Custom-Node Monitor Confirmation (2026-06-30)
 
 - Confirmed the retired GitHub CI webhook monitor archive exists at `.codex-archive/github-ci-webhook-monitor-20260622/`.
@@ -48,12 +68,12 @@ Tracker always records 3 things:
 
 ### Gaps Pending
 
-- AKS-36 and AKS-45 remain open because retraining still does not launch a real training/tuning run.
+- Superseded by the 2026-07-01 retraining orchestration slice: retraining now launches a worker-backed validation-only training/tuning job chain.
 - Worker-backed scoring, drift, tuning, evaluation, training, transform, and broader project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
-- Add retraining job creation from lifecycle records that launches a validation-safe training/tuning path.
+- Continue from the retraining orchestration slice into deeper worker-backed training/scoring/drift materialization.
 - Convert scoring/drift/tuning/evaluation/training/transform project jobs onto the worker-service transition path with materialized outputs.
 - Update Linear after local and CI verification evidence is available.
 
@@ -66,12 +86,12 @@ Tracker always records 3 things:
 
 ### Gaps Pending
 
-- AKS-36 and AKS-45 remain open because lifecycle jobs are worker-processed, but retraining still does not launch a real training/tuning run.
+- Superseded by the 2026-07-01 retraining orchestration slice: lifecycle retraining requests now create a worker-backed validation-only training/tuning job chain.
 - Worker-backed scoring, drift, tuning, evaluation, training, transform, and broader project-backed frontend migration remain open.
 
 ### Next Items To Implement
 
-- Implement retraining job creation from lifecycle records.
+- Continue from the retraining orchestration slice into deeper worker-backed training/scoring/drift materialization.
 - Convert scoring/drift/tuning/evaluation/training/transform project jobs onto the worker-service transition path with materialized outputs.
 - Update Linear after local and CI verification evidence is available.
 

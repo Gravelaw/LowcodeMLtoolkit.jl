@@ -5306,11 +5306,55 @@ end
         @test retraining_payload["lifecycleRecord"]["state"] == "retraining_requested"
         @test retraining_payload["lifecycleRecord"]["retrainingReason"] == "post-rollback retraining requested"
         @test retraining_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "rolled_back"
+        @test startswith(retraining_payload["lifecycleRecord"]["retrainingTrainingPlanId"], "retraining-")
+        @test startswith(retraining_payload["lifecycleRecord"]["retrainingTuningStudyId"], "retraining-tuning-")
+        @test startswith(retraining_payload["lifecycleRecord"]["retrainingJobId"], "job-")
+        @test retraining_payload["lifecycleRecord"]["validationEvidence"]["retrainingTrainingPlanId"] == retraining_payload["lifecycleRecord"]["retrainingTrainingPlanId"]
+        @test retraining_payload["lifecycleRecord"]["validationEvidence"]["retrainingTuningStudyId"] == retraining_payload["lifecycleRecord"]["retrainingTuningStudyId"]
+        @test retraining_payload["lifecycleRecord"]["validationEvidence"]["retrainingJobId"] == retraining_payload["lifecycleRecord"]["retrainingJobId"]
         @test length(retraining_payload["project"]["modelLifecycleRecords"]) == length(model_lifecycle_after_deploy_payload["modelLifecycleRecords"])
+        retraining_training_plan = first(filter(
+            plan -> String(get(plan, "trainingPlanId", "")) == retraining_payload["lifecycleRecord"]["retrainingTrainingPlanId"],
+            retraining_payload["project"]["trainingPlans"],
+        ))
+        @test retraining_training_plan["targetColumn"] == "amount"
+        @test retraining_training_plan["splitPlanId"] == "split-foundation-stratified"
+        @test retraining_training_plan["sourceModelId"] == "foundation-linear-baseline"
+        retraining_tuning_study = first(filter(
+            study -> String(get(study, "tuningStudyId", "")) == retraining_payload["lifecycleRecord"]["retrainingTuningStudyId"],
+            retraining_payload["project"]["tuningStudies"],
+        ))
+        @test retraining_tuning_study["trainingPlanId"] == retraining_training_plan["trainingPlanId"]
+        @test retraining_tuning_study["validationOnly"] == true
+        @test retraining_tuning_study["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test retraining_tuning_study["validationEvidence"]["lifecycleAction"] == "request_retraining"
+        @test retraining_tuning_study["validationEvidence"]["retrainingOfModelId"] == "foundation-linear-baseline"
+        @test retraining_tuning_study["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        retraining_job = first(filter(job -> job["jobType"] == "retraining", retraining_payload["project"]["projectJobs"]))
+        @test retraining_job["jobId"] == retraining_payload["lifecycleRecord"]["retrainingJobId"]
+        @test retraining_job["datasetId"] == "foundation-sales-sample"
+        @test retraining_job["splitPlanId"] == "split-foundation-stratified"
+        @test retraining_job["sourceRecordId"] == "foundation-linear-baseline"
+        @test retraining_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test retraining_job["executionEvidence"]["dispatchStatus"] == "completed"
+        @test retraining_payload["lifecycleRecord"]["validationEvidence"]["retrainingExecutionId"] == retraining_job["executionEvidence"]["executionId"]
+        retraining_registry_record = first(filter(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            retraining_payload["project"]["modelRegistryRecords"],
+        ))
+        @test retraining_registry_record["status"] == "retraining_requested"
+        @test retraining_registry_record["retrainingTrainingPlanId"] == retraining_training_plan["trainingPlanId"]
+        @test retraining_registry_record["retrainingTuningStudyId"] == retraining_tuning_study["tuningStudyId"]
         retraining_lifecycle_job = first(filter(job -> job["jobType"] == "model_lifecycle", retraining_payload["project"]["projectJobs"]))
         @test retraining_lifecycle_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
         @test retraining_lifecycle_job["executionEvidence"]["dispatchStatus"] == "completed"
         @test retraining_lifecycle_job["executionEvidence"]["workerPool"] == retraining_lifecycle_job["resourceEvidence"]["workerPool"]
+        retraining_execution = first(filter(
+            execution -> execution.execution_id == retraining_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test retraining_execution.metadata["data_science_project_worker_state"]["job_type"] == "retraining"
+        @test retraining_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
         retraining_lifecycle_execution = first(filter(
             execution -> execution.execution_id == retraining_lifecycle_job["executionEvidence"]["executionId"],
             state.executions,

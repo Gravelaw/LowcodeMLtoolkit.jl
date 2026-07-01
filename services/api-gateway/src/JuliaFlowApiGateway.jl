@@ -3031,6 +3031,102 @@ function rollback_deploy_package_payload!(
     return package_record
 end
 
+function project_model_registry_record_by_model_id(project::DataScienceProjectRecord, model_id::AbstractString)
+    match = findfirst(record -> String(get(record, "modelId", "")) == String(model_id), project.model_registry_records)
+    match === nothing && error("model registry record not found: $(String(model_id))")
+    return Dict{String,Any}(String(key) => value for (key, value) in pairs(project.model_registry_records[match]))
+end
+
+function retraining_tuning_payload!(
+    state::GatewayState,
+    project::DataScienceProjectRecord,
+    lifecycle_record::Dict{String,Any},
+    timestamp::AbstractString,
+)
+    model_id = String(lifecycle_record["modelId"])
+    registry_record = project_model_registry_record_by_model_id(project, model_id)
+    registry_validation = get(registry_record, "validationEvidence", Dict{String,Any}())
+    validation_seed = registry_validation isa AbstractDict ? Dict{String,Any}(String(key) => value for (key, value) in pairs(registry_validation)) : Dict{String,Any}()
+    dataset_id = String(get(registry_record, "datasetId", get(validation_seed, "datasetId", "")))
+    isempty(strip(dataset_id)) && !isempty(project.datasets) && (dataset_id = String(get(project.datasets[1], "datasetId", "")))
+    isempty(strip(dataset_id)) && error("model lifecycle retraining dataset evidence required")
+    target_column = String(get(registry_record, "target", get(validation_seed, "targetColumn", "")))
+    isempty(strip(target_column)) && error("model lifecycle retraining target evidence required")
+    split_plan_id = String(get(validation_seed, "splitPlanId", ""))
+    tuning_body = Dict{String,Any}(
+        "datasetId" => dataset_id,
+        "targetColumn" => target_column,
+        "taskType" => String(get(registry_record, "taskType", "regression")),
+        "algorithm" => String(get(registry_record, "modelKind", "MLJ.EvoTreesRegressor")),
+        "metricNames" => [String(get(registry_record, "primaryMetricName", "rmse"))],
+        "maxTrials" => 3,
+        "finalTestPolicy" => "forbid_final_test",
+    )
+    isempty(strip(split_plan_id)) || (tuning_body["splitPlanId"] = split_plan_id)
+    split_plan, validation_context = validate_tuning_split_context(project, tuning_body, dataset_id)
+    validation_context["lifecycleAction"] = "request_retraining"
+    validation_context["retrainingOfModelId"] = model_id
+    validation_context["sourceLifecycleState"] = String(get(lifecycle_record["validationEvidence"], "previousState", ""))
+    validation_context["deployedEndpointId"] = String(get(lifecycle_record, "deployedEndpointId", ""))
+    haskey(lifecycle_record, "retrainingReason") && (validation_context["reason"] = String(lifecycle_record["retrainingReason"]))
+
+    training_plan_id = "retraining-" * replace(string(uuid4()), "-" => "")
+    training_plan = JuliaFlowDataScienceProjectTuning.tuning_training_plan_record(
+        training_plan_id,
+        target_column,
+        String(tuning_body["taskType"]),
+        tuning_body["metricNames"],
+        split_plan,
+        timestamp,
+    )
+    training_plan["sourceModelId"] = model_id
+    training_plan["lifecycleAction"] = "request_retraining"
+    training_plan["validationEvidence"] = Dict{String,Any}(String(key) => value for (key, value) in pairs(validation_context))
+    JuliaFlowDataScienceProjectTuning.upsert_training_plan!(project, training_plan)
+
+    study_id = "retraining-tuning-" * replace(string(uuid4()), "-" => "")
+    trials = JuliaFlowDataScienceProjectTuning.tuning_trials(project.project_id, study_id, String(tuning_body["algorithm"]), tuning_body["metricNames"], Int(tuning_body["maxTrials"]), timestamp)
+    tuning_study = JuliaFlowDataScienceProjectTuning.tuning_study_record(study_id, training_plan_id, trials, validation_context, timestamp)
+    tuning_study["sourceModelId"] = model_id
+    tuning_study["lifecycleAction"] = "request_retraining"
+    tuning_output_refs = JuliaFlowDataScienceProjectTuning.tuning_output_refs(trials)
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "retraining")
+    execution_evidence = data_science_project_execution_evidence!(
+        state,
+        project,
+        "retraining";
+        dataset_id = dataset_id,
+        source_record_id = model_id,
+        output_refs = tuning_output_refs,
+        resource_evidence = resource_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+        plan = ["validate_retraining_request", "enforce_validation_only_tuning", "run_retraining_trials", "record_retraining_review_candidate"],
+        worker_backed = true,
+    )
+    tuning_study["executionEvidence"] = execution_evidence
+    tuning_study["validationEvidence"]["executionId"] = execution_evidence["executionId"]
+    project.tuning_studies = [tuning_study, project.tuning_studies...]
+    retraining_job = record_data_science_project_job!(
+        project,
+        "retraining";
+        dataset_id = dataset_id,
+        split_plan_id = String(get(split_plan, "splitPlanId", "")),
+        source_record_id = model_id,
+        output_refs = tuning_output_refs,
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+    )
+    return Dict{String,Any}(
+        "trainingPlan" => training_plan,
+        "tuningStudy" => tuning_study,
+        "job" => retraining_job,
+        "executionEvidence" => execution_evidence,
+    )
+end
+
 function model_lifecycle_action_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
     project = state.data_science_projects[project_id]
@@ -3042,14 +3138,24 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
     )
     model_id = String(record["modelId"])
     rollback_package_record = nothing
+    retraining_payload = nothing
     if String(get(record, "lifecycleAction", "")) == "mark_rolled_back"
         rollback_package_record = rollback_deploy_package_payload!(state, record, timestamp)
+    elseif String(get(record, "lifecycleAction", "")) == "request_retraining"
+        retraining_payload = retraining_tuning_payload!(state, project, record, timestamp)
+        record["retrainingTrainingPlanId"] = String(retraining_payload["trainingPlan"]["trainingPlanId"])
+        record["retrainingTuningStudyId"] = String(retraining_payload["tuningStudy"]["tuningStudyId"])
+        record["retrainingJobId"] = String(retraining_payload["job"]["jobId"])
+        record["validationEvidence"]["retrainingTrainingPlanId"] = String(record["retrainingTrainingPlanId"])
+        record["validationEvidence"]["retrainingTuningStudyId"] = String(record["retrainingTuningStudyId"])
+        record["validationEvidence"]["retrainingJobId"] = String(record["retrainingJobId"])
+        record["validationEvidence"]["retrainingExecutionId"] = String(retraining_payload["executionEvidence"]["executionId"])
     end
 
     remaining = [item for (item_index, item) in enumerate(project.model_lifecycle_records) if item_index != index]
     project.model_lifecycle_records = [record, remaining...]
     registry_record = nothing
-    if String(get(record, "state", "")) in ("approved", "deprecated", "archived", "rolled_back")
+    if String(get(record, "state", "")) in ("approved", "deprecated", "archived", "rolled_back", "retraining_requested")
         registry_record = JuliaFlowDataScienceProjectRegistry.update_model_registry_lifecycle_status!(
             project,
             model_id,
@@ -3061,6 +3167,10 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
             registry_record["deploymentStatus"] = "rolled_back"
             registry_record["rollbackModelId"] = String(get(record, "rollbackModelId", ""))
             registry_record["rollbackPackageId"] = String(get(record, "rollbackPackageId", ""))
+        elseif String(get(record, "state", "")) == "retraining_requested"
+            registry_record["retrainingTrainingPlanId"] = String(get(record, "retrainingTrainingPlanId", ""))
+            registry_record["retrainingTuningStudyId"] = String(get(record, "retrainingTuningStudyId", ""))
+            registry_record["retrainingJobId"] = String(get(record, "retrainingJobId", ""))
         end
     end
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "model_lifecycle_action")

@@ -619,7 +619,8 @@ export type DataScienceProjectJobType =
   | "final_evaluation"
   | "prediction_export"
   | "drift_report"
-  | "model_lifecycle";
+  | "model_lifecycle"
+  | "retraining";
 
 export type DataScienceProjectJobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
@@ -932,6 +933,9 @@ export interface ModelLifecycleRecord {
   lifecycleAction?: DataScienceModelLifecycleAction;
   rollbackReason?: string;
   retrainingReason?: string;
+  retrainingTrainingPlanId?: string;
+  retrainingTuningStudyId?: string;
+  retrainingJobId?: string;
   deprecationReason?: string;
   archiveReason?: string;
   validationEvidence?: {
@@ -943,6 +947,9 @@ export interface ModelLifecycleRecord {
     rollbackModelId?: string;
     rollbackPackageId?: string;
     rollbackPackageRef?: string;
+    retrainingTrainingPlanId?: string;
+    retrainingTuningStudyId?: string;
+    retrainingJobId?: string;
     driftReportId?: string;
     reason?: string;
   };
