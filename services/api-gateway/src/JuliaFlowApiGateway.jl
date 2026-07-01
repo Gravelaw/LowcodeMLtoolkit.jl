@@ -2584,6 +2584,128 @@ function data_profile_chart_specs(dataset_id::AbstractString, fixture::AbstractD
     return chart_specs
 end
 
+function schema_contract_from_profile(profile::AbstractDict)
+    dataset_id = String(profile["datasetId"])
+    profile_rows = Dict(
+        String(get(row, "name", "")) => row
+        for row in get(profile, "profileSummary", Any[])
+    )
+    columns = Dict{String,Any}[]
+    for column in get(profile, "schemaSummary", Any[])
+        name = String(get(column, "name", ""))
+        row = get(profile_rows, name, Dict{String,Any}())
+        push!(
+            columns,
+            Dict{String,Any}(
+                "name" => name,
+                "inferredType" => String(get(column, "type", "String")),
+                "logicalType" => String(get(column, "type", "String")),
+                "role" => String(get(row, "role", "feature")),
+                "nullable" => Int(get(row, "missingCount", 0)) > 0,
+            ),
+        )
+    end
+    return Dict{String,Any}(
+        "schemaId" => "schema-$(dataset_id)-profile",
+        "datasetId" => dataset_id,
+        "columns" => columns,
+        "updatedAt" => String(profile["importedAt"]),
+    )
+end
+
+function upsert_project_schema_contract!(project::DataScienceProjectRecord, schema_contract::Dict{String,Any})
+    schema_id = String(schema_contract["schemaId"])
+    project.schema_contracts = [
+        schema for schema in project.schema_contracts
+        if String(get(schema, "schemaId", "")) != schema_id
+    ]
+    project.schema_contracts = [schema_contract, project.schema_contracts...]
+    return schema_contract
+end
+
+function profile_dataset_role(project::DataScienceProjectRecord, dataset_id::AbstractString, body::AbstractDict)
+    if haskey(body, "datasetRole")
+        return String(body["datasetRole"])
+    end
+    for dataset in project.datasets
+        String(get(dataset, "datasetId", "")) == String(dataset_id) && return String(get(dataset, "role", "train"))
+    end
+    return "train"
+end
+
+function upsert_project_dataset_profile!(
+    state::GatewayState,
+    project::DataScienceProjectRecord,
+    profile::Dict{String,Any},
+    body::AbstractDict,
+)
+    dataset_id = String(profile["datasetId"])
+    timestamp = String(profile["importedAt"])
+    managed_source_ref = String(get(body, "sourceUri", "local://data/$(profile["targetZone"])/$(dataset_id).$(profile["sourceFormat"])"))
+    startswith(lowercase(replace(managed_source_ref, "\\" => "/")), "local://") || (managed_source_ref = "local://data/$(profile["targetZone"])/$(dataset_id).$(profile["sourceFormat"])")
+    dataset_record = Dict{String,Any}(
+        "datasetId" => dataset_id,
+        "name" => String(get(body, "datasetName", dataset_id)),
+        "role" => profile_dataset_role(project, dataset_id, body),
+        "sourceUri" => managed_source_ref,
+        "localOnly" => true,
+        "rowCount" => Int(profile["rowCount"]),
+        "columnCount" => length(get(profile, "schemaSummary", Any[])),
+        "checksumSha256" => String(profile["checksumSha256"]),
+        "artifactRef" => String(profile["artifactRef"]),
+    )
+    project.datasets = [
+        dataset for dataset in project.datasets
+        if String(get(dataset, "datasetId", "")) != dataset_id
+    ]
+    project.datasets = [dataset_record, project.datasets...]
+    schema_contract = upsert_project_schema_contract!(project, schema_contract_from_profile(profile))
+    output_refs = [
+        Dict{String,Any}(
+            "refId" => "artifact-profile-$(dataset_id)",
+            "kind" => "data_profile",
+            "localOnly" => true,
+            "checksumSha256" => String(profile["checksumSha256"]),
+            "path" => String(profile["artifactRef"]),
+            "generatedAt" => timestamp,
+        ),
+        Dict{String,Any}(
+            "refId" => String(schema_contract["schemaId"]),
+            "kind" => "schema_contract",
+            "localOnly" => true,
+            "generatedAt" => timestamp,
+        ),
+    ]
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "data_profile")
+    execution_evidence = data_science_project_execution_evidence!(
+        state,
+        project,
+        "data_profile";
+        dataset_id = dataset_id,
+        source_record_id = dataset_id,
+        output_refs = output_refs,
+        resource_evidence = resource_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+        plan = ["validate_local_profile_source", "profile_dataset_schema", "update_project_catalog"],
+        worker_backed = true,
+    )
+    record_data_science_project_job!(
+        project,
+        "data_profile";
+        dataset_id = dataset_id,
+        source_record_id = dataset_id,
+        output_refs = output_refs,
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+    )
+    profile["projectId"] = project.project_id
+    profile["executionEvidence"] = execution_evidence
+    return execution_evidence
+end
+
 function split_env_paths(value::AbstractString)
     return JuliaFlowDataScienceProjectLocalSources.split_env_paths(value)
 end
@@ -2693,7 +2815,16 @@ function data_import_profile_response!(state::GatewayState, body::AbstractDict)
         "previewRows" => get(fixture, "previewRows", Any[]),
         "charts" => data_profile_chart_specs(dataset_id, fixture, source_uri),
     )
-    return JSON3.write(Dict("status" => "profiled", "profile" => profile))
+    response = Dict{String,Any}("status" => "profiled", "profile" => profile)
+    if haskey(body, "projectId")
+        project_id = String(body["projectId"])
+        haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+        project = state.data_science_projects[project_id]
+        upsert_project_dataset_profile!(state, project, profile, body)
+        state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+        response["project"] = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])
+    end
+    return JSON3.write(response)
 end
 
 function transform_node_ids(workflow)

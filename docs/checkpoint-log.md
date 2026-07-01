@@ -20,6 +20,26 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Profile/Catalog Worker Slice - 2026-07-01
+
+### Work Done Till Date
+
+- The existing Data import/profile route now accepts an optional `projectId` to update the matching `DataScienceProject`.
+- Project-backed profile imports upsert the managed local dataset record, add/update a schema contract from profile evidence, and append a worker-backed `data_profile` project job.
+- The profile response now returns the updated project payload when project-backed mode is used.
+- Contracts/OpenAPI now include `data_profile` as a project job type and expose the optional project-backed profile response.
+- Julia route tests prove no raw file path is persisted into the project dataset source, the schema contract is updated, and the `data_profile` job carries worker-service dispatch/status-history evidence.
+
+### Gaps Pending
+
+- AKS-36 remains open because training/deploy worker depth, project-backed frontend migration, release/local-appliance no-fixture evidence, and deeper real-model transform/tuning/evaluation/scoring/drift semantics remain open.
+- The current slice proves profile/catalog substrate and project job evidence, not the full local Dataset Wizard UX.
+
+### Next Items To Implement
+
+- Continue with training/deploy worker-depth or begin AKS-47/AKS-48 frontend project-backed workflow migration.
+- Keep persona-flow browser verification queued until the project-backed UI path exists.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Core Job Worker Slice - 2026-07-01
 
 ### Work Done Till Date

@@ -613,6 +613,7 @@ export interface FinalTestLock {
 }
 
 export type DataScienceProjectJobType =
+  | "data_profile"
   | "transform_fit_apply"
   | "statistical_analysis"
   | "tuning_study"
@@ -1436,6 +1437,7 @@ export interface GatewayLocalBackupImportResponse {
 }
 
 export interface GatewayDataImportProfileRequest {
+  projectId?: string;
   datasetId?: string;
   sourceUri?: string;
   format?: "csv" | "json" | "parquet" | "arrow_ipc" | string;
@@ -1521,6 +1523,7 @@ export interface GatewayDataImportProfile {
 export interface GatewayDataImportProfileResponse {
   status: "profiled";
   profile: GatewayDataImportProfile;
+  project?: DataScienceProject;
 }
 
 export interface GatewayTransformNodeResult {

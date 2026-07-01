@@ -323,7 +323,10 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
     "request_retraining",
   ]);
   assert.ok(schemas.RunModelLifecycleActionResponse.properties.lifecycleRecord);
+  assert.ok(schemas.DataScienceProjectJobRecord.properties.jobType.enum.includes("data_profile"));
   assert.ok(schemas.DataScienceProjectJobRecord.properties.jobType.enum.includes("model_lifecycle"));
+  assert.ok(schemas.DataImportProfileRequest.properties.projectId);
+  assert.ok(schemas.DataImportProfileResponse.properties.project);
   assert.ok(schemas.DataScienceProject.properties.transformFitApplyRecords);
   assert.ok(schemas.UpdateDataScienceProjectRequest.properties.transformFitApplyRecords);
   assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/transforms/fit-apply"]);

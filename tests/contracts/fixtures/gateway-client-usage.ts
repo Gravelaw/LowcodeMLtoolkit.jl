@@ -43,6 +43,7 @@ const transitionRequest: TransitionExecutionStatusRequest = {
   metadata: { lane: "contracts" }
 };
 const dataProfileRequest: GatewayDataImportProfileRequest = {
+  projectId: "contracts-project",
   datasetId: "contracts-profile",
   sourceUri: "local://data/raw/contracts.csv",
   targetZone: "raw",

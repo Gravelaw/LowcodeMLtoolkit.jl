@@ -3092,6 +3092,25 @@ end
                 ),
             ),
         )
+        project_data_profile_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "foundation-ml-project",
+                        "datasetId" => "Foundation Profile",
+                        "datasetName" => "Foundation Profile",
+                        "datasetRole" => "train",
+                        "sourceUri" => import_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
         transform_fit_apply_response = route_request(
             state,
             HTTP.Request(
@@ -4869,6 +4888,27 @@ end
         @test data_import_payload["profile"]["workflowReadiness"]["downstreamReady"] == true
         @test length(data_import_payload["profile"]["quickPlots"]) >= 1
         @test length(data_import_payload["profile"]["previewRows"]) >= 1
+        @test project_data_profile_response.status == 201
+        project_data_profile_payload = JSON3.read(String(project_data_profile_response.body), Dict{String,Any})
+        @test project_data_profile_payload["status"] == "profiled"
+        @test project_data_profile_payload["profile"]["projectId"] == "foundation-ml-project"
+        @test project_data_profile_payload["profile"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test project_data_profile_payload["profile"]["executionEvidence"]["dispatchStatus"] == "completed"
+        profile_project_dataset = first(filter(dataset -> dataset["datasetId"] == "foundation-profile", project_data_profile_payload["project"]["datasets"]))
+        @test profile_project_dataset["sourceUri"] == "local://data/raw/foundation-profile.csv"
+        @test profile_project_dataset["artifactRef"] == project_data_profile_payload["profile"]["artifactRef"]
+        @test profile_project_dataset["checksumSha256"] == project_data_profile_payload["profile"]["checksumSha256"]
+        profile_schema = first(filter(schema -> schema["schemaId"] == "schema-foundation-profile-profile", project_data_profile_payload["project"]["schemaContracts"]))
+        @test profile_schema["datasetId"] == "foundation-profile"
+        @test length(profile_schema["columns"]) >= 1
+        data_profile_job = first(filter(job -> job["jobType"] == "data_profile", project_data_profile_payload["project"]["projectJobs"]))
+        @test data_profile_job["datasetId"] == "foundation-profile"
+        @test data_profile_job["resourceEvidence"]["executionMode"] == "data_profile"
+        @test data_profile_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test data_profile_job["executionEvidence"]["dispatchStatus"] == "completed"
+        profile_execution = first(filter(execution -> execution.execution_id == data_profile_job["executionEvidence"]["executionId"], state.executions))
+        @test profile_execution.metadata["data_science_project_worker_state"]["job_type"] == "data_profile"
+        @test [entry["status"] for entry in profile_execution.status_history] == ["accepted", "queued", "running", "completed"]
         @test data_import_remote_source_response.status == 400
         @test occursin("sourceUri must be a local file path or local://", String(data_import_remote_source_response.body))
         @test data_import_escape_source_response.status == 400
@@ -5145,10 +5185,10 @@ end
         @test drift_artifact_payload["predictionExportId"] == prediction_export_payload["predictionExport"]["predictionExportId"]
         @test length(drift_report_payload["project"]["monitoringBaselines"]) >= 1
         @test length(drift_report_payload["project"]["driftReports"]) >= 1
-        @test length(drift_report_payload["project"]["projectJobs"]) >= 6
+        @test length(drift_report_payload["project"]["projectJobs"]) >= 7
         project_job_types = Set(String(job["jobType"]) for job in drift_report_payload["project"]["projectJobs"])
         @test issubset(
-            Set(["transform_fit_apply", "statistical_analysis", "tuning_study", "final_evaluation", "prediction_export", "drift_report"]),
+            Set(["data_profile", "transform_fit_apply", "statistical_analysis", "tuning_study", "final_evaluation", "prediction_export", "drift_report"]),
             project_job_types,
         )
         @test all(job -> String(job["status"]) == "completed", drift_report_payload["project"]["projectJobs"])
@@ -5167,7 +5207,7 @@ end
         @test drift_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
         @test drift_execution.metadata["data_science_project_worker_state"]["job_type"] == "drift_report"
         @test drift_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
-        execution_backed_job_types = Set(["transform_fit_apply", "statistical_analysis", "tuning_study", "final_evaluation", "prediction_export", "drift_report"])
+        execution_backed_job_types = Set(["data_profile", "transform_fit_apply", "statistical_analysis", "tuning_study", "final_evaluation", "prediction_export", "drift_report"])
         execution_backed_jobs = filter(job -> String(job["jobType"]) in execution_backed_job_types, drift_report_payload["project"]["projectJobs"])
         @test issubset(execution_backed_job_types, Set(String(job["jobType"]) for job in execution_backed_jobs))
         @test all(job -> haskey(job, "executionEvidence"), execution_backed_jobs)

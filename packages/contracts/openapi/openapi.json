@@ -2251,6 +2251,7 @@
           "jobType": {
             "type": "string",
             "enum": [
+              "data_profile",
               "transform_fit_apply",
               "statistical_analysis",
               "tuning_study",
@@ -7498,6 +7499,10 @@
       "DataImportProfileRequest": {
         "type": "object",
         "properties": {
+          "projectId": {
+            "type": "string",
+            "description": "Optional data-science project id to update with dataset profile/catalog job evidence."
+          },
           "datasetId": {
             "type": "string"
           },
@@ -7833,6 +7838,9 @@
           },
           "profile": {
             "$ref": "#/components/schemas/DataImportProfile"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
           }
         }
       },
