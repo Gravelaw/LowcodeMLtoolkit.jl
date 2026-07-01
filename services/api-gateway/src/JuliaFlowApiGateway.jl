@@ -4750,6 +4750,7 @@ function run_transform_fit_apply_response!(state::GatewayState, project_id::Abst
         started_at = timestamp,
         finished_at = timestamp,
         plan = ["validate_locked_split", "fit_train_transform_state", "apply_frozen_transform_to_heldout_splits"],
+        worker_backed = true,
     )
     transform_run["executionEvidence"] = execution_evidence
     record_data_science_project_job!(
@@ -4972,6 +4973,7 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
         started_at = timestamp,
         finished_at = timestamp,
         plan = ["load_local_dataset_profile", "compute_statistical_tests", "materialize_statistical_analysis_artifacts"],
+        worker_backed = true,
     )
     analysis_run["executionEvidence"] = execution_evidence
     record_data_science_project_job!(
@@ -5045,6 +5047,7 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
         started_at = timestamp,
         finished_at = timestamp,
         plan = ["validate_training_split_policy", "run_validation_only_trials", "select_best_trial"],
+        worker_backed = true,
     )
     tuning_study["executionEvidence"] = execution_evidence
     tuning_study["validationEvidence"]["executionId"] = execution_evidence["executionId"]
@@ -5127,6 +5130,7 @@ function run_final_evaluation_response!(state::GatewayState, project_id::Abstrac
         started_at = timestamp,
         finished_at = timestamp,
         plan = ["validate_final_test_policy", "score_final_test_split", "materialize_evaluation_report"],
+        worker_backed = true,
     )
     evaluation_report["executionEvidence"] = execution_evidence
     evaluation_report["validationEvidence"]["executionId"] = execution_evidence["executionId"]

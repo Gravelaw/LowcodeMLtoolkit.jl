@@ -20,6 +20,24 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Core Job Worker Slice - 2026-07-01
+
+### Work Done Till Date
+
+- Transform fit/apply, statistical analysis, tuning study, and final evaluation project jobs now run through worker-service accepted/queued/running/completed transitions.
+- Route tests now prove worker dispatch metadata, worker state job type, and status history for transform, statistical analysis, tuning, and final evaluation job records.
+- Existing artifact and validation evidence remains attached to each project record while the execution evidence moves from gateway-completed dispatch to worker-service tick evidence.
+
+### Gaps Pending
+
+- AKS-36 remains open because profile/catalog, training, deploy, project-backed UI migration, release/local-appliance no-fixture evidence, and deeper real-model transform/tuning/evaluation/scoring/drift semantics remain open.
+- The current slice proves worker-backed job substrate for core project routes, not production-grade ML algorithms or UI readiness.
+
+### Next Items To Implement
+
+- Decide between worker-backed profile/catalog/deploy/training depth and the project-backed frontend migration as the next AKS-36 slice.
+- Keep broader real-model semantics and persona-flow browser verification queued before any readiness claim.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Prediction/Drift Worker Slice - 2026-07-01
 
 ### Work Done Till Date

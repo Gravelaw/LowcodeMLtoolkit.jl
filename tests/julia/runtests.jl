@@ -4960,6 +4960,13 @@ end
         @test length(transform_fit_apply_payload["transformRun"]["leakageChecks"]) >= 2
         @test startswith(String(transform_fit_apply_payload["transformRun"]["executionEvidence"]["executionId"]), "dsjob-")
         @test transform_fit_apply_payload["transformRun"]["executionEvidence"]["mode"] == "local_project_job"
+        transform_fit_apply_execution_id = String(transform_fit_apply_payload["transformRun"]["executionEvidence"]["executionId"])
+        transform_fit_apply_execution = first(filter(execution -> execution.execution_id == transform_fit_apply_execution_id, state.executions))
+        @test transform_fit_apply_payload["transformRun"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test transform_fit_apply_payload["transformRun"]["executionEvidence"]["dispatchStatus"] == "completed"
+        @test transform_fit_apply_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test transform_fit_apply_execution.metadata["data_science_project_worker_state"]["job_type"] == "transform_fit_apply"
+        @test [entry["status"] for entry in transform_fit_apply_execution.status_history] == ["accepted", "queued", "running", "completed"]
         @test length(transform_fit_apply_payload["project"]["transformFitApplyRecords"]) >= 1
         @test transform_fit_apply_bad_fit_response.status == 400
         @test occursin("fitSplit must be train", String(transform_fit_apply_bad_fit_response.body))
@@ -4987,6 +4994,13 @@ end
         @test length(statistical_analysis_payload["analysisRun"]["artifactRefs"]) == 2
         @test startswith(String(statistical_analysis_payload["analysisRun"]["executionEvidence"]["executionId"]), "dsjob-")
         @test statistical_analysis_payload["analysisRun"]["executionEvidence"]["status"] == "completed"
+        statistical_analysis_execution_id = String(statistical_analysis_payload["analysisRun"]["executionEvidence"]["executionId"])
+        statistical_analysis_execution = first(filter(execution -> execution.execution_id == statistical_analysis_execution_id, state.executions))
+        @test statistical_analysis_payload["analysisRun"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test statistical_analysis_payload["analysisRun"]["executionEvidence"]["dispatchStatus"] == "completed"
+        @test statistical_analysis_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test statistical_analysis_execution.metadata["data_science_project_worker_state"]["job_type"] == "statistical_analysis"
+        @test [entry["status"] for entry in statistical_analysis_execution.status_history] == ["accepted", "queued", "running", "completed"]
         stats_result_ref = String(statistical_analysis_payload["analysisRun"]["resultRef"])
         stats_code_ref = String(statistical_analysis_payload["analysisRun"]["generatedCodeRef"])
         stats_result_path = joinpath(data_estate_root, split(replace(stats_result_ref, "local://" => ""), '/')...)
@@ -5005,6 +5019,13 @@ end
         @test tuning_study_payload["tuningStudy"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
         @test startswith(String(tuning_study_payload["tuningStudy"]["executionEvidence"]["executionId"]), "dsjob-")
         @test tuning_study_payload["tuningStudy"]["validationEvidence"]["executionId"] == tuning_study_payload["tuningStudy"]["executionEvidence"]["executionId"]
+        tuning_study_execution_id = String(tuning_study_payload["tuningStudy"]["executionEvidence"]["executionId"])
+        tuning_study_execution = first(filter(execution -> execution.execution_id == tuning_study_execution_id, state.executions))
+        @test tuning_study_payload["tuningStudy"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test tuning_study_payload["tuningStudy"]["executionEvidence"]["dispatchStatus"] == "completed"
+        @test tuning_study_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test tuning_study_execution.metadata["data_science_project_worker_state"]["job_type"] == "tuning_study"
+        @test [entry["status"] for entry in tuning_study_execution.status_history] == ["accepted", "queued", "running", "completed"]
         @test length(tuning_study_payload["tuningStudy"]["trials"]) == 3
         @test length(tuning_study_payload["project"]["tuningStudies"]) >= 1
         @test length(tuning_study_payload["project"]["trainingPlans"]) >= 1
@@ -5018,6 +5039,13 @@ end
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["validationOnlyTuning"] == true
         @test startswith(String(final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"]), "dsjob-")
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["executionId"] == final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"]
+        final_evaluation_execution_id = String(final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"])
+        final_evaluation_execution = first(filter(execution -> execution.execution_id == final_evaluation_execution_id, state.executions))
+        @test final_evaluation_payload["evaluationReport"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test final_evaluation_payload["evaluationReport"]["executionEvidence"]["dispatchStatus"] == "completed"
+        @test final_evaluation_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test final_evaluation_execution.metadata["data_science_project_worker_state"]["job_type"] == "final_evaluation"
+        @test [entry["status"] for entry in final_evaluation_execution.status_history] == ["accepted", "queued", "running", "completed"]
         @test length(final_evaluation_payload["project"]["evaluationReports"]) >= 1
         @test final_evaluation_bad_policy_response.status == 400
         @test occursin("finalTestPolicy must be use_final_test", String(final_evaluation_bad_policy_response.body))
