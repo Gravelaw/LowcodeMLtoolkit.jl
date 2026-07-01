@@ -20,6 +20,26 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Deploy Package Worker Slice - 2026-07-01
+
+### Work Done Till Date
+
+- Validated workflow deploy packaging now creates a typed `deploy_package` project job when model validation evidence links the package to a `DataScienceProject`.
+- Deploy package records expose linked worker-backed execution evidence, and validation evidence carries `deployPackageExecutionId`.
+- Package history preserves the execution evidence, while project state records local CPU/GPU resource evidence and accepted/queued/running/completed worker-service status history for the deploy package job.
+- Contracts/OpenAPI include `deploy_package` as a `DataScienceProjectJobType` and expose package-level execution evidence.
+- Julia route tests prove the package response, package history, project job ledger, and persisted worker execution metadata all point to the same deploy package execution.
+
+### Gaps Pending
+
+- AKS-36 parent remains open because training worker depth, project-backed frontend migration, release/local-appliance no-fixture evidence, and deeper real-model transform/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
+- This checkpoint proves deploy package worker evidence and local service package materialization, not production inference serving or frontend workflow readiness.
+
+### Next Items To Implement
+
+- Continue with training worker-depth or project-backed frontend workflow migration.
+- Add deeper real-model scoring/drift/deploy runtime semantics and persona-flow browser verification before claiming MLOps readiness.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Profile/Catalog Worker Slice - 2026-07-01
 
 ### Work Done Till Date

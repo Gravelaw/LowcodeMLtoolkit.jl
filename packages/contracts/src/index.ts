@@ -620,6 +620,7 @@ export type DataScienceProjectJobType =
   | "final_evaluation"
   | "prediction_export"
   | "drift_report"
+  | "deploy_package"
   | "model_lifecycle"
   | "retraining";
 
@@ -1724,7 +1725,10 @@ export interface GatewayDeployPackageRecord {
     finalTestPolicy?: "forbid_final_test" | "use_final_test";
     validationFraction?: number;
     testFraction?: number;
+    executionId?: string;
+    deployPackageExecutionId?: string;
   };
+  executionEvidence?: DataScienceProjectJobExecutionEvidence;
   createdAt: string;
   localOnly: boolean;
 }

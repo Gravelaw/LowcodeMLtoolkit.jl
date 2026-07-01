@@ -3494,6 +3494,77 @@ function deploy_package_records(execution::GatewayExecution)
     return JuliaFlowDataScienceProjectDeploy.deploy_package_records(execution)
 end
 
+function deploy_package_output_refs(package_record::AbstractDict, timestamp::AbstractString)
+    package_id = String(package_record["packageId"])
+    refs = [
+        Dict{String,Any}(
+            "refId" => package_id,
+            "kind" => "deploy_package",
+            "localOnly" => true,
+            "checksumSha256" => String(package_record["packageChecksumSha256"]),
+            "path" => String(package_record["packageRef"]),
+            "generatedAt" => String(timestamp),
+        ),
+    ]
+    for (index, artifact) in enumerate(get(package_record, "artifactEvidence", Any[]))
+        artifact isa AbstractDict || continue
+        artifact_kind = String(get(artifact, "kind", "artifact"))
+        push!(
+            refs,
+            Dict{String,Any}(
+                "refId" => "$(package_id)-$(artifact_kind)-$(index)",
+                "kind" => "deploy_$(artifact_kind)",
+                "localOnly" => true,
+                "checksumSha256" => String(get(artifact, "checksumSha256", "")),
+                "path" => String(get(artifact, "artifactRef", "")),
+                "generatedAt" => String(timestamp),
+            ),
+        )
+    end
+    return refs
+end
+
+function record_deploy_package_project_job!(
+    state::GatewayState,
+    validation_context::AbstractDict,
+    package_record::Dict{String,Any},
+    timestamp::AbstractString,
+)
+    project = project_for_model_lifecycle(state, validation_context, "deploy package")
+    project === nothing && return nothing
+
+    output_refs = deploy_package_output_refs(package_record, timestamp)
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "deploy_package")
+    execution_evidence = data_science_project_execution_evidence!(
+        state,
+        project,
+        "deploy_package";
+        source_record_id = String(package_record["packageId"]),
+        output_refs = output_refs,
+        resource_evidence = resource_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+        plan = ["validate_deploy_package_evidence", "materialize_local_service_package", "record_deploy_package_artifacts"],
+        worker_backed = true,
+    )
+    package_record["executionEvidence"] = execution_evidence
+    package_record["validationEvidence"]["executionId"] = execution_evidence["executionId"]
+    package_record["validationEvidence"]["deployPackageExecutionId"] = execution_evidence["executionId"]
+    record_data_science_project_job!(
+        project,
+        "deploy_package";
+        source_record_id = String(package_record["packageId"]),
+        output_refs = output_refs,
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+    )
+    project.updated_at = String(timestamp)
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    return execution_evidence
+end
+
 function deploy_package_payload!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
     execution = latest_model_execution(state, workflow_id)
     execution === nothing && error("model evidence not found for workflow: $(workflow_id)")
@@ -3527,6 +3598,7 @@ function deploy_package_payload!(state::GatewayState, workflow_id::AbstractStrin
         artifact_checksum(workflow_payload),
         artifact_checksum(config_payload),
     )
+    timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     package_record = JuliaFlowDataScienceProjectDeploy.deploy_package_record(
         workflow_id,
         workflow_payload,
@@ -3536,8 +3608,10 @@ function deploy_package_payload!(state::GatewayState, workflow_id::AbstractStrin
         endpoint_config,
         service_code,
         artifact_evidence,
-        JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
+        timestamp,
     )
+    package_record["packageChecksumSha256"] = artifact_checksum(JuliaFlowDataScienceProjectDeploy.deploy_package_checksum_payload(package_record))
+    record_deploy_package_project_job!(state, validation_context, package_record, timestamp)
     package_record["packageChecksumSha256"] = artifact_checksum(JuliaFlowDataScienceProjectDeploy.deploy_package_checksum_payload(package_record))
 
     model_record["deploymentStatus"] = "local_ready"

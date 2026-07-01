@@ -2258,6 +2258,7 @@
               "final_evaluation",
               "prediction_export",
               "drift_report",
+              "deploy_package",
               "model_lifecycle",
               "retraining"
             ]
@@ -8579,8 +8580,17 @@
               },
               "testFraction": {
                 "type": "number"
+              },
+              "executionId": {
+                "type": "string"
+              },
+              "deployPackageExecutionId": {
+                "type": "string"
               }
             }
+          },
+          "executionEvidence": {
+            "$ref": "#/components/schemas/DataScienceProjectJobExecutionEvidence"
           },
           "createdAt": {
             "type": "string"

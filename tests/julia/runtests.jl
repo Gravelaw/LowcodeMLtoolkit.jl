@@ -5318,13 +5318,30 @@ end
         @test length(deploy_package_payload["package"]["artifactEvidence"]) >= 5
         @test deploy_package_payload["package"]["validationEvidence"]["projectId"] == "foundation-ml-project"
         @test deploy_package_payload["package"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test deploy_package_payload["package"]["validationEvidence"]["deployPackageExecutionId"] == deploy_package_payload["package"]["executionEvidence"]["executionId"]
+        @test deploy_package_payload["package"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test deploy_package_payload["package"]["executionEvidence"]["dispatchStatus"] == "completed"
         @test occursin("Genie", deploy_package_payload["package"]["serviceCode"])
         @test deploy_package_history_response.status == 200
         deploy_package_history_payload = JSON3.read(String(deploy_package_history_response.body), Dict{String,Any})
         @test deploy_package_history_payload["count"] >= 1
         @test deploy_package_history_payload["items"][1]["packageId"] == deploy_package_payload["package"]["packageId"]
+        @test deploy_package_history_payload["items"][1]["executionEvidence"]["executionId"] == deploy_package_payload["package"]["executionEvidence"]["executionId"]
         @test model_lifecycle_after_deploy_response.status == 200
         model_lifecycle_after_deploy_payload = JSON3.read(String(model_lifecycle_after_deploy_response.body), Dict{String,Any})
+        deploy_package_job = first(filter(job -> job["jobType"] == "deploy_package", model_lifecycle_after_deploy_payload["projectJobs"]))
+        @test deploy_package_job["sourceRecordId"] == deploy_package_payload["package"]["packageId"]
+        @test deploy_package_job["resourceEvidence"]["executionMode"] == "deploy_package"
+        @test deploy_package_job["executionEvidence"]["executionId"] == deploy_package_payload["package"]["executionEvidence"]["executionId"]
+        @test deploy_package_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test deploy_package_job["executionEvidence"]["dispatchStatus"] == "completed"
+        @test deploy_package_job["executionEvidence"]["workerPool"] == deploy_package_job["resourceEvidence"]["workerPool"]
+        deploy_package_execution = first(filter(
+            execution -> execution.execution_id == deploy_package_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test deploy_package_execution.metadata["data_science_project_worker_state"]["job_type"] == "deploy_package"
+        @test deploy_package_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
         deploy_registry_match = findfirst(
             record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
             model_lifecycle_after_deploy_payload["modelRegistryRecords"],

@@ -126,6 +126,14 @@ end
 function deploy_package_checksum_payload(package_record::AbstractDict)
     checksum_payload = normalized_dict(package_record)
     delete!(checksum_payload, "packageChecksumSha256")
+    delete!(checksum_payload, "executionEvidence")
+    validation = get(checksum_payload, "validationEvidence", nothing)
+    if validation isa AbstractDict
+        validation_payload = normalized_dict(validation)
+        delete!(validation_payload, "executionId")
+        delete!(validation_payload, "deployPackageExecutionId")
+        checksum_payload["validationEvidence"] = validation_payload
+    end
     return checksum_payload
 end
 
