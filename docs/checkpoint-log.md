@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Training Worker Slice - 2026-07-01
+
+### Work Done Till Date
+
+- Validated ML experiment runs now create a typed `training` project job when project/split/final-test validation evidence links the run to a `DataScienceProject`.
+- ML experiment records expose linked worker-backed execution evidence, and validation evidence carries `trainingExecutionId`.
+- ML experiment history preserves the same training execution evidence.
+- The training job ledger records dataset id, split plan id, local CPU/GPU resource evidence, training artifact refs, and worker-service accepted/queued/running/completed status history.
+- Contracts/OpenAPI include `training` as a `DataScienceProjectJobType` and expose experiment-level execution evidence.
+- Julia route tests prove the experiment response, experiment history, project job ledger, and persisted worker execution metadata all point to the same training execution.
+
+### Gaps Pending
+
+- AKS-36 parent remains open because project-backed frontend migration, release/local-appliance no-fixture evidence, and deeper real-model transform/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
+- This checkpoint proves training job evidence and split/final-test guardrails, not production-grade training algorithms or frontend workflow readiness.
+
+### Next Items To Implement
+
+- Move toward project-backed frontend workflow migration or deeper real-model scoring/drift/deploy runtime semantics.
+- Keep persona-flow browser verification queued until the project-backed UI path exists.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Deploy Package Worker Slice - 2026-07-01
 
 ### Work Done Till Date
@@ -32,12 +53,12 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 parent remains open because training worker depth, project-backed frontend migration, release/local-appliance no-fixture evidence, and deeper real-model transform/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
+- AKS-36 parent remains open because project-backed frontend migration, release/local-appliance no-fixture evidence, and deeper real-model training/transform/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
 - This checkpoint proves deploy package worker evidence and local service package materialization, not production inference serving or frontend workflow readiness.
 
 ### Next Items To Implement
 
-- Continue with training worker-depth or project-backed frontend workflow migration.
+- Continue with project-backed frontend workflow migration or deeper real-model execution semantics.
 - Add deeper real-model scoring/drift/deploy runtime semantics and persona-flow browser verification before claiming MLOps readiness.
 
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Profile/Catalog Worker Slice - 2026-07-01
@@ -52,12 +73,12 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 remains open because training/deploy worker depth, project-backed frontend migration, release/local-appliance no-fixture evidence, and deeper real-model transform/tuning/evaluation/scoring/drift semantics remain open.
+- AKS-36 remains open because project-backed frontend migration, release/local-appliance no-fixture evidence, and deeper real-model training/transform/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
 - The current slice proves profile/catalog substrate and project job evidence, not the full local Dataset Wizard UX.
 
 ### Next Items To Implement
 
-- Continue with training/deploy worker-depth or begin AKS-47/AKS-48 frontend project-backed workflow migration.
+- Continue with AKS-47/AKS-48 frontend project-backed workflow migration or deeper real-model execution semantics.
 - Keep persona-flow browser verification queued until the project-backed UI path exists.
 
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Core Job Worker Slice - 2026-07-01

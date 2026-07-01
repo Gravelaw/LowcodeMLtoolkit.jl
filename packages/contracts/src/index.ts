@@ -614,6 +614,7 @@ export interface FinalTestLock {
 
 export type DataScienceProjectJobType =
   | "data_profile"
+  | "training"
   | "transform_fit_apply"
   | "statistical_analysis"
   | "tuning_study"
@@ -1607,7 +1608,10 @@ export interface GatewayMlExperimentRecord {
     finalTestPolicy?: "forbid_final_test" | "use_final_test";
     validationFraction?: number;
     testFraction?: number;
+    executionId?: string;
+    trainingExecutionId?: string;
   };
+  executionEvidence?: DataScienceProjectJobExecutionEvidence;
   startedAt: string;
   finishedAt?: string | null;
   localOnly: boolean;

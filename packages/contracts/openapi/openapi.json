@@ -2252,6 +2252,7 @@
             "type": "string",
             "enum": [
               "data_profile",
+              "training",
               "transform_fit_apply",
               "statistical_analysis",
               "tuning_study",
@@ -8149,8 +8150,17 @@
               },
               "testFraction": {
                 "type": "number"
+              },
+              "executionId": {
+                "type": "string"
+              },
+              "trainingExecutionId": {
+                "type": "string"
               }
             }
+          },
+          "executionEvidence": {
+            "$ref": "#/components/schemas/DataScienceProjectJobExecutionEvidence"
           },
           "startedAt": {
             "type": "string"

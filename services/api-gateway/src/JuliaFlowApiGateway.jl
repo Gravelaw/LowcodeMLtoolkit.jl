@@ -2996,6 +2996,79 @@ function ml_experiment_artifact_refs(execution::GatewayExecution, evidence::Abst
     ]
 end
 
+function ml_experiment_output_refs(experiment::AbstractDict, timestamp::AbstractString)
+    experiment_id = String(experiment["experimentId"])
+    refs = Dict{String,Any}[]
+    for (index, artifact) in enumerate(get(experiment, "artifactEvidence", Any[]))
+        artifact isa AbstractDict || continue
+        artifact_kind = String(get(artifact, "kind", "artifact"))
+        push!(
+            refs,
+            Dict{String,Any}(
+                "refId" => "$(experiment_id)-$(artifact_kind)-$(index)",
+                "kind" => "training_$(artifact_kind)",
+                "localOnly" => true,
+                "checksumSha256" => String(get(artifact, "checksumSha256", "")),
+                "path" => String(get(artifact, "artifactRef", "")),
+                "generatedAt" => String(timestamp),
+            ),
+        )
+    end
+    return refs
+end
+
+function record_ml_experiment_project_job!(
+    state::GatewayState,
+    validation_context::AbstractDict,
+    experiment::Dict{String,Any},
+    source_execution::GatewayExecution,
+    timestamp::AbstractString,
+)
+    project = project_for_model_lifecycle(state, validation_context, "ml experiment training")
+    project === nothing && return nothing
+
+    experiment_id = String(experiment["experimentId"])
+    dataset_id = String(experiment["datasetId"])
+    split_plan_id = String(get(validation_context, "splitPlanId", ""))
+    output_refs = ml_experiment_output_refs(experiment, timestamp)
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "training")
+    execution_evidence = data_science_project_execution_evidence!(
+        state,
+        project,
+        "training";
+        workflow_id = source_execution.workflow_id,
+        dataset_id = dataset_id,
+        source_record_id = experiment_id,
+        output_refs = output_refs,
+        resource_evidence = resource_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+        plan = ["validate_training_split_policy", "execute_local_training_workflow", "record_training_artifacts"],
+        worker_backed = true,
+    )
+    experiment["executionEvidence"] = execution_evidence
+    experiment["validationEvidence"]["executionId"] = execution_evidence["executionId"]
+    experiment["validationEvidence"]["trainingExecutionId"] = execution_evidence["executionId"]
+    source_execution.metadata["ml_training_execution_evidence"] = execution_evidence
+    source_execution.metadata["ml_validation_context"] = experiment["validationEvidence"]
+    save_execution!(state.repository, source_execution; producer = "api-gateway")
+    record_data_science_project_job!(
+        project,
+        "training";
+        dataset_id = dataset_id,
+        split_plan_id = isempty(strip(split_plan_id)) ? nothing : split_plan_id,
+        source_record_id = experiment_id,
+        output_refs = output_refs,
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
+        started_at = timestamp,
+        finished_at = timestamp,
+    )
+    project.updated_at = String(timestamp)
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    return execution_evidence
+end
+
 function project_has_dataset(project::DataScienceProjectRecord, dataset_id::AbstractString)
     return JuliaFlowDataScienceProjectExperiments.project_has_dataset(project, dataset_id)
 end
@@ -3353,7 +3426,7 @@ function ml_experiment_payload(state::GatewayState, execution::GatewayExecution;
     model_kind = haskey(request_body, "algorithm") ? String(request_body["algorithm"]) : String(model_card["kind"])
     validation_context = haskey(execution.metadata, "ml_validation_context") ? execution.metadata["ml_validation_context"] : Dict{String,Any}()
 
-    return Dict{String,Any}(
+    payload = Dict{String,Any}(
         "experimentId" => "ml-" * execution.execution_id,
         "workflowId" => execution.workflow_id,
         "workflowVersion" => workflow.version,
@@ -3375,6 +3448,10 @@ function ml_experiment_payload(state::GatewayState, execution::GatewayExecution;
         "finishedAt" => execution.finished_at,
         "localOnly" => true,
     )
+    if haskey(execution.metadata, "ml_training_execution_evidence")
+        payload["executionEvidence"] = execution.metadata["ml_training_execution_evidence"]
+    end
+    return payload
 end
 
 function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
@@ -3398,6 +3475,15 @@ function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractS
     matched === nothing && error("ML experiment execution not found: $(execution_id)")
     isempty(validation_context) || (state.executions[matched].metadata["ml_validation_context"] = validation_context)
     experiment = ml_experiment_payload(state, state.executions[matched]; request_body = body)
+    if !isempty(validation_context)
+        record_ml_experiment_project_job!(
+            state,
+            validation_context,
+            experiment,
+            state.executions[matched],
+            JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
+        )
+    end
     return JSON3.write(Dict("status" => "accepted", "execution" => execution, "experiment" => experiment))
 end
 
@@ -4868,6 +4954,7 @@ function data_science_project_execution_evidence!(
     state::GatewayState,
     project::DataScienceProjectRecord,
     job_type::AbstractString;
+    workflow_id::Union{Nothing,AbstractString} = nothing,
     dataset_id::Union{Nothing,AbstractString} = nothing,
     source_record_id::Union{Nothing,AbstractString} = nothing,
     output_refs::AbstractVector = Any[],
@@ -4878,11 +4965,11 @@ function data_science_project_execution_evidence!(
     worker_backed::Bool = false,
 )
     workflow_ids = sort(String.(collect(keys(state.workflows))))
-    workflow_id = isempty(workflow_ids) ? project.project_id : first(workflow_ids)
+    selected_workflow_id = workflow_id === nothing ? (isempty(workflow_ids) ? project.project_id : first(workflow_ids)) : String(workflow_id)
     execution, worker_id = JuliaFlowDataScienceProjectJobs.project_job_execution_record(
         project,
         job_type;
-        workflow_id = workflow_id,
+        workflow_id = selected_workflow_id,
         checkpoint_tag = latest_checkpoint_tag(state),
         dataset_id = dataset_id,
         source_record_id = source_record_id,

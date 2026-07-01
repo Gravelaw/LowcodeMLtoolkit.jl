@@ -3502,6 +3502,10 @@ end
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/ml/experiments"),
         )
+        ml_experiment_project_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/data-science-projects/foundation-ml-project"),
+        )
         model_register_response = route_request(
             state,
             HTTP.Request(
@@ -5249,6 +5253,9 @@ end
         @test ml_experiment_payload["experiment"]["validationEvidence"]["projectId"] == "foundation-ml-project"
         @test ml_experiment_payload["experiment"]["validationEvidence"]["splitPlanId"] == "split-foundation-stratified"
         @test ml_experiment_payload["experiment"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["trainingExecutionId"] == ml_experiment_payload["experiment"]["executionEvidence"]["executionId"]
+        @test ml_experiment_payload["experiment"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test ml_experiment_payload["experiment"]["executionEvidence"]["dispatchStatus"] == "completed"
         @test haskey(ml_experiment_payload["experiment"]["metrics"], "mae")
         @test length(ml_experiment_payload["experiment"]["featureImportance"]) >= 1
         @test length(ml_experiment_payload["experiment"]["artifactEvidence"]) >= 3
@@ -5261,6 +5268,24 @@ end
         ml_experiment_history_payload = JSON3.read(String(ml_experiment_history_response.body), Dict{String,Any})
         @test ml_experiment_history_payload["count"] >= 1
         @test ml_experiment_history_payload["items"][1]["workflowId"] == "wf-foundation"
+        @test ml_experiment_history_payload["items"][1]["executionEvidence"]["executionId"] == ml_experiment_payload["experiment"]["executionEvidence"]["executionId"]
+        @test ml_experiment_project_response.status == 200
+        ml_experiment_project_payload = JSON3.read(String(ml_experiment_project_response.body), Dict{String,Any})
+        training_job = first(filter(job -> job["jobType"] == "training", ml_experiment_project_payload["projectJobs"]))
+        @test training_job["datasetId"] == "foundation-sales-sample"
+        @test training_job["splitPlanId"] == "split-foundation-stratified"
+        @test training_job["sourceRecordId"] == ml_experiment_payload["experiment"]["experimentId"]
+        @test training_job["resourceEvidence"]["executionMode"] == "training"
+        @test training_job["executionEvidence"]["executionId"] == ml_experiment_payload["experiment"]["executionEvidence"]["executionId"]
+        @test training_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test training_job["executionEvidence"]["dispatchStatus"] == "completed"
+        training_execution = first(filter(
+            execution -> execution.execution_id == training_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test training_execution.workflow_id == "wf-foundation"
+        @test training_execution.metadata["data_science_project_worker_state"]["job_type"] == "training"
+        @test training_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
         @test model_register_response.status == 201
         model_register_payload = JSON3.read(String(model_register_response.body), Dict{String,Any})
         @test model_register_payload["status"] == "registered"
