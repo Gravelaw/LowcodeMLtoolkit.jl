@@ -30,19 +30,22 @@ Each checkpoint entry must contain:
 - ML Studio renders the latest project-backed `training` job evidence from `projectJobs`, including worker dispatch and execution identifiers.
 - Monitor renders the refreshed project job ledger with source record, execution id, status, and dispatch evidence.
 - Transform renders project-backed fit/apply evidence with train-only fitting, held-out apply splits, leakage-check statuses, linked job id, and worker execution id.
+- Models uses `DataScienceProject.modelRegistryRecords` as the local-appliance fallback when `/models` returns no records, keeping project-backed registry and lifecycle evidence visible.
+- Deploy uses project-backed registry records for package gating when direct registry records are absent and renders the latest `deploy_package` project job with execution and artifact evidence.
 - Focused frontend coverage verifies ML Studio posts the active project id, refreshes the project endpoint, and displays the refreshed training job evidence.
 - Focused frontend coverage verifies the same refreshed job evidence remains visible after navigating to Monitor.
 - Focused frontend coverage verifies Transform renders project-loaded fit/apply evidence and matching job execution metadata.
+- Focused frontend coverage verifies Models and Deploy render project-backed registry/deploy evidence while route-specific model and package lists are empty.
 
 ### Gaps Pending
 
 - AKS-36 parent remains open because this only starts the project-backed frontend migration.
-- Models, Deploy, and broader Data project-led UI state still need migration and release/local-appliance no-fixture evidence.
+- Broader Data project-led UI state, lifecycle-action surfaces, and release/local-appliance no-fixture browser evidence still need migration.
 - Deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
 
 ### Next Items To Implement
 
-- Continue project-backed frontend migration across Models and Deploy.
+- Continue project-backed frontend migration across validation, tuning, evaluation, prediction export, drift, and lifecycle review surfaces.
 - Add release/local-appliance browser evidence for project-backed UI flows.
 - Defer final reviewer/architect/persona/application-test agents until the parent issue evidence is complete.
 

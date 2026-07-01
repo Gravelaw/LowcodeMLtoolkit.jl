@@ -473,6 +473,12 @@ button {
   font-size: 0.9rem;
 }
 
+.card-note {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .jf-eyebrow {
   margin: 0 0 4px;
   color: var(--muted);

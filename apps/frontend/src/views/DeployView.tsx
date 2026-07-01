@@ -2,8 +2,18 @@ import { Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
 import { localCode } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
 
+function currentModel(data: AppData) {
+  return data.modelRegistry[0] ?? data.dataScienceProject.modelRegistryRecords[0];
+}
+
+function latestDeployProjectJob(data: AppData) {
+  return [...data.dataScienceProject.projectJobs]
+    .filter((job) => job.jobType === "deploy_package")
+    .sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
+}
+
 function deployBlockedReason(data: AppData) {
-  const model = data.modelRegistry[0];
+  const model = currentModel(data);
   if (!model) return "No registered model is available.";
   const lifecycle = data.dataScienceProject.modelLifecycleRecords.find((record) => record.modelId === model.modelId);
   if (model.status === "archived" || lifecycle?.state === "archived") return "Archived models cannot be packaged.";
@@ -22,7 +32,9 @@ export function DeployView({
   onPackage: () => void;
   feedback?: ActionFeedback;
 }) {
+  const model = currentModel(data);
   const current = data.deployPackages[0];
+  const projectDeployJob = latestDeployProjectJob(data);
   const endpointStatus = current?.deploymentStatus ?? "No package";
   const endpointUrl = current?.endpointUrl ?? "No local endpoint packaged";
   const endpointPort = current?.port ? `127.0.0.1:${current.port}` : "package endpoint first";
@@ -64,6 +76,9 @@ export function DeployView({
           <span>Status</span><strong>{endpointStatus}</strong>
           <span>Endpoint</span><strong>{endpointUrl}</strong>
           <span>Package Gate</span><strong>{packageBlockedReason || "Ready"}</strong>
+          <span>Model Source</span><strong>{data.modelRegistry.length > 0 ? "Workflow registry endpoint" : model ? "Project-backed registry records" : "No model"}</strong>
+          <span>Project Job</span><strong>{projectDeployJob?.jobId ?? "No deploy package job"}</strong>
+          <span>Execution</span><strong>{projectDeployJob?.executionEvidence?.executionId ?? current?.executionEvidence?.executionId ?? "pending"}</strong>
           <span>Latency</span><strong>14.2 ms</strong>
           <span>Requests 24h</span><strong>12,842</strong>
         </div>
@@ -87,8 +102,19 @@ export function DeployView({
       </Card>
 
       <Card title="Package History" className="wide">
-        {data.deployPackages.length === 0 ? (
+        {data.deployPackages.length === 0 && !projectDeployJob ? (
           <p className="empty-state">No backend deploy package records are available yet. Package a local endpoint after a model is registered.</p>
+        ) : data.deployPackages.length === 0 && projectDeployJob ? (
+          <DataTable
+            columns={[
+              { key: "jobId", label: "Package Job" },
+              { key: "sourceRecordId", label: "Source" },
+              { key: "status", label: "Status", render: (row) => <StatusPill tone="green">{String(row.status)}</StatusPill> },
+              { key: "artifact", label: "Artifact" }
+            ]}
+            rows={[{ ...projectDeployJob, artifact: projectDeployJob.outputRefs[0]?.path ?? projectDeployJob.outputRefs[0]?.refId ?? "No artifact ref" }]}
+            getRowKey={(row) => String(row.jobId)}
+          />
         ) : (
           <DataTable
             columns={[

@@ -415,6 +415,110 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText(transformExecutionId)).toBeInTheDocument();
   });
 
+  it("uses project-backed model registry and deploy job evidence when route lists are empty", async () => {
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: "http://127.0.0.1:8088",
+      runtimeMode: "local-appliance"
+    };
+    const projectModel = {
+      ...modelRegistry[0],
+      registryId: "reg-project-only",
+      modelId: "Project Registry Model",
+      status: "approved",
+      deploymentStatus: "local_ready"
+    };
+    const projectWithModelAndDeployEvidence = {
+      ...dataScienceProject,
+      modelRegistryRecords: [projectModel],
+      modelLifecycleRecords: [
+        {
+          modelId: projectModel.modelId,
+          state: "approved",
+          evaluationReportId: "eval-project-registry-model",
+          updatedAt: "2026-06-24T09:00:00Z"
+        }
+      ],
+      projectJobs: [
+        {
+          jobId: "job-project-deploy-001",
+          projectId: dataScienceProject.projectId,
+          jobType: "deploy_package",
+          status: "completed",
+          sourceRecordId: "pkg-project-deploy-001",
+          outputRefs: [
+            {
+              refId: "pkg-project-deploy-001",
+              kind: "deploy_package",
+              localOnly: true,
+              checksumSha256: "c".repeat(64),
+              path: "deploy/project-registry-model/package.tar.gz",
+              generatedAt: "2026-06-24T09:04:00Z"
+            }
+          ],
+          executionEvidence: {
+            executionId: "exec-project-deploy-001",
+            workflowId: workflowSummary.workflowId,
+            status: "completed",
+            mode: "local_project_job",
+            workerId: "local-cpu-worker",
+            orchestrationMode: "worker_service_tick",
+            dispatchStatus: "completed",
+            workerPool: "local-cpu",
+            dispatchLane: "cpu",
+            queuedAt: "2026-06-24T09:00:00Z",
+            startedAt: "2026-06-24T09:00:10Z",
+            finishedAt: "2026-06-24T09:04:00Z"
+          },
+          startedAt: "2026-06-24T09:00:10Z",
+          finishedAt: "2026-06-24T09:04:00Z"
+        }
+      ]
+    };
+    const health = {
+      ...localHealth,
+      runtime: {
+        mode: "local-appliance",
+        fixtureProvenance: "backend",
+        fixtureSubstitutionAllowed: false,
+        unavailable: []
+      },
+      runtimeMode: "local-appliance",
+      fixtureProvenance: "backend",
+      fixtureSubstitutionAllowed: false,
+      unavailable: []
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return json(health);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithModelAndDeployEvidence], count: 1 });
+      if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
+      if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
+      if (url.includes("/models")) return json({ items: [], count: 0 });
+      if (url.includes("/deploy/packages")) return json({ items: [], count: 0 });
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    fireEvent.click(screen.getByRole("button", { name: "Models" }));
+    expect(screen.getAllByText("Project Registry Model").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Project-backed registry records").length).toBeGreaterThan(0);
+    expect(screen.queryByText("No backend model registry records are available for this workspace yet. Register a model after training completes.")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
+    expect(screen.getAllByText("job-project-deploy-001").length).toBeGreaterThan(0);
+    expect(screen.getByText("exec-project-deploy-001")).toBeInTheDocument();
+    expect(screen.getByText("deploy/project-registry-model/package.tar.gz")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /package local endpoint/i })).toBeEnabled();
+    expect(screen.queryByText("No registered model is available.")).not.toBeInTheDocument();
+  });
+
   it("uses runtime gateway config before falling back to fixtures", async () => {
     window.__JULIAFLOW_CONFIG__ = {
       gatewayBaseUrl: "http://127.0.0.1:8088",

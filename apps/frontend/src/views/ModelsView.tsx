@@ -20,7 +20,9 @@ export function ModelsView({
   onRegister: () => void;
   feedback?: ActionFeedback;
 }) {
-  const selected = data.modelRegistry[0];
+  const registryRows = data.modelRegistry.length > 0 ? data.modelRegistry : data.dataScienceProject.modelRegistryRecords;
+  const registrySource = data.modelRegistry.length > 0 ? "Workflow registry endpoint" : "Project-backed registry records";
+  const selected = registryRows[0];
   const artifactEvidence = selected?.artifactEvidence ?? [];
   const lifecycle = selected ? data.dataScienceProject.modelLifecycleRecords.find((record) => record.modelId === selected.modelId) : undefined;
   const lifecycleState = lifecycle?.state ?? selected?.status;
@@ -37,6 +39,7 @@ export function ModelsView({
       {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
 
       <Card title="Model Registry" className="wide">
+        <p className="card-note">Source: {registrySource}</p>
         <DataTable
           columns={[
             { key: "modelId", label: "Model Name" },
@@ -46,7 +49,7 @@ export function ModelsView({
             { key: "primaryMetricValue", label: "Primary Metric" },
             { key: "deploymentStatus", label: "Deployment", render: (row) => <StatusPill tone="green">{String(row.deploymentStatus)}</StatusPill> }
           ]}
-          rows={data.modelRegistry}
+          rows={registryRows}
           getRowKey={(row) => String(row.registryId)}
         />
       </Card>
@@ -69,6 +72,7 @@ export function ModelsView({
               <span>Training Data</span><strong>25.1 GB local</strong>
               <span>Model Path</span><strong>{artifactEvidence[0]?.artifactRef ?? "No local model artifact"}</strong>
               <span>Lifecycle</span><strong>{lifecycleState ?? "No lifecycle evidence"}</strong>
+              <span>Registry Source</span><strong>{registrySource}</strong>
               <span>Gate</span><strong>{gateReason}</strong>
             </div>
             <h3>Artifacts (Stored on Disk)</h3>
