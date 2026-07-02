@@ -2996,6 +2996,83 @@ function ml_experiment_artifact_refs(execution::GatewayExecution, evidence::Abst
     ]
 end
 
+function local_csv_training_artifact!(
+    state::GatewayState,
+    validation_context::AbstractDict,
+    experiment::Dict{String,Any},
+    timestamp::AbstractString,
+)
+    project = project_for_model_lifecycle(state, validation_context, "ml experiment training")
+    project === nothing && return nothing
+    dataset_id = String(experiment["datasetId"])
+    dataset_index = findfirst(dataset -> String(get(dataset, "datasetId", "")) == dataset_id, project.datasets)
+    dataset_index === nothing && return nothing
+    dataset = project.datasets[dataset_index]
+    source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
+    source_path === nothing && return nothing
+    table = JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path)
+    table === nothing && return nothing
+    numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
+    target_column = String(experiment["target"])
+    haskey(numeric_columns, target_column) || return nothing
+    feature_columns = sort([column for column in keys(numeric_columns) if column != target_column])
+    isempty(feature_columns) && return nothing
+    feature_column = first(feature_columns)
+    target_values = numeric_columns[target_column]
+    feature_values = numeric_columns[feature_column]
+    row_count = min(length(target_values), length(feature_values))
+    row_count > 1 || return nothing
+    validation_count = max(0, round(Int, row_count * Float64(get(validation_context, "validationFraction", 0.0))))
+    test_count = max(0, round(Int, row_count * Float64(get(validation_context, "testFraction", 0.0))))
+    train_count = max(2, row_count - validation_count - test_count)
+    train_count = min(train_count, row_count)
+    train_target = target_values[1:train_count]
+    train_feature = feature_values[1:train_count]
+    ols = JuliaFlowDataScienceProjectStatistics.simple_linear_ols(train_target, train_feature)
+    ols === nothing && return nothing
+    model_id = String(experiment["modelId"])
+    artifact_ref = "local://models/$(project.project_id)/$(model_id)/model.json"
+    artifact_path = local_data_ref_path_for_write(artifact_ref)
+    mkpath(dirname(artifact_path))
+    artifact_payload = Dict{String,Any}(
+        "modelId" => model_id,
+        "modelKind" => "local_csv_single_feature_ols",
+        "projectId" => project.project_id,
+        "datasetId" => dataset_id,
+        "sourceRef" => String(get(dataset, "sourceUri", "")),
+        "targetColumn" => target_column,
+        "featureColumn" => feature_column,
+        "splitPlanId" => String(get(validation_context, "splitPlanId", "")),
+        "trainRowCount" => train_count,
+        "validationRowCount" => validation_count,
+        "testRowCount" => test_count,
+        "coefficients" => Dict{String,Any}(
+            "intercept" => ols["intercept"],
+            "slope" => ols["slope"],
+        ),
+        "metrics" => Dict{String,Any}(
+            "trainR2" => ols["rSquared"],
+            "trainSse" => ols["sse"],
+        ),
+        "createdAt" => String(timestamp),
+        "localOnly" => true,
+    )
+    content = JSON3.write(artifact_payload) * "\n"
+    write(artifact_path, content)
+    checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
+    return Dict{String,Any}(
+        "kind" => "trained_model",
+        "artifactRef" => artifact_ref,
+        "checksumSha256" => checksum,
+        "sizeBytes" => filesize(artifact_path),
+        "modelKind" => "local_csv_single_feature_ols",
+        "targetColumn" => target_column,
+        "featureColumn" => feature_column,
+        "trainRowCount" => train_count,
+        "metrics" => artifact_payload["metrics"],
+    )
+end
+
 function ml_experiment_output_refs(experiment::AbstractDict, timestamp::AbstractString)
     experiment_id = String(experiment["experimentId"])
     refs = Dict{String,Any}[]
@@ -3451,6 +3528,20 @@ function ml_experiment_payload(state::GatewayState, execution::GatewayExecution;
     if haskey(execution.metadata, "ml_training_execution_evidence")
         payload["executionEvidence"] = execution.metadata["ml_training_execution_evidence"]
     end
+    if haskey(execution.metadata, "ml_training_metrics")
+        payload["metrics"] = merge(Dict{String,Any}(String(key) => value for (key, value) in pairs(payload["metrics"])), execution.metadata["ml_training_metrics"])
+    end
+    if haskey(execution.metadata, "ml_training_artifact_evidence")
+        artifact = execution.metadata["ml_training_artifact_evidence"]
+        artifact_ref = String(get(artifact, "artifactRef", ""))
+        existing_refs = Set(String(get(item, "artifactRef", "")) for item in payload["artifactEvidence"])
+        artifact_ref in existing_refs || push!(payload["artifactEvidence"], artifact)
+        payload["validationEvidence"]["trainingArtifactRef"] = artifact_ref
+        payload["validationEvidence"]["trainingArtifactChecksumSha256"] = String(get(artifact, "checksumSha256", ""))
+        payload["validationEvidence"]["trainingExecutionMode"] = String(get(artifact, "modelKind", ""))
+        payload["validationEvidence"]["trainingFeatureColumn"] = String(get(artifact, "featureColumn", ""))
+        payload["validationEvidence"]["trainingRowCount"] = Int(get(artifact, "trainRowCount", 0))
+    end
     return payload
 end
 
@@ -3476,6 +3567,23 @@ function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractS
     isempty(validation_context) || (state.executions[matched].metadata["ml_validation_context"] = validation_context)
     experiment = ml_experiment_payload(state, state.executions[matched]; request_body = body)
     if !isempty(validation_context)
+        training_artifact = local_csv_training_artifact!(
+            state,
+            validation_context,
+            experiment,
+            JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
+        )
+        if training_artifact !== nothing
+            state.executions[matched].metadata["ml_training_artifact_evidence"] = training_artifact
+            state.executions[matched].metadata["ml_training_metrics"] = get(training_artifact, "metrics", Dict{String,Any}())
+            push!(experiment["artifactEvidence"], training_artifact)
+            experiment["metrics"] = merge(Dict{String,Any}(String(key) => value for (key, value) in pairs(experiment["metrics"])), get(training_artifact, "metrics", Dict{String,Any}()))
+            experiment["validationEvidence"]["trainingArtifactRef"] = String(get(training_artifact, "artifactRef", ""))
+            experiment["validationEvidence"]["trainingArtifactChecksumSha256"] = String(get(training_artifact, "checksumSha256", ""))
+            experiment["validationEvidence"]["trainingExecutionMode"] = String(get(training_artifact, "modelKind", ""))
+            experiment["validationEvidence"]["trainingFeatureColumn"] = String(get(training_artifact, "featureColumn", ""))
+            experiment["validationEvidence"]["trainingRowCount"] = Int(get(training_artifact, "trainRowCount", 0))
+        end
         record_ml_experiment_project_job!(
             state,
             validation_context,

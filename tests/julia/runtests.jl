@@ -5417,11 +5417,25 @@ end
         @test ml_experiment_payload["experiment"]["validationEvidence"]["splitPlanId"] == "split-foundation-stratified"
         @test ml_experiment_payload["experiment"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
         @test ml_experiment_payload["experiment"]["validationEvidence"]["trainingExecutionId"] == ml_experiment_payload["experiment"]["executionEvidence"]["executionId"]
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["trainingExecutionMode"] == "local_csv_single_feature_ols"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["trainingFeatureColumn"] == "margin"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["trainingRowCount"] >= 2
+        @test haskey(ml_experiment_payload["experiment"]["metrics"], "trainR2")
         @test ml_experiment_payload["experiment"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
         @test ml_experiment_payload["experiment"]["executionEvidence"]["dispatchStatus"] == "completed"
         @test haskey(ml_experiment_payload["experiment"]["metrics"], "mae")
         @test length(ml_experiment_payload["experiment"]["featureImportance"]) >= 1
-        @test length(ml_experiment_payload["experiment"]["artifactEvidence"]) >= 3
+        @test length(ml_experiment_payload["experiment"]["artifactEvidence"]) >= 4
+        trained_model_artifact = only(filter(artifact -> String(get(artifact, "kind", "")) == "trained_model", ml_experiment_payload["experiment"]["artifactEvidence"]))
+        @test trained_model_artifact["modelKind"] == "local_csv_single_feature_ols"
+        @test trained_model_artifact["featureColumn"] == "margin"
+        @test haskey(trained_model_artifact, "checksumSha256")
+        trained_model_path = joinpath(data_estate_root, split(replace(String(trained_model_artifact["artifactRef"]), "local://" => ""), '/')...)
+        @test isfile(trained_model_path)
+        trained_model_payload = JSON3.read(read(trained_model_path, String), Dict{String,Any})
+        @test trained_model_payload["modelKind"] == "local_csv_single_feature_ols"
+        @test trained_model_payload["targetColumn"] == "amount"
+        @test trained_model_payload["featureColumn"] == "margin"
         @test ml_experiment_payload["experiment"]["localOnly"] == true
         @test ml_experiment_missing_split_response.status == 400
         @test occursin("ml experiment split plan not found", String(ml_experiment_missing_split_response.body))
@@ -5438,6 +5452,7 @@ end
         @test training_job["datasetId"] == "foundation-sales-sample"
         @test training_job["splitPlanId"] == "split-foundation-stratified"
         @test training_job["sourceRecordId"] == ml_experiment_payload["experiment"]["experimentId"]
+        @test any(ref -> String(get(ref, "kind", "")) == "training_trained_model", training_job["outputRefs"])
         @test training_job["resourceEvidence"]["executionMode"] == "training"
         @test training_job["executionEvidence"]["executionId"] == ml_experiment_payload["experiment"]["executionEvidence"]["executionId"]
         @test training_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"

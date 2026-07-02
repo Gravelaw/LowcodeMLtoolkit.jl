@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-07-02`
 
 ## Work Done Till Date
+### AKS-36 Local CSV Training Artifact Slice (2026-07-02)
+
+- ML experiment runs now attempt to train a bounded local model artifact from the project-managed CSV dataset when validation context is present.
+- The current supported path is numeric regression with a managed `local://` CSV source, numeric target, and first numeric non-target feature.
+- Training uses train rows only, excluding validation/test fractions from the persisted split evidence.
+- The gateway persists a local JSON model artifact under `local://models/{projectId}/{modelId}/model.json`.
+- Experiment payloads, execution metadata, and training project job output refs include the trained model artifact ref, checksum, size, model kind, selected feature, target, and train row count.
+- Training metrics now include local artifact metrics such as `trainR2` and `trainSse` when the artifact is available.
+- Unsupported datasets keep the previous evidence path instead of claiming a trained model artifact.
+- Julia route coverage verifies the response evidence, project job output refs, persisted artifact file, and artifact payload contents.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is a single-feature OLS artifact path, not the full MLJ/AutoML/tuning runtime or deploy-time model serving path.
+- Real hyperparameter search, model selection, model artifact loading in final evaluation/export/deploy, richer feature preprocessing, and drift methodology remain open.
+
+### Next Items To Implement
+
+- Feed the persisted model artifact into final evaluation and prediction export scoring instead of baseline evidence.
+- Extend training/tuning runtime semantics toward MLJ-backed model families and CPU/GPU trial execution.
+
 ### AKS-36 Local CSV Prediction Export Scoring Slice (2026-07-02)
 
 - Prediction export now derives prediction values from approved final-evaluation local CSV baseline evidence when available.

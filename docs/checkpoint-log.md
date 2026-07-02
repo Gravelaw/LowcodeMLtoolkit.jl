@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Training Artifact Slice - 2026-07-02
+
+### Work Done Till Date
+
+- ML experiment runs now try to materialize a local model artifact from project-managed CSV data when project validation evidence is available.
+- The supported path fits a bounded single-feature OLS regression on train rows only for numeric target columns.
+- The artifact is persisted as managed local JSON under `local://models/{projectId}/{modelId}/model.json`.
+- Experiment response evidence, persisted execution metadata, and training project job output refs now carry artifact ref, checksum, size, model kind, selected feature, target, and train row count.
+- Training metrics include local artifact metrics such as `trainR2` and `trainSse` when a local CSV model artifact is produced.
+- Unsupported datasets keep the existing evidence path and do not claim a trained artifact.
+- Julia gateway route coverage verifies response evidence, project job output refs, persisted artifact file existence, and artifact payload contents.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is a narrow OLS artifact path, not full MLJ-backed training/tuning, model selection, or deploy-runtime serving.
+- Final evaluation and prediction export still need to score from the persisted model artifact rather than baseline evidence.
+- Final reviewer/architect/persona/application-test agents remain deferred until parent evidence is complete.
+
+### Next Items To Implement
+
+- Feed persisted model artifacts into final evaluation and prediction export scoring.
+- Continue toward MLJ-backed model families, CPU/GPU trial execution, and deploy-runtime inference evidence.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Prediction Export Scoring Slice - 2026-07-02
 
 ### Work Done Till Date
