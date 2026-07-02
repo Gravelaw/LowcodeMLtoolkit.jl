@@ -178,6 +178,7 @@ function final_evaluation_metrics_from_csv(
     target_column::AbstractString,
     metric_names::AbstractVector,
     split_plan::AbstractDict,
+    model_artifact::Union{Nothing,AbstractDict} = nothing,
 )
     table = JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path)
     table === nothing && return nothing
@@ -191,7 +192,34 @@ function final_evaluation_metrics_from_csv(
     train_count = total - test_count
     train_values = target_values[1:train_count]
     test_values = target_values[(train_count + 1):total]
+    execution_mode = "local_csv_baseline"
+    scoring_evidence = Dict{String,Any}()
     predictions, baseline_model, baseline_slope, baseline_intercept = final_evaluation_trend_predictions(train_values, length(test_values))
+    if model_artifact !== nothing && String(get(model_artifact, "modelKind", "")) == "local_csv_single_feature_ols"
+        artifact_target = String(get(model_artifact, "targetColumn", ""))
+        feature_column = String(get(model_artifact, "featureColumn", ""))
+        coefficients = get(model_artifact, "coefficients", Dict{String,Any}())
+        if artifact_target == String(target_column) && haskey(numeric_columns, feature_column) && haskey(coefficients, "intercept") && haskey(coefficients, "slope")
+            feature_values = numeric_columns[feature_column]
+            if length(feature_values) >= total
+                intercept = Float64(coefficients["intercept"])
+                slope = Float64(coefficients["slope"])
+                test_features = feature_values[(train_count + 1):total]
+                predictions = [intercept + slope * value for value in test_features]
+                execution_mode = "local_csv_trained_artifact"
+                baseline_model = "trained_single_feature_ols"
+                baseline_slope = round(slope; digits = 6)
+                baseline_intercept = round(intercept; digits = 6)
+                scoring_evidence = Dict{String,Any}(
+                    "modelArtifactRef" => String(get(model_artifact, "artifactRef", "")),
+                    "modelArtifactChecksumSha256" => String(get(model_artifact, "checksumSha256", "")),
+                    "modelKind" => String(get(model_artifact, "modelKind", "")),
+                    "featureColumn" => feature_column,
+                    "trainingRowCount" => Int(get(model_artifact, "trainRowCount", train_count)),
+                )
+            end
+        end
+    end
     metrics = Dict{String,Any}()
     raw_metrics = Dict{String,Any}()
     metric_semantics = Dict{String,Any}()
@@ -202,22 +230,24 @@ function final_evaluation_metrics_from_csv(
         metrics[metric_key] = final_evaluation_normalized_score(metric_key, raw_value, target_values)
         metric_semantics[metric_key] = final_evaluation_lower_is_better_metric(metric_key) ? "lower_is_better_normalized_quality_score" : "higher_is_better_score"
     end
+    evidence = Dict{String,Any}(
+        "executionMode" => execution_mode,
+        "sourceKind" => "managed_local_csv",
+        "sourceRef" => String(get(dataset, "sourceUri", "")),
+        "targetColumn" => String(target_column),
+        "rowCount" => total,
+        "trainRowCount" => train_count,
+        "testRowCount" => length(test_values),
+        "baselineModel" => baseline_model,
+        "baselineSlope" => baseline_slope,
+        "baselineIntercept" => baseline_intercept,
+        "rawMetrics" => raw_metrics,
+        "metricSemantics" => metric_semantics,
+    )
+    merge!(evidence, scoring_evidence)
     return Dict{String,Any}(
         "metrics" => metrics,
-        "evidence" => Dict{String,Any}(
-            "executionMode" => "local_csv_baseline",
-            "sourceKind" => "managed_local_csv",
-            "sourceRef" => String(get(dataset, "sourceUri", "")),
-            "targetColumn" => String(target_column),
-            "rowCount" => total,
-            "trainRowCount" => train_count,
-            "testRowCount" => length(test_values),
-            "baselineModel" => baseline_model,
-            "baselineSlope" => baseline_slope,
-            "baselineIntercept" => baseline_intercept,
-            "rawMetrics" => raw_metrics,
-            "metricSemantics" => metric_semantics,
-        ),
+        "evidence" => evidence,
     )
 end
 

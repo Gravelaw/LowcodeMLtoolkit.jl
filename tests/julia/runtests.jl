@@ -261,6 +261,15 @@ end
     @test local_csv_values == [10.0, 20.0, 30.0]
     local_csv_rows = export_helpers.prediction_export_rows("export-local", local_csv_report, "dataset-1", "contract-local", 3)
     @test [row["prediction"] for row in local_csv_rows] == [10.0, 20.0, 30.0]
+    model_rows = export_helpers.prediction_export_rows(
+        "export-model",
+        local_csv_report,
+        "dataset-1",
+        "contract-local",
+        2;
+        prediction_values = [1.25, 2.5],
+    )
+    @test [row["prediction"] for row in model_rows] == [1.25, 2.5]
     selected_rows = export_helpers.selected_prediction_export_rows(rows, output_columns, output_mappings)
     @test selected_rows[1]["score"] == 0.85
     csv_content = export_helpers.prediction_export_content("csv", rows, output_columns, output_mappings)
@@ -576,7 +585,7 @@ end
     @test metrics["mae"] == 0.9
     mktempdir() do temp_dir
         csv_path = joinpath(temp_dir, "evaluation.csv")
-        write(csv_path, "row_id,amount\n1,10\n2,20\n3,30\n4,40\n")
+        write(csv_path, "row_id,amount,margin\n1,10,2\n2,20,4\n3,30,9\n4,40,11\n")
         csv_result = evaluation.final_evaluation_metrics_from_csv(
             Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
             csv_path,
@@ -592,6 +601,27 @@ end
         @test csv_result["evidence"]["rawMetrics"]["rmse"] == 0.0
         @test csv_result["evidence"]["metricSemantics"]["rmse"] == "lower_is_better_normalized_quality_score"
         @test csv_result["evidence"]["testRowCount"] == 1
+        model_result = evaluation.final_evaluation_metrics_from_csv(
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
+            csv_path,
+            "amount",
+            ["rmse", "mae"],
+            Dict{String,Any}("testFraction" => 0.25),
+            Dict{String,Any}(
+                "modelKind" => "local_csv_single_feature_ols",
+                "artifactRef" => "local://models/model-helper/model.json",
+                "checksumSha256" => repeat("a", 64),
+                "targetColumn" => "amount",
+                "featureColumn" => "margin",
+                "trainRowCount" => 3,
+                "coefficients" => Dict("intercept" => 6.538462, "slope" => 2.692308),
+            ),
+        )
+        @test model_result["evidence"]["executionMode"] == "local_csv_trained_artifact"
+        @test model_result["evidence"]["baselineModel"] == "trained_single_feature_ols"
+        @test model_result["evidence"]["modelArtifactRef"] == "local://models/model-helper/model.json"
+        @test model_result["evidence"]["featureColumn"] == "margin"
+        @test model_result["evidence"]["rawMetrics"]["rmse"] == 3.84615
     end
     report = evaluation.final_evaluation_report_record(
         "eval-helper",
@@ -3248,6 +3278,43 @@ end
                 JSON3.write(Dict("datasetId" => "foundation-sales-sample", "methods" => ["unsupported_method"])),
             ),
         )
+        model_register_without_validation_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/models/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("modelId" => "unvalidated-foundation-model")),
+            ),
+        )
+        deploy_package_without_validation_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/deploy/package",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("modelId" => "unvalidated-foundation-model")),
+            ),
+        )
+        ml_experiment_run_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/ml/experiments/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "executionMode" => "cpu_only",
+                        "projectId" => "foundation-ml-project",
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-stratified",
+                        "finalTestPolicy" => "forbid_final_test",
+                        "target" => "amount",
+                        "algorithm" => "deterministic_linear_baseline",
+                    ),
+                ),
+            ),
+        )
         tuning_study_response = route_request(
             state,
             HTTP.Request(
@@ -3281,7 +3348,7 @@ end
                         "splitPlanId" => "split-foundation-stratified",
                         "trainingPlanId" => "training-foundation-eval",
                         "metricNames" => ["rmse", "mae"],
-                        "approvalThreshold" => 0.8,
+                        "approvalThreshold" => 0.4,
                         "finalTestPolicy" => "use_final_test",
                     ),
                 ),
@@ -3346,7 +3413,7 @@ end
                         "datasetId" => "foundation-sales-sample",
                         "outputContractRef" => "contract://outputs/foundation-predictions",
                         "format" => "csv",
-                        "rowCount" => 25,
+                        "rowCount" => 4,
                         "outputColumns" => [
                             "prediction_id",
                             "dataset_id",
@@ -3552,43 +3619,6 @@ end
         transform_history_response = route_request(
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/transforms/history"),
-        )
-        model_register_without_validation_response = route_request(
-            state,
-            HTTP.Request(
-                "POST",
-                "/api/v1/workflows/wf-foundation/models/register",
-                ["Content-Type" => "application/json"],
-                JSON3.write(Dict("modelId" => "unvalidated-foundation-model")),
-            ),
-        )
-        deploy_package_without_validation_response = route_request(
-            state,
-            HTTP.Request(
-                "POST",
-                "/api/v1/workflows/wf-foundation/deploy/package",
-                ["Content-Type" => "application/json"],
-                JSON3.write(Dict("modelId" => "unvalidated-foundation-model")),
-            ),
-        )
-        ml_experiment_run_response = route_request(
-            state,
-            HTTP.Request(
-                "POST",
-                "/api/v1/workflows/wf-foundation/ml/experiments/run",
-                ["Content-Type" => "application/json"],
-                JSON3.write(
-                    Dict(
-                        "executionMode" => "cpu_only",
-                        "projectId" => "foundation-ml-project",
-                        "datasetId" => "foundation-sales-sample",
-                        "splitPlanId" => "split-foundation-stratified",
-                        "finalTestPolicy" => "forbid_final_test",
-                        "target" => "amount",
-                        "algorithm" => "deterministic_linear_baseline",
-                    ),
-                ),
-            ),
         )
         ml_experiment_missing_split_response = route_request(
             state,
@@ -5205,12 +5235,17 @@ end
         @test final_evaluation_response.status == 201
         final_evaluation_payload = JSON3.read(String(final_evaluation_response.body), Dict{String,Any})
         @test final_evaluation_payload["status"] == "completed"
+        @test final_evaluation_payload["evaluationReport"]["approved"] == true
         @test final_evaluation_payload["evaluationReport"]["finalTestOnly"] == true
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["finalTestPolicy"] == "use_final_test"
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["validationOnlyTuning"] == true
-        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationExecutionMode"] == "local_csv_baseline"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationExecutionMode"] == "local_csv_trained_artifact"
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["targetColumn"] == "amount"
-        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["baselineModel"] == "row_index_linear_baseline"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["baselineModel"] == "trained_single_feature_ols"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["modelKind"] == "local_csv_single_feature_ols"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["featureColumn"] == "margin"
+        @test startswith(String(final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["modelArtifactRef"]), "local://models/foundation-ml-project/foundation-linear-baseline/model.json")
+        @test haskey(final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"], "modelArtifactChecksumSha256")
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["metricSemantics"]["rmse"] == "lower_is_better_normalized_quality_score"
         @test haskey(final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"], "rawMetrics")
         @test all(ref -> haskey(ref, "checksumSha256") && haskey(ref, "sizeBytes"), final_evaluation_payload["evaluationReport"]["artifactRefs"])
@@ -5218,7 +5253,8 @@ end
         final_evaluation_artifact_path = joinpath(data_estate_root, split(replace(final_evaluation_artifact_ref, "local://" => ""), '/')...)
         @test isfile(final_evaluation_artifact_path)
         final_evaluation_artifact_content = read(final_evaluation_artifact_path, String)
-        @test occursin("local_csv_baseline", final_evaluation_artifact_content)
+        @test occursin("local_csv_trained_artifact", final_evaluation_artifact_content)
+        @test occursin("modelArtifactRef", final_evaluation_artifact_content)
         @test occursin("rawMetrics", final_evaluation_artifact_content)
         @test startswith(String(final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"]), "dsjob-")
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["executionId"] == final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"]
@@ -5248,8 +5284,8 @@ end
             "prediction",
         ]
         @test prediction_export_payload["predictionExport"]["validationEvidence"]["finalEvaluationApproved"] == true
-        @test prediction_export_payload["predictionExport"]["validationEvidence"]["predictionScoringMode"] == "local_csv_row_index_baseline"
-        @test prediction_export_payload["predictionExport"]["validationEvidence"]["sourceEvaluationMode"] == "local_csv_baseline"
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["predictionScoringMode"] == "local_csv_trained_artifact"
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["sourceEvaluationMode"] == "local_csv_trained_artifact"
         @test prediction_export_payload["predictionExport"]["validationEvidence"]["outputContractRef"] == "contract://outputs/foundation-predictions"
         @test prediction_export_payload["predictionExport"]["validationEvidence"]["outputSchemaValidated"] == true
         @test String.(collect(prediction_export_payload["predictionExport"]["validationEvidence"]["outputColumns"])) == prediction_export_output_columns
@@ -5261,6 +5297,7 @@ end
         prediction_artifact_content = read(prediction_artifact_path, String)
         @test startswith(prediction_artifact_content, "prediction_id,dataset_id,evaluation_report_id,output_contract_ref,prediction")
         @test occursin(",10.0\n", prediction_artifact_content)
+        @test occursin(",55.0\n", prediction_artifact_content)
         @test occursin("contract://outputs/foundation-predictions", prediction_artifact_content)
         @test occursin(String(prediction_export_payload["predictionExport"]["evaluationReportId"]), prediction_artifact_content)
         prediction_export_execution_id = String(prediction_export_payload["predictionExport"]["executionEvidence"]["executionId"])

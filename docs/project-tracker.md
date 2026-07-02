@@ -21,6 +21,25 @@ Tracker always records 3 things:
 - Last updated: `2026-07-02`
 
 ## Work Done Till Date
+### AKS-36 Artifact-Loaded Final Evaluation And Export Slice (2026-07-02)
+
+- Final evaluation now finds the latest matching training project-job output ref for the dataset/split.
+- The gateway checksum-verifies and loads the persisted `local_csv_single_feature_ols` model JSON artifact before scoring supported local CSV final-test rows.
+- Final-evaluation evidence now records `local_csv_trained_artifact` plus model artifact ref, checksum, kind, feature column, and train row count.
+- Prediction export now scores local CSV rows from trained-artifact evidence when present, instead of relying on baseline or metric-average values.
+- ML experiment history and model registration now filter to real ML validation/training executions so later workflow runs do not shadow the trained model evidence.
+- Julia helper and route coverage verify artifact-loaded evaluation evidence, export values, and pre-validation rejection ordering.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is still the narrow local CSV single-feature OLS path.
+- Broader MLJ-backed training/tuning/model selection, richer feature preprocessing, drift methodology, and deploy-runtime inference semantics remain open.
+
+### Next Items To Implement
+
+- Extend the artifact format and loaders toward MLJ-backed model families and tuned model selection.
+- Add deploy-runtime prediction semantics that execute the persisted model artifact, not just package its reference.
+
 ### AKS-36 Trained Artifact Registry/Deploy Propagation Slice (2026-07-02)
 
 - Model registration now prefers the persisted local training artifact when `ml_training_artifact_evidence` exists on the source execution.
@@ -31,12 +50,10 @@ Tracker always records 3 things:
 
 ### Gaps Pending
 
-- AKS-36 remains open because final evaluation and prediction export still need to load and score from the persisted model artifact.
-- Broader MLJ-backed training/tuning/model selection and deploy-runtime inference semantics remain open.
+- AKS-36 remains open because broader MLJ-backed training/tuning/model selection and deploy-runtime inference semantics remain open.
 
 ### Next Items To Implement
 
-- Feed the persisted model artifact into final evaluation and prediction export scoring.
 - Continue toward richer model family support and CPU/GPU trial execution.
 
 ### AKS-36 Local CSV Training Artifact Slice (2026-07-02)
@@ -53,11 +70,10 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 remains open because this is a single-feature OLS artifact path, not the full MLJ/AutoML/tuning runtime or deploy-time model serving path.
-- Real hyperparameter search, model selection, model artifact loading in final evaluation/export/deploy, richer feature preprocessing, and drift methodology remain open.
+- Real hyperparameter search, model selection, deploy-runtime model serving, richer feature preprocessing, and drift methodology remain open.
 
 ### Next Items To Implement
 
-- Feed the persisted model artifact into final evaluation and prediction export scoring instead of baseline evidence.
 - Extend training/tuning runtime semantics toward MLJ-backed model families and CPU/GPU trial execution.
 
 ### AKS-36 Local CSV Prediction Export Scoring Slice (2026-07-02)
@@ -71,12 +87,12 @@ Tracker always records 3 things:
 
 ### Gaps Pending
 
-- AKS-36 remains open because this is still baseline scoring evidence, not scoring from persisted trained model artifacts.
-- Real model artifact training, tuning, evaluation, scoring, drift, and deploy-runtime execution remain open.
+- AKS-36 remains open because artifact-backed scoring is still limited to the narrow local CSV single-feature OLS path.
+- Real MLJ-backed model training, tuning, evaluation, scoring, drift, and deploy-runtime execution remain open.
 
 ### Next Items To Implement
 
-- Move the scoring path from baseline evidence to trained model artifact evidence once the local training runtime produces scoreable artifacts.
+- Extend scoring beyond the current local CSV OLS artifact path.
 - Continue broader trust-boundary hardening and final reviewer/persona/application-test validation after the parent issue is otherwise complete.
 
 ### AKS-36 Local CSV Final Evaluation Evidence Slice (2026-07-02)

@@ -3600,7 +3600,9 @@ function ml_experiment_history_response(state::GatewayState, workflow_id::Abstra
     experiments = [
         ml_experiment_payload(state, execution)
         for execution in reverse(state.executions)
-        if execution.workflow_id == workflow_id && haskey(execution.metadata, "explainability_evidence")
+        if execution.workflow_id == workflow_id &&
+            haskey(execution.metadata, "explainability_evidence") &&
+            (haskey(execution.metadata, "ml_validation_context") || haskey(execution.metadata, "ml_training_execution_evidence"))
     ]
     return JSON3.write(Dict("items" => experiments, "count" => length(experiments)))
 end
@@ -3659,12 +3661,16 @@ end
 
 function latest_model_execution(state::GatewayState, workflow_id::AbstractString)
     haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
-    matched = findfirst(
-        execution -> execution.workflow_id == workflow_id && haskey(execution.metadata, "explainability_evidence"),
-        reverse(state.executions),
-    )
-    matched === nothing && return nothing
-    matching = [execution for execution in reverse(state.executions) if execution.workflow_id == workflow_id && haskey(execution.metadata, "explainability_evidence")]
+    matching = [
+        execution for execution in reverse(state.executions)
+        if execution.workflow_id == workflow_id &&
+            haskey(execution.metadata, "explainability_evidence") &&
+            (haskey(execution.metadata, "ml_validation_context") || haskey(execution.metadata, "ml_training_artifact_evidence"))
+    ]
+    isempty(matching) && (matching = [
+        execution for execution in reverse(state.executions)
+        if execution.workflow_id == workflow_id && haskey(execution.metadata, "explainability_evidence")
+    ])
     return isempty(matching) ? nothing : matching[1]
 end
 
@@ -5506,7 +5512,49 @@ function final_evaluation_approval_threshold(body::AbstractDict)
     return JuliaFlowDataScienceProjectEvaluation.final_evaluation_approval_threshold(body)
 end
 
-function local_csv_final_evaluation_result(dataset::AbstractDict, training_plan::AbstractDict, metric_names::AbstractVector, split_plan::AbstractDict)
+function local_csv_training_model_artifact(project::DataScienceProjectRecord, dataset_id::AbstractString, split_plan_id::AbstractString, training_plan::AbstractDict)
+    target_column = String(get(training_plan, "targetColumn", ""))
+    for job in project.project_jobs
+        String(get(job, "jobType", "")) == "training" || continue
+        String(get(job, "datasetId", "")) == String(dataset_id) || continue
+        String(get(job, "splitPlanId", "")) == String(split_plan_id) || continue
+        for ref in get(job, "outputRefs", Any[])
+            ref isa AbstractDict || continue
+            kind = String(get(ref, "kind", ""))
+            kind in ("training_trained_model", "trained_model") || continue
+            artifact_ref = String(get(ref, "path", get(ref, "artifactRef", "")))
+            isempty(strip(artifact_ref)) && continue
+            artifact_path = local_data_ref_path_for_write(artifact_ref)
+            isfile(artifact_path) || continue
+            bytes = read(artifact_path)
+            checksum = bytes2hex(sha256(bytes))
+            expected_checksum = strip(String(get(ref, "checksumSha256", "")))
+            if !isempty(expected_checksum) && lowercase(expected_checksum) != checksum
+                error("final evaluation training artifact checksum mismatch: $(artifact_ref)")
+            end
+            payload = try
+                JSON3.read(String(copy(bytes)), Dict{String,Any})
+            catch
+                error("final evaluation training artifact must contain JSON: $(artifact_ref)")
+            end
+            String(get(payload, "modelKind", "")) == "local_csv_single_feature_ols" || continue
+            isempty(strip(target_column)) || String(get(payload, "targetColumn", "")) == target_column || continue
+            payload["artifactRef"] = artifact_ref
+            payload["checksumSha256"] = checksum
+            payload["sizeBytes"] = filesize(artifact_path)
+            return payload
+        end
+    end
+    return nothing
+end
+
+function local_csv_final_evaluation_result(
+    dataset::AbstractDict,
+    training_plan::AbstractDict,
+    metric_names::AbstractVector,
+    split_plan::AbstractDict,
+    model_artifact = nothing,
+)
     source_uri = String(get(dataset, "sourceUri", ""))
     source_path = resolve_local_data_ref_path(source_uri)
     source_path === nothing && return nothing
@@ -5518,7 +5566,32 @@ function local_csv_final_evaluation_result(dataset::AbstractDict, training_plan:
         target_column,
         metric_names,
         split_plan,
+        model_artifact,
     )
+end
+
+function local_csv_prediction_values_from_report(dataset::AbstractDict, report::AbstractDict, row_count::Integer)
+    validation = get(report, "validationEvidence", Dict{String,Any}())
+    evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
+    String(get(evidence, "executionMode", "")) == "local_csv_trained_artifact" || return nothing, nothing
+    feature_column = String(get(evidence, "featureColumn", ""))
+    isempty(strip(feature_column)) && return nothing, nothing
+    source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
+    source_path === nothing && return nothing, nothing
+    table = JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path)
+    table === nothing && return nothing, nothing
+    numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
+    haskey(numeric_columns, feature_column) || return nothing, nothing
+    feature_values = numeric_columns[feature_column]
+    isempty(feature_values) && return nothing, nothing
+    slope = Float64(get(evidence, "baselineSlope", 0.0))
+    intercept = Float64(get(evidence, "baselineIntercept", 0.0))
+    values = Float64[]
+    for index in 1:Int(row_count)
+        feature = feature_values[min(index, length(feature_values))]
+        push!(values, round(intercept + slope * feature; digits = 6))
+    end
+    return values, "local_csv_trained_artifact"
 end
 
 function persist_final_evaluation_report_artifact!(evaluation_report::Dict{String,Any})
@@ -5573,7 +5646,8 @@ function run_final_evaluation_response!(state::GatewayState, project_id::Abstrac
     approval_threshold = final_evaluation_approval_threshold(body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     report_id = "eval-" * replace(string(uuid4()), "-" => "")
-    evaluation_result = local_csv_final_evaluation_result(dataset, training_plan, metric_names, split_plan)
+    training_model_artifact = local_csv_training_model_artifact(project, dataset_id, split_plan_id, training_plan)
+    evaluation_result = local_csv_final_evaluation_result(dataset, training_plan, metric_names, split_plan, training_model_artifact)
     metrics = evaluation_result === nothing ? JuliaFlowDataScienceProjectEvaluation.final_evaluation_metrics(metric_names) : evaluation_result["metrics"]
     approved = all(value -> Float64(value) >= approval_threshold, values(metrics))
     evaluation_report = JuliaFlowDataScienceProjectEvaluation.final_evaluation_report_record(
@@ -5665,8 +5739,22 @@ function prediction_export_output_mappings(body::AbstractDict, contract::Abstrac
     return JuliaFlowDataScienceProjectPredictionExport.prediction_export_output_mappings(body, contract, output_columns)
 end
 
-function prediction_export_rows(export_id::AbstractString, report::AbstractDict, dataset_id::AbstractString, output_contract_ref::AbstractString, row_count::Integer)
-    return JuliaFlowDataScienceProjectPredictionExport.prediction_export_rows(export_id, report, dataset_id, output_contract_ref, row_count)
+function prediction_export_rows(
+    export_id::AbstractString,
+    report::AbstractDict,
+    dataset_id::AbstractString,
+    output_contract_ref::AbstractString,
+    row_count::Integer;
+    prediction_values = nothing,
+)
+    return JuliaFlowDataScienceProjectPredictionExport.prediction_export_rows(
+        export_id,
+        report,
+        dataset_id,
+        output_contract_ref,
+        row_count;
+        prediction_values = prediction_values,
+    )
 end
 
 function selected_prediction_export_rows(rows::AbstractVector, output_columns::AbstractVector, output_mappings::AbstractVector)
@@ -5753,6 +5841,8 @@ function persist_prediction_export_artifact!(
     output_contract_ref::AbstractString,
     output_columns::AbstractVector,
     output_mappings::AbstractVector,
+    ;
+    prediction_values = nothing,
 )
     artifact_ref = String(prediction_export["artifactRef"])
     artifact_path = local_data_ref_path_for_write(artifact_ref)
@@ -5762,7 +5852,8 @@ function persist_prediction_export_artifact!(
         report,
         dataset_id,
         output_contract_ref,
-        Int(prediction_export["rowCount"]),
+        Int(prediction_export["rowCount"]);
+        prediction_values = prediction_values,
     )
     content = prediction_export_content(String(get(prediction_export, "format", "csv")), rows, output_columns, output_mappings)
     write(artifact_path, content)
@@ -5802,7 +5893,10 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
     output_columns = prediction_export_output_columns(body, output_contract)
     output_mappings = prediction_export_output_mappings(body, output_contract, output_columns)
     output_contract_columns = prediction_export_contract_column_names(output_contract)
-    _, prediction_scoring_mode = JuliaFlowDataScienceProjectPredictionExport.prediction_export_prediction_values(report, row_count)
+    prediction_values, prediction_scoring_mode = local_csv_prediction_values_from_report(dataset, report, row_count)
+    if prediction_values === nothing
+        _, prediction_scoring_mode = JuliaFlowDataScienceProjectPredictionExport.prediction_export_prediction_values(report, row_count)
+    end
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     export_id = "pred-" * replace(string(uuid4()), "-" => "")
     artifact_ref = "local://predictions/$(project.project_id)/$(export_id)/predictions.$(format)"
@@ -5837,7 +5931,7 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
         prediction_export["outputContractImport"] = output_contract_import
         prediction_export["validationEvidence"]["outputContractImport"] = output_contract_import
     end
-    artifact_refs = persist_prediction_export_artifact!(prediction_export, report, dataset_id, output_contract_ref, output_columns, output_mappings)
+    artifact_refs = persist_prediction_export_artifact!(prediction_export, report, dataset_id, output_contract_ref, output_columns, output_mappings; prediction_values = prediction_values)
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "prediction_export")
     execution_evidence = data_science_project_execution_evidence!(
         state,

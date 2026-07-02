@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Artifact-Loaded Final Evaluation And Export Slice - 2026-07-02
+
+### Work Done Till Date
+
+- Final evaluation now loads a matching persisted local CSV single-feature OLS model artifact from training project-job output refs.
+- The model artifact is checksum-verified before the gateway uses its coefficients and feature column for locked final-test scoring.
+- Final-evaluation validation evidence records `local_csv_trained_artifact`, model artifact ref, checksum, kind, feature column, and train row count.
+- Prediction export now uses trained-artifact evidence to score local CSV rows into the requested output contract when available.
+- ML experiment history and model registration now select actual ML validation/training executions so later generic workflow executions do not shadow the trained run.
+- Julia helper and gateway route coverage verifies artifact-loaded scoring, exported prediction values, and pre-validation rejection behavior.
+
+### Gaps Pending
+
+- AKS-36 remains open because the artifact path is still limited to local CSV single-feature OLS.
+- Full MLJ-backed training/tuning/model selection, richer preprocessing, drift methodology, and deploy-runtime inference semantics remain open.
+- Final reviewer/architect/persona/application-test agents remain deferred until parent evidence is complete.
+
+### Next Items To Implement
+
+- Extend persisted model artifacts toward MLJ-backed model families and tuned model selection.
+- Add deploy-runtime inference evidence that executes the persisted model artifact.
+- Continue toward CPU/GPU trial execution evidence and final review passes.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Trained Artifact Registry/Deploy Propagation Slice - 2026-07-02
 
 ### Work Done Till Date
@@ -32,12 +55,10 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 remains open because final evaluation and prediction export still need artifact-loaded scoring.
-- Broader MLJ-backed training/tuning/model selection and deploy-runtime inference semantics remain open.
+- AKS-36 remains open because broader MLJ-backed training/tuning/model selection and deploy-runtime inference semantics remain open.
 
 ### Next Items To Implement
 
-- Load the persisted training artifact in final evaluation/export scoring.
 - Continue broader real-model runtime and final reviewer/persona/application-test passes after parent evidence is complete.
 
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Training Artifact Slice - 2026-07-02
@@ -55,12 +76,10 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 remains open because this is a narrow OLS artifact path, not full MLJ-backed training/tuning, model selection, or deploy-runtime serving.
-- Final evaluation and prediction export still need to score from the persisted model artifact rather than baseline evidence.
 - Final reviewer/architect/persona/application-test agents remain deferred until parent evidence is complete.
 
 ### Next Items To Implement
 
-- Feed persisted model artifacts into final evaluation and prediction export scoring.
 - Continue toward MLJ-backed model families, CPU/GPU trial execution, and deploy-runtime inference evidence.
 
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Prediction Export Scoring Slice - 2026-07-02
@@ -76,12 +95,12 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 remains open because prediction export still scores from baseline evidence, not trained model artifact inference.
-- Worker-backed real training/tuning/evaluation/scoring/drift/deploy runtime semantics remain open.
+- AKS-36 remains open because artifact-backed scoring is still limited to the narrow local CSV single-feature OLS path.
+- Worker-backed real MLJ training/tuning/evaluation/scoring/drift/deploy runtime semantics remain open.
 
 ### Next Items To Implement
 
-- Produce and score persisted model artifacts from the local training/tuning runtime.
+- Extend persisted model artifacts and scoring beyond the current local CSV OLS path.
 - Continue deeper MLOps route semantics and final review/persona/application-test passes after the parent issue evidence is complete.
 
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Final Evaluation Evidence Slice - 2026-07-02

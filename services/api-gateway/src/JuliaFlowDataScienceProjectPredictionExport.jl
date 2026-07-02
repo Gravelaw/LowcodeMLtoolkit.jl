@@ -187,8 +187,21 @@ function prediction_export_prediction_values(report::AbstractDict, row_count::In
     return [round(clamp(baseline - 0.001 * (index - 1), 0.0, 1.0); digits = 6) for index in 1:Int(row_count)], "metric_average_fallback"
 end
 
-function prediction_export_rows(export_id::AbstractString, report::AbstractDict, dataset_id::AbstractString, output_contract_ref::AbstractString, row_count::Integer)
-    predictions, _ = prediction_export_prediction_values(report, row_count)
+function prediction_export_rows(
+    export_id::AbstractString,
+    report::AbstractDict,
+    dataset_id::AbstractString,
+    output_contract_ref::AbstractString,
+    row_count::Integer;
+    prediction_values::Union{Nothing,AbstractVector} = nothing,
+)
+    predictions = if prediction_values === nothing
+        values, _ = prediction_export_prediction_values(report, row_count)
+        values
+    else
+        length(prediction_values) >= Int(row_count) || error("prediction export prediction_values must cover row_count")
+        [Float64(prediction_values[index]) for index in 1:Int(row_count)]
+    end
     return [
         Dict{String,Any}(
             "prediction_id" => "$(String(export_id))-$(index)",
