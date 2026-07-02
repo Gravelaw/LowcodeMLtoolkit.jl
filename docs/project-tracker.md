@@ -42,17 +42,17 @@ Tracker always records 3 things:
 - Focused frontend coverage proves ML Studio renders project-backed validation/tuning/evaluation/prediction/drift evidence when the active project carries those records.
 - Focused frontend coverage proves Models renders rollback/retraining lifecycle evidence from the active project when the workflow registry endpoint is empty.
 - Focused frontend coverage proves Data renders project-backed profile and statistical EDA evidence from the active project.
-- Live-backend browser smoke now seeds a real local-appliance `DataScienceProject`, imports the active Data dataset, runs project statistical analysis through the gateway, verifies Data renders the profile job/statistical artifacts without demo substitution, and confirms the Data import action sends a managed `local://` source instead of a fixture-relative path.
+- Live-backend browser smoke now seeds a real local-appliance `DataScienceProject`, imports the active Data dataset, runs project statistical analysis, split/final-test lock setup, training, validation-only tuning, final evaluation, prediction export, drift reporting, model registration, lifecycle approval/deployed transition, and local deploy packaging through the gateway, verifies Data, ML Studio, Models, and Deploy render the returned project ids, job ids, execution ids, lifecycle state, package gate, and `local_ready` package evidence without demo substitution, and confirms the Data import action sends a managed `local://` source instead of a fixture-relative path.
 
 ### Gaps Pending
 
 - AKS-36 remains open because this is only the first project-backed frontend migration slice.
-- Release/local-appliance no-fixture browser evidence now covers the project-backed Data profile/statistical path; deeper project-led ML Studio/Models/Deploy browser proof remains open.
+- Release/local-appliance no-fixture browser evidence now covers the deterministic project-backed Data, ML Studio, Models, and Deploy lifecycle path.
 - Deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
 
 ### Next Items To Implement
 
-- Add release/local-appliance browser evidence for project-backed ML Studio, Models, and Deploy UI flows.
+- Move from deterministic project-backed browser evidence toward deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics and connector-specific output-contract import.
 - Keep reviewer/architect/persona/application-test agents queued until AKS-36 parent evidence is complete.
 
 ### AKS-36 DataScienceProject Training Worker Slice (2026-07-01)
