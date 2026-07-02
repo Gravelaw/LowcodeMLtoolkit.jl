@@ -9,6 +9,7 @@ export PREDICTION_EXPORT_COLUMNS,
     prediction_export_contract_column_names,
     prediction_export_output_columns,
     prediction_export_output_mappings,
+    prediction_export_prediction_values,
     prediction_export_rows,
     selected_prediction_export_rows,
     prediction_export_content
@@ -168,17 +169,33 @@ function prediction_export_output_mappings(body::AbstractDict, contract::Abstrac
     ]
 end
 
-function prediction_export_rows(export_id::AbstractString, report::AbstractDict, dataset_id::AbstractString, output_contract_ref::AbstractString, row_count::Integer)
+function prediction_export_prediction_values(report::AbstractDict, row_count::Integer)
+    validation = get(report, "validationEvidence", Dict{String,Any}())
+    evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
+    baseline_model = String(get(evidence, "baselineModel", ""))
+    if baseline_model == "row_index_linear_baseline"
+        slope = Float64(get(evidence, "baselineSlope", 0.0))
+        intercept = Float64(get(evidence, "baselineIntercept", 0.0))
+        return [round(intercept + slope * index; digits = 6) for index in 1:Int(row_count)], "local_csv_row_index_baseline"
+    elseif baseline_model == "mean_baseline"
+        baseline = Float64(get(evidence, "baselineIntercept", 0.0))
+        return fill(round(baseline; digits = 6), Int(row_count)), "local_csv_mean_baseline"
+    end
     metrics = get(report, "metrics", Dict{String,Any}())
     metric_values = [Float64(value) for value in values(metrics)]
     baseline = isempty(metric_values) ? 0.5 : sum(metric_values) / length(metric_values)
+    return [round(clamp(baseline - 0.001 * (index - 1), 0.0, 1.0); digits = 6) for index in 1:Int(row_count)], "metric_average_fallback"
+end
+
+function prediction_export_rows(export_id::AbstractString, report::AbstractDict, dataset_id::AbstractString, output_contract_ref::AbstractString, row_count::Integer)
+    predictions, _ = prediction_export_prediction_values(report, row_count)
     return [
         Dict{String,Any}(
             "prediction_id" => "$(String(export_id))-$(index)",
             "dataset_id" => String(dataset_id),
             "evaluation_report_id" => String(get(report, "evaluationReportId", "")),
             "output_contract_ref" => String(output_contract_ref),
-            "prediction" => round(clamp(baseline - 0.001 * (index - 1), 0.0, 1.0); digits = 6),
+            "prediction" => predictions[index],
         ) for index in 1:Int(row_count)
     ]
 end

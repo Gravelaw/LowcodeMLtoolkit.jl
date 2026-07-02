@@ -245,6 +245,22 @@ end
     @test length(rows) == 2
     @test rows[1]["prediction_id"] == "export-1-1"
     @test rows[1]["prediction"] == 0.85
+    local_csv_report = Dict{String,Any}(
+        "evaluationReportId" => "eval-local",
+        "validationEvidence" => Dict{String,Any}(
+            "evaluationExecutionMode" => "local_csv_baseline",
+            "evaluationDataEvidence" => Dict{String,Any}(
+                "baselineModel" => "row_index_linear_baseline",
+                "baselineSlope" => 10.0,
+                "baselineIntercept" => 0.0,
+            ),
+        ),
+    )
+    local_csv_values, local_csv_mode = export_helpers.prediction_export_prediction_values(local_csv_report, 3)
+    @test local_csv_mode == "local_csv_row_index_baseline"
+    @test local_csv_values == [10.0, 20.0, 30.0]
+    local_csv_rows = export_helpers.prediction_export_rows("export-local", local_csv_report, "dataset-1", "contract-local", 3)
+    @test [row["prediction"] for row in local_csv_rows] == [10.0, 20.0, 30.0]
     selected_rows = export_helpers.selected_prediction_export_rows(rows, output_columns, output_mappings)
     @test selected_rows[1]["score"] == 0.85
     csv_content = export_helpers.prediction_export_content("csv", rows, output_columns, output_mappings)
@@ -5232,6 +5248,8 @@ end
             "prediction",
         ]
         @test prediction_export_payload["predictionExport"]["validationEvidence"]["finalEvaluationApproved"] == true
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["predictionScoringMode"] == "local_csv_row_index_baseline"
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["sourceEvaluationMode"] == "local_csv_baseline"
         @test prediction_export_payload["predictionExport"]["validationEvidence"]["outputContractRef"] == "contract://outputs/foundation-predictions"
         @test prediction_export_payload["predictionExport"]["validationEvidence"]["outputSchemaValidated"] == true
         @test String.(collect(prediction_export_payload["predictionExport"]["validationEvidence"]["outputColumns"])) == prediction_export_output_columns
@@ -5242,6 +5260,7 @@ end
         @test isfile(prediction_artifact_path)
         prediction_artifact_content = read(prediction_artifact_path, String)
         @test startswith(prediction_artifact_content, "prediction_id,dataset_id,evaluation_report_id,output_contract_ref,prediction")
+        @test occursin(",10.0\n", prediction_artifact_content)
         @test occursin("contract://outputs/foundation-predictions", prediction_artifact_content)
         @test occursin(String(prediction_export_payload["predictionExport"]["evaluationReportId"]), prediction_artifact_content)
         prediction_export_execution_id = String(prediction_export_payload["predictionExport"]["executionEvidence"]["executionId"])

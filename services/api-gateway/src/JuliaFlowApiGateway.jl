@@ -5672,6 +5672,7 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
     output_columns = prediction_export_output_columns(body, output_contract)
     output_mappings = prediction_export_output_mappings(body, output_contract, output_columns)
     output_contract_columns = prediction_export_contract_column_names(output_contract)
+    _, prediction_scoring_mode = JuliaFlowDataScienceProjectPredictionExport.prediction_export_prediction_values(report, row_count)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     export_id = "pred-" * replace(string(uuid4()), "-" => "")
     artifact_ref = "local://predictions/$(project.project_id)/$(export_id)/predictions.$(format)"
@@ -5697,6 +5698,8 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
             "contractRequiredColumnsSatisfied" => true,
             "finalEvaluationApproved" => true,
             "finalTestOnly" => true,
+            "predictionScoringMode" => prediction_scoring_mode,
+            "sourceEvaluationMode" => String(get(validation, "evaluationExecutionMode", "unknown")),
         ),
         "createdAt" => timestamp,
     )

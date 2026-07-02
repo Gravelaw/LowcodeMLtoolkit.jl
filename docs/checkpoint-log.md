@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Prediction Export Scoring Slice - 2026-07-02
+
+### Work Done Till Date
+
+- Prediction export now reads approved final-evaluation local CSV baseline evidence when available.
+- Exported prediction values are derived from row-index or mean-baseline evidence instead of metric-average placeholder scores.
+- Reports without local CSV baseline evidence still use an explicit metric-average fallback.
+- Prediction-export validation evidence records `predictionScoringMode` and `sourceEvaluationMode`.
+- Output-contract selection/mapping remains the artifact shaping mechanism.
+- Julia helper and route tests verify source-backed scoring values, scoring-mode evidence, and materialized CSV output.
+
+### Gaps Pending
+
+- AKS-36 remains open because prediction export still scores from baseline evidence, not trained model artifact inference.
+- Worker-backed real training/tuning/evaluation/scoring/drift/deploy runtime semantics remain open.
+
+### Next Items To Implement
+
+- Produce and score persisted model artifacts from the local training/tuning runtime.
+- Continue deeper MLOps route semantics and final review/persona/application-test passes after the parent issue evidence is complete.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Final Evaluation Evidence Slice - 2026-07-02
 
 ### Work Done Till Date

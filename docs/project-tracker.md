@@ -21,6 +21,25 @@ Tracker always records 3 things:
 - Last updated: `2026-07-02`
 
 ## Work Done Till Date
+### AKS-36 Local CSV Prediction Export Scoring Slice (2026-07-02)
+
+- Prediction export now derives prediction values from approved final-evaluation local CSV baseline evidence when available.
+- Row-index baseline evidence produces source-backed prediction values rather than metric-average placeholder scores.
+- Metric-average prediction generation remains only as an explicit fallback for reports without local CSV baseline evidence.
+- Prediction-export validation evidence now records `predictionScoringMode` and `sourceEvaluationMode`.
+- Existing output-contract selection and mapping still controls the materialized export shape.
+- Julia helper and route coverage verify scoring-mode evidence and exported artifact values.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is still baseline scoring evidence, not scoring from persisted trained model artifacts.
+- Real model artifact training, tuning, evaluation, scoring, drift, and deploy-runtime execution remain open.
+
+### Next Items To Implement
+
+- Move the scoring path from baseline evidence to trained model artifact evidence once the local training runtime produces scoreable artifacts.
+- Continue broader trust-boundary hardening and final reviewer/persona/application-test validation after the parent issue is otherwise complete.
+
 ### AKS-36 Local CSV Final Evaluation Evidence Slice (2026-07-02)
 
 - Final evaluation now resolves the project dataset's managed `local://` CSV source when available.
