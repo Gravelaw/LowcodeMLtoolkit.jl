@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-07-02`
 
 ## Work Done Till Date
+### AKS-36 Local CSV Final Evaluation Evidence Slice (2026-07-02)
+
+- Final evaluation now resolves the project dataset's managed `local://` CSV source when available.
+- Numeric target columns are scored against the locked final holdout split using a deterministic local baseline.
+- The baseline uses row-index trend scoring when enough training rows exist, falling back to a mean baseline for very small data.
+- Raw regression metrics are preserved in `validationEvidence.evaluationDataEvidence.rawMetrics`.
+- Lower-is-better regression metrics are converted into normalized quality scores for approval gating, while raw error values remain auditable.
+- Final-evaluation reports are now materialized as managed local JSON artifacts with checksum and size evidence.
+- Missing/non-numeric CSV evidence now records an explicit deterministic fallback warning instead of silently appearing source-backed.
+- Julia helper and route coverage verify local CSV evidence, metric semantics, persisted report artifacts, and downstream prediction-export approval compatibility.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is still baseline local CSV evidence, not full real-model training/tuning/evaluation/scoring runtime semantics.
+- Worker-backed CPU/GPU training trials, richer model artifact scoring, deploy-runtime scoring, and broader trust-boundary review remain open.
+
+### Next Items To Implement
+
+- Replace the baseline final-evaluation scoring path with real model artifact scoring once the training/tuning runtime slice exists.
+- Continue deeper real-model training/tuning/scoring/drift/deploy-runtime semantics and final reviewer/persona/application-test passes.
+
 ### AKS-36 Output Contract Import Slice (2026-07-02)
 
 - Added `outputContractImport` to the prediction-export request contract and OpenAPI schema.

@@ -5376,10 +5376,57 @@ function final_evaluation_approval_threshold(body::AbstractDict)
     return JuliaFlowDataScienceProjectEvaluation.final_evaluation_approval_threshold(body)
 end
 
+function local_csv_final_evaluation_result(dataset::AbstractDict, training_plan::AbstractDict, metric_names::AbstractVector, split_plan::AbstractDict)
+    source_uri = String(get(dataset, "sourceUri", ""))
+    source_path = resolve_local_data_ref_path(source_uri)
+    source_path === nothing && return nothing
+    target_column = String(get(training_plan, "targetColumn", ""))
+    isempty(strip(target_column)) && return nothing
+    return JuliaFlowDataScienceProjectEvaluation.final_evaluation_metrics_from_csv(
+        dataset,
+        source_path,
+        target_column,
+        metric_names,
+        split_plan,
+    )
+end
+
+function persist_final_evaluation_report_artifact!(evaluation_report::Dict{String,Any})
+    artifact_refs = get(evaluation_report, "artifactRefs", Dict{String,Any}[])
+    isempty(artifact_refs) && return artifact_refs
+    artifact_ref = String(get(artifact_refs[1], "path", ""))
+    isempty(strip(artifact_ref)) && return artifact_refs
+    artifact_path = local_data_ref_path_for_write(artifact_ref)
+    mkpath(dirname(artifact_path))
+    content = JSON3.write(
+        Dict(
+            "evaluationReportId" => String(get(evaluation_report, "evaluationReportId", "")),
+            "trainingPlanId" => String(get(evaluation_report, "trainingPlanId", "")),
+            "splitPlanId" => String(get(evaluation_report, "splitPlanId", "")),
+            "metrics" => get(evaluation_report, "metrics", Dict{String,Any}()),
+            "approved" => Bool(get(evaluation_report, "approved", false)),
+            "finalTestOnly" => Bool(get(evaluation_report, "finalTestOnly", false)),
+            "validationEvidence" => get(evaluation_report, "validationEvidence", Dict{String,Any}()),
+            "generatedAt" => String(get(evaluation_report, "generatedAt", "")),
+        ),
+    ) * "\n"
+    write(artifact_path, content)
+    checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
+    materialized_refs = [
+        merge(
+            Dict{String,Any}(String(key) => value for (key, value) in pairs(ref)),
+            Dict{String,Any}("checksumSha256" => checksum, "sizeBytes" => filesize(artifact_path)),
+        ) for ref in artifact_refs
+    ]
+    evaluation_report["artifactRefs"] = materialized_refs
+    return materialized_refs
+end
+
 function run_final_evaluation_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
     project = state.data_science_projects[project_id]
     dataset_id = statistical_analysis_dataset(project, body)
+    dataset = data_science_project_dataset(project, dataset_id)
     split_plan = project_split_plan_for_request(project, body, dataset_id, "final evaluation")
     training_plan = project_training_plan_for_request(project, body)
     split_plan_id = String(get(split_plan, "splitPlanId", ""))
@@ -5396,7 +5443,8 @@ function run_final_evaluation_response!(state::GatewayState, project_id::Abstrac
     approval_threshold = final_evaluation_approval_threshold(body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     report_id = "eval-" * replace(string(uuid4()), "-" => "")
-    metrics = JuliaFlowDataScienceProjectEvaluation.final_evaluation_metrics(metric_names)
+    evaluation_result = local_csv_final_evaluation_result(dataset, training_plan, metric_names, split_plan)
+    metrics = evaluation_result === nothing ? JuliaFlowDataScienceProjectEvaluation.final_evaluation_metrics(metric_names) : evaluation_result["metrics"]
     approved = all(value -> Float64(value) >= approval_threshold, values(metrics))
     evaluation_report = JuliaFlowDataScienceProjectEvaluation.final_evaluation_report_record(
         report_id,
@@ -5408,8 +5456,15 @@ function run_final_evaluation_response!(state::GatewayState, project_id::Abstrac
         validation_context,
         timestamp,
     )
+    if evaluation_result === nothing
+        evaluation_report["validationEvidence"]["evaluationExecutionMode"] = "deterministic_fallback"
+        evaluation_report["validationEvidence"]["evaluationWarning"] = "Managed local CSV source or numeric target was unavailable; deterministic fallback metrics were used."
+    else
+        evaluation_report["validationEvidence"]["evaluationExecutionMode"] = evaluation_result["evidence"]["executionMode"]
+        evaluation_report["validationEvidence"]["evaluationDataEvidence"] = evaluation_result["evidence"]
+    end
+    output_refs = persist_final_evaluation_report_artifact!(evaluation_report)
     project.evaluation_reports = [evaluation_report, project.evaluation_reports...]
-    output_refs = JuliaFlowDataScienceProjectEvaluation.final_evaluation_output_refs(evaluation_report)
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "final_evaluation")
     execution_evidence = data_science_project_execution_evidence!(
         state,

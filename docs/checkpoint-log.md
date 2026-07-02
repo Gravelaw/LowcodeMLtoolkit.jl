@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Final Evaluation Evidence Slice - 2026-07-02
+
+### Work Done Till Date
+
+- Final evaluation now resolves the project dataset's managed `local://` CSV source and numeric target column when available.
+- Local final-evaluation scoring uses a deterministic baseline on the locked holdout rows: row-index trend scoring when enough train rows exist, with a mean-baseline fallback for very small data.
+- Raw regression error metrics are retained under `validationEvidence.evaluationDataEvidence.rawMetrics`.
+- Approval gating uses normalized quality scores for lower-is-better metrics so raw errors remain auditable without breaking the existing approved-evaluation gate.
+- Final-evaluation reports are materialized as managed local JSON artifacts with checksum and size evidence.
+- Missing local CSV or non-numeric target evidence is labeled as deterministic fallback in `validationEvidence`.
+- Julia helper and route coverage verify local CSV metric evidence, metric semantics, persisted artifact refs, and downstream prediction-export compatibility.
+
+### Gaps Pending
+
+- AKS-36 remains open because this slice still uses deterministic baseline scoring rather than a trained model artifact.
+- Real worker-backed training/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
+- Final reviewer/architect/persona/application-test agents remain deferred until parent evidence is complete.
+
+### Next Items To Implement
+
+- Add real model artifact scoring for final evaluation after the training/tuning runtime can produce scoreable local model artifacts.
+- Continue deeper real-model training/tuning/scoring/drift/deploy-runtime semantics and broader trust-boundary hardening.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Output Contract Import Slice - 2026-07-02
 
 ### Work Done Till Date

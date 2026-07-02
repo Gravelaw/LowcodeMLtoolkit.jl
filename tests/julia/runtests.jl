@@ -558,6 +558,25 @@ end
     metrics = evaluation.final_evaluation_metrics(["rmse", "mae"])
     @test metrics["rmse"] == 0.92
     @test metrics["mae"] == 0.9
+    mktempdir() do temp_dir
+        csv_path = joinpath(temp_dir, "evaluation.csv")
+        write(csv_path, "row_id,amount\n1,10\n2,20\n3,30\n4,40\n")
+        csv_result = evaluation.final_evaluation_metrics_from_csv(
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
+            csv_path,
+            "amount",
+            ["rmse", "mae"],
+            Dict{String,Any}("testFraction" => 0.25),
+        )
+        @test csv_result !== nothing
+        @test csv_result["metrics"]["rmse"] == 1.0
+        @test csv_result["metrics"]["mae"] == 1.0
+        @test csv_result["evidence"]["executionMode"] == "local_csv_baseline"
+        @test csv_result["evidence"]["baselineModel"] == "row_index_linear_baseline"
+        @test csv_result["evidence"]["rawMetrics"]["rmse"] == 0.0
+        @test csv_result["evidence"]["metricSemantics"]["rmse"] == "lower_is_better_normalized_quality_score"
+        @test csv_result["evidence"]["testRowCount"] == 1
+    end
     report = evaluation.final_evaluation_report_record(
         "eval-helper",
         project.project_id,
@@ -5173,6 +5192,18 @@ end
         @test final_evaluation_payload["evaluationReport"]["finalTestOnly"] == true
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["finalTestPolicy"] == "use_final_test"
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["validationOnlyTuning"] == true
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationExecutionMode"] == "local_csv_baseline"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["targetColumn"] == "amount"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["baselineModel"] == "row_index_linear_baseline"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["metricSemantics"]["rmse"] == "lower_is_better_normalized_quality_score"
+        @test haskey(final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"], "rawMetrics")
+        @test all(ref -> haskey(ref, "checksumSha256") && haskey(ref, "sizeBytes"), final_evaluation_payload["evaluationReport"]["artifactRefs"])
+        final_evaluation_artifact_ref = String(final_evaluation_payload["evaluationReport"]["artifactRefs"][1]["path"])
+        final_evaluation_artifact_path = joinpath(data_estate_root, split(replace(final_evaluation_artifact_ref, "local://" => ""), '/')...)
+        @test isfile(final_evaluation_artifact_path)
+        final_evaluation_artifact_content = read(final_evaluation_artifact_path, String)
+        @test occursin("local_csv_baseline", final_evaluation_artifact_content)
+        @test occursin("rawMetrics", final_evaluation_artifact_content)
         @test startswith(String(final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"]), "dsjob-")
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["executionId"] == final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"]
         final_evaluation_execution_id = String(final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"])
