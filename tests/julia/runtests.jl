@@ -5473,8 +5473,13 @@ end
         @test "reviewed" in model_register_payload["model"]["tags"]
         @test model_register_payload["model"]["primaryMetricName"] == "mae"
         @test length(model_register_payload["model"]["artifactEvidence"]) >= 3
+        registered_model_artifact = only(filter(artifact -> String(get(artifact, "kind", "")) == "model", model_register_payload["model"]["artifactEvidence"]))
+        @test registered_model_artifact["artifactRef"] == trained_model_artifact["artifactRef"]
+        @test registered_model_artifact["checksumSha256"] == trained_model_artifact["checksumSha256"]
+        @test registered_model_artifact["modelKind"] == "local_csv_single_feature_ols"
         @test model_register_payload["model"]["validationEvidence"]["projectId"] == "foundation-ml-project"
         @test model_register_payload["model"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test model_register_payload["model"]["validationEvidence"]["trainingArtifactRef"] == trained_model_artifact["artifactRef"]
         @test model_register_payload["model"]["localOnly"] == true
         @test model_registry_response.status == 200
         model_registry_payload = JSON3.read(String(model_registry_response.body), Dict{String,Any})
@@ -5519,12 +5524,15 @@ end
         @test deploy_package_payload["package"]["deploymentStatus"] == "local_ready"
         @test length(deploy_package_payload["package"]["packageChecksumSha256"]) == 64
         @test length(deploy_package_payload["package"]["artifactEvidence"]) >= 5
+        deploy_model_artifact = only(filter(artifact -> String(get(artifact, "kind", "")) == "model", deploy_package_payload["package"]["artifactEvidence"]))
+        @test deploy_model_artifact["artifactRef"] == trained_model_artifact["artifactRef"]
         @test deploy_package_payload["package"]["validationEvidence"]["projectId"] == "foundation-ml-project"
         @test deploy_package_payload["package"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
         @test deploy_package_payload["package"]["validationEvidence"]["deployPackageExecutionId"] == deploy_package_payload["package"]["executionEvidence"]["executionId"]
         @test deploy_package_payload["package"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
         @test deploy_package_payload["package"]["executionEvidence"]["dispatchStatus"] == "completed"
         @test occursin("Genie", deploy_package_payload["package"]["serviceCode"])
+        @test occursin(String(trained_model_artifact["artifactRef"]), deploy_package_payload["package"]["serviceCode"])
         @test deploy_package_history_response.status == 200
         deploy_package_history_payload = JSON3.read(String(deploy_package_history_response.body), Dict{String,Any})
         @test deploy_package_history_payload["count"] >= 1

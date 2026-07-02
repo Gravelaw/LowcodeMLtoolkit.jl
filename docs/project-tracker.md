@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-07-02`
 
 ## Work Done Till Date
+### AKS-36 Trained Artifact Registry/Deploy Propagation Slice (2026-07-02)
+
+- Model registration now prefers the persisted local training artifact when `ml_training_artifact_evidence` exists on the source execution.
+- Registry `artifactEvidence.kind == "model"` now points at the trained artifact ref/checksum/size instead of the synthetic model-card JSON path for supported local CSV training runs.
+- Registry validation evidence carries training artifact ref, checksum, execution mode, selected feature, and train row count.
+- Local deploy packaging now receives the same trained artifact ref through the existing model registry record and service-code path.
+- Julia route coverage verifies registration evidence and deploy package artifact/service-code references use the persisted trained model artifact.
+
+### Gaps Pending
+
+- AKS-36 remains open because final evaluation and prediction export still need to load and score from the persisted model artifact.
+- Broader MLJ-backed training/tuning/model selection and deploy-runtime inference semantics remain open.
+
+### Next Items To Implement
+
+- Feed the persisted model artifact into final evaluation and prediction export scoring.
+- Continue toward richer model family support and CPU/GPU trial execution.
+
 ### AKS-36 Local CSV Training Artifact Slice (2026-07-02)
 
 - ML experiment runs now attempt to train a bounded local model artifact from the project-managed CSV dataset when validation context is present.

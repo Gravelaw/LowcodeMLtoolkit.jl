@@ -20,6 +20,26 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Trained Artifact Registry/Deploy Propagation Slice - 2026-07-02
+
+### Work Done Till Date
+
+- Model registration now uses persisted local training artifact evidence when available.
+- The registry model artifact ref/checksum/size now points at the trained local CSV model artifact instead of the synthetic model-card JSON path for supported runs.
+- Registry validation evidence records training artifact ref, checksum, execution mode, selected feature, and train row count.
+- Local deploy packaging receives the same trained artifact ref through the registry record and uses it in generated service code.
+- Julia route coverage verifies model registration and deploy package evidence both point at the persisted trained model artifact.
+
+### Gaps Pending
+
+- AKS-36 remains open because final evaluation and prediction export still need artifact-loaded scoring.
+- Broader MLJ-backed training/tuning/model selection and deploy-runtime inference semantics remain open.
+
+### Next Items To Implement
+
+- Load the persisted training artifact in final evaluation/export scoring.
+- Continue broader real-model runtime and final reviewer/persona/application-test passes after parent evidence is complete.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Training Artifact Slice - 2026-07-02
 
 ### Work Done Till Date

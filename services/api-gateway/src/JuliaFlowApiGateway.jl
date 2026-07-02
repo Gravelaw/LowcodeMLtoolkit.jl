@@ -3621,7 +3621,7 @@ function model_registry_payload(state::GatewayState, execution::GatewayExecution
     existing = haskey(execution.metadata, "model_registry_record") ? execution.metadata["model_registry_record"] : Dict{String,Any}()
     validation_context = model_validation_context(execution, "model registration")
 
-    return JuliaFlowDataScienceProjectRegistryPayloads.model_registry_record(
+    record = JuliaFlowDataScienceProjectRegistryPayloads.model_registry_record(
         execution.workflow_id,
         workflow.version,
         execution.execution_id,
@@ -3633,6 +3633,28 @@ function model_registry_payload(state::GatewayState, execution::GatewayExecution
         existing,
         now,
     )
+    if haskey(execution.metadata, "ml_training_artifact_evidence")
+        artifact = execution.metadata["ml_training_artifact_evidence"]
+        model_artifact = Dict{String,Any}(
+            "kind" => "model",
+            "artifactRef" => String(get(artifact, "artifactRef", "")),
+            "checksumSha256" => String(get(artifact, "checksumSha256", "")),
+            "sizeBytes" => Int(get(artifact, "sizeBytes", 0)),
+            "modelKind" => String(get(artifact, "modelKind", "")),
+            "targetColumn" => String(get(artifact, "targetColumn", "")),
+            "featureColumn" => String(get(artifact, "featureColumn", "")),
+            "trainRowCount" => Int(get(artifact, "trainRowCount", 0)),
+        )
+        artifacts = [item for item in get(record, "artifactEvidence", Any[]) if String(get(item, "kind", "")) != "model"]
+        record["artifactEvidence"] = [model_artifact, artifacts...]
+        record["modelKind"] = String(get(artifact, "modelKind", record["modelKind"]))
+        record["validationEvidence"]["trainingArtifactRef"] = String(get(artifact, "artifactRef", ""))
+        record["validationEvidence"]["trainingArtifactChecksumSha256"] = String(get(artifact, "checksumSha256", ""))
+        record["validationEvidence"]["trainingExecutionMode"] = String(get(artifact, "modelKind", ""))
+        record["validationEvidence"]["trainingFeatureColumn"] = String(get(artifact, "featureColumn", ""))
+        record["validationEvidence"]["trainingRowCount"] = Int(get(artifact, "trainRowCount", 0))
+    end
+    return record
 end
 
 function latest_model_execution(state::GatewayState, workflow_id::AbstractString)
