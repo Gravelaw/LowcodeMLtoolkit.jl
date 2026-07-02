@@ -316,6 +316,116 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("Pipeline is locally valid")).toBeInTheDocument();
   });
 
+  it("renders project data profile and statistical workflow evidence in Data", async () => {
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: "http://127.0.0.1:8088",
+      runtimeMode: "local-appliance"
+    };
+    const datasetId = dataScienceProject.datasets[0]?.datasetId ?? "customer-churn-local";
+    const projectWithDataEvidence = {
+      ...dataScienceProject,
+      statisticalAnalysisRuns: [
+        {
+          analysisRunId: "stats-project-data-001",
+          datasetId,
+          method: "summary, correlation, t_test, chi_square, anova",
+          status: "completed",
+          generatedCodeRef: "stats/customer-churn/statistical_eda.jl",
+          resultRef: "stats/customer-churn/statistical_results.json",
+          resultSummary: { pearson: 0.42, spearman: 0.39, tTestPValue: 0.018 },
+          artifactRefs: [
+            {
+              refId: "stats-project-data-001-result",
+              kind: "statistics",
+              localOnly: true,
+              checksumSha256: "d".repeat(64),
+              path: "stats/customer-churn/statistical_results.json",
+              generatedAt: "2026-06-27T09:15:00Z"
+            }
+          ],
+          charts: [],
+          warnings: [],
+          createdAt: "2026-06-27T09:15:00Z"
+        }
+      ],
+      projectJobs: [
+        {
+          jobId: "job-data-profile-001",
+          projectId: dataScienceProject.projectId,
+          jobType: "data_profile",
+          status: "completed",
+          datasetId,
+          outputRefs: [
+            {
+              refId: "profile-project-data-001",
+              kind: "dataset_profile",
+              localOnly: true,
+              checksumSha256: "e".repeat(64),
+              path: "profiles/customer-churn/profile.json",
+              generatedAt: "2026-06-27T09:00:00Z"
+            }
+          ],
+          executionEvidence: {
+            executionId: "exec-data-profile-001",
+            workflowId: workflowSummary.workflowId,
+            status: "completed",
+            mode: "local_project_job",
+            workerId: "local-cpu-worker",
+            orchestrationMode: "worker_service_tick",
+            dispatchStatus: "completed",
+            workerPool: "local-cpu",
+            dispatchLane: "cpu",
+            queuedAt: "2026-06-27T09:00:00Z",
+            startedAt: "2026-06-27T09:00:10Z",
+            finishedAt: "2026-06-27T09:03:00Z"
+          },
+          startedAt: "2026-06-27T09:00:10Z",
+          finishedAt: "2026-06-27T09:03:00Z"
+        }
+      ]
+    };
+    const health = {
+      ...localHealth,
+      runtime: {
+        mode: "local-appliance",
+        fixtureProvenance: "backend",
+        fixtureSubstitutionAllowed: false,
+        unavailable: []
+      },
+      runtimeMode: "local-appliance",
+      fixtureProvenance: "backend",
+      fixtureSubstitutionAllowed: false,
+      unavailable: []
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return json(health);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithDataEvidence], count: 1 });
+      if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
+      if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
+      if (url.includes("/models")) return json({ items: [], count: 0 });
+      if (url.includes("/deploy/packages")) return json({ items: [], count: 0 });
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    fireEvent.click(screen.getByRole("button", { name: "Data" }));
+    expect(screen.getByText("Project Data Workflow Evidence")).toBeInTheDocument();
+    expect(screen.getByText("job-data-profile-001")).toBeInTheDocument();
+    expect(screen.getByText("exec-data-profile-001")).toBeInTheDocument();
+    expect(screen.getByText("stats-project-data-001")).toBeInTheDocument();
+    expect(screen.getByText("summary, correlation, t_test, chi_square, anova (completed)")).toBeInTheDocument();
+    expect(screen.getAllByText("stats/customer-churn/statistical_results.json").length).toBeGreaterThan(0);
+    expect(screen.getByText("stats/customer-churn/statistical_eda.jl")).toBeInTheDocument();
+  });
+
   it("renders project-backed transform fit/apply evidence from the active project", async () => {
     window.__JULIAFLOW_CONFIG__ = {
       gatewayBaseUrl: "http://127.0.0.1:8088",

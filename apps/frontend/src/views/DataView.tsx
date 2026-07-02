@@ -62,6 +62,10 @@ function semanticColumnOption(schemaColumns: SchemaColumnContract[], role: DataS
   return schemaColumns.find((column) => column.role === role)?.name ?? "";
 }
 
+function newestBy<T>(items: T[], timestamp: (item: T) => string | undefined): T | undefined {
+  return [...items].sort((left, right) => (timestamp(right) ?? "").localeCompare(timestamp(left) ?? ""))[0];
+}
+
 export function DataView({
   data,
   onImport,
@@ -93,6 +97,14 @@ export function DataView({
   const finalTestLock = activeSplitPlan
     ? project.finalTestLocks.find((lock) => lock.splitPlanId === activeSplitPlan.splitPlanId)
     : undefined;
+  const latestDataProfileJob = newestBy(
+    project.projectJobs.filter((job) => job.jobType === "data_profile" && (!job.datasetId || job.datasetId === activeProfile.datasetId)),
+    (job) => job.startedAt
+  );
+  const latestStatisticalRun = newestBy(
+    project.statisticalAnalysisRuns.filter((run) => !run.datasetId || run.datasetId === activeProfile.datasetId),
+    (run) => run.createdAt
+  );
   const activeOption = sourceOptions.find((option) => option.mode === activeProfile.activeReadMode) ?? sourceOptions[0];
   const qualityHighlight = activeProfile.profileSummary.find((field) => field.quality.includes("% complete"))?.quality;
   const numericFields = activeProfile.schemaSummary.filter((field) => /int|float|double|number/i.test(field.type)).map((field) => field.name);
@@ -293,6 +305,18 @@ export function DataView({
         ) : (
           <p className="empty-state">No split plan is attached to this project yet.</p>
         )}
+      </Card>
+
+      <Card title="Project Data Workflow Evidence" className="right-panel">
+        <div className="key-values wrap-values">
+          <span>Profile Job</span><strong>{latestDataProfileJob?.jobId ?? "No project profile job"}</strong>
+          <span>Profile Execution</span><strong>{latestDataProfileJob?.executionEvidence?.executionId ?? "pending"}</strong>
+          <span>Statistical Run</span><strong>{latestStatisticalRun?.analysisRunId ?? "No statistical run"}</strong>
+          <span>Method</span><strong>{latestStatisticalRun ? `${latestStatisticalRun.method} (${latestStatisticalRun.status})` : "No statistical evidence"}</strong>
+          <span>Result</span><strong>{latestStatisticalRun?.resultRef ?? "No result artifact"}</strong>
+          <span>Code</span><strong>{latestStatisticalRun?.generatedCodeRef ?? "No generated statistics code"}</strong>
+          <span>Artifacts</span><strong>{latestStatisticalRun?.artifactRefs?.map((ref) => ref.path ?? ref.refId).join(", ") || "No artifacts"}</strong>
+        </div>
       </Card>
 
       <Card title="Dataset Catalog" eyebrow="Local fixtures">

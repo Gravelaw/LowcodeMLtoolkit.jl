@@ -34,22 +34,24 @@ Each checkpoint entry must contain:
 - Deploy uses project-backed registry records for package gating when direct registry records are absent and renders the latest `deploy_package` project job with execution and artifact evidence.
 - ML Studio renders the project validation workflow chain from training plan through validation-only tuning, approved final evaluation, prediction export, and drift report status.
 - Models renders project lifecycle review evidence for rollback/retraining/deprecation-style records, including linked `model_lifecycle` project job and execution ids.
+- Data renders project data workflow evidence for project-backed profile jobs and statistical analysis runs, including profile execution, generated statistics code, result artifact, and local artifact refs.
 - Focused frontend coverage verifies ML Studio posts the active project id, refreshes the project endpoint, and displays the refreshed training job evidence.
 - Focused frontend coverage verifies the same refreshed job evidence remains visible after navigating to Monitor.
 - Focused frontend coverage verifies Transform renders project-loaded fit/apply evidence and matching job execution metadata.
 - Focused frontend coverage verifies Models and Deploy render project-backed registry/deploy evidence while route-specific model and package lists are empty.
 - Focused frontend coverage verifies ML Studio renders project validation/tuning/evaluation/prediction/drift records loaded from the active project.
 - Focused frontend coverage verifies Models renders rollback/retraining lifecycle evidence loaded from the active project while `/models` is empty.
+- Focused frontend coverage verifies Data renders project-backed data profile and statistical EDA evidence from the active project.
 
 ### Gaps Pending
 
 - AKS-36 parent remains open because this only starts the project-backed frontend migration.
-- Broader Data project-led UI state and release/local-appliance no-fixture browser evidence still need migration.
+- Release/local-appliance no-fixture browser evidence still needs migration.
 - Deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
 
 ### Next Items To Implement
 
-- Continue project-backed frontend migration across broader Data workflow surfaces and release/local-appliance browser coverage.
+- Add release/local-appliance browser evidence for project-backed UI flows.
 - Add release/local-appliance browser evidence for project-backed UI flows.
 - Defer final reviewer/architect/persona/application-test agents until the parent issue evidence is complete.
 
