@@ -32,10 +32,12 @@ Tracker always records 3 things:
 - Transform now renders the latest project-backed fit/apply record, including train-only fit split, held-out apply splits, leakage-check statuses, linked project job id, and worker execution id.
 - Models now falls back to `DataScienceProject.modelRegistryRecords` when the workflow registry endpoint returns no records, preserving project-backed registry and lifecycle evidence in local-appliance mode.
 - Deploy now uses project-backed registry records for package gating when route registry records are absent and renders the latest `deploy_package` project job with execution and artifact evidence.
+- ML Studio now renders the project validation workflow chain from `trainingPlans`, `tuningStudies`, `evaluationReports`, `predictionExports`, and `driftReports`, including validation-only tuning, final-evaluation approval, prediction row counts, and drift status.
 - Focused frontend coverage proves ML Studio posts the active project id, refreshes the project endpoint, and displays the refreshed training job evidence.
 - Focused frontend coverage also proves the refreshed training job appears in Monitor after navigation.
 - Focused frontend coverage proves Transform renders a project-loaded transform fit/apply record and matching job execution evidence.
 - Focused frontend coverage proves Models and Deploy render project-backed model registry and deploy-package job evidence even when `/models` and `/deploy/packages` return empty local-appliance lists.
+- Focused frontend coverage proves ML Studio renders project-backed validation/tuning/evaluation/prediction/drift evidence when the active project carries those records.
 
 ### Gaps Pending
 
@@ -45,7 +47,7 @@ Tracker always records 3 things:
 
 ### Next Items To Implement
 
-- Continue project-backed frontend migration across validation, tuning, evaluation, prediction export, drift, and lifecycle review surfaces.
+- Continue project-backed frontend migration across lifecycle review/action surfaces and release/local-appliance browser coverage.
 - Add release/local-appliance browser evidence for project-backed UI flows.
 - Keep reviewer/architect/persona/application-test agents queued until AKS-36 parent evidence is complete.
 

@@ -32,10 +32,12 @@ Each checkpoint entry must contain:
 - Transform renders project-backed fit/apply evidence with train-only fitting, held-out apply splits, leakage-check statuses, linked job id, and worker execution id.
 - Models uses `DataScienceProject.modelRegistryRecords` as the local-appliance fallback when `/models` returns no records, keeping project-backed registry and lifecycle evidence visible.
 - Deploy uses project-backed registry records for package gating when direct registry records are absent and renders the latest `deploy_package` project job with execution and artifact evidence.
+- ML Studio renders the project validation workflow chain from training plan through validation-only tuning, approved final evaluation, prediction export, and drift report status.
 - Focused frontend coverage verifies ML Studio posts the active project id, refreshes the project endpoint, and displays the refreshed training job evidence.
 - Focused frontend coverage verifies the same refreshed job evidence remains visible after navigating to Monitor.
 - Focused frontend coverage verifies Transform renders project-loaded fit/apply evidence and matching job execution metadata.
 - Focused frontend coverage verifies Models and Deploy render project-backed registry/deploy evidence while route-specific model and package lists are empty.
+- Focused frontend coverage verifies ML Studio renders project validation/tuning/evaluation/prediction/drift records loaded from the active project.
 
 ### Gaps Pending
 
@@ -45,7 +47,7 @@ Each checkpoint entry must contain:
 
 ### Next Items To Implement
 
-- Continue project-backed frontend migration across validation, tuning, evaluation, prediction export, drift, and lifecycle review surfaces.
+- Continue project-backed frontend migration across lifecycle review/action surfaces and release/local-appliance browser coverage.
 - Add release/local-appliance browser evidence for project-backed UI flows.
 - Defer final reviewer/architect/persona/application-test agents until the parent issue evidence is complete.
 

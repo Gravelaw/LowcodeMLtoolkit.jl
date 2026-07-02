@@ -11,6 +11,10 @@ function formatTimestamp(value?: string) {
   return value.replace("T", " ").replace("Z", " UTC");
 }
 
+function newestBy<T>(items: T[], timestamp: (item: T) => string | undefined): T | undefined {
+  return [...items].sort((left, right) => (timestamp(right) ?? "").localeCompare(timestamp(left) ?? ""))[0];
+}
+
 export function MlStudioView({
   data,
   onRun,
@@ -24,6 +28,11 @@ export function MlStudioView({
   const latestTrainingJob = data.dataScienceProject.projectJobs
     .filter((job) => job.jobType === "training")
     .sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
+  const latestTrainingPlan = newestBy(data.dataScienceProject.trainingPlans, (plan) => plan.createdAt);
+  const latestTuningStudy = newestBy(data.dataScienceProject.tuningStudies, (study) => study.createdAt);
+  const latestEvaluation = newestBy(data.dataScienceProject.evaluationReports, (report) => report.generatedAt);
+  const latestPredictionExport = newestBy(data.dataScienceProject.predictionExports, (predictionExport) => predictionExport.createdAt);
+  const latestDriftReport = newestBy(data.dataScienceProject.driftReports, (report) => report.generatedAt);
   if (!experiment) {
     return (
       <div className="route-grid ml-route">
@@ -114,6 +123,23 @@ export function MlStudioView({
         ) : (
           <p className="empty-state">
             No project training job has been recorded yet. Train a model through the local gateway to attach worker dispatch evidence to this project.
+          </p>
+        )}
+      </Card>
+
+      <Card title="Project Validation Workflow" className="right-panel">
+        {latestTrainingPlan || latestTuningStudy || latestEvaluation || latestPredictionExport || latestDriftReport ? (
+          <div className="key-values">
+            <span>Training Plan</span><strong>{latestTrainingPlan?.trainingPlanId ?? "not planned"}</strong>
+            <span>Tuning Study</span><strong>{latestTuningStudy ? `${latestTuningStudy.tuningStudyId} (${latestTuningStudy.validationOnly ? "validation only" : "review"})` : "not tuned"}</strong>
+            <span>Best Trial</span><strong>{latestTuningStudy?.bestTrialId ?? "pending"}</strong>
+            <span>Final Evaluation</span><strong>{latestEvaluation ? `${latestEvaluation.evaluationReportId} (${latestEvaluation.approved ? "approved" : "review"})` : "not evaluated"}</strong>
+            <span>Prediction Export</span><strong>{latestPredictionExport ? `${latestPredictionExport.predictionExportId} (${latestPredictionExport.rowCount.toLocaleString()} rows)` : "not exported"}</strong>
+            <span>Drift Report</span><strong>{latestDriftReport ? `${latestDriftReport.driftReportId} (${latestDriftReport.status})` : "not monitored"}</strong>
+          </div>
+        ) : (
+          <p className="empty-state">
+            No project validation workflow evidence is attached yet. Run validation-only tuning, final evaluation, prediction export, and drift checks through the local gateway before promoting this model.
           </p>
         )}
       </Card>

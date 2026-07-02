@@ -519,6 +519,154 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.queryByText("No registered model is available.")).not.toBeInTheDocument();
   });
 
+  it("renders project validation, tuning, evaluation, prediction, and drift evidence in ML Studio", async () => {
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: "http://127.0.0.1:8088",
+      runtimeMode: "local-appliance"
+    };
+    const projectWithValidationWorkflow = {
+      ...dataScienceProject,
+      trainingPlans: [
+        {
+          trainingPlanId: "plan-project-validation-001",
+          targetColumn: "churn",
+          taskType: "classification",
+          metricNames: ["auc", "f1"],
+          splitPlanId: dataScienceProject.splitPlans[0]?.splitPlanId ?? "split-customer-churn-validation",
+          transformRef: "transforms/customer-churn-fit-apply.jl",
+          seed: 42,
+          createdAt: "2026-06-25T09:00:00Z"
+        }
+      ],
+      tuningStudies: [
+        {
+          tuningStudyId: "tune-project-validation-001",
+          trainingPlanId: "plan-project-validation-001",
+          validationOnly: true,
+          bestTrialId: "trial-project-validation-best",
+          trials: [
+            {
+              trialId: "trial-project-validation-best",
+              parameters: { max_depth: 6, learning_rate: 0.05 },
+              metrics: { auc: 0.918, f1: 0.872 },
+              artifactRefs: []
+            }
+          ],
+          validationEvidence: {
+            projectId: dataScienceProject.projectId,
+            datasetId: dataScienceProject.datasets[0]?.datasetId,
+            splitPlanId: dataScienceProject.splitPlans[0]?.splitPlanId,
+            splitStrategy: "stratified",
+            validationFraction: 0.15,
+            testFraction: 0.15,
+            finalTestPolicy: "forbid_final_test"
+          },
+          createdAt: "2026-06-25T09:20:00Z"
+        }
+      ],
+      evaluationReports: [
+        {
+          evaluationReportId: "eval-project-validation-001",
+          trainingPlanId: "plan-project-validation-001",
+          splitPlanId: dataScienceProject.splitPlans[0]?.splitPlanId ?? "split-customer-churn-validation",
+          metrics: { auc: 0.914, f1: 0.868 },
+          approved: true,
+          finalTestOnly: true,
+          validationEvidence: {
+            projectId: dataScienceProject.projectId,
+            datasetId: dataScienceProject.datasets[0]?.datasetId,
+            splitPlanId: dataScienceProject.splitPlans[0]?.splitPlanId,
+            tuningStudyId: "tune-project-validation-001",
+            finalTestPolicy: "use_final_test",
+            validationOnlyTuning: true,
+            testFraction: 0.15
+          },
+          generatedAt: "2026-06-25T09:45:00Z",
+          artifactRefs: []
+        }
+      ],
+      predictionExports: [
+        {
+          predictionExportId: "pred-project-validation-001",
+          evaluationReportId: "eval-project-validation-001",
+          outputContractRef: "contracts/churn-output.json",
+          artifactRef: "exports/churn/predictions.parquet",
+          rowCount: 3200,
+          format: "parquet",
+          outputColumns: ["customer_id", "prediction", "probability"],
+          createdAt: "2026-06-25T10:00:00Z"
+        }
+      ],
+      monitoringBaselines: [
+        {
+          baselineId: "baseline-project-validation-001",
+          modelId: "Churn Prediction",
+          datasetId: dataScienceProject.datasets[0]?.datasetId ?? "customer-churn-local",
+          metricNames: ["psi", "ks"],
+          predictionExportId: "pred-project-validation-001",
+          evaluationReportId: "eval-project-validation-001",
+          createdAt: "2026-06-25T10:10:00Z"
+        }
+      ],
+      driftReports: [
+        {
+          driftReportId: "drift-project-validation-001",
+          baselineId: "baseline-project-validation-001",
+          status: "moderate",
+          metrics: { psi: 0.21, ks: 0.12 },
+          validationEvidence: {
+            projectId: dataScienceProject.projectId,
+            datasetId: dataScienceProject.datasets[0]?.datasetId,
+            predictionExportId: "pred-project-validation-001",
+            evaluationReportId: "eval-project-validation-001",
+            outputContractRef: "contracts/churn-output.json"
+          },
+          generatedAt: "2026-06-25T10:30:00Z"
+        }
+      ]
+    };
+    const health = {
+      ...localHealth,
+      runtime: {
+        mode: "local-appliance",
+        fixtureProvenance: "backend",
+        fixtureSubstitutionAllowed: false,
+        unavailable: []
+      },
+      runtimeMode: "local-appliance",
+      fixtureProvenance: "backend",
+      fixtureSubstitutionAllowed: false,
+      unavailable: []
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return json(health);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithValidationWorkflow], count: 1 });
+      if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
+      if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
+      if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
+      if (url.includes("/deploy/packages")) return json({ items: deployPackages, count: deployPackages.length });
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    fireEvent.click(screen.getByRole("button", { name: "ML Studio" }));
+    expect(screen.getByText("Project Validation Workflow")).toBeInTheDocument();
+    expect(screen.getByText("plan-project-validation-001")).toBeInTheDocument();
+    expect(screen.getByText("tune-project-validation-001 (validation only)")).toBeInTheDocument();
+    expect(screen.getByText("trial-project-validation-best")).toBeInTheDocument();
+    expect(screen.getByText("eval-project-validation-001 (approved)")).toBeInTheDocument();
+    expect(screen.getByText("pred-project-validation-001 (3,200 rows)")).toBeInTheDocument();
+    expect(screen.getByText("drift-project-validation-001 (moderate)")).toBeInTheDocument();
+  });
+
   it("uses runtime gateway config before falling back to fixtures", async () => {
     window.__JULIAFLOW_CONFIG__ = {
       gatewayBaseUrl: "http://127.0.0.1:8088",
