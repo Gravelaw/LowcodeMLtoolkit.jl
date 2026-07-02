@@ -476,6 +476,25 @@ function upsertDataProfile(
   return [profile, ...(profiles ?? []).filter((item) => item.datasetId !== profile.datasetId)];
 }
 
+function isAbsoluteLocalPath(value: string): boolean {
+  return /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith("/") || value.startsWith("\\\\");
+}
+
+function gatewayImportSourceUri(
+  profile: GatewayDataImportProfile,
+  fixtureSubstitutionAllowed: boolean,
+  request?: GatewayDataImportProfileRequest
+): string {
+  const sourceUri = String(request?.sourceUri ?? profile.sourceUri).trim();
+  if (fixtureSubstitutionAllowed || sourceUri.toLowerCase().startsWith("local://") || isAbsoluteLocalPath(sourceUri)) {
+    return sourceUri;
+  }
+  const datasetId = String(request?.datasetId ?? profile.datasetId);
+  const sourceFormat = String(request?.format ?? profile.sourceFormat ?? "csv");
+  const targetZone = String(request?.targetZone ?? profile.targetZone ?? "raw");
+  return `local://data/${targetZone}/${datasetId}.${sourceFormat}`;
+}
+
 function isGatewayAuthError(error: unknown): boolean {
   return error instanceof GatewayClientError && (error.status === 401 || error.status === 403);
 }
@@ -949,7 +968,8 @@ function App() {
               };
               const nextRequest: GatewayDataImportProfileRequest = {
                 projectId: data.dataScienceProject.projectId,
-                ...baseRequest
+                ...baseRequest,
+                sourceUri: gatewayImportSourceUri(data.dataProfile, fixtureSubstitutionAllowed, baseRequest)
               };
               if (!gatewayBaseUrl && fixtureSubstitutionAllowed && nextRequest.readMode) {
                 setData((current) => {

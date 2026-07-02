@@ -42,17 +42,17 @@ Tracker always records 3 things:
 - Focused frontend coverage proves ML Studio renders project-backed validation/tuning/evaluation/prediction/drift evidence when the active project carries those records.
 - Focused frontend coverage proves Models renders rollback/retraining lifecycle evidence from the active project when the workflow registry endpoint is empty.
 - Focused frontend coverage proves Data renders project-backed profile and statistical EDA evidence from the active project.
+- Live-backend browser smoke now seeds a real local-appliance `DataScienceProject`, imports the active Data dataset, runs project statistical analysis through the gateway, verifies Data renders the profile job/statistical artifacts without demo substitution, and confirms the Data import action sends a managed `local://` source instead of a fixture-relative path.
 
 ### Gaps Pending
 
 - AKS-36 remains open because this is only the first project-backed frontend migration slice.
-- Release/local-appliance no-fixture browser evidence still needs deeper project-led UI coverage.
+- Release/local-appliance no-fixture browser evidence now covers the project-backed Data profile/statistical path; deeper project-led ML Studio/Models/Deploy browser proof remains open.
 - Deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
 
 ### Next Items To Implement
 
-- Add release/local-appliance browser evidence for project-backed UI flows.
-- Add release/local-appliance browser evidence for project-backed UI flows.
+- Add release/local-appliance browser evidence for project-backed ML Studio, Models, and Deploy UI flows.
 - Keep reviewer/architect/persona/application-test agents queued until AKS-36 parent evidence is complete.
 
 ### AKS-36 DataScienceProject Training Worker Slice (2026-07-01)

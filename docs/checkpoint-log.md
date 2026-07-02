@@ -42,17 +42,17 @@ Each checkpoint entry must contain:
 - Focused frontend coverage verifies ML Studio renders project validation/tuning/evaluation/prediction/drift records loaded from the active project.
 - Focused frontend coverage verifies Models renders rollback/retraining lifecycle evidence loaded from the active project while `/models` is empty.
 - Focused frontend coverage verifies Data renders project-backed data profile and statistical EDA evidence from the active project.
+- Live-backend browser smoke now seeds a real local-appliance `DataScienceProject`, imports the active Data dataset, runs project statistical analysis through the gateway, verifies Data renders the profile job/statistical artifacts without demo substitution, and confirms the Data import action sends a managed `local://` source instead of a fixture-relative path.
 
 ### Gaps Pending
 
 - AKS-36 parent remains open because this only starts the project-backed frontend migration.
-- Release/local-appliance no-fixture browser evidence still needs migration.
+- Release/local-appliance no-fixture browser evidence now covers the project-backed Data profile/statistical path; deeper project-led ML Studio/Models/Deploy browser proof remains open.
 - Deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
 
 ### Next Items To Implement
 
-- Add release/local-appliance browser evidence for project-backed UI flows.
-- Add release/local-appliance browser evidence for project-backed UI flows.
+- Add release/local-appliance browser evidence for project-backed ML Studio, Models, and Deploy UI flows.
 - Defer final reviewer/architect/persona/application-test agents until the parent issue evidence is complete.
 
 ## Checkpoint: `cp/02-alpha-core` AKS-36 DataScienceProject Training Worker Slice - 2026-07-01

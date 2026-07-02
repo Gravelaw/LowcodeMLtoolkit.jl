@@ -184,7 +184,9 @@ try {
     });
     child.on("exit", (code) => resolveRun(code ?? 1));
   });
-  if (result !== 0) process.exit(result);
+  if (result !== 0) {
+    throw new Error(`live-backend Playwright smoke failed with exit code ${result}`);
+  }
 
   writeFileSync(join(artifactRoot, "summary.json"), `${JSON.stringify({
     status: "passed",

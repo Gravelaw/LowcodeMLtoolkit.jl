@@ -16,6 +16,38 @@ test.describe("live-backend release smoke", () => {
   });
 
   test("uses local gateway data through the release UI without demo substitution", async ({ page, request }) => {
+    const projectId = "live-browser-data-project";
+    const datasetId = "customer-churn-local";
+    const createProject = await request.post(`${gatewayUrl}/api/v1/data-science-projects`, {
+      data: {
+        projectId,
+        name: "Live Browser Data Project",
+        description: "Local-appliance browser proof for project-backed Data evidence."
+      }
+    });
+    expect(createProject.ok()).toBeTruthy();
+    const importProfile = await request.post(`${gatewayUrl}/api/v1/local-data/import`, {
+      data: {
+        projectId,
+        datasetId,
+        sourceUri: `local://data/raw/${datasetId}.csv`,
+        format: "csv",
+        targetZone: "raw",
+        readMode: "csv"
+      }
+    });
+    expect(importProfile.ok()).toBeTruthy();
+    const statistics = await request.post(`${gatewayUrl}/api/v1/data-science-projects/${projectId}/statistical-analysis/run`, {
+      data: {
+        datasetId,
+        methods: ["summary", "pearson_correlation", "spearman_correlation", "ols", "t_test", "chi_square", "anova"],
+        targetColumn: "churn",
+        featureColumn: "monthly_charges",
+        groupColumn: "contract_type"
+      }
+    });
+    expect(statistics.ok()).toBeTruthy();
+
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Local Workspace Overview" })).toBeVisible();
     await expect(page.getByRole("status", { name: /100% local status/i })).toContainText("100% Local");
@@ -23,6 +55,11 @@ test.describe("live-backend release smoke", () => {
     await expect(page.getByLabel("Release mode unavailable")).toHaveCount(0);
 
     await page.getByRole("button", { name: "Data" }).click();
+    await expect(page.getByText("Project Data Workflow Evidence")).toBeVisible();
+    await expect(page.getByText(/^dsjob-[a-f0-9]+$/).first()).toBeVisible();
+    await expect(page.getByText(/summary,pearson_correlation,spearman_correlation,ols,t_test,chi_square,anova \(completed\)/)).toBeVisible();
+    await expect(page.getByText(new RegExp(`local://analysis/${datasetId}/stats-.*?/results.json`)).first()).toBeVisible();
+    await expect(page.getByText(new RegExp(`local://analysis/${datasetId}/stats-.*?/analysis.jl`)).first()).toBeVisible();
     await page.getByRole("button", { name: /import local data/i }).click();
     await expect(page.getByText("Gateway action completed locally.")).toBeVisible();
 

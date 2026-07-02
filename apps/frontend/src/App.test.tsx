@@ -1292,6 +1292,51 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.queryByLabelText("Release mode unavailable")).not.toBeInTheDocument();
   });
 
+  it("normalizes relative fixture data sources before local-appliance imports", async () => {
+    window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "http://127.0.0.1:8088", runtimeMode: "local-appliance" };
+    let importBody: Record<string, unknown> | undefined;
+    const health = {
+      ...localHealth,
+      runtime: {
+        mode: "local-appliance",
+        fixtureProvenance: "backend",
+        fixtureSubstitutionAllowed: false,
+        unavailable: []
+      },
+      runtimeMode: "local-appliance",
+      fixtureProvenance: "backend",
+      fixtureSubstitutionAllowed: false,
+      unavailable: []
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return json(health);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
+      if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
+      if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
+      if (url.includes("/models")) return json({ items: [], count: 0 });
+      if (url.includes("/deploy/packages")) return json({ items: [], count: 0 });
+      if (url.endsWith("/api/v1/local-data/import")) {
+        importBody = JSON.parse(String(init?.body));
+        return json({ status: "profiled", profile: dataProfile, project: dataScienceProject });
+      }
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    fireEvent.click(screen.getByRole("button", { name: "Data" }));
+    fireEvent.click(screen.getByRole("button", { name: /import local data/i }));
+    await waitFor(() => expect(importBody?.sourceUri).toBe("local://data/raw/customer-churn-local.csv"));
+    expect(importBody?.projectId).toBe(dataScienceProject.projectId);
+  });
+
   it("reports incomplete workflow metadata in local-appliance mode instead of rendering fixture canvas state", async () => {
     window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "http://127.0.0.1:8088", runtimeMode: "local-appliance" };
     const health = {
