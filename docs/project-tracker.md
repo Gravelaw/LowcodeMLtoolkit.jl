@@ -33,21 +33,23 @@ Tracker always records 3 things:
 - Models now falls back to `DataScienceProject.modelRegistryRecords` when the workflow registry endpoint returns no records, preserving project-backed registry and lifecycle evidence in local-appliance mode.
 - Deploy now uses project-backed registry records for package gating when route registry records are absent and renders the latest `deploy_package` project job with execution and artifact evidence.
 - ML Studio now renders the project validation workflow chain from `trainingPlans`, `tuningStudies`, `evaluationReports`, `predictionExports`, and `driftReports`, including validation-only tuning, final-evaluation approval, prediction row counts, and drift status.
+- Models now renders project lifecycle review evidence, including lifecycle action, rollback model, retraining job, review reason, linked `model_lifecycle` project job, and execution id.
 - Focused frontend coverage proves ML Studio posts the active project id, refreshes the project endpoint, and displays the refreshed training job evidence.
 - Focused frontend coverage also proves the refreshed training job appears in Monitor after navigation.
 - Focused frontend coverage proves Transform renders a project-loaded transform fit/apply record and matching job execution evidence.
 - Focused frontend coverage proves Models and Deploy render project-backed model registry and deploy-package job evidence even when `/models` and `/deploy/packages` return empty local-appliance lists.
 - Focused frontend coverage proves ML Studio renders project-backed validation/tuning/evaluation/prediction/drift evidence when the active project carries those records.
+- Focused frontend coverage proves Models renders rollback/retraining lifecycle evidence from the active project when the workflow registry endpoint is empty.
 
 ### Gaps Pending
 
 - AKS-36 remains open because this is only the first project-backed frontend migration slice.
-- Broader Data workflows, lifecycle actions, and release/local-appliance no-fixture browser evidence still need deeper project-led UI coverage.
+- Broader Data workflows and release/local-appliance no-fixture browser evidence still need deeper project-led UI coverage.
 - Deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
 
 ### Next Items To Implement
 
-- Continue project-backed frontend migration across lifecycle review/action surfaces and release/local-appliance browser coverage.
+- Continue project-backed frontend migration across broader Data workflow surfaces and release/local-appliance browser coverage.
 - Add release/local-appliance browser evidence for project-backed UI flows.
 - Keep reviewer/architect/persona/application-test agents queued until AKS-36 parent evidence is complete.
 

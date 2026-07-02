@@ -667,6 +667,119 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("drift-project-validation-001 (moderate)")).toBeInTheDocument();
   });
 
+  it("renders project lifecycle rollback and retraining evidence in Models", async () => {
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: "http://127.0.0.1:8088",
+      runtimeMode: "local-appliance"
+    };
+    const lifecycleModel = {
+      ...modelRegistry[0],
+      registryId: "reg-lifecycle-project",
+      modelId: "Lifecycle Review Model",
+      status: "retraining_requested",
+      deploymentStatus: "local_ready"
+    };
+    const projectWithLifecycleReview = {
+      ...dataScienceProject,
+      modelRegistryRecords: [lifecycleModel],
+      modelLifecycleRecords: [
+        {
+          modelId: lifecycleModel.modelId,
+          state: "retraining_requested",
+          evaluationReportId: "eval-lifecycle-review-001",
+          deployedEndpointId: "pkg-lifecycle-current",
+          rollbackModelId: "Lifecycle Review Model v0",
+          rollbackPackageId: "pkg-lifecycle-rollback",
+          rollbackPackageRef: "deploy/lifecycle/rollback-package.tar.gz",
+          lifecycleAction: "request_retraining",
+          retrainingReason: "post-rollback retraining requested",
+          retrainingTrainingPlanId: "retraining-plan-lifecycle-001",
+          retrainingTuningStudyId: "retraining-tune-lifecycle-001",
+          retrainingJobId: "job-retraining-lifecycle-001",
+          validationEvidence: {
+            projectId: dataScienceProject.projectId,
+            modelId: lifecycleModel.modelId,
+            previousState: "rolled_back",
+            lifecycleAction: "request_retraining",
+            rollbackModelId: "Lifecycle Review Model v0",
+            retrainingTrainingPlanId: "retraining-plan-lifecycle-001",
+            retrainingTuningStudyId: "retraining-tune-lifecycle-001",
+            retrainingJobId: "job-retraining-lifecycle-001",
+            reason: "post-rollback retraining requested"
+          },
+          updatedAt: "2026-06-26T09:30:00Z"
+        }
+      ],
+      projectJobs: [
+        {
+          jobId: "job-lifecycle-review-001",
+          projectId: dataScienceProject.projectId,
+          jobType: "model_lifecycle",
+          status: "completed",
+          sourceRecordId: lifecycleModel.modelId,
+          outputRefs: [],
+          executionEvidence: {
+            executionId: "exec-lifecycle-review-001",
+            workflowId: workflowSummary.workflowId,
+            status: "completed",
+            mode: "local_project_job",
+            workerId: "local-cpu-worker",
+            orchestrationMode: "worker_service_tick",
+            dispatchStatus: "completed",
+            workerPool: "local-cpu",
+            dispatchLane: "cpu",
+            queuedAt: "2026-06-26T09:28:00Z",
+            startedAt: "2026-06-26T09:28:10Z",
+            finishedAt: "2026-06-26T09:30:00Z"
+          },
+          startedAt: "2026-06-26T09:28:10Z",
+          finishedAt: "2026-06-26T09:30:00Z"
+        }
+      ]
+    };
+    const health = {
+      ...localHealth,
+      runtime: {
+        mode: "local-appliance",
+        fixtureProvenance: "backend",
+        fixtureSubstitutionAllowed: false,
+        unavailable: []
+      },
+      runtimeMode: "local-appliance",
+      fixtureProvenance: "backend",
+      fixtureSubstitutionAllowed: false,
+      unavailable: []
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return json(health);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithLifecycleReview], count: 1 });
+      if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
+      if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
+      if (url.includes("/models")) return json({ items: [], count: 0 });
+      if (url.includes("/deploy/packages")) return json({ items: [], count: 0 });
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    fireEvent.click(screen.getByRole("button", { name: "Models" }));
+    expect(screen.getByText("Lifecycle Review")).toBeInTheDocument();
+    expect(screen.getAllByText("Lifecycle Review Model").length).toBeGreaterThan(0);
+    expect(screen.getByText("request_retraining")).toBeInTheDocument();
+    expect(screen.getByText("Lifecycle Review Model v0")).toBeInTheDocument();
+    expect(screen.getByText("job-retraining-lifecycle-001")).toBeInTheDocument();
+    expect(screen.getByText("post-rollback retraining requested")).toBeInTheDocument();
+    expect(screen.getByText("job-lifecycle-review-001")).toBeInTheDocument();
+    expect(screen.getByText("exec-lifecycle-review-001")).toBeInTheDocument();
+  });
+
   it("uses runtime gateway config before falling back to fixtures", async () => {
     window.__JULIAFLOW_CONFIG__ = {
       gatewayBaseUrl: "http://127.0.0.1:8088",

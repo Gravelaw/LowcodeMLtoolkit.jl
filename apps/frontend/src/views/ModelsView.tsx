@@ -11,6 +11,13 @@ function lifecycleGateReason(state?: string, hasEvaluation?: boolean, hasEndpoin
   return "Next lifecycle action is available when the matching review evidence is present.";
 }
 
+function latestLifecycleJob(data: AppData, modelId?: string) {
+  return [...data.dataScienceProject.projectJobs]
+    .filter((job) => job.jobType === "model_lifecycle")
+    .filter((job) => !modelId || !job.sourceRecordId || job.sourceRecordId === modelId)
+    .sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
+}
+
 export function ModelsView({
   data,
   onRegister,
@@ -26,6 +33,7 @@ export function ModelsView({
   const artifactEvidence = selected?.artifactEvidence ?? [];
   const lifecycle = selected ? data.dataScienceProject.modelLifecycleRecords.find((record) => record.modelId === selected.modelId) : undefined;
   const lifecycleState = lifecycle?.state ?? selected?.status;
+  const lifecycleJob = latestLifecycleJob(data, selected?.modelId);
   const gateReason = lifecycleGateReason(lifecycleState, Boolean(lifecycle?.evaluationReportId), Boolean(lifecycle?.deployedEndpointId));
   return (
     <div className="route-grid models-route">
@@ -104,6 +112,31 @@ export function ModelsView({
           ]}
           getRowKey={(row) => String(row.metric)}
         />
+      </Card>
+
+      <Card title="Lifecycle Review" className="wide">
+        {lifecycle ? (
+          <DataTable
+            columns={[
+              { key: "state", label: "State", render: (row) => <StatusPill tone="blue">{String(row.state)}</StatusPill> },
+              { key: "lifecycleAction", label: "Action" },
+              { key: "rollbackModelId", label: "Rollback Model" },
+              { key: "retrainingJobId", label: "Retraining Job" },
+              { key: "reason", label: "Reason" },
+              { key: "job", label: "Project Job" },
+              { key: "execution", label: "Execution" }
+            ]}
+            rows={[{
+              ...lifecycle,
+              reason: lifecycle.rollbackReason ?? lifecycle.retrainingReason ?? lifecycle.deprecationReason ?? lifecycle.archiveReason ?? lifecycle.validationEvidence?.reason ?? "No review reason attached",
+              job: lifecycleJob?.jobId ?? "No lifecycle job linked",
+              execution: lifecycleJob?.executionEvidence?.executionId ?? lifecycle.validationEvidence?.retrainingJobId ?? "pending"
+            }]}
+            getRowKey={(row) => `${String(row.modelId)}-${String(row.updatedAt)}`}
+          />
+        ) : (
+          <p className="empty-state">No project lifecycle record is attached to this model yet. Approve, deploy, rollback, deprecate, archive, or request retraining through the local gateway to capture lifecycle evidence.</p>
+        )}
       </Card>
 
       <Card title="Version Performance">
