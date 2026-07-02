@@ -20,6 +20,29 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Output Contract Import Slice - 2026-07-02
+
+### Work Done Till Date
+
+- Added `outputContractImport` to the prediction-export request contract and OpenAPI schema.
+- The gateway imports JSON prediction output contracts from managed `local://` refs or local files under configured import roots.
+- Import validation covers connector/source agreement, JSON-only format, `.json` extension, bounded size, sensitive-looking filenames, optional SHA-256 checksum, contract id alignment with `outputContractRef`, required columns, and source-column mappings.
+- Prediction exports persist redacted source provenance, connector, checksum, and size evidence under `validationEvidence.outputContractImport`.
+- Inline `outputContract` and imported contracts are rejected when supplied together.
+- Contract tests verify the schema and typed gateway-client usage.
+- Julia route tests verify managed-local imports, local-file imports, materialized prediction artifacts, redacted import evidence, and conflict rejection.
+
+### Gaps Pending
+
+- AKS-36 parent remains open because this checkpoint proves imported contract handling, not real model scoring or deploy-runtime semantics.
+- Broader gateway module split, local-source threat modeling, redaction previews, and deeper real-model execution remain open.
+- Final reviewer/architect/persona/application-test agents remain deferred until the parent issue evidence is complete.
+
+### Next Items To Implement
+
+- Move toward deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics.
+- Continue gateway module split and local trust-boundary hardening.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Frontend Project Job Evidence Slice - 2026-07-02
 
 ### Work Done Till Date

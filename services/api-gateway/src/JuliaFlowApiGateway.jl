@@ -5492,6 +5492,75 @@ function prediction_export_content(format::AbstractString, rows::AbstractVector,
     return JuliaFlowDataScienceProjectPredictionExport.prediction_export_content(format, rows, output_columns, output_mappings)
 end
 
+function prediction_output_contract_import_max_bytes()
+    return positive_env_int("JULIAFLOW_OUTPUT_CONTRACT_MAX_BYTES", min(local_data_import_max_bytes(), 1024 * 1024))
+end
+
+function prediction_output_contract_import_format(raw_import::AbstractDict)
+    format = lowercase(strip(String(get(raw_import, "format", "json"))))
+    format == "json" || error("prediction export outputContractImport format must be json")
+    return format
+end
+
+function validate_prediction_output_contract_import_file!(path::AbstractString)
+    sensitive_import_path(path) && error("prediction export outputContractImport source appears to contain credentials or secrets")
+    isfile(path) || error("prediction export outputContractImport source file not found")
+    extension = lowercase(splitext(path)[2])
+    extension == ".json" || error("prediction export outputContractImport source extension must be .json")
+    size = filesize(path)
+    size > 0 || error("prediction export outputContractImport source file is empty")
+    size <= prediction_output_contract_import_max_bytes() || error("prediction export outputContractImport source file exceeds size limit")
+    return nothing
+end
+
+function prediction_output_contract_import_path(raw_import::AbstractDict)
+    source_uri = strip(String(get(raw_import, "sourceUri", "")))
+    !isempty(source_uri) || error("prediction export outputContractImport sourceUri required")
+    format = prediction_output_contract_import_format(raw_import)
+    normalized = replace(source_uri, "\\" => "/")
+    is_managed_ref = startswith(lowercase(normalized), "local://")
+    connector = strip(String(get(raw_import, "connector", is_managed_ref ? "managed_local" : "local_file")))
+    connector in ("managed_local", "local_file") || error("prediction export outputContractImport connector must be managed_local or local_file")
+    is_managed_ref && connector == "managed_local" || !is_managed_ref && connector == "local_file" || error("prediction export outputContractImport connector does not match sourceUri")
+    path = is_managed_ref ? local_data_ref_path_for_write(source_uri) : validate_local_data_import_source!(source_uri)
+    validate_prediction_output_contract_import_file!(path)
+    bytes = read(path)
+    checksum = bytes2hex(sha256(bytes))
+    if haskey(raw_import, "checksumSha256")
+        expected = lowercase(strip(String(raw_import["checksumSha256"])))
+        !isempty(expected) || error("prediction export outputContractImport checksumSha256 cannot be empty")
+        expected == checksum || error("prediction export outputContractImport checksum mismatch")
+    end
+    details = local_data_import_audit_source_details(source_uri)
+    details["connector"] = connector
+    details["format"] = format
+    details["checksumSha256"] = checksum
+    details["sizeBytes"] = length(bytes)
+    return path, bytes, details
+end
+
+function prediction_export_contract_and_import(body::AbstractDict, output_contract_ref::AbstractString)
+    if haskey(body, "outputContractImport")
+        haskey(body, "outputContract") && error("prediction export outputContract and outputContractImport cannot both be provided")
+        raw_import = body["outputContractImport"]
+        raw_import isa AbstractDict || error("prediction export outputContractImport must be an object")
+        _, bytes, import_details = prediction_output_contract_import_path(raw_import)
+        content = try
+            String(copy(bytes))
+        catch
+            error("prediction export outputContractImport source must be UTF-8 JSON")
+        end
+        raw_contract = try
+            JSON3.read(content, Dict{String,Any})
+        catch
+            error("prediction export outputContractImport source must contain valid JSON")
+        end
+        contract = prediction_export_contract(Dict{String,Any}("outputContract" => raw_contract), output_contract_ref)
+        return contract, import_details
+    end
+    return prediction_export_contract(body, output_contract_ref), nothing
+end
+
 function persist_prediction_export_artifact!(
     prediction_export::Dict{String,Any},
     report::AbstractDict,
@@ -5544,7 +5613,7 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
     !isempty(strip(output_contract_ref)) || error("prediction export outputContractRef required")
     format = prediction_export_format(body)
     row_count = prediction_export_row_count(body, dataset)
-    output_contract = prediction_export_contract(body, output_contract_ref)
+    output_contract, output_contract_import = prediction_export_contract_and_import(body, output_contract_ref)
     output_columns = prediction_export_output_columns(body, output_contract)
     output_mappings = prediction_export_output_mappings(body, output_contract, output_columns)
     output_contract_columns = prediction_export_contract_column_names(output_contract)
@@ -5576,6 +5645,10 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
         ),
         "createdAt" => timestamp,
     )
+    output_contract_import === nothing || begin
+        prediction_export["outputContractImport"] = output_contract_import
+        prediction_export["validationEvidence"]["outputContractImport"] = output_contract_import
+    end
     artifact_refs = persist_prediction_export_artifact!(prediction_export, report, dataset_id, output_contract_ref, output_columns, output_mappings)
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "prediction_export")
     execution_evidence = data_science_project_execution_evidence!(

@@ -781,6 +781,13 @@ export interface PredictionOutputContract {
   createdAt?: string;
 }
 
+export interface PredictionOutputContractImport {
+  sourceUri: string;
+  connector?: "managed_local" | "local_file" | string;
+  format?: "json" | string;
+  checksumSha256?: string;
+}
+
 export interface PredictionOutputMapping {
   outputColumn: string;
   sourceColumn: string;
@@ -791,6 +798,7 @@ export interface RunPredictionExportRequest {
   evaluationReportId?: string;
   outputContractRef?: string;
   outputContract?: PredictionOutputContract;
+  outputContractImport?: PredictionOutputContractImport;
   outputMappings?: PredictionOutputMapping[];
   format?: "csv" | "parquet" | "jsonl" | string;
   rowCount?: number;
@@ -905,6 +913,7 @@ export interface PredictionExport {
   format?: string;
   outputColumns?: string[];
   outputContract?: PredictionOutputContract;
+  outputContractImport?: PredictionOutputContractImport;
   outputMappings?: PredictionOutputMapping[];
   artifactRefs?: DataScienceProjectEvidenceRef[];
   executionEvidence?: DataScienceProjectJobExecutionEvidence;
@@ -914,6 +923,7 @@ export interface PredictionExport {
     evaluationReportId?: string;
     executionId?: string;
     outputContractRef?: string;
+    outputContractImport?: PredictionOutputContractImport;
     outputColumns?: string[];
     outputContractColumns?: string[];
     outputMappings?: PredictionOutputMapping[];

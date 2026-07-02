@@ -21,6 +21,27 @@ Tracker always records 3 things:
 - Last updated: `2026-07-02`
 
 ## Work Done Till Date
+### AKS-36 Output Contract Import Slice (2026-07-02)
+
+- Added `outputContractImport` to the prediction-export request contract and OpenAPI schema.
+- The local gateway now imports JSON prediction output contracts from managed `local://` refs or local files under configured import roots.
+- Output contract import validates connector/source agreement, JSON-only format, `.json` extension, bounded size, sensitive-looking filenames, optional SHA-256 checksum, contract id alignment with `outputContractRef`, required output columns, and source-column mappings.
+- Prediction exports persist redacted import provenance, connector, checksum, and size evidence under `validationEvidence.outputContractImport`.
+- Inline `outputContract` and imported contracts are mutually exclusive so route callers cannot submit conflicting schema sources.
+- Contract coverage verifies the new schema and typed gateway-client surface.
+- Julia gateway route coverage verifies managed-local contract imports, local-file contract imports, imported contract artifact materialization, redacted source evidence, and conflict rejection.
+
+### Gaps Pending
+
+- AKS-36 remains open because the current slice proves bounded contract import, not deeper real-model scoring or deploy-runtime semantics.
+- Broader local-source threat modeling, redaction previews, and gateway module extraction remain open.
+- Final reviewer/architect/persona/application-test agents remain queued until the parent issue evidence is complete.
+
+### Next Items To Implement
+
+- Move from deterministic substrate evidence toward deeper real-model training/tuning/evaluation/scoring/drift/deploy-runtime semantics.
+- Continue broader gateway module split and local trust-boundary hardening.
+
 ### AKS-36 Frontend Project Job Evidence Slice (2026-07-02)
 
 - Data import/profile actions now send the active `DataScienceProject.projectId` to the local gateway.

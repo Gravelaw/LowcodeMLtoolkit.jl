@@ -2866,6 +2866,9 @@
           "outputContract": {
             "$ref": "#/components/schemas/PredictionOutputContract"
           },
+          "outputContractImport": {
+            "$ref": "#/components/schemas/PredictionOutputContractImport"
+          },
           "outputMappings": {
             "type": "array",
             "items": {
@@ -8713,6 +8716,33 @@
             }
           },
           "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "PredictionOutputContractImport": {
+        "type": "object",
+        "required": [
+          "sourceUri"
+        ],
+        "properties": {
+          "sourceUri": {
+            "type": "string"
+          },
+          "connector": {
+            "type": "string",
+            "enum": [
+              "managed_local",
+              "local_file"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "json"
+            ]
+          },
+          "checksumSha256": {
             "type": "string"
           }
         }

@@ -116,6 +116,11 @@ const predictionExportRequest: RunPredictionExportRequest = {
   datasetId: "contracts-train",
   evaluationReportId: "eval-contracts",
   outputContractRef: "contract://outputs/churn-predictions",
+  outputContractImport: {
+    sourceUri: "local://contracts/churn-predictions.json",
+    connector: "managed_local",
+    format: "json"
+  },
   format: "csv",
   rowCount: 12,
   outputColumns: ["prediction_id", "dataset_id", "evaluation_report_id", "output_contract_ref", "prediction"]

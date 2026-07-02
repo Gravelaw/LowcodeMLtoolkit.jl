@@ -2309,17 +2309,46 @@ end
         unsupported_source_path = joinpath(import_root, "profile.exe")
         credential_content_path = joinpath(import_root, "profile-with-auth-column.csv")
         pii_content_path = joinpath(import_root, "profile-with-pii.csv")
+        file_output_contract_path = joinpath(import_root, "foundation-file-submission.json")
         data_estate_root = mktempdir()
         foundation_raw_data_dir = joinpath(data_estate_root, "raw")
+        foundation_contract_dir = joinpath(data_estate_root, "contracts")
         mkpath(foundation_raw_data_dir)
+        mkpath(foundation_contract_dir)
         foundation_dataset_path = joinpath(foundation_raw_data_dir, "foundation-sales-sample.csv")
+        foundation_output_contract_path = joinpath(foundation_contract_dir, "foundation-submission.json")
         write(import_source_path, "region,amount,window\nnorth,12.5,2026-Q2\nsouth,9.5,2026-Q2\n")
         write(secret_source_path, "api_key,value\nredacted,1\n")
         write(large_source_path, repeat("x", 2048))
         write(unsupported_source_path, "not,a,dataset\n")
         write(credential_content_path, "region,amount,access_token\nnorth,12.5,redacted\n")
         write(pii_content_path, "customer_id,ssn,amount\n1,000-00-0000,12.5\n")
+        write(
+            file_output_contract_path,
+            JSON3.write(
+                Dict(
+                    "contractId" => "contract://outputs/file-foundation-submission",
+                    "columns" => [
+                        Dict("name" => "row_id", "sourceColumn" => "prediction_id", "required" => true),
+                        Dict("name" => "score", "sourceColumn" => "prediction", "type" => "float64", "required" => true),
+                    ],
+                ),
+            ),
+        )
         write(foundation_dataset_path, "region,segment,amount,margin\nnorth,retail,10,2\nsouth,enterprise,20,4\nnorth,retail,30,9\nsouth,enterprise,40,11\n")
+        write(
+            foundation_output_contract_path,
+            JSON3.write(
+                Dict(
+                    "contractId" => "contract://outputs/imported-foundation-submission",
+                    "columns" => [
+                        Dict("name" => "row_id", "sourceColumn" => "prediction_id", "required" => true),
+                        Dict("name" => "score", "sourceColumn" => "prediction", "type" => "float64", "required" => true),
+                    ],
+                    "primaryKey" => ["row_id"],
+                ),
+            ),
+        )
         ENV["JULIAFLOW_IMPORT_ROOTS"] = import_root
         ENV["JULIAFLOW_IMPORT_MAX_BYTES"] = "1024"
         ENV["JULIAFLOW_DATA_ESTATE_ROOT"] = data_estate_root
@@ -3409,6 +3438,69 @@ end
                             ],
                         ),
                         "outputColumns" => ["row_id", "score"],
+                    ),
+                ),
+            ),
+        )
+        prediction_export_imported_contract_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/imported-foundation-submission",
+                        "outputContractImport" => Dict(
+                            "sourceUri" => "local://contracts/foundation-submission.json",
+                            "connector" => "managed_local",
+                            "format" => "json",
+                        ),
+                        "outputColumns" => ["row_id", "score"],
+                        "format" => "jsonl",
+                        "rowCount" => 2,
+                    ),
+                ),
+            ),
+        )
+        prediction_export_conflicting_contract_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/conflicting-foundation-submission",
+                        "outputContract" => Dict(
+                            "contractId" => "contract://outputs/conflicting-foundation-submission",
+                            "columns" => [Dict("name" => "row_id", "sourceColumn" => "prediction_id")],
+                        ),
+                        "outputContractImport" => Dict("sourceUri" => "local://contracts/foundation-submission.json"),
+                    ),
+                ),
+            ),
+        )
+        prediction_export_file_contract_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/file-foundation-submission",
+                        "outputContractImport" => Dict(
+                            "sourceUri" => file_output_contract_path,
+                            "connector" => "local_file",
+                            "format" => "json",
+                        ),
+                        "outputColumns" => ["row_id", "score"],
+                        "format" => "csv",
+                        "rowCount" => 2,
                     ),
                 ),
             ),
@@ -5169,6 +5261,27 @@ end
         @test startswith(read(mapped_artifact_path, String), "row_id,score")
         @test prediction_export_bad_mapping_response.status == 400
         @test occursin("outputMappings unsupported sourceColumn", String(prediction_export_bad_mapping_response.body))
+        @test prediction_export_imported_contract_response.status == 201
+        prediction_export_imported_contract_payload = JSON3.read(String(prediction_export_imported_contract_response.body), Dict{String,Any})
+        @test prediction_export_imported_contract_payload["predictionExport"]["outputContractRef"] == "contract://outputs/imported-foundation-submission"
+        @test String.(collect(prediction_export_imported_contract_payload["predictionExport"]["outputColumns"])) == ["row_id", "score"]
+        imported_contract_evidence = prediction_export_imported_contract_payload["predictionExport"]["validationEvidence"]["outputContractImport"]
+        @test imported_contract_evidence["sourceKind"] == "managed"
+        @test imported_contract_evidence["sourceRef"] == "local://contracts/foundation-submission.json"
+        @test imported_contract_evidence["connector"] == "managed_local"
+        @test haskey(imported_contract_evidence, "checksumSha256")
+        imported_contract_artifact_ref = String(prediction_export_imported_contract_payload["predictionExport"]["artifactRef"])
+        imported_contract_artifact_path = joinpath(data_estate_root, split(replace(imported_contract_artifact_ref, "local://" => ""), '/')...)
+        @test occursin("\"row_id\"", read(imported_contract_artifact_path, String))
+        @test prediction_export_conflicting_contract_response.status == 400
+        @test occursin("outputContract and outputContractImport cannot both be provided", String(prediction_export_conflicting_contract_response.body))
+        @test prediction_export_file_contract_response.status == 201
+        prediction_export_file_contract_payload = JSON3.read(String(prediction_export_file_contract_response.body), Dict{String,Any})
+        file_contract_evidence = prediction_export_file_contract_payload["predictionExport"]["validationEvidence"]["outputContractImport"]
+        @test file_contract_evidence["sourceKind"] == "file"
+        @test file_contract_evidence["sourceBasename"] == "foundation-file-submission.json"
+        @test file_contract_evidence["connector"] == "local_file"
+        @test !haskey(file_contract_evidence, "sourceUri")
         @test drift_report_response.status == 201
         drift_report_payload = JSON3.read(String(drift_report_response.body), Dict{String,Any})
         @test drift_report_payload["status"] == "completed"
