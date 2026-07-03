@@ -6,6 +6,7 @@ export local_csv_statistical_evidence_from_path,
     requested_feature_columns,
     parse_simple_csv,
     simple_numeric_columns,
+    candidate_numeric_feature_columns,
     sample_mean,
     sample_std,
     pearson_correlation,
@@ -91,6 +92,20 @@ function simple_numeric_columns(table::AbstractDict)
         end
     end
     return columns, missing_counts
+end
+
+function candidate_numeric_feature_columns(numeric_columns::AbstractDict, target_column::AbstractString; max_features::Integer = 5)
+    target = String(target_column)
+    function eligible(column)
+        normalized = lowercase(strip(String(column)))
+        column != target || return false
+        normalized in ("id", "row_id", "index", "rowindex", "row_number") && return false
+        endswith(normalized, "_id") && return false
+        endswith(normalized, "-id") && return false
+        return true
+    end
+    features = sort([String(column) for column in keys(numeric_columns) if eligible(String(column))])
+    return first(features, min(Int(max_features), length(features)))
 end
 
 function simple_column_values(table::AbstractDict, column::AbstractString)

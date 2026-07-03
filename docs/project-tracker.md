@@ -21,6 +21,25 @@ Tracker always records 3 things:
 - Last updated: `2026-07-03`
 
 ## Work Done Till Date
+### AKS-36 Validation-Backed Local CSV Tuning Slice (2026-07-03)
+
+- Project tuning now uses managed local CSV evidence when available instead of producing only deterministic placeholder trials.
+- The tuning helper builds bounded OLS candidate feature sets, excludes obvious id/index columns from predictor selection, fits train rows only, scores validation rows with requested metrics, and marks the selected trial.
+- Tuning trial artifacts are now materialized under managed local refs with checksum/size evidence.
+- Tuning-study validation evidence records `local_csv_validation_tuning` when real CSV validation scoring is used and keeps deterministic fallback explicit when the local CSV path is unavailable.
+- Final-evaluation validation evidence now carries the selected tuning trial id and tuning execution mode.
+- Julia helper and route coverage verify validation-scored trial selection, leakage-prone id-column exclusion, artifact materialization, and final-evaluation linkage.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is validation-backed selection for the local CSV OLS path, not MLJ-backed model families or broader hyperparameter optimization.
+- Richer preprocessing, broader drift methodology, CPU/GPU trial execution, and final reviewer/architect/persona/application-test passes remain open.
+
+### Next Items To Implement
+
+- Extend model artifact and tuning semantics toward MLJ-backed model families and broader hyperparameter search.
+- Add CPU/GPU trial execution evidence and broader classical-ML dataset validation before final review agents run.
+
 ### AKS-36 Local CSV Multi-Feature OLS Artifact Slice (2026-07-03)
 
 - Local CSV training now emits `local_csv_multi_feature_ols` artifacts when multiple numeric non-target predictors are available, while preserving `local_csv_single_feature_ols` for one-feature datasets.

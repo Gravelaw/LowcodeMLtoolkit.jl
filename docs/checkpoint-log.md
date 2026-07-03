@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Validation-Backed Local CSV Tuning Slice - 2026-07-03
+
+### Work Done Till Date
+
+- Project tuning now uses managed local CSV evidence when available instead of producing only deterministic placeholder trials.
+- The tuning helper builds bounded OLS candidate feature sets, excludes obvious id/index columns from predictor selection, fits train rows only, scores validation rows with requested metrics, and marks the selected trial.
+- Tuning trial artifacts are materialized under managed local refs with checksum/size evidence.
+- Tuning-study validation evidence records `local_csv_validation_tuning` for real CSV validation scoring and keeps deterministic fallback explicit when the local CSV path is unavailable.
+- Final-evaluation validation evidence carries the selected tuning trial id and tuning execution mode.
+- Julia helper and route coverage verifies validation-scored trial selection, id-column exclusion, artifact materialization, and final-evaluation linkage.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is validation-backed tuning for the local CSV OLS path rather than MLJ-backed model families or broader hyperparameter search.
+- Richer preprocessing, broader drift methodology, CPU/GPU trial execution, and final reviewer/architect/persona/application-test agents remain open.
+
+### Next Items To Implement
+
+- Extend tuning and model artifacts toward MLJ-backed model families and broader hyperparameter search.
+- Continue toward CPU/GPU trial execution evidence and final review passes.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Multi-Feature OLS Artifact Slice - 2026-07-03
 
 ### Work Done Till Date

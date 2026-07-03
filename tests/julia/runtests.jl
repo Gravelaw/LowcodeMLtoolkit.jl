@@ -561,6 +561,30 @@ end
     @test trials[1]["trialId"] == "study-helper-trial-1"
     @test trials[1]["metrics"]["rmse"] == 0.5
     @test trials[2]["artifactRefs"][1]["path"] == "local://tuning/tuning-helper/study-helper/trial-2.json"
+    mktempdir() do temp_dir
+        csv_path = joinpath(temp_dir, "tuning.csv")
+        write(csv_path, "row_id,amount,margin,units\n1,10,10,1\n2,20,20,2\n3,30,30,3\n4,40,0,4\n5,50,0,5\n")
+        local_trials = tuning.local_csv_validation_tuning_trials(
+            "tuning-helper",
+            "study-local",
+            "local_csv_ols",
+            ["rmse", "mae"],
+            2,
+            "2026-06-23T00:00:00Z",
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/tuning.csv"),
+            csv_path,
+            "amount",
+            split_plan,
+        )
+        @test local_trials !== nothing
+        @test length(local_trials) == 2
+        @test local_trials[1]["validationEvidence"]["executionMode"] == "local_csv_validation_tuning"
+        @test local_trials[2]["validationEvidence"]["featureColumns"] == ["units"]
+        @test local_trials[2]["metrics"]["rmse"] == 0.0
+        @test local_trials[2]["selected"] == true
+        local_study = tuning.tuning_study_record("study-local", "training-helper", local_trials, validation_context, "2026-06-23T00:00:00Z")
+        @test local_study["bestTrialId"] == "study-local-trial-2"
+    end
     study = tuning.tuning_study_record("study-helper", "training-helper", trials, validation_context, "2026-06-23T00:00:00Z")
     @test study["validationOnly"] == true
     @test study["bestTrialId"] == "study-helper-trial-1"
@@ -842,6 +866,10 @@ end
     @test evidence["inferentialTests"]["tTest"]["groups"] == ["East", "West"]
     @test evidence["inferentialTests"]["chiSquare"]["degreesOfFreedom"] == 1
     @test evidence["inferentialTests"]["spearmanCorrelation"]["columns"] == ["amount", "margin"]
+    @test stats.candidate_numeric_feature_columns(
+        Dict("row_id" => [1.0], "customer_id" => [2.0], "amount" => [3.0], "margin" => [4.0]),
+        "amount",
+    ) == ["margin"]
     multi_ols = stats.simple_multi_linear_ols(
         [15.0, 25.0, 35.0, 45.0],
         ["margin" => [1.0, 2.0, 3.0, 4.0], "units" => [5.0, 6.0, 7.0, 8.0]],
@@ -5293,6 +5321,8 @@ end
         @test tuning_study_payload["status"] == "completed"
         @test tuning_study_payload["tuningStudy"]["validationOnly"] == true
         @test tuning_study_payload["tuningStudy"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test tuning_study_payload["tuningStudy"]["validationEvidence"]["tuningExecutionMode"] == "local_csv_validation_tuning"
+        @test startswith(String(tuning_study_payload["tuningStudy"]["bestTrialId"]), "tuning-")
         @test startswith(String(tuning_study_payload["tuningStudy"]["executionEvidence"]["executionId"]), "dsjob-")
         @test tuning_study_payload["tuningStudy"]["validationEvidence"]["executionId"] == tuning_study_payload["tuningStudy"]["executionEvidence"]["executionId"]
         tuning_study_execution_id = String(tuning_study_payload["tuningStudy"]["executionEvidence"]["executionId"])
@@ -5302,7 +5332,16 @@ end
         @test tuning_study_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
         @test tuning_study_execution.metadata["data_science_project_worker_state"]["job_type"] == "tuning_study"
         @test [entry["status"] for entry in tuning_study_execution.status_history] == ["accepted", "queued", "running", "completed"]
-        @test length(tuning_study_payload["tuningStudy"]["trials"]) == 3
+        @test length(tuning_study_payload["tuningStudy"]["trials"]) >= 1
+        @test any(trial -> Bool(get(trial, "selected", false)), tuning_study_payload["tuningStudy"]["trials"])
+        @test all(
+            trial -> all(ref -> haskey(ref, "checksumSha256") && haskey(ref, "sizeBytes"), trial["artifactRefs"]),
+            tuning_study_payload["tuningStudy"]["trials"],
+        )
+        tuning_trial_artifact_ref = String(tuning_study_payload["tuningStudy"]["trials"][1]["artifactRefs"][1]["path"])
+        tuning_trial_artifact_path = joinpath(data_estate_root, split(replace(tuning_trial_artifact_ref, "local://" => ""), '/')...)
+        @test isfile(tuning_trial_artifact_path)
+        @test occursin("local_csv_validation_tuning", read(tuning_trial_artifact_path, String))
         @test length(tuning_study_payload["project"]["tuningStudies"]) >= 1
         @test length(tuning_study_payload["project"]["trainingPlans"]) >= 1
         @test tuning_study_final_test_response.status == 400
@@ -5314,6 +5353,8 @@ end
         @test final_evaluation_payload["evaluationReport"]["finalTestOnly"] == true
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["finalTestPolicy"] == "use_final_test"
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["validationOnlyTuning"] == true
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["tuningBestTrialId"] == tuning_study_payload["tuningStudy"]["bestTrialId"]
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["tuningExecutionMode"] == "local_csv_validation_tuning"
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationExecutionMode"] == "local_csv_trained_artifact"
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["targetColumn"] == "amount"
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["baselineModel"] == "trained_single_feature_ols"

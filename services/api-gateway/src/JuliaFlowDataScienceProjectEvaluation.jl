@@ -98,6 +98,8 @@ function final_evaluation_validation_context(
         "datasetId" => String(dataset_id),
         "splitPlanId" => split_plan_id,
         "tuningStudyId" => String(get(tuning_study, "tuningStudyId", "")),
+        "tuningBestTrialId" => String(get(tuning_study, "bestTrialId", "")),
+        "tuningExecutionMode" => String(get(tuning_validation, "tuningExecutionMode", "")),
         "finalTestPolicy" => final_test_policy,
         "validationOnlyTuning" => true,
         "testFraction" => test_fraction,

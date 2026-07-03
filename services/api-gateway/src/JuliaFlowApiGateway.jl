@@ -3015,7 +3015,7 @@ function local_csv_training_artifact!(
     numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
     target_column = String(experiment["target"])
     haskey(numeric_columns, target_column) || return nothing
-    feature_columns = first(sort([column for column in keys(numeric_columns) if column != target_column]), min(5, length(keys(numeric_columns)) - 1))
+    feature_columns = JuliaFlowDataScienceProjectStatistics.candidate_numeric_feature_columns(numeric_columns, target_column)
     isempty(feature_columns) && return nothing
     target_values = numeric_columns[target_column]
     row_count = length(target_values)
@@ -5467,10 +5467,64 @@ function tuning_max_trials(body::AbstractDict)
     return JuliaFlowDataScienceProjectTuning.tuning_max_trials(body)
 end
 
+function local_csv_validation_tuning_trials(
+    dataset::AbstractDict,
+    split_plan::AbstractDict,
+    project_id::AbstractString,
+    study_id::AbstractString,
+    algorithm::AbstractString,
+    metric_names::AbstractVector,
+    max_trials::Integer,
+    timestamp::AbstractString,
+    target_column::AbstractString,
+)
+    source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
+    source_path === nothing && return nothing
+    return JuliaFlowDataScienceProjectTuning.local_csv_validation_tuning_trials(
+        project_id,
+        study_id,
+        algorithm,
+        metric_names,
+        max_trials,
+        timestamp,
+        dataset,
+        source_path,
+        target_column,
+        split_plan,
+    )
+end
+
+function persist_tuning_trial_artifacts!(trials::Vector{Dict{String,Any}})
+    for trial in trials
+        refs = get(trial, "artifactRefs", Dict{String,Any}[])
+        isempty(refs) && continue
+        ref = refs[1]
+        artifact_ref = String(get(ref, "path", ""))
+        isempty(strip(artifact_ref)) && continue
+        artifact_path = local_data_ref_path_for_write(artifact_ref)
+        mkpath(dirname(artifact_path))
+        content = JSON3.write(
+            Dict(
+                "trialId" => String(get(trial, "trialId", "")),
+                "parameters" => get(trial, "parameters", Dict{String,Any}()),
+                "metrics" => get(trial, "metrics", Dict{String,Any}()),
+                "selected" => Bool(get(trial, "selected", false)),
+                "validationEvidence" => get(trial, "validationEvidence", Dict{String,Any}()),
+            ),
+        ) * "\n"
+        write(artifact_path, content)
+        checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
+        ref["checksumSha256"] = checksum
+        ref["sizeBytes"] = filesize(artifact_path)
+    end
+    return trials
+end
+
 function run_tuning_study_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
     project = state.data_science_projects[project_id]
     dataset_id = statistical_analysis_dataset(project, body)
+    dataset = data_science_project_dataset(project, dataset_id)
     split_plan, validation_context = validate_tuning_split_context(project, body, dataset_id)
     haskey(body, "targetColumn") || error("tuning study targetColumn required")
     target_column = String(body["targetColumn"])
@@ -5490,7 +5544,15 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
     )
     JuliaFlowDataScienceProjectTuning.upsert_training_plan!(project, training_plan)
     study_id = "tuning-" * replace(string(uuid4()), "-" => "")
-    trials = JuliaFlowDataScienceProjectTuning.tuning_trials(project.project_id, study_id, algorithm, metric_names, max_trials, timestamp)
+    trials = local_csv_validation_tuning_trials(dataset, split_plan, project.project_id, study_id, algorithm, metric_names, max_trials, timestamp, target_column)
+    if trials === nothing
+        trials = JuliaFlowDataScienceProjectTuning.tuning_trials(project.project_id, study_id, algorithm, metric_names, max_trials, timestamp)
+        validation_context["tuningExecutionMode"] = "deterministic_fallback"
+        validation_context["tuningWarning"] = "Managed local CSV source or numeric target was unavailable; deterministic tuning trial evidence was used."
+    else
+        validation_context["tuningExecutionMode"] = "local_csv_validation_tuning"
+    end
+    persist_tuning_trial_artifacts!(trials)
     tuning_study = JuliaFlowDataScienceProjectTuning.tuning_study_record(study_id, training_plan_id, trials, validation_context, timestamp)
     project.tuning_studies = [tuning_study, project.tuning_studies...]
     tuning_output_refs = JuliaFlowDataScienceProjectTuning.tuning_output_refs(trials)
