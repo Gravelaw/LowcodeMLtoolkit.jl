@@ -5494,6 +5494,22 @@ function local_csv_validation_tuning_trials(
     )
 end
 
+function annotate_tuning_trial_resource_evidence!(trials::Vector{Dict{String,Any}}, resource_evidence::AbstractDict)
+    for (index, trial) in enumerate(trials)
+        trial_resource = Dict{String,Any}(String(key) => value for (key, value) in pairs(resource_evidence))
+        trial_resource["executionMode"] = "validation_only_tuning_trial"
+        trial_resource["trialIndex"] = index
+        trial_resource["trialId"] = String(get(trial, "trialId", ""))
+        trial_resource["candidateIndex"] = Int(get(get(trial, "parameters", Dict{String,Any}()), "candidateIndex", index))
+        trial["resourceEvidence"] = trial_resource
+        validation = get!(trial, "validationEvidence", Dict{String,Any}())
+        validation["resourceEvidence"] = trial_resource
+        validation["dispatchLane"] = String(get(trial_resource, "dispatchLane", "cpu"))
+        validation["workerPool"] = String(get(trial_resource, "workerPool", "local-cpu"))
+    end
+    return trials
+end
+
 function persist_tuning_trial_artifacts!(trials::Vector{Dict{String,Any}})
     for trial in trials
         refs = get(trial, "artifactRefs", Dict{String,Any}[])
@@ -5510,6 +5526,7 @@ function persist_tuning_trial_artifacts!(trials::Vector{Dict{String,Any}})
                 "metrics" => get(trial, "metrics", Dict{String,Any}()),
                 "selected" => Bool(get(trial, "selected", false)),
                 "validationEvidence" => get(trial, "validationEvidence", Dict{String,Any}()),
+                "resourceEvidence" => get(trial, "resourceEvidence", Dict{String,Any}()),
             ),
         ) * "\n"
         write(artifact_path, content)
@@ -5552,11 +5569,12 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
     else
         validation_context["tuningExecutionMode"] = "local_csv_validation_tuning"
     end
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "validation_only_tuning")
+    annotate_tuning_trial_resource_evidence!(trials, resource_evidence)
     persist_tuning_trial_artifacts!(trials)
     tuning_study = JuliaFlowDataScienceProjectTuning.tuning_study_record(study_id, training_plan_id, trials, validation_context, timestamp)
     project.tuning_studies = [tuning_study, project.tuning_studies...]
     tuning_output_refs = JuliaFlowDataScienceProjectTuning.tuning_output_refs(trials)
-    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "validation_only_tuning")
     execution_evidence = data_science_project_execution_evidence!(
         state,
         project,

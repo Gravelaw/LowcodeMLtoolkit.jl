@@ -5344,6 +5344,11 @@ end
         @test [entry["status"] for entry in tuning_study_execution.status_history] == ["accepted", "queued", "running", "completed"]
         @test length(tuning_study_payload["tuningStudy"]["trials"]) >= 1
         @test any(trial -> Bool(get(trial, "selected", false)), tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> haskey(trial, "resourceEvidence"), tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> trial["resourceEvidence"]["executionMode"] == "validation_only_tuning_trial", tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> haskey(trial["resourceEvidence"], "selectedBackend"), tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> haskey(trial["resourceEvidence"], "gpuFallbackReason"), tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> trial["validationEvidence"]["dispatchLane"] == trial["resourceEvidence"]["dispatchLane"], tuning_study_payload["tuningStudy"]["trials"])
         @test all(
             trial -> all(ref -> haskey(ref, "checksumSha256") && haskey(ref, "sizeBytes"), trial["artifactRefs"]),
             tuning_study_payload["tuningStudy"]["trials"],
@@ -5351,7 +5356,10 @@ end
         tuning_trial_artifact_ref = String(tuning_study_payload["tuningStudy"]["trials"][1]["artifactRefs"][1]["path"])
         tuning_trial_artifact_path = joinpath(data_estate_root, split(replace(tuning_trial_artifact_ref, "local://" => ""), '/')...)
         @test isfile(tuning_trial_artifact_path)
-        @test occursin("local_csv_validation_tuning", read(tuning_trial_artifact_path, String))
+        tuning_trial_artifact_payload = JSON3.read(read(tuning_trial_artifact_path, String), Dict{String,Any})
+        @test tuning_trial_artifact_payload["validationEvidence"]["executionMode"] == "local_csv_validation_tuning"
+        @test tuning_trial_artifact_payload["resourceEvidence"]["executionMode"] == "validation_only_tuning_trial"
+        @test tuning_trial_artifact_payload["resourceEvidence"]["workerPool"] == tuning_study_payload["tuningStudy"]["trials"][1]["resourceEvidence"]["workerPool"]
         @test length(tuning_study_payload["project"]["tuningStudies"]) >= 1
         @test length(tuning_study_payload["project"]["trainingPlans"]) >= 1
         @test tuning_study_final_test_response.status == 400

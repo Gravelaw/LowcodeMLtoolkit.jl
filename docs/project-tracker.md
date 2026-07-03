@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-07-03`
 
 ## Work Done Till Date
+### AKS-36 Per-Trial CPU/GPU Resource Evidence Slice (2026-07-03)
+
+- Validation-only tuning trials now carry normalized local resource evidence, not just the parent tuning project job.
+- Each trial records requested backend, selected backend, dispatch lane, worker pool, scheduler policy, CPU thread/concurrency/memory settings, GPU readiness, GPU hardware/simulated counts, GPU fallback reason, trial id, trial index, and candidate index.
+- Trial validation evidence mirrors dispatch lane and worker pool for quick review.
+- Materialized tuning trial artifacts persist the same resource evidence with checksum/size refs.
+- Julia route coverage verifies per-trial resource evidence, dispatch linkage, GPU fallback evidence, and artifact persistence.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is execution placement evidence for local tuning trials, not actual GPU-accelerated model training or MLJ-backed trial execution.
+- Broader model-family execution, richer hyperparameter search, feature-level drift, and final reviewer/architect/persona/application-test passes remain open.
+
+### Next Items To Implement
+
+- Extend trial execution from placement evidence toward actual MLJ-backed model/trial execution when dependencies and contracts are ready.
+- Add final review agents only after parent AKS-36 evidence is complete.
+
 ### AKS-36 Local CSV Prediction Distribution Drift Slice (2026-07-03)
 
 - Drift reports now prefer local prediction artifact evidence when available instead of always using deterministic placeholder metric values.
