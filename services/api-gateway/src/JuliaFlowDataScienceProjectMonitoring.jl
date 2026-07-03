@@ -1,12 +1,16 @@
 module JuliaFlowDataScienceProjectMonitoring
 
 using ..JuliaFlowGatewayRepository
+using ..JuliaFlowDataScienceProjectStatistics
+using JSON3
 using UUIDs
 
 export project_prediction_export_for_drift,
     drift_metric_names,
     drift_threshold,
     monitoring_baseline_for_drift!,
+    prediction_column_values_from_content,
+    drift_metric_values_from_predictions,
     drift_metric_values,
     drift_status,
     drift_report_record,
@@ -83,6 +87,95 @@ function drift_metric_values(metric_names::AbstractVector)
     metrics = Dict{String,Any}()
     for (index, metric) in enumerate(metric_names)
         metrics[String(metric)] = round(min(1.0, 0.08 * index); digits = 4)
+    end
+    return metrics
+end
+
+function prediction_column_values_from_content(content::AbstractString, format::AbstractString)
+    values = Float64[]
+    if String(format) == "jsonl"
+        for line in split(content, '\n')
+            isempty(strip(line)) && continue
+            row = JSON3.read(line, Dict{String,Any})
+            haskey(row, "prediction") || continue
+            parsed = tryparse(Float64, String(row["prediction"]))
+            parsed === nothing || push!(values, parsed)
+        end
+        return values
+    end
+    lines = [line for line in split(content, '\n') if !isempty(strip(line))]
+    isempty(lines) && return values
+    headers = [strip(header) for header in split(lines[1], ',')]
+    prediction_index = findfirst(header -> header == "prediction", headers)
+    prediction_index === nothing && return values
+    for line in lines[2:end]
+        columns = [strip(column) for column in split(line, ',')]
+        length(columns) >= prediction_index || continue
+        parsed = tryparse(Float64, columns[prediction_index])
+        parsed === nothing || push!(values, parsed)
+    end
+    return values
+end
+
+function drift_ks_statistic(left::Vector{Float64}, right::Vector{Float64})
+    n = min(length(left), length(right))
+    n == 0 && return 0.0
+    left_values = sort(left[1:n])
+    right_values = sort(right[1:n])
+    combined = sort(unique(vcat(left_values, right_values)))
+    isempty(combined) && return 0.0
+    max_delta = 0.0
+    for value in combined
+        left_cdf = count(item -> item <= value, left_values) / n
+        right_cdf = count(item -> item <= value, right_values) / n
+        max_delta = max(max_delta, abs(left_cdf - right_cdf))
+    end
+    return round(max_delta; digits = 6)
+end
+
+function drift_psi_value(left::Vector{Float64}, right::Vector{Float64})
+    n = min(length(left), length(right))
+    n == 0 && return 0.0
+    left_values = left[1:n]
+    right_values = right[1:n]
+    lower = min(minimum(left_values), minimum(right_values))
+    upper = max(maximum(left_values), maximum(right_values))
+    upper == lower && return 0.0
+    bucket_count = min(10, max(2, n))
+    epsilon = 1.0e-6
+    psi = 0.0
+    for bucket in 1:bucket_count
+        bucket_lower = lower + (upper - lower) * (bucket - 1) / bucket_count
+        bucket_upper = lower + (upper - lower) * bucket / bucket_count
+        left_count = count(value -> bucket == bucket_count ? bucket_lower <= value <= bucket_upper : bucket_lower <= value < bucket_upper, left_values)
+        right_count = count(value -> bucket == bucket_count ? bucket_lower <= value <= bucket_upper : bucket_lower <= value < bucket_upper, right_values)
+        expected = max(left_count / n, epsilon)
+        actual = max(right_count / n, epsilon)
+        psi += (actual - expected) * log(actual / expected)
+    end
+    return round(max(0.0, psi); digits = 6)
+end
+
+function drift_metric_values_from_predictions(metric_names::AbstractVector, baseline_predictions::Vector{Float64}, current_predictions::Vector{Float64})
+    n = min(length(baseline_predictions), length(current_predictions))
+    n == 0 && return nothing
+    baseline = baseline_predictions[1:n]
+    current = current_predictions[1:n]
+    mean_delta = abs(JuliaFlowDataScienceProjectStatistics.sample_mean(current) - JuliaFlowDataScienceProjectStatistics.sample_mean(baseline))
+    baseline_scale = max(abs(JuliaFlowDataScienceProjectStatistics.sample_mean(baseline)), 1.0)
+    metrics = Dict{String,Any}()
+    for metric in metric_names
+        key = String(metric)
+        normalized = safe_drift_token(key)
+        metrics[key] = if normalized in ("psi", "population-stability", "population-stability-index")
+            drift_psi_value(baseline, current)
+        elseif normalized in ("ks", "kolmogorov-smirnov")
+            drift_ks_statistic(baseline, current)
+        elseif normalized in ("mean-shift", "mean-delta")
+            round(min(1.0, mean_delta / baseline_scale); digits = 6)
+        else
+            round(min(1.0, mean_delta / baseline_scale); digits = 6)
+        end
     end
     return metrics
 end

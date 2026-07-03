@@ -48,6 +48,10 @@ Next implementation lane: local-first GA proof after the BRD v0.4.1 product-surf
 
 The current AKS-36 tuning risk is narrowed for managed local CSV regression datasets: tuning now scores bounded OLS candidate feature sets on validation rows, excludes obvious id/index predictors, marks the selected trial, materializes checksum/size tuning-trial artifacts, and carries the selected tuning trial id into final-evaluation evidence. `R-ML-VALIDITY-001` and `R-MLOPS-001` remain open for MLJ-backed model families, broader hyperparameter search, richer preprocessing, drift methodology, CPU/GPU trial execution, and UI/reviewer closure.
 
+### AKS-36 Drift Risk Note - 2026-07-03
+
+The current AKS-36 drift risk is narrowed for supported local CSV prediction exports: drift reports now read materialized prediction artifacts, recompute current approved-model predictions, calculate PSI/KS/mean-shift style prediction-distribution metrics, persist `local_csv_prediction_distribution` evidence, and keep deterministic fallback explicit when local artifacts are unavailable. `R-MLOPS-001` remains open for production baseline management, feature-level drift, MLJ-backed model drift semantics, CPU/GPU trial execution, and UI/reviewer closure.
+
 ### Review Fix Note - 2026-06-20
 
 Automated Codex review findings from PRs #2, #3, #4, #37, and #38 identified residual risk in stale-empty chart rendering, Transform live-workflow resync, palette-node metadata, workspace disk/artifact evidence, DuckDB root binding, Postgres metadata readiness, and lab-team Postgres startup ordering. The current follow-up branch mitigates those concrete risks with targeted code changes and tests while preserving the existing local-first scope.

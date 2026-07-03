@@ -20,6 +20,28 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Prediction Distribution Drift Slice - 2026-07-03
+
+### Work Done Till Date
+
+- Drift reports now prefer local prediction artifact evidence when available instead of always using deterministic placeholder metric values.
+- The gateway reads materialized CSV/JSONL prediction export artifacts and extracts prediction values.
+- Current predictions are recomputed from approved final-evaluation local CSV model evidence.
+- Drift metrics compare baseline export predictions against current predictions with PSI, KS, and mean-shift style metrics.
+- Drift report validation evidence records `local_csv_prediction_distribution`, prediction counts, scoring mode, and source prediction export id.
+- Drift report artifacts persist the same evidence with checksum/size refs.
+- Julia helper and route coverage verifies prediction artifact parsing, distribution metric calculation, route evidence, and artifact persistence.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is prediction-distribution drift for the supported local CSV path, not a full feature-level or MLJ-backed model drift system.
+- Richer production baselines, feature-level drift, CPU/GPU trial execution, and final reviewer/architect/persona/application-test agents remain open.
+
+### Next Items To Implement
+
+- Extend drift semantics toward feature-level drift and MLJ-backed model evidence.
+- Continue toward CPU/GPU trial execution evidence and final review passes.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Validation-Backed Local CSV Tuning Slice - 2026-07-03
 
 ### Work Done Till Date

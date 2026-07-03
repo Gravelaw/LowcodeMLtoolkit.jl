@@ -374,6 +374,16 @@ end
     metric_values = monitoring.drift_metric_values(["psi", "ks", "wasserstein"])
     @test metric_values["psi"] == 0.08
     @test metric_values["wasserstein"] == 0.24
+    exported_predictions = monitoring.prediction_column_values_from_content(
+        "prediction_id,prediction\np1,10.0\np2,20.0\n",
+        "csv",
+    )
+    @test exported_predictions == [10.0, 20.0]
+    drift_metrics = monitoring.drift_metric_values_from_predictions(["psi", "ks", "mean-shift"], [10.0, 20.0, 30.0], [10.0, 25.0, 30.0])
+    @test drift_metrics !== nothing
+    @test haskey(drift_metrics, "psi")
+    @test drift_metrics["ks"] >= 0.0
+    @test drift_metrics["mean-shift"] > 0.0
     @test monitoring.drift_status(metric_values, 0.2) == "moderate"
     @test monitoring.drift_status(metric_values, 0.1) == "high"
     report = monitoring.drift_report_record(
@@ -5490,6 +5500,11 @@ end
         @test drift_report_payload["status"] == "completed"
         @test drift_report_payload["monitoringBaseline"]["baselineId"] == "baseline-foundation-drift"
         @test drift_report_payload["driftReport"]["validationEvidence"]["outputContractRef"] == "contract://outputs/foundation-predictions"
+        @test drift_report_payload["driftReport"]["validationEvidence"]["driftExecutionMode"] == "local_csv_prediction_distribution"
+        @test drift_report_payload["driftReport"]["validationEvidence"]["driftDataEvidence"]["predictionScoringMode"] == "local_csv_trained_artifact"
+        @test drift_report_payload["driftReport"]["validationEvidence"]["driftDataEvidence"]["baselinePredictionCount"] == prediction_export_payload["predictionExport"]["rowCount"]
+        @test haskey(drift_report_payload["driftReport"]["metrics"], "psi")
+        @test haskey(drift_report_payload["driftReport"]["metrics"], "ks")
         @test startswith(String(drift_report_payload["driftReport"]["executionEvidence"]["executionId"]), "dsjob-")
         @test drift_report_payload["driftReport"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
         @test drift_report_payload["driftReport"]["executionEvidence"]["dispatchStatus"] == "completed"
@@ -5503,6 +5518,7 @@ end
         drift_artifact_payload = JSON3.read(read(drift_artifact_path, String), Dict{String,Any})
         @test drift_artifact_payload["driftReportId"] == drift_report_payload["driftReport"]["driftReportId"]
         @test drift_artifact_payload["predictionExportId"] == prediction_export_payload["predictionExport"]["predictionExportId"]
+        @test drift_artifact_payload["validationEvidence"]["driftExecutionMode"] == "local_csv_prediction_distribution"
         @test length(drift_report_payload["project"]["monitoringBaselines"]) >= 1
         @test length(drift_report_payload["project"]["driftReports"]) >= 1
         @test length(drift_report_payload["project"]["projectJobs"]) >= 7

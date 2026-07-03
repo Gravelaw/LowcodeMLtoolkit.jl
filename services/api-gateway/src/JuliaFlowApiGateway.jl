@@ -6124,21 +6124,71 @@ function monitoring_baseline_for_drift!(project::DataScienceProjectRecord, body:
     return JuliaFlowDataScienceProjectMonitoring.monitoring_baseline_for_drift!(project, body, dataset_id, prediction_export, metric_names, timestamp)
 end
 
+function prediction_export_artifact_values(prediction_export::AbstractDict)
+    artifact_ref = String(get(prediction_export, "artifactRef", ""))
+    if isempty(strip(artifact_ref))
+        refs = get(prediction_export, "artifactRefs", Any[])
+        isempty(refs) && return nothing
+        artifact_ref = String(get(refs[1], "path", ""))
+    end
+    isempty(strip(artifact_ref)) && return nothing
+    artifact_path = local_data_ref_path_for_write(artifact_ref)
+    isfile(artifact_path) || return nothing
+    content = read(artifact_path, String)
+    format = String(get(prediction_export, "format", lowercase(splitext(artifact_path)[2][2:end])))
+    values = JuliaFlowDataScienceProjectMonitoring.prediction_column_values_from_content(content, format)
+    return isempty(values) ? nothing : values
+end
+
+function local_csv_drift_metric_result(dataset::AbstractDict, prediction_export::AbstractDict, report::AbstractDict, metric_names::AbstractVector)
+    baseline_predictions = prediction_export_artifact_values(prediction_export)
+    baseline_predictions === nothing && return nothing
+    current_predictions, scoring_mode = local_csv_prediction_values_from_report(dataset, report, length(baseline_predictions))
+    current_predictions === nothing && return nothing
+    metrics = JuliaFlowDataScienceProjectMonitoring.drift_metric_values_from_predictions(
+        metric_names,
+        baseline_predictions,
+        Float64.(current_predictions),
+    )
+    metrics === nothing && return nothing
+    return Dict{String,Any}(
+        "metrics" => metrics,
+        "evidence" => Dict{String,Any}(
+            "executionMode" => "local_csv_prediction_distribution",
+            "predictionScoringMode" => scoring_mode,
+            "baselinePredictionCount" => length(baseline_predictions),
+            "currentPredictionCount" => length(current_predictions),
+            "sourcePredictionExportId" => String(get(prediction_export, "predictionExportId", "")),
+            "artifactRef" => String(get(prediction_export, "artifactRef", "")),
+        ),
+    )
+end
+
 function run_drift_report_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
     project = state.data_science_projects[project_id]
     dataset_id = statistical_analysis_dataset(project, body)
+    dataset = data_science_project_dataset(project, dataset_id)
     prediction_export = project_prediction_export_for_drift(project, body)
     validation = get(prediction_export, "validationEvidence", Dict{String,Any}())
     Bool(get(validation, "finalEvaluationApproved", false)) || error("drift report prerequisite approved final evaluation required")
     String(get(validation, "datasetId", dataset_id)) == String(dataset_id) || error("drift report dataset must match prediction export")
+    report = project_evaluation_report_for_prediction_export(project, Dict{String,Any}("evaluationReportId" => String(get(prediction_export, "evaluationReportId", ""))))
     metric_names = drift_metric_names(body)
     threshold = drift_threshold(body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     baseline = monitoring_baseline_for_drift!(project, body, dataset_id, prediction_export, metric_names, timestamp)
-    metrics = JuliaFlowDataScienceProjectMonitoring.drift_metric_values(metric_names)
+    drift_result = local_csv_drift_metric_result(dataset, prediction_export, report, metric_names)
+    metrics = drift_result === nothing ? JuliaFlowDataScienceProjectMonitoring.drift_metric_values(metric_names) : drift_result["metrics"]
     status = JuliaFlowDataScienceProjectMonitoring.drift_status(metrics, threshold)
     drift_report = JuliaFlowDataScienceProjectMonitoring.drift_report_record(project, baseline, prediction_export, dataset_id, metrics, status, timestamp)
+    if drift_result === nothing
+        drift_report["validationEvidence"]["driftExecutionMode"] = "deterministic_fallback"
+        drift_report["validationEvidence"]["driftWarning"] = "Prediction artifact or local CSV scoring evidence was unavailable; deterministic drift metrics were used."
+    else
+        drift_report["validationEvidence"]["driftExecutionMode"] = drift_result["evidence"]["executionMode"]
+        drift_report["validationEvidence"]["driftDataEvidence"] = drift_result["evidence"]
+    end
     report_id = String(drift_report["driftReportId"])
     output_refs = JuliaFlowDataScienceProjectMonitoring.drift_output_refs(project.project_id, report_id, timestamp)
     output_refs = persist_drift_report_artifact!(drift_report, baseline, prediction_export, output_refs)
