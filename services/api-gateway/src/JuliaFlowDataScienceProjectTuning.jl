@@ -226,17 +226,79 @@ function tuning_candidate_feature_sets(feature_columns::Vector{String}, max_tria
     return candidates
 end
 
-function tuning_predictions_from_ols(ols::AbstractDict, feature_pairs::AbstractVector, validation_range)
+function tuning_candidate_specs(feature_columns::Vector{String}, max_trials::Integer; classifier_mode::Bool = false)
+    base_candidates = tuning_candidate_feature_sets(feature_columns, max_trials)
+    specs = Dict{String,Any}[]
+    for (index, candidate) in enumerate(base_candidates)
+        push!(
+            specs,
+            Dict{String,Any}(
+                "candidateIndex" => index,
+                "featureColumns" => candidate,
+                "hyperparameters" => classifier_mode ?
+                    Dict{String,Any}("classificationThreshold" => 0.5) :
+                    Dict{String,Any}("regularizationStrength" => 0.0),
+            ),
+        )
+        length(specs) >= max_trials && return specs
+    end
+    variants = classifier_mode ? [0.4, 0.6, 0.3, 0.7] : [0.01, 0.1, 1.0, 10.0]
+    for variant in variants
+        for (index, candidate) in enumerate(base_candidates)
+            push!(
+                specs,
+                Dict{String,Any}(
+                    "candidateIndex" => index,
+                    "featureColumns" => candidate,
+                    "hyperparameters" => classifier_mode ?
+                        Dict{String,Any}("classificationThreshold" => variant) :
+                        Dict{String,Any}("regularizationStrength" => variant),
+                ),
+            )
+            length(specs) >= max_trials && return specs
+        end
+    end
+    return specs
+end
+
+function tuning_predictions_from_ols(ols::AbstractDict, feature_pairs::AbstractVector, validation_range; regularization_strength::Real = 0.0)
+    shrink = 1.0 / (1.0 + max(Float64(regularization_strength), 0.0))
     if length(feature_pairs) == 1 && haskey(ols, "slope")
         feature_values = feature_pairs[1].second
-        return [Float64(ols["intercept"]) + Float64(ols["slope"]) * feature_values[row] for row in validation_range]
+        return [Float64(ols["intercept"]) + shrink * Float64(ols["slope"]) * feature_values[row] for row in validation_range]
     end
     haskey(ols, "slopes") || return nothing
     slopes = get(ols, "slopes", Dict{String,Any}())
     return [
-        Float64(ols["intercept"]) + sum(Float64(get(slopes, String(pair.first), 0.0)) * pair.second[row] for pair in feature_pairs)
+        Float64(ols["intercept"]) + sum(shrink * Float64(get(slopes, String(pair.first), 0.0)) * pair.second[row] for pair in feature_pairs)
         for row in validation_range
     ]
+end
+
+function tuning_metric_predictions(metric::AbstractString, predictions::Vector{Float64}, classifier, threshold::Real)
+    classifier === nothing && return predictions
+    safe_tuning_token(metric) == "auc" && return predictions
+    positive_label = Float64(get(classifier, "positiveLabel", 1.0))
+    negative_label = Float64(get(classifier, "negativeLabel", 0.0))
+    cutoff = Float64(threshold)
+    return [probability >= cutoff ? positive_label : negative_label for probability in predictions]
+end
+
+function tuning_ols_coefficients(ols::AbstractDict, model_kind::AbstractString, regularization_strength::Real)
+    shrink = 1.0 / (1.0 + max(Float64(regularization_strength), 0.0))
+    if model_kind == "local_csv_single_feature_ols"
+        return Dict{String,Any}(
+            "intercept" => ols["intercept"],
+            "slope" => round(shrink * Float64(ols["slope"]); digits = 6),
+            "unregularizedSlope" => ols["slope"],
+        )
+    end
+    slopes = get(ols, "slopes", Dict{String,Any}())
+    return Dict{String,Any}(
+        "intercept" => ols["intercept"],
+        "slopes" => Dict(String(key) => round(shrink * Float64(value); digits = 6) for (key, value) in pairs(slopes)),
+        "unregularizedSlopes" => slopes,
+    )
 end
 
 function tuning_classifier_requested(algorithm::AbstractString, target_values::Vector{Float64})
@@ -276,15 +338,19 @@ function local_csv_validation_tuning_trials(
     validation_range = (train_count + 1):(train_count + validation_count)
     train_target = target_values[1:train_count]
     validation_target = target_values[validation_range]
-    candidates = tuning_candidate_feature_sets(String.(feature_columns), max_trials)
-    isempty(candidates) && return nothing
     primary_metric = String(first(metric_names))
     lower_is_better = tuning_lower_is_better(primary_metric)
     classifier_mode = tuning_classifier_requested(algorithm, target_values[1:row_count])
+    candidate_specs = tuning_candidate_specs(String.(feature_columns), max_trials; classifier_mode = classifier_mode)
+    isempty(candidate_specs) && return nothing
     trials = Dict{String,Any}[]
     best_index = 0
     best_value = lower_is_better ? Inf : -Inf
-    for (index, candidate) in enumerate(candidates)
+    for (index, spec) in enumerate(candidate_specs)
+        candidate = Vector{String}(spec["featureColumns"])
+        hyperparameters = Dict{String,Any}(String(key) => value for (key, value) in pairs(get(spec, "hyperparameters", Dict{String,Any}())))
+        regularization_strength = Float64(get(hyperparameters, "regularizationStrength", 0.0))
+        classification_threshold = Float64(get(hyperparameters, "classificationThreshold", 0.5))
         feature_pairs = [column => numeric_columns[column] for column in candidate]
         train_pairs = [column => numeric_columns[column][1:train_count] for column in candidate]
         classifier = classifier_mode ? JuliaFlowDataScienceProjectStatistics.simple_binary_centroid_classifier(train_target, train_pairs) : nothing
@@ -296,11 +362,12 @@ function local_csv_validation_tuning_trials(
         (classifier === nothing && ols === nothing) && continue
         predictions = classifier !== nothing ?
             JuliaFlowDataScienceProjectStatistics.binary_centroid_probabilities(classifier, feature_pairs, validation_range) :
-            tuning_predictions_from_ols(ols, feature_pairs, validation_range)
+            tuning_predictions_from_ols(ols, feature_pairs, validation_range; regularization_strength = regularization_strength)
         predictions === nothing && continue
         metrics = Dict{String,Any}()
         for metric in metric_names
-            metrics[String(metric)] = tuning_metric_from_errors(String(metric), validation_target, predictions)
+            metric_predictions = tuning_metric_predictions(String(metric), predictions, classifier, classification_threshold)
+            metrics[String(metric)] = tuning_metric_from_errors(String(metric), validation_target, metric_predictions)
         end
         selection_value = Float64(get(metrics, primary_metric, 0.0))
         if best_index == 0 || (lower_is_better ? selection_value < best_value : selection_value > best_value)
@@ -319,9 +386,9 @@ function local_csv_validation_tuning_trials(
                 "featureScales" => classifier["featureScales"],
             )
         elseif model_kind == "local_csv_single_feature_ols"
-            Dict{String,Any}("intercept" => ols["intercept"], "slope" => ols["slope"])
+            tuning_ols_coefficients(ols, model_kind, regularization_strength)
         else
-            Dict{String,Any}("intercept" => ols["intercept"], "slopes" => ols["slopes"])
+            tuning_ols_coefficients(ols, model_kind, regularization_strength)
         end
         push!(
             trials,
@@ -331,16 +398,20 @@ function local_csv_validation_tuning_trials(
                     "algorithm" => String(algorithm),
                     "modelFamily" => model_family,
                     "featureColumns" => candidate,
-                    "candidateIndex" => index,
+                    "candidateIndex" => Int(get(spec, "candidateIndex", index)),
+                    "searchIndex" => index,
+                    "hyperparameters" => hyperparameters,
                 ),
                 "metrics" => metrics,
                 "validationEvidence" => Dict{String,Any}(
                     "executionMode" => "local_csv_validation_tuning",
+                    "searchMode" => "feature_set_and_hyperparameter_grid",
                     "sourceRef" => String(get(dataset, "sourceUri", "")),
                     "targetColumn" => String(target_column),
                     "modelKind" => model_kind,
                     "featureColumn" => first(candidate),
                     "featureColumns" => candidate,
+                    "hyperparameters" => hyperparameters,
                     "selectionMetric" => primary_metric,
                     "selectionDirection" => lower_is_better ? "lower_is_better" : "higher_is_better",
                     "selectionValue" => selection_value,

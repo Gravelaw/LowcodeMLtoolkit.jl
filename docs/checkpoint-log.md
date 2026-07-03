@@ -20,6 +20,26 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Hyperparameter Grid Tuning Slice - 2026-07-03
+
+### Work Done Till Date
+
+- Validation-scored local CSV tuning now uses the additional `maxTrials` budget for feature-set plus hyperparameter grid evidence.
+- Regression candidates preserve the existing base feature-set search, then add ridge-style regularization-strength variants with validation metrics and regularized coefficient evidence.
+- Binary-classifier candidates preserve the existing base feature-set search, then add classification-threshold variants while keeping AUC based on probability ranking.
+- Trial parameters and validation evidence now record `hyperparameters`, `searchIndex`, and `searchMode`, and persisted trial artifacts carry the same evidence.
+- Julia tuning helper coverage verifies regularization variants, classifier threshold variants, AUC evidence, and selected-trial marking.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is still native local CSV search, not real MLJ package-backed hyperparameter optimization.
+- Actual GPU-accelerated trial execution, MLJ-backed model-family training/tuning/evaluation/scoring/drift, final integrated classical-ML tests, and reviewer/architect/persona/application-test agents remain open.
+
+### Next Items To Implement
+
+- Continue toward MLJ-backed model-family execution or the final integrated classical-ML dataset test harness once enough native substrate is in place.
+- Add final review agents only after parent AKS-36 implementation and combined final tests are complete.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Binary Classifier Tuning Slice - 2026-07-03
 
 ### Work Done Till Date

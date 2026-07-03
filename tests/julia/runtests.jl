@@ -621,6 +621,22 @@ end
         @test local_trials[2]["validationEvidence"]["featureColumns"] == ["units"]
         @test local_trials[2]["metrics"]["rmse"] == 0.0
         @test local_trials[2]["selected"] == true
+        regularized_trials = tuning.local_csv_validation_tuning_trials(
+            "tuning-helper",
+            "study-regularized",
+            "local_csv_ols",
+            ["rmse", "mae"],
+            5,
+            "2026-06-23T00:00:00Z",
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/tuning.csv"),
+            csv_path,
+            "amount",
+            split_plan,
+        )
+        @test regularized_trials !== nothing
+        @test any(trial -> Float64(trial["parameters"]["hyperparameters"]["regularizationStrength"]) > 0.0, regularized_trials)
+        @test all(trial -> trial["validationEvidence"]["searchMode"] == "feature_set_and_hyperparameter_grid", regularized_trials)
+        @test haskey(regularized_trials[end]["validationEvidence"], "hyperparameters")
         classifier_csv_path = joinpath(temp_dir, "classification-tuning.csv")
         write(classifier_csv_path, "row_id,survived,age,fare\n1,0,20,8\n2,0,25,9\n3,0,30,10\n4,1,60,80\n5,1,65,90\n6,1,70,100\n")
         classifier_trials = tuning.local_csv_validation_tuning_trials(
@@ -628,7 +644,7 @@ end
             "study-classifier",
             "MLJ.XGBoostClassifier",
             ["accuracy", "f1", "auc"],
-            3,
+            5,
             "2026-06-23T00:00:00Z",
             Dict{String,Any}("datasetId" => "dataset-classifier", "sourceUri" => "local://data/classification-tuning.csv"),
             classifier_csv_path,
@@ -642,6 +658,7 @@ end
         @test haskey(classifier_trials[1]["metrics"], "accuracy")
         @test haskey(classifier_trials[1]["metrics"], "auc")
         @test 0.0 <= classifier_trials[1]["metrics"]["auc"] <= 1.0
+        @test any(trial -> Float64(trial["parameters"]["hyperparameters"]["classificationThreshold"]) != 0.5, classifier_trials)
         @test any(trial -> Bool(get(trial, "selected", false)), classifier_trials)
         local_study = tuning.tuning_study_record("study-local", "training-helper", local_trials, validation_context, "2026-06-23T00:00:00Z")
         @test local_study["bestTrialId"] == "study-local-trial-2"

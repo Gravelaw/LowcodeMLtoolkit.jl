@@ -8,6 +8,12 @@ This register tracks active BRD delivery risks that should be burned down throug
 
 Next implementation lane: local-first GA proof after the BRD v0.4.1 product-surface refresh. The active risk burn-down now prioritizes local appliance bootstrap, mock-aligned local product modules, local filesystem/DuckDB data estate, local PostgreSQL lab/team metadata mode, local CPU/GPU hardware validation, explainability/model evidence, offline Hub, academic reproducibility, and backup/restore. Provider-specific deployment, cloud object stores, external registries, enterprise identity, and cloud multi-GPU closure are optional compatibility paths rather than core GA blockers.
 
+### AKS-36 Hyperparameter-Grid Risk Note - 2026-07-03
+
+- Local CSV validation-only tuning now searches feature-set plus hyperparameter variants when `maxTrials` allows it.
+- Regression trials record regularization-strength variants; binary-classifier trials record classification-threshold variants while preserving probability-ranked AUC.
+- Remaining risk: this is still native local CSV tuning, not MLJ package-backed optimization or actual GPU-accelerated trial execution.
+
 | ID | Area | Risk | Impact | Likelihood | Mitigation | Next Evidence | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | R-LOCAL-001 | Bootstrap | Local install remains multi-step or brittle across machines. | Target academic/small-team users cannot get to first workflow quickly. | High | `dev:local`/`smoke:local-bootstrap`, profile wiring, local zone initialization, gateway health evidence, Monitor rendering, sample workflow availability, native Windows toolchain checks, and Debian-native toolchain checks are implemented and smoke-tested with no cloud credentials. | Keep `npm run smoke:local-bootstrap`, `npm run doctor:windows`, and `npm run doctor:debian` in the local-first gate set; WSL `/mnt/c` Windows Node interop remains rejected. | Mitigated for bootstrap slice |
