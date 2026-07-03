@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local Deploy Runtime Inference Slice - 2026-07-03
+
+### Work Done Till Date
+
+- Local deploy packaging now generates a Genie service that performs runtime scoring for `local_csv_single_feature_ols` model artifacts.
+- Generated service code resolves `local://` refs through `JULIAFLOW_DATA_ESTATE_ROOT`, loads the persisted JSON model artifact, reads the configured numeric feature from the request payload, and returns a numeric prediction.
+- Deploy-package validation evidence records `deployRuntimeInferenceMode`, model artifact ref, and checksum.
+- Unsupported model kinds keep an explicit echo fallback until their artifact loaders are implemented.
+- Julia helper and route coverage verifies service-code generation, package validation evidence, and artifact-ref propagation.
+
+### Gaps Pending
+
+- AKS-36 remains open because deploy runtime inference is limited to the local CSV single-feature OLS artifact path.
+- MLJ-backed model families, tuned model selection, richer preprocessing, drift methodology, and CPU/GPU trial execution remain open.
+- Final reviewer/architect/persona/application-test agents remain deferred until parent evidence is complete.
+
+### Next Items To Implement
+
+- Extend model artifact formats/loaders toward MLJ-backed models and tuned model selection.
+- Add CPU/GPU trial execution evidence and broader classical-ML dataset validation before final review agents run.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Artifact-Loaded Final Evaluation And Export Slice - 2026-07-02
 
 ### Work Done Till Date
@@ -34,13 +55,12 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 remains open because the artifact path is still limited to local CSV single-feature OLS.
-- Full MLJ-backed training/tuning/model selection, richer preprocessing, drift methodology, and deploy-runtime inference semantics remain open.
+- Full MLJ-backed training/tuning/model selection, richer preprocessing, drift methodology, and CPU/GPU trial execution remain open.
 - Final reviewer/architect/persona/application-test agents remain deferred until parent evidence is complete.
 
 ### Next Items To Implement
 
 - Extend persisted model artifacts toward MLJ-backed model families and tuned model selection.
-- Add deploy-runtime inference evidence that executes the persisted model artifact.
 - Continue toward CPU/GPU trial execution evidence and final review passes.
 
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Trained Artifact Registry/Deploy Propagation Slice - 2026-07-02
@@ -55,7 +75,7 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 remains open because broader MLJ-backed training/tuning/model selection and deploy-runtime inference semantics remain open.
+- AKS-36 remains open because broader MLJ-backed training/tuning/model selection and deploy inference beyond the current OLS path remain open.
 
 ### Next Items To Implement
 
@@ -218,7 +238,7 @@ Each checkpoint entry must contain:
 ### Gaps Pending
 
 - AKS-36 parent remains open because project-backed frontend migration, release/local-appliance no-fixture evidence, and deeper real-model training/transform/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
-- This checkpoint proves deploy package worker evidence and local service package materialization, not production inference serving or frontend workflow readiness.
+- This checkpoint proved deploy package worker evidence and local service package materialization; production inference serving beyond the current OLS path and frontend workflow readiness remain open.
 
 ### Next Items To Implement
 

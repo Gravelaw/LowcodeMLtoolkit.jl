@@ -6,7 +6,9 @@ using SHA
 export local_deploy_service_code,
     deploy_package_records,
     deploy_endpoint_config,
+    deploy_model_artifact,
     deploy_model_ref,
+    deploy_runtime_inference_mode,
     deploy_artifact_evidence,
     deploy_package_record,
     deploy_package_checksum_payload
@@ -15,7 +17,72 @@ function normalized_dict(value)
     return Dict{String,Any}(String(key) => item for (key, item) in pairs(value))
 end
 
-function local_deploy_service_code(model_id::AbstractString, endpoint_url::AbstractString, model_ref::AbstractString)
+function local_csv_ols_service_code(model_id::AbstractString, endpoint_url::AbstractString, model_ref::AbstractString, model_artifact::AbstractDict)
+    feature_column = String(get(model_artifact, "featureColumn", ""))
+    return """using Genie, JSON3
+
+const MODEL_PATH = "$(String(model_ref))"
+const FEATURE_COLUMN = "$(feature_column)"
+
+function local_model_path(ref::AbstractString)
+    if startswith(String(ref), "local://")
+        data_root = get(ENV, "JULIAFLOW_DATA_ESTATE_ROOT", joinpath(homedir(), ".juliaflow", "data"))
+        relative = replace(String(ref), "local://" => "")
+        return joinpath(data_root, split(relative, "/")...)
+    end
+    return String(ref)
+end
+
+function load_model()
+    return JSON3.read(read(local_model_path(MODEL_PATH), String), Dict{String,Any})
+end
+
+function numeric_payload_value(payload, name::AbstractString)
+    if payload isa AbstractDict && haskey(payload, name)
+        return Float64(payload[name])
+    elseif payload isa AbstractDict && haskey(payload, "features")
+        features = payload["features"]
+        if features isa AbstractDict && haskey(features, name)
+            return Float64(features[name])
+        end
+    end
+    error("missing numeric feature: " * String(name))
+end
+
+function score(payload)
+    model = load_model()
+    coefficients = model["coefficients"]
+    feature = numeric_payload_value(payload, String(model["featureColumn"]))
+    return round(Float64(coefficients["intercept"]) + Float64(coefficients["slope"]) * feature; digits = 6)
+end
+
+route("/v1/predict", method = POST) do
+    payload = JSON3.read(rawpayload())
+    prediction = score(payload)
+    return JSON3.write(Dict(
+        "modelId" => "$(String(model_id))",
+        "endpoint" => "$(String(endpoint_url))",
+        "localOnly" => true,
+        "modelArtifactRef" => MODEL_PATH,
+        "inferenceMode" => "local_csv_single_feature_ols",
+        "featureColumn" => FEATURE_COLUMN,
+        "prediction" => prediction,
+    ))
+end
+
+up(host = "127.0.0.1", port = 8000)
+"""
+end
+
+function local_deploy_service_code(
+    model_id::AbstractString,
+    endpoint_url::AbstractString,
+    model_ref::AbstractString,
+    model_artifact::Union{Nothing,AbstractDict} = nothing,
+)
+    if model_artifact !== nothing && String(get(model_artifact, "modelKind", "")) == "local_csv_single_feature_ols"
+        return local_csv_ols_service_code(model_id, endpoint_url, model_ref, model_artifact)
+    end
     return """using Genie, JSON3
 
 const MODEL_PATH = "$(String(model_ref))"
@@ -53,10 +120,22 @@ function deploy_endpoint_config(body::AbstractDict)
     )
 end
 
-function deploy_model_ref(model_record::AbstractDict)
+function deploy_model_artifact(model_record::AbstractDict)
     artifacts = get(model_record, "artifactEvidence", Any[])
-    model_artifact = findfirst(item -> String(item["kind"]) == "model", artifacts)
-    return model_artifact === nothing ? "local://models/$(String(model_record["modelId"])).json" : String(artifacts[model_artifact]["artifactRef"])
+    index = findfirst(item -> item isa AbstractDict && String(get(item, "kind", "")) == "model", artifacts)
+    return index === nothing ? nothing : normalized_dict(artifacts[index])
+end
+
+function deploy_model_ref(model_record::AbstractDict)
+    model_artifact = deploy_model_artifact(model_record)
+    return model_artifact === nothing ? "local://models/$(String(model_record["modelId"])).json" : String(model_artifact["artifactRef"])
+end
+
+function deploy_runtime_inference_mode(model_artifact)
+    model_artifact isa AbstractDict || return "echo_payload_fallback"
+    return String(get(model_artifact, "modelKind", "")) == "local_csv_single_feature_ols" ?
+        "local_csv_single_feature_ols" :
+        "echo_payload_fallback"
 end
 
 function deploy_artifact_evidence(

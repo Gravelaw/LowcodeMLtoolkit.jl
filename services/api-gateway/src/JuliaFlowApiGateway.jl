@@ -3708,8 +3708,13 @@ function model_registry_list_response(state::GatewayState, workflow_id::Abstract
     return JSON3.write(Dict("items" => deduped, "count" => length(deduped)))
 end
 
-function local_deploy_service_code(model_id::AbstractString, endpoint_url::AbstractString, model_ref::AbstractString)
-    return JuliaFlowDataScienceProjectDeploy.local_deploy_service_code(model_id, endpoint_url, model_ref)
+function local_deploy_service_code(
+    model_id::AbstractString,
+    endpoint_url::AbstractString,
+    model_ref::AbstractString,
+    model_artifact = nothing,
+)
+    return JuliaFlowDataScienceProjectDeploy.local_deploy_service_code(model_id, endpoint_url, model_ref, model_artifact)
 end
 
 function deploy_package_records(execution::GatewayExecution)
@@ -3802,8 +3807,15 @@ function deploy_package_payload!(state::GatewayState, workflow_id::AbstractStrin
     endpoint_config = JuliaFlowDataScienceProjectDeploy.deploy_endpoint_config(body)
     endpoint_url = String(endpoint_config["endpointUrl"])
     package_id = "deploy-" * replace(string(uuid4()), "-" => "")
+    model_artifact = JuliaFlowDataScienceProjectDeploy.deploy_model_artifact(model_record)
     model_ref = JuliaFlowDataScienceProjectDeploy.deploy_model_ref(model_record)
-    service_code = local_deploy_service_code(String(model_record["modelId"]), endpoint_url, model_ref)
+    validation_context = Dict{String,Any}(String(key) => value for (key, value) in pairs(validation_context))
+    validation_context["deployRuntimeInferenceMode"] = JuliaFlowDataScienceProjectDeploy.deploy_runtime_inference_mode(model_artifact)
+    model_artifact === nothing || begin
+        validation_context["deployRuntimeModelArtifactRef"] = String(get(model_artifact, "artifactRef", ""))
+        validation_context["deployRuntimeModelArtifactChecksumSha256"] = String(get(model_artifact, "checksumSha256", ""))
+    end
+    service_code = local_deploy_service_code(String(model_record["modelId"]), endpoint_url, model_ref, model_artifact)
     workflow_payload = JuliaFlowGatewayRepository.workflow_detail_payload(state.workflows[String(workflow_id)])
     config_payload = Dict{String,Any}(
         "endpointPath" => String(endpoint_config["endpointPath"]),

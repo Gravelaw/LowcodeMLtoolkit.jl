@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-07-02`
 
 ## Work Done Till Date
+### AKS-36 Local Deploy Runtime Inference Slice (2026-07-03)
+
+- Local deploy packaging now generates a Genie service that performs runtime scoring for `local_csv_single_feature_ols` model artifacts.
+- The generated service resolves `local://` model refs through `JULIAFLOW_DATA_ESTATE_ROOT`, loads the persisted JSON model artifact, reads the configured numeric feature from the request payload, and returns a numeric prediction.
+- Deploy-package validation evidence now records `deployRuntimeInferenceMode`, model artifact ref, and checksum.
+- Unsupported model kinds keep an explicit echo fallback until their model artifact loaders exist.
+- Julia helper and route coverage verify specialized service-code generation, package evidence, and artifact-ref propagation.
+
+### Gaps Pending
+
+- AKS-36 remains open because runtime inference is still limited to the local CSV single-feature OLS artifact path.
+- Broader MLJ-backed model families, tuned model selection, richer preprocessing, drift methodology, and CPU/GPU trial execution remain open.
+
+### Next Items To Implement
+
+- Extend model artifact formats/loaders toward MLJ-backed models and tuned model selection.
+- Add CPU/GPU trial execution evidence and broader classical-ML dataset validation before final review agents run.
+
 ### AKS-36 Artifact-Loaded Final Evaluation And Export Slice (2026-07-02)
 
 - Final evaluation now finds the latest matching training project-job output ref for the dataset/split.
@@ -33,12 +51,11 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 remains open because this is still the narrow local CSV single-feature OLS path.
-- Broader MLJ-backed training/tuning/model selection, richer feature preprocessing, drift methodology, and deploy-runtime inference semantics remain open.
+- Broader MLJ-backed training/tuning/model selection, richer feature preprocessing, drift methodology, and CPU/GPU trial execution remain open.
 
 ### Next Items To Implement
 
 - Extend the artifact format and loaders toward MLJ-backed model families and tuned model selection.
-- Add deploy-runtime prediction semantics that execute the persisted model artifact, not just package its reference.
 
 ### AKS-36 Trained Artifact Registry/Deploy Propagation Slice (2026-07-02)
 
@@ -50,7 +67,7 @@ Tracker always records 3 things:
 
 ### Gaps Pending
 
-- AKS-36 remains open because broader MLJ-backed training/tuning/model selection and deploy-runtime inference semantics remain open.
+- AKS-36 remains open because broader MLJ-backed training/tuning/model selection and deploy inference beyond the current OLS path remain open.
 
 ### Next Items To Implement
 
@@ -70,7 +87,7 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 remains open because this is a single-feature OLS artifact path, not the full MLJ/AutoML/tuning runtime or deploy-time model serving path.
-- Real hyperparameter search, model selection, deploy-runtime model serving, richer feature preprocessing, and drift methodology remain open.
+- Real hyperparameter search, model selection, deploy-runtime model serving beyond the current OLS path, richer feature preprocessing, and drift methodology remain open.
 
 ### Next Items To Implement
 
@@ -201,7 +218,7 @@ Tracker always records 3 things:
 ### Gaps Pending
 
 - AKS-36 remains open because project-backed frontend migration, release/local-appliance no-fixture evidence, and deeper real-model training/transform/tuning/evaluation/scoring/drift/deploy-runtime semantics remain open.
-- The current slice proves deploy package job evidence and local service package materialization, not production inference serving or frontend workflow readiness.
+- The historical slice proved deploy package job evidence and local service package materialization; production inference serving beyond the current OLS path and frontend workflow readiness remain open.
 
 ### Next Items To Implement
 

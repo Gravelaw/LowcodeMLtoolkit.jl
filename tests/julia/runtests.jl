@@ -411,6 +411,29 @@ end
     service_code = deploy.local_deploy_service_code("model-helper", endpoint["endpointUrl"], "local://models/model-helper.jls")
     @test occursin("model-helper", service_code)
     @test occursin(endpoint["endpointUrl"], service_code)
+    @test deploy.deploy_runtime_inference_mode(deploy.deploy_model_artifact(model_record)) == "echo_payload_fallback"
+    ols_model_record = Dict{String,Any}(
+        "modelId" => "ols-helper",
+        "checkpointTag" => "chk-helper",
+        "artifactEvidence" => [
+            Dict{String,Any}(
+                "kind" => "model",
+                "artifactRef" => "local://models/ols-helper/model.json",
+                "checksumSha256" => repeat("e", 64),
+                "modelKind" => "local_csv_single_feature_ols",
+                "featureColumn" => "margin",
+                "targetColumn" => "amount",
+            ),
+        ],
+    )
+    ols_artifact = deploy.deploy_model_artifact(ols_model_record)
+    @test deploy.deploy_model_ref(ols_model_record) == "local://models/ols-helper/model.json"
+    @test deploy.deploy_runtime_inference_mode(ols_artifact) == "local_csv_single_feature_ols"
+    ols_service_code = deploy.local_deploy_service_code("ols-helper", endpoint["endpointUrl"], "local://models/ols-helper/model.json", ols_artifact)
+    @test occursin("function load_model()", ols_service_code)
+    @test occursin("function score(payload)", ols_service_code)
+    @test occursin("\"prediction\" => prediction", ols_service_code)
+    @test occursin("\"inferenceMode\" => \"local_csv_single_feature_ols\"", ols_service_code)
 
     artifact_evidence = deploy.deploy_artifact_evidence(
         "wf-helper",
@@ -5565,11 +5588,18 @@ end
         @test deploy_model_artifact["artifactRef"] == trained_model_artifact["artifactRef"]
         @test deploy_package_payload["package"]["validationEvidence"]["projectId"] == "foundation-ml-project"
         @test deploy_package_payload["package"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test deploy_package_payload["package"]["validationEvidence"]["deployRuntimeInferenceMode"] == "local_csv_single_feature_ols"
+        @test deploy_package_payload["package"]["validationEvidence"]["deployRuntimeModelArtifactRef"] == trained_model_artifact["artifactRef"]
+        @test deploy_package_payload["package"]["validationEvidence"]["deployRuntimeModelArtifactChecksumSha256"] == trained_model_artifact["checksumSha256"]
         @test deploy_package_payload["package"]["validationEvidence"]["deployPackageExecutionId"] == deploy_package_payload["package"]["executionEvidence"]["executionId"]
         @test deploy_package_payload["package"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
         @test deploy_package_payload["package"]["executionEvidence"]["dispatchStatus"] == "completed"
         @test occursin("Genie", deploy_package_payload["package"]["serviceCode"])
         @test occursin(String(trained_model_artifact["artifactRef"]), deploy_package_payload["package"]["serviceCode"])
+        @test occursin("function load_model()", deploy_package_payload["package"]["serviceCode"])
+        @test occursin("function score(payload)", deploy_package_payload["package"]["serviceCode"])
+        @test occursin("\"prediction\" => prediction", deploy_package_payload["package"]["serviceCode"])
+        @test occursin("\"inferenceMode\" => \"local_csv_single_feature_ols\"", deploy_package_payload["package"]["serviceCode"])
         @test deploy_package_history_response.status == 200
         deploy_package_history_payload = JSON3.read(String(deploy_package_history_response.body), Dict{String,Any})
         @test deploy_package_history_payload["count"] >= 1
