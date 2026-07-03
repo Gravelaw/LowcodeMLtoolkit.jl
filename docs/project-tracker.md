@@ -21,6 +21,25 @@ Tracker always records 3 things:
 - Last updated: `2026-07-03`
 
 ## Work Done Till Date
+### AKS-36 Local CSV Binary Classification Artifact Slice (2026-07-03)
+
+- Local CSV training now supports classifier-style requests with binary numeric targets through a deterministic `local_csv_binary_centroid_classifier` artifact.
+- The classifier artifact records feature columns, positive/negative labels, class prior, per-class feature centroids, feature scales, train row count, and train accuracy.
+- Final evaluation can score classifier probabilities from persisted artifacts and record `trained_binary_centroid_classifier` evidence.
+- Prediction export reuses the artifact-backed scoring path for classifier probabilities.
+- Local deploy package generation now emits classifier scoring service code with probability and predicted-label outputs instead of falling back to echo payloads.
+- Julia helper coverage verifies classifier fitting, final-evaluation scoring, and deploy service-code generation.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is a bounded native local CSV classifier path, not real MLJ package-backed model-family execution.
+- Richer hyperparameter search, actual GPU-accelerated trial execution, broader production monitoring baselines, and final reviewer/architect/persona/application-test passes remain open.
+
+### Next Items To Implement
+
+- Continue toward broader model-family execution and final integrated classical-ML dataset tests.
+- Add final review agents only after parent AKS-36 implementation and combined final tests are complete.
+
 ### AKS-36 Feature-Level Local CSV Drift Slice (2026-07-03)
 
 - Drift reports now include `featureDrift` evidence for supported managed local CSV datasets instead of only prediction-distribution drift.

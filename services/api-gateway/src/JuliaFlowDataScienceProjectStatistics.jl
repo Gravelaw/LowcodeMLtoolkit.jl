@@ -13,6 +13,8 @@ export local_csv_statistical_evidence_from_path,
     spearman_correlation,
     simple_linear_ols,
     simple_multi_linear_ols,
+    simple_binary_centroid_classifier,
+    binary_centroid_probabilities,
     two_sample_t_test,
     one_way_anova,
     chi_square_independence
@@ -232,6 +234,84 @@ function simple_multi_linear_ols(target::Vector{Float64}, features::AbstractVect
         "rSquared" => round(r_squared; digits = 6),
         "sse" => round(sse; digits = 6),
     )
+end
+
+function simple_binary_centroid_classifier(target::Vector{Float64}, features::AbstractVector{<:Pair})
+    isempty(features) && return nothing
+    n = length(target)
+    for pair in features
+        n = min(n, length(pair.second))
+    end
+    n <= 1 && return nothing
+    labels = sort(unique(target[1:n]))
+    length(labels) == 2 || return nothing
+    negative_label = labels[1]
+    positive_label = labels[2]
+    positive_indices = [index for index in 1:n if target[index] == positive_label]
+    negative_indices = [index for index in 1:n if target[index] == negative_label]
+    (isempty(positive_indices) || isempty(negative_indices)) && return nothing
+    feature_names = [String(pair.first) for pair in features]
+    positive_means = Dict{String,Any}()
+    negative_means = Dict{String,Any}()
+    scales = Dict{String,Any}()
+    for pair in features
+        name = String(pair.first)
+        values = pair.second[1:n]
+        positive_mean = sample_mean(values[positive_indices])
+        negative_mean = sample_mean(values[negative_indices])
+        positive_means[name] = round(positive_mean; digits = 6)
+        negative_means[name] = round(negative_mean; digits = 6)
+        scales[name] = round(max(abs(positive_mean - negative_mean), sample_std(values), 1.0e-6); digits = 6)
+    end
+    prior = length(positive_indices) / n
+    prior = min(max(prior, 1.0e-6), 1.0 - 1.0e-6)
+    model = Dict{String,Any}(
+        "model" => "simple_binary_centroid_classifier",
+        "n" => n,
+        "featureColumns" => feature_names,
+        "negativeLabel" => negative_label,
+        "positiveLabel" => positive_label,
+        "positivePrior" => round(prior; digits = 6),
+        "positiveMeans" => positive_means,
+        "negativeMeans" => negative_means,
+        "featureScales" => scales,
+    )
+    probabilities = binary_centroid_probabilities(model, features, 1:n)
+    predictions = [probability >= 0.5 ? positive_label : negative_label for probability in probabilities]
+    accuracy = sum(predictions[index] == target[index] for index in 1:n) / n
+    model["trainAccuracy"] = round(accuracy; digits = 6)
+    return model
+end
+
+function binary_centroid_probabilities(model::AbstractDict, features::AbstractVector{<:Pair}, rows)
+    feature_map = Dict(String(pair.first) => pair.second for pair in features)
+    feature_columns = [String(column) for column in get(model, "featureColumns", String[])]
+    isempty(feature_columns) && return Float64[]
+    positive_means = get(model, "positiveMeans", Dict{String,Any}())
+    negative_means = get(model, "negativeMeans", Dict{String,Any}())
+    scales = get(model, "featureScales", Dict{String,Any}())
+    prior = min(max(Float64(get(model, "positivePrior", 0.5)), 1.0e-6), 1.0 - 1.0e-6)
+    intercept = log(prior / (1.0 - prior))
+    probabilities = Float64[]
+    for row in rows
+        score = intercept
+        usable = 0
+        for column in feature_columns
+            haskey(feature_map, column) || continue
+            values = feature_map[column]
+            index = min(Int(row), length(values))
+            positive_mean = Float64(get(positive_means, column, 0.0))
+            negative_mean = Float64(get(negative_means, column, 0.0))
+            midpoint = (positive_mean + negative_mean) / 2
+            direction = positive_mean >= negative_mean ? 1.0 : -1.0
+            scale = max(Float64(get(scales, column, 1.0)), 1.0e-6)
+            score += direction * (Float64(values[index]) - midpoint) / scale
+            usable += 1
+        end
+        usable > 0 && (score /= usable)
+        push!(probabilities, round(1.0 / (1.0 + exp(-score)); digits = 6))
+    end
+    return probabilities
 end
 
 function two_sample_t_test(target_values::Vector{Float64}, group_values::AbstractVector)

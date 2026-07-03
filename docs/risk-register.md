@@ -52,6 +52,10 @@ The current AKS-36 tuning risk is narrowed for managed local CSV regression data
 
 The current AKS-36 drift risk is narrowed for supported local CSV prediction exports: drift reports now read materialized prediction artifacts, recompute current approved-model predictions, calculate PSI/KS/mean-shift style prediction-distribution metrics, compute numeric feature drift from train rows versus the validation/test tail, persist `local_csv_prediction_distribution` and `local_csv_feature_distribution` evidence, and keep deterministic fallback explicit when local artifacts are unavailable. `R-MLOPS-001` remains open for production baseline management, MLJ-backed model drift semantics, CPU/GPU trial execution, and UI/reviewer closure.
 
+### AKS-36 Classification Artifact Risk Note - 2026-07-03
+
+The current AKS-36 model-family risk is narrowed for supported local CSV binary classification datasets: classifier-style training requests can now materialize `local_csv_binary_centroid_classifier` artifacts, final evaluation can score classifier probabilities, prediction export can reuse artifact-backed classifier scoring, and local deploy packages emit classifier scoring service code. `R-ML-VALIDITY-001` and `R-MLOPS-001` remain open for real MLJ package-backed model families, richer hyperparameter search, actual GPU-accelerated trials, and UI/reviewer closure.
+
 ### AKS-36 Trial Resource Risk Note - 2026-07-03
 
 The current AKS-36 CPU/GPU trial evidence risk is narrowed for validation-only tuning: every tuning trial and materialized trial artifact now carries local resource evidence including requested/selected backend, dispatch lane, worker pool, CPU concurrency/memory settings, GPU readiness/counts, and GPU fallback reason. `R-MLOPS-001` remains open for actual GPU-accelerated training, MLJ-backed model-family execution, broader hyperparameter search, and UI/reviewer closure.

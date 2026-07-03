@@ -85,12 +85,93 @@ up(host = "127.0.0.1", port = 8000)
 """
 end
 
+function local_csv_binary_classifier_service_code(model_id::AbstractString, endpoint_url::AbstractString, model_ref::AbstractString, model_artifact::AbstractDict)
+    feature_columns = String.(get(model_artifact, "featureColumns", String[]))
+    inference_mode = String(get(model_artifact, "modelKind", "local_csv_binary_centroid_classifier"))
+    return """using Genie, JSON3
+
+const MODEL_PATH = "$(String(model_ref))"
+const FEATURE_COLUMNS = $(repr(feature_columns))
+
+function local_model_path(ref::AbstractString)
+    if startswith(String(ref), "local://")
+        data_root = get(ENV, "JULIAFLOW_DATA_ESTATE_ROOT", joinpath(homedir(), ".juliaflow", "data"))
+        relative = replace(String(ref), "local://" => "")
+        return joinpath(data_root, split(relative, "/")...)
+    end
+    return String(ref)
+end
+
+function load_model()
+    return JSON3.read(read(local_model_path(MODEL_PATH), String), Dict{String,Any})
+end
+
+function numeric_payload_value(payload, name::AbstractString)
+    if payload isa AbstractDict && haskey(payload, name)
+        return Float64(payload[name])
+    elseif payload isa AbstractDict && haskey(payload, "features")
+        features = payload["features"]
+        if features isa AbstractDict && haskey(features, name)
+            return Float64(features[name])
+        end
+    end
+    error("missing numeric feature: " * String(name))
+end
+
+function score(payload)
+    model = load_model()
+    coefficients = model["coefficients"]
+    positive_means = coefficients["positiveMeans"]
+    negative_means = coefficients["negativeMeans"]
+    scales = coefficients["featureScales"]
+    prior = min(max(Float64(coefficients["positivePrior"]), 1.0e-6), 1.0 - 1.0e-6)
+    raw_score = log(prior / (1.0 - prior))
+    usable = 0
+    for column in model["featureColumns"]
+        name = String(column)
+        positive_mean = Float64(positive_means[name])
+        negative_mean = Float64(negative_means[name])
+        midpoint = (positive_mean + negative_mean) / 2
+        direction = positive_mean >= negative_mean ? 1.0 : -1.0
+        scale = max(Float64(scales[name]), 1.0e-6)
+        raw_score += direction * (numeric_payload_value(payload, name) - midpoint) / scale
+        usable += 1
+    end
+    usable > 0 && (raw_score /= usable)
+    probability = round(1.0 / (1.0 + exp(-raw_score)); digits = 6)
+    positive_label = Float64(coefficients["positiveLabel"])
+    negative_label = Float64(coefficients["negativeLabel"])
+    return probability, probability >= 0.5 ? positive_label : negative_label
+end
+
+route("/v1/predict", method = POST) do
+    payload = JSON3.read(rawpayload())
+    probability, prediction = score(payload)
+    return JSON3.write(Dict(
+        "modelId" => "$(String(model_id))",
+        "endpoint" => "$(String(endpoint_url))",
+        "localOnly" => true,
+        "modelArtifactRef" => MODEL_PATH,
+        "inferenceMode" => "$(inference_mode)",
+        "featureColumns" => FEATURE_COLUMNS,
+        "prediction" => prediction,
+        "probability" => probability,
+    ))
+end
+
+up(host = "127.0.0.1", port = 8000)
+"""
+end
+
 function local_deploy_service_code(
     model_id::AbstractString,
     endpoint_url::AbstractString,
     model_ref::AbstractString,
     model_artifact::Union{Nothing,AbstractDict} = nothing,
 )
+    if model_artifact !== nothing && String(get(model_artifact, "modelKind", "")) == "local_csv_binary_centroid_classifier"
+        return local_csv_binary_classifier_service_code(model_id, endpoint_url, model_ref, model_artifact)
+    end
     if model_artifact !== nothing && String(get(model_artifact, "modelKind", "")) in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols")
         return local_csv_ols_service_code(model_id, endpoint_url, model_ref, model_artifact)
     end
@@ -145,7 +226,7 @@ end
 function deploy_runtime_inference_mode(model_artifact)
     model_artifact isa AbstractDict || return "echo_payload_fallback"
     model_kind = String(get(model_artifact, "modelKind", ""))
-    return model_kind in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols") ?
+    return model_kind in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier") ?
         model_kind :
         "echo_payload_fallback"
 end

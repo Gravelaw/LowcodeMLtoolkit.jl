@@ -474,6 +474,26 @@ end
     @test occursin("const FEATURE_COLUMNS = [\"margin\", \"units\"]", multi_service_code)
     @test occursin("for column in model[\"featureColumns\"]", multi_service_code)
     @test occursin("\"inferenceMode\" => \"local_csv_multi_feature_ols\"", multi_service_code)
+    classifier_model_record = Dict{String,Any}(
+        "modelId" => "classifier-helper",
+        "checkpointTag" => "chk-helper",
+        "artifactEvidence" => [
+            Dict{String,Any}(
+                "kind" => "model",
+                "artifactRef" => "local://models/classifier-helper/model.json",
+                "checksumSha256" => repeat("g", 64),
+                "modelKind" => "local_csv_binary_centroid_classifier",
+                "featureColumns" => ["age", "fare"],
+                "targetColumn" => "survived",
+            ),
+        ],
+    )
+    classifier_artifact = deploy.deploy_model_artifact(classifier_model_record)
+    @test deploy.deploy_runtime_inference_mode(classifier_artifact) == "local_csv_binary_centroid_classifier"
+    classifier_service_code = deploy.local_deploy_service_code("classifier-helper", endpoint["endpointUrl"], "local://models/classifier-helper/model.json", classifier_artifact)
+    @test occursin("positive_means", classifier_service_code)
+    @test occursin("\"probability\" => probability", classifier_service_code)
+    @test occursin("\"inferenceMode\" => \"local_csv_binary_centroid_classifier\"", classifier_service_code)
 
     artifact_evidence = deploy.deploy_artifact_evidence(
         "wf-helper",
@@ -730,6 +750,36 @@ end
         @test multi_model_result["evidence"]["baselineModel"] == "trained_multi_feature_ols"
         @test multi_model_result["evidence"]["featureColumns"] == ["margin", "units"]
         @test multi_model_result["evidence"]["rawMetrics"]["rmse"] == 0.0
+        classifier_csv_path = joinpath(temp_dir, "classification.csv")
+        write(classifier_csv_path, "row_id,survived,age,fare\n1,0,20,8\n2,0,25,9\n3,1,60,80\n4,1,65,90\n")
+        classifier_result = evaluation.final_evaluation_metrics_from_csv(
+            Dict{String,Any}("datasetId" => "classification-helper", "sourceUri" => "local://data/classification.csv"),
+            classifier_csv_path,
+            "survived",
+            ["accuracy", "f1"],
+            Dict{String,Any}("testFraction" => 0.25),
+            Dict{String,Any}(
+                "modelKind" => "local_csv_binary_centroid_classifier",
+                "artifactRef" => "local://models/model-helper/classifier.json",
+                "checksumSha256" => repeat("c", 64),
+                "targetColumn" => "survived",
+                "featureColumns" => ["age", "fare"],
+                "trainRowCount" => 3,
+                "coefficients" => Dict(
+                    "positiveLabel" => 1.0,
+                    "negativeLabel" => 0.0,
+                    "positivePrior" => 0.333333,
+                    "positiveMeans" => Dict("age" => 60.0, "fare" => 80.0),
+                    "negativeMeans" => Dict("age" => 22.5, "fare" => 8.5),
+                    "featureScales" => Dict("age" => 20.81666, "fare" => 41.2452),
+                ),
+            ),
+        )
+        @test classifier_result["evidence"]["executionMode"] == "local_csv_trained_artifact"
+        @test classifier_result["evidence"]["baselineModel"] == "trained_binary_centroid_classifier"
+        @test classifier_result["evidence"]["modelKind"] == "local_csv_binary_centroid_classifier"
+        @test classifier_result["evidence"]["rawMetrics"]["accuracy"] == 1.0
+        @test classifier_result["metrics"]["accuracy"] == 1.0
     end
     report = evaluation.final_evaluation_report_record(
         "eval-helper",
@@ -899,6 +949,22 @@ end
     @test haskey(multi_ols["slopes"], "margin")
     @test haskey(multi_ols["slopes"], "units")
     @test multi_ols["rSquared"] > 0.99
+    classifier = stats.simple_binary_centroid_classifier(
+        [0.0, 0.0, 1.0, 1.0],
+        ["age" => [20.0, 25.0, 60.0, 65.0], "fare" => [8.0, 9.0, 80.0, 90.0]],
+    )
+    @test classifier !== nothing
+    @test classifier["model"] == "simple_binary_centroid_classifier"
+    @test classifier["featureColumns"] == ["age", "fare"]
+    @test classifier["positiveLabel"] == 1.0
+    @test classifier["trainAccuracy"] == 1.0
+    classifier_probabilities = stats.binary_centroid_probabilities(
+        classifier,
+        ["age" => [20.0, 65.0], "fare" => [8.0, 90.0]],
+        1:2,
+    )
+    @test classifier_probabilities[1] < 0.5
+    @test classifier_probabilities[2] > 0.5
 
     code = stats.statistical_analysis_code_artifact(
         "stats-sample",
