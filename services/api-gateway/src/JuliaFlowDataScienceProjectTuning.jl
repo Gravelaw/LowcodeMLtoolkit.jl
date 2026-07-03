@@ -147,6 +147,32 @@ function tuning_trials(
     return trials
 end
 
+function tuning_binary_auc(actual::Vector{Float64}, predicted::Vector{Float64})
+    n = min(length(actual), length(predicted))
+    n == 0 && return 0.0
+    labels = sort(unique(round(value) for value in actual[1:n]))
+    length(labels) == 2 || return 0.0
+    positive_label = labels[2]
+    positive_count = sum(round(actual[index]) == positive_label for index in 1:n)
+    negative_count = n - positive_count
+    (positive_count == 0 || negative_count == 0) && return 0.0
+    ordered = sort([(Float64(predicted[index]), round(actual[index])) for index in 1:n], by = item -> item[1])
+    rank_sum = 0.0
+    index = 1
+    while index <= n
+        tie_end = index
+        while tie_end < n && ordered[tie_end + 1][1] == ordered[index][1]
+            tie_end += 1
+        end
+        average_rank = (index + tie_end) / 2
+        for rank_index in index:tie_end
+            ordered[rank_index][2] == positive_label && (rank_sum += average_rank)
+        end
+        index = tie_end + 1
+    end
+    return round((rank_sum - (positive_count * (positive_count + 1) / 2)) / (positive_count * negative_count); digits = 6)
+end
+
 function tuning_metric_from_errors(metric::AbstractString, actual::Vector{Float64}, predicted::Vector{Float64})
     n = min(length(actual), length(predicted))
     n == 0 && return 0.0
@@ -163,6 +189,21 @@ function tuning_metric_from_errors(metric::AbstractString, actual::Vector{Float6
         sst = sum((value - mean_actual)^2 for value in actual[1:n])
         sse = sum(error^2 for error in errors)
         return round(sst == 0.0 ? 0.0 : 1.0 - (sse / sst); digits = 6)
+    elseif metric_name in ("accuracy", "f1", "f1-score", "auc")
+        metric_name == "auc" && return tuning_binary_auc(actual, predicted)
+        rounded_actual = [round(value) for value in actual[1:n]]
+        rounded_predicted = [round(value) for value in predicted[1:n]]
+        correct = sum(rounded_actual[index] == rounded_predicted[index] for index in 1:n)
+        if metric_name == "accuracy"
+            return round(correct / n; digits = 6)
+        end
+        positive_label = maximum(rounded_actual)
+        true_positive = sum(rounded_actual[index] == positive_label && rounded_predicted[index] == positive_label for index in 1:n)
+        predicted_positive = sum(rounded_predicted[index] == positive_label for index in 1:n)
+        actual_positive = sum(rounded_actual[index] == positive_label for index in 1:n)
+        precision = predicted_positive == 0 ? 0.0 : true_positive / predicted_positive
+        recall = actual_positive == 0 ? 0.0 : true_positive / actual_positive
+        return round(precision + recall == 0.0 ? 0.0 : 2 * precision * recall / (precision + recall); digits = 6)
     end
     return round(max(0.0, 1.0 - (sum(abs(error) for error in errors) / n)); digits = 6)
 end
@@ -196,6 +237,12 @@ function tuning_predictions_from_ols(ols::AbstractDict, feature_pairs::AbstractV
         Float64(ols["intercept"]) + sum(Float64(get(slopes, String(pair.first), 0.0)) * pair.second[row] for pair in feature_pairs)
         for row in validation_range
     ]
+end
+
+function tuning_classifier_requested(algorithm::AbstractString, target_values::Vector{Float64})
+    algorithm_name = lowercase(String(algorithm))
+    classifier_algorithm = occursin("class", algorithm_name) || occursin("logistic", algorithm_name) || occursin("xgboost", algorithm_name)
+    return classifier_algorithm && length(unique(target_values)) == 2
 end
 
 function local_csv_validation_tuning_trials(
@@ -233,17 +280,23 @@ function local_csv_validation_tuning_trials(
     isempty(candidates) && return nothing
     primary_metric = String(first(metric_names))
     lower_is_better = tuning_lower_is_better(primary_metric)
+    classifier_mode = tuning_classifier_requested(algorithm, target_values[1:row_count])
     trials = Dict{String,Any}[]
     best_index = 0
     best_value = lower_is_better ? Inf : -Inf
     for (index, candidate) in enumerate(candidates)
         feature_pairs = [column => numeric_columns[column] for column in candidate]
         train_pairs = [column => numeric_columns[column][1:train_count] for column in candidate]
-        ols = length(candidate) == 1 ?
-            JuliaFlowDataScienceProjectStatistics.simple_linear_ols(train_target, train_pairs[1].second) :
-            JuliaFlowDataScienceProjectStatistics.simple_multi_linear_ols(train_target, train_pairs)
-        ols === nothing && continue
-        predictions = tuning_predictions_from_ols(ols, feature_pairs, validation_range)
+        classifier = classifier_mode ? JuliaFlowDataScienceProjectStatistics.simple_binary_centroid_classifier(train_target, train_pairs) : nothing
+        ols = classifier === nothing ? (
+            length(candidate) == 1 ?
+                JuliaFlowDataScienceProjectStatistics.simple_linear_ols(train_target, train_pairs[1].second) :
+                JuliaFlowDataScienceProjectStatistics.simple_multi_linear_ols(train_target, train_pairs)
+        ) : nothing
+        (classifier === nothing && ols === nothing) && continue
+        predictions = classifier !== nothing ?
+            JuliaFlowDataScienceProjectStatistics.binary_centroid_probabilities(classifier, feature_pairs, validation_range) :
+            tuning_predictions_from_ols(ols, feature_pairs, validation_range)
         predictions === nothing && continue
         metrics = Dict{String,Any}()
         for metric in metric_names
@@ -254,17 +307,29 @@ function local_csv_validation_tuning_trials(
             best_index = length(trials) + 1
             best_value = selection_value
         end
-        model_kind = length(candidate) == 1 ? "local_csv_single_feature_ols" : "local_csv_multi_feature_ols"
-        coefficients = model_kind == "local_csv_single_feature_ols" ?
-            Dict{String,Any}("intercept" => ols["intercept"], "slope" => ols["slope"]) :
+        model_kind = classifier !== nothing ? "local_csv_binary_centroid_classifier" : (length(candidate) == 1 ? "local_csv_single_feature_ols" : "local_csv_multi_feature_ols")
+        model_family = classifier !== nothing ? "local_csv_binary_centroid" : "local_csv_ols"
+        coefficients = if classifier !== nothing
+            Dict{String,Any}(
+                "positiveLabel" => classifier["positiveLabel"],
+                "negativeLabel" => classifier["negativeLabel"],
+                "positivePrior" => classifier["positivePrior"],
+                "positiveMeans" => classifier["positiveMeans"],
+                "negativeMeans" => classifier["negativeMeans"],
+                "featureScales" => classifier["featureScales"],
+            )
+        elseif model_kind == "local_csv_single_feature_ols"
+            Dict{String,Any}("intercept" => ols["intercept"], "slope" => ols["slope"])
+        else
             Dict{String,Any}("intercept" => ols["intercept"], "slopes" => ols["slopes"])
+        end
         push!(
             trials,
             Dict{String,Any}(
                 "trialId" => "$(String(study_id))-trial-$(index)",
                 "parameters" => Dict(
                     "algorithm" => String(algorithm),
-                    "modelFamily" => "local_csv_ols",
+                    "modelFamily" => model_family,
                     "featureColumns" => candidate,
                     "candidateIndex" => index,
                 ),

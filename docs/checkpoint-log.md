@@ -20,6 +20,26 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Binary Classifier Tuning Slice - 2026-07-03
+
+### Work Done Till Date
+
+- Validation-scored tuning now supports classifier-style algorithms with binary numeric targets through `local_csv_binary_centroid` candidate trials.
+- The tuning helper computes validation accuracy/F1-style metrics from held-out validation rows and keeps final-test use forbidden.
+- Classifier tuning trial evidence records feature columns, model kind, selection metric/direction/value, train/validation/test counts, and centroid coefficients.
+- Existing regression OLS candidate tuning remains unchanged.
+- Julia tuning helper coverage verifies classifier trial generation, classifier coefficients, accuracy metric evidence, and selected-trial marking.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is bounded native classifier tuning, not real MLJ package-backed hyperparameter optimization.
+- Larger search spaces, actual GPU-accelerated trial execution, final integrated classical-ML tests, and reviewer/architect/persona/application-test agents remain open.
+
+### Next Items To Implement
+
+- Continue toward broader model-family execution and final integrated classical-ML dataset tests.
+- Add final review agents only after parent AKS-36 implementation and combined final tests are complete.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Binary Classification Artifact Slice - 2026-07-03
 
 ### Work Done Till Date

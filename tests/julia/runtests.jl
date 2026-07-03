@@ -621,6 +621,28 @@ end
         @test local_trials[2]["validationEvidence"]["featureColumns"] == ["units"]
         @test local_trials[2]["metrics"]["rmse"] == 0.0
         @test local_trials[2]["selected"] == true
+        classifier_csv_path = joinpath(temp_dir, "classification-tuning.csv")
+        write(classifier_csv_path, "row_id,survived,age,fare\n1,0,20,8\n2,0,25,9\n3,0,30,10\n4,1,60,80\n5,1,65,90\n6,1,70,100\n")
+        classifier_trials = tuning.local_csv_validation_tuning_trials(
+            "tuning-helper",
+            "study-classifier",
+            "MLJ.XGBoostClassifier",
+            ["accuracy", "f1", "auc"],
+            3,
+            "2026-06-23T00:00:00Z",
+            Dict{String,Any}("datasetId" => "dataset-classifier", "sourceUri" => "local://data/classification-tuning.csv"),
+            classifier_csv_path,
+            "survived",
+            Dict{String,Any}("validationFraction" => 0.34, "testFraction" => 0.0),
+        )
+        @test classifier_trials !== nothing
+        @test classifier_trials[1]["parameters"]["modelFamily"] == "local_csv_binary_centroid"
+        @test classifier_trials[1]["validationEvidence"]["modelKind"] == "local_csv_binary_centroid_classifier"
+        @test haskey(classifier_trials[1]["validationEvidence"]["coefficients"], "positiveMeans")
+        @test haskey(classifier_trials[1]["metrics"], "accuracy")
+        @test haskey(classifier_trials[1]["metrics"], "auc")
+        @test 0.0 <= classifier_trials[1]["metrics"]["auc"] <= 1.0
+        @test any(trial -> Bool(get(trial, "selected", false)), classifier_trials)
         local_study = tuning.tuning_study_record("study-local", "training-helper", local_trials, validation_context, "2026-06-23T00:00:00Z")
         @test local_study["bestTrialId"] == "study-local-trial-2"
     end
