@@ -11,6 +11,7 @@ export project_prediction_export_for_drift,
     monitoring_baseline_for_drift!,
     prediction_column_values_from_content,
     drift_metric_values_from_predictions,
+    drift_metric_values_from_feature_columns,
     drift_metric_values,
     drift_status,
     drift_report_record,
@@ -178,6 +179,34 @@ function drift_metric_values_from_predictions(metric_names::AbstractVector, base
         end
     end
     return metrics
+end
+
+function drift_metric_values_from_feature_columns(
+    metric_names::AbstractVector,
+    baseline_columns::AbstractDict,
+    current_columns::AbstractDict,
+)
+    shared_columns = sort([String(column) for column in keys(baseline_columns) if haskey(current_columns, String(column))])
+    isempty(shared_columns) && return nothing
+    feature_metrics = Dict{String,Any}()
+    aggregate_values = Float64[]
+    for column in shared_columns
+        metrics = drift_metric_values_from_predictions(
+            metric_names,
+            Float64.(baseline_columns[column]),
+            Float64.(current_columns[column]),
+        )
+        metrics === nothing && continue
+        feature_metrics[column] = metrics
+        append!(aggregate_values, [Float64(value) for value in values(metrics)])
+    end
+    isempty(feature_metrics) && return nothing
+    return Dict{String,Any}(
+        "metricsByColumn" => feature_metrics,
+        "aggregateMetric" => round(maximum(aggregate_values); digits = 6),
+        "featureCount" => length(feature_metrics),
+        "columns" => sort(collect(keys(feature_metrics))),
+    )
 end
 
 function drift_status(metrics::AbstractDict, threshold::Real)

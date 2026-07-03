@@ -21,6 +21,24 @@ Tracker always records 3 things:
 - Last updated: `2026-07-03`
 
 ## Work Done Till Date
+### AKS-36 Feature-Level Local CSV Drift Slice (2026-07-03)
+
+- Drift reports now include `featureDrift` evidence for supported managed local CSV datasets instead of only prediction-distribution drift.
+- The gateway compares numeric feature distributions from train rows against the validation/test tail using PSI, KS, and mean-shift style metrics.
+- Feature drift evidence records column-level metrics, aggregate drift value, status, split names, row counts, source ref, split plan id, and evaluation report id.
+- Materialized drift report artifacts persist the same feature drift evidence with checksum/size refs.
+- Julia helper and route coverage verify per-feature metric calculation, API payload evidence, and persisted artifact evidence.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is feature drift for the supported local CSV path, not MLJ-backed model-family drift or production monitoring baselines.
+- Actual GPU-accelerated trial execution, broader hyperparameter search, and final reviewer/architect/persona/application-test passes remain open.
+
+### Next Items To Implement
+
+- Extend model and drift execution toward MLJ-backed model families and richer monitoring baselines.
+- Add final review agents only after parent AKS-36 evidence is complete.
+
 ### AKS-36 Per-Trial CPU/GPU Resource Evidence Slice (2026-07-03)
 
 - Validation-only tuning trials now carry normalized local resource evidence, not just the parent tuning project job.

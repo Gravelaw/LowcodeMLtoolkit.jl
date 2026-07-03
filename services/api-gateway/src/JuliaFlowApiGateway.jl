@@ -6110,6 +6110,7 @@ function persist_drift_report_artifact!(
             "predictionExportId" => String(get(prediction_export, "predictionExportId", "")),
             "status" => String(drift_report["status"]),
             "metrics" => drift_report["metrics"],
+            "featureDrift" => get(drift_report, "featureDrift", Dict{String,Any}()),
             "validationEvidence" => drift_report["validationEvidence"],
             "generatedAt" => String(drift_report["generatedAt"]),
         ),
@@ -6182,6 +6183,54 @@ function local_csv_drift_metric_result(dataset::AbstractDict, prediction_export:
     )
 end
 
+function local_csv_feature_drift_result(dataset::AbstractDict, report::AbstractDict, metric_names::AbstractVector, threshold::Real)
+    validation = get(report, "validationEvidence", Dict{String,Any}())
+    evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
+    source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
+    source_path === nothing && return nothing
+    table = JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path)
+    table === nothing && return nothing
+    numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
+    isempty(numeric_columns) && return nothing
+    target_column = String(get(evidence, "targetColumn", ""))
+    feature_columns = [String(column) for column in get(evidence, "featureColumns", Any[]) if haskey(numeric_columns, String(column))]
+    if isempty(feature_columns)
+        feature_columns = JuliaFlowDataScienceProjectStatistics.candidate_numeric_feature_columns(numeric_columns, target_column)
+    end
+    feature_columns = [column for column in feature_columns if column != target_column && haskey(numeric_columns, column)]
+    isempty(feature_columns) && return nothing
+    row_count = minimum(length(numeric_columns[column]) for column in feature_columns)
+    train_count = Int(get(evidence, "trainRowCount", max(1, row_count - Int(get(evidence, "testRowCount", 1)))))
+    train_count = max(1, min(train_count, row_count - 1))
+    current_count = row_count - train_count
+    current_count > 0 || return nothing
+    baseline_columns = Dict{String,Vector{Float64}}(
+        column => numeric_columns[column][1:train_count]
+        for column in feature_columns
+    )
+    current_columns = Dict{String,Vector{Float64}}(
+        column => numeric_columns[column][(train_count + 1):row_count]
+        for column in feature_columns
+    )
+    feature_drift = JuliaFlowDataScienceProjectMonitoring.drift_metric_values_from_feature_columns(metric_names, baseline_columns, current_columns)
+    feature_drift === nothing && return nothing
+    metrics = Dict{String,Any}("aggregateMetric" => feature_drift["aggregateMetric"])
+    status = JuliaFlowDataScienceProjectMonitoring.drift_status(metrics, threshold)
+    feature_drift["status"] = status
+    feature_drift["evidence"] = Dict{String,Any}(
+        "executionMode" => "local_csv_feature_distribution",
+        "sourceKind" => "managed_local_csv",
+        "sourceRef" => String(get(dataset, "sourceUri", "")),
+        "baselineSplit" => "train",
+        "currentSplit" => "validation_test_tail",
+        "baselineRowCount" => train_count,
+        "currentRowCount" => current_count,
+        "splitPlanId" => String(get(report, "splitPlanId", String(get(validation, "splitPlanId", "")))),
+        "evaluationReportId" => String(get(report, "evaluationReportId", "")),
+    )
+    return feature_drift
+end
+
 function run_drift_report_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
     project = state.data_science_projects[project_id]
@@ -6197,6 +6246,7 @@ function run_drift_report_response!(state::GatewayState, project_id::AbstractStr
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     baseline = monitoring_baseline_for_drift!(project, body, dataset_id, prediction_export, metric_names, timestamp)
     drift_result = local_csv_drift_metric_result(dataset, prediction_export, report, metric_names)
+    feature_drift = local_csv_feature_drift_result(dataset, report, metric_names, threshold)
     metrics = drift_result === nothing ? JuliaFlowDataScienceProjectMonitoring.drift_metric_values(metric_names) : drift_result["metrics"]
     status = JuliaFlowDataScienceProjectMonitoring.drift_status(metrics, threshold)
     drift_report = JuliaFlowDataScienceProjectMonitoring.drift_report_record(project, baseline, prediction_export, dataset_id, metrics, status, timestamp)
@@ -6206,6 +6256,11 @@ function run_drift_report_response!(state::GatewayState, project_id::AbstractStr
     else
         drift_report["validationEvidence"]["driftExecutionMode"] = drift_result["evidence"]["executionMode"]
         drift_report["validationEvidence"]["driftDataEvidence"] = drift_result["evidence"]
+    end
+    if feature_drift !== nothing
+        drift_report["featureDrift"] = feature_drift
+        drift_report["validationEvidence"]["featureDriftExecutionMode"] = feature_drift["evidence"]["executionMode"]
+        drift_report["validationEvidence"]["featureDriftEvidence"] = feature_drift["evidence"]
     end
     report_id = String(drift_report["driftReportId"])
     output_refs = JuliaFlowDataScienceProjectMonitoring.drift_output_refs(project.project_id, report_id, timestamp)

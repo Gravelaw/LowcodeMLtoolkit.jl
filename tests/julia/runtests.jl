@@ -384,6 +384,15 @@ end
     @test haskey(drift_metrics, "psi")
     @test drift_metrics["ks"] >= 0.0
     @test drift_metrics["mean-shift"] > 0.0
+    feature_drift = monitoring.drift_metric_values_from_feature_columns(
+        ["psi", "ks"],
+        Dict("pressure" => [10.0, 11.0, 12.0], "temperature" => [90.0, 91.0, 92.0]),
+        Dict("pressure" => [12.0, 13.0, 14.0], "temperature" => [90.0, 90.0, 90.0]),
+    )
+    @test feature_drift !== nothing
+    @test feature_drift["featureCount"] == 2
+    @test haskey(feature_drift["metricsByColumn"]["pressure"], "psi")
+    @test feature_drift["aggregateMetric"] >= 0.0
     @test monitoring.drift_status(metric_values, 0.2) == "moderate"
     @test monitoring.drift_status(metric_values, 0.1) == "high"
     report = monitoring.drift_report_record(
@@ -5511,6 +5520,11 @@ end
         @test drift_report_payload["driftReport"]["validationEvidence"]["driftExecutionMode"] == "local_csv_prediction_distribution"
         @test drift_report_payload["driftReport"]["validationEvidence"]["driftDataEvidence"]["predictionScoringMode"] == "local_csv_trained_artifact"
         @test drift_report_payload["driftReport"]["validationEvidence"]["driftDataEvidence"]["baselinePredictionCount"] == prediction_export_payload["predictionExport"]["rowCount"]
+        @test drift_report_payload["driftReport"]["validationEvidence"]["featureDriftExecutionMode"] == "local_csv_feature_distribution"
+        @test drift_report_payload["driftReport"]["validationEvidence"]["featureDriftEvidence"]["baselineSplit"] == "train"
+        @test drift_report_payload["driftReport"]["featureDrift"]["featureCount"] >= 1
+        @test haskey(drift_report_payload["driftReport"]["featureDrift"], "metricsByColumn")
+        @test drift_report_payload["driftReport"]["featureDrift"]["status"] in ["low", "moderate", "high"]
         @test haskey(drift_report_payload["driftReport"]["metrics"], "psi")
         @test haskey(drift_report_payload["driftReport"]["metrics"], "ks")
         @test startswith(String(drift_report_payload["driftReport"]["executionEvidence"]["executionId"]), "dsjob-")
@@ -5527,6 +5541,8 @@ end
         @test drift_artifact_payload["driftReportId"] == drift_report_payload["driftReport"]["driftReportId"]
         @test drift_artifact_payload["predictionExportId"] == prediction_export_payload["predictionExport"]["predictionExportId"]
         @test drift_artifact_payload["validationEvidence"]["driftExecutionMode"] == "local_csv_prediction_distribution"
+        @test drift_artifact_payload["validationEvidence"]["featureDriftExecutionMode"] == "local_csv_feature_distribution"
+        @test drift_artifact_payload["featureDrift"]["featureCount"] >= 1
         @test length(drift_report_payload["project"]["monitoringBaselines"]) >= 1
         @test length(drift_report_payload["project"]["driftReports"]) >= 1
         @test length(drift_report_payload["project"]["projectJobs"]) >= 7
