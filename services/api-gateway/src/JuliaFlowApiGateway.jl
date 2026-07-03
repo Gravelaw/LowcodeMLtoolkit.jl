@@ -3015,41 +3015,55 @@ function local_csv_training_artifact!(
     numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
     target_column = String(experiment["target"])
     haskey(numeric_columns, target_column) || return nothing
-    feature_columns = sort([column for column in keys(numeric_columns) if column != target_column])
+    feature_columns = first(sort([column for column in keys(numeric_columns) if column != target_column]), min(5, length(keys(numeric_columns)) - 1))
     isempty(feature_columns) && return nothing
-    feature_column = first(feature_columns)
     target_values = numeric_columns[target_column]
-    feature_values = numeric_columns[feature_column]
-    row_count = min(length(target_values), length(feature_values))
+    row_count = length(target_values)
+    for column in feature_columns
+        row_count = min(row_count, length(numeric_columns[column]))
+    end
     row_count > 1 || return nothing
     validation_count = max(0, round(Int, row_count * Float64(get(validation_context, "validationFraction", 0.0))))
     test_count = max(0, round(Int, row_count * Float64(get(validation_context, "testFraction", 0.0))))
     train_count = max(2, row_count - validation_count - test_count)
     train_count = min(train_count, row_count)
     train_target = target_values[1:train_count]
-    train_feature = feature_values[1:train_count]
-    ols = JuliaFlowDataScienceProjectStatistics.simple_linear_ols(train_target, train_feature)
+    feature_pairs = [column => numeric_columns[column][1:train_count] for column in feature_columns]
+    ols = length(feature_pairs) == 1 ?
+        JuliaFlowDataScienceProjectStatistics.simple_linear_ols(train_target, feature_pairs[1].second) :
+        JuliaFlowDataScienceProjectStatistics.simple_multi_linear_ols(train_target, feature_pairs)
     ols === nothing && return nothing
+    model_kind = length(feature_pairs) == 1 ? "local_csv_single_feature_ols" : "local_csv_multi_feature_ols"
+    feature_column = first(feature_columns)
+    coefficients = if model_kind == "local_csv_single_feature_ols"
+        Dict{String,Any}(
+            "intercept" => ols["intercept"],
+            "slope" => ols["slope"],
+        )
+    else
+        Dict{String,Any}(
+            "intercept" => ols["intercept"],
+            "slopes" => ols["slopes"],
+        )
+    end
     model_id = String(experiment["modelId"])
     artifact_ref = "local://models/$(project.project_id)/$(model_id)/model.json"
     artifact_path = local_data_ref_path_for_write(artifact_ref)
     mkpath(dirname(artifact_path))
     artifact_payload = Dict{String,Any}(
         "modelId" => model_id,
-        "modelKind" => "local_csv_single_feature_ols",
+        "modelKind" => model_kind,
         "projectId" => project.project_id,
         "datasetId" => dataset_id,
         "sourceRef" => String(get(dataset, "sourceUri", "")),
         "targetColumn" => target_column,
         "featureColumn" => feature_column,
+        "featureColumns" => feature_columns,
         "splitPlanId" => String(get(validation_context, "splitPlanId", "")),
         "trainRowCount" => train_count,
         "validationRowCount" => validation_count,
         "testRowCount" => test_count,
-        "coefficients" => Dict{String,Any}(
-            "intercept" => ols["intercept"],
-            "slope" => ols["slope"],
-        ),
+        "coefficients" => coefficients,
         "metrics" => Dict{String,Any}(
             "trainR2" => ols["rSquared"],
             "trainSse" => ols["sse"],
@@ -3065,9 +3079,10 @@ function local_csv_training_artifact!(
         "artifactRef" => artifact_ref,
         "checksumSha256" => checksum,
         "sizeBytes" => filesize(artifact_path),
-        "modelKind" => "local_csv_single_feature_ols",
+        "modelKind" => model_kind,
         "targetColumn" => target_column,
         "featureColumn" => feature_column,
+        "featureColumns" => feature_columns,
         "trainRowCount" => train_count,
         "metrics" => artifact_payload["metrics"],
     )
@@ -3540,6 +3555,7 @@ function ml_experiment_payload(state::GatewayState, execution::GatewayExecution;
         payload["validationEvidence"]["trainingArtifactChecksumSha256"] = String(get(artifact, "checksumSha256", ""))
         payload["validationEvidence"]["trainingExecutionMode"] = String(get(artifact, "modelKind", ""))
         payload["validationEvidence"]["trainingFeatureColumn"] = String(get(artifact, "featureColumn", ""))
+        payload["validationEvidence"]["trainingFeatureColumns"] = get(artifact, "featureColumns", String[])
         payload["validationEvidence"]["trainingRowCount"] = Int(get(artifact, "trainRowCount", 0))
     end
     return payload
@@ -3582,6 +3598,7 @@ function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractS
             experiment["validationEvidence"]["trainingArtifactChecksumSha256"] = String(get(training_artifact, "checksumSha256", ""))
             experiment["validationEvidence"]["trainingExecutionMode"] = String(get(training_artifact, "modelKind", ""))
             experiment["validationEvidence"]["trainingFeatureColumn"] = String(get(training_artifact, "featureColumn", ""))
+            experiment["validationEvidence"]["trainingFeatureColumns"] = get(training_artifact, "featureColumns", String[])
             experiment["validationEvidence"]["trainingRowCount"] = Int(get(training_artifact, "trainRowCount", 0))
         end
         record_ml_experiment_project_job!(
@@ -3645,6 +3662,7 @@ function model_registry_payload(state::GatewayState, execution::GatewayExecution
             "modelKind" => String(get(artifact, "modelKind", "")),
             "targetColumn" => String(get(artifact, "targetColumn", "")),
             "featureColumn" => String(get(artifact, "featureColumn", "")),
+            "featureColumns" => get(artifact, "featureColumns", String[]),
             "trainRowCount" => Int(get(artifact, "trainRowCount", 0)),
         )
         artifacts = [item for item in get(record, "artifactEvidence", Any[]) if String(get(item, "kind", "")) != "model"]
@@ -3654,6 +3672,7 @@ function model_registry_payload(state::GatewayState, execution::GatewayExecution
         record["validationEvidence"]["trainingArtifactChecksumSha256"] = String(get(artifact, "checksumSha256", ""))
         record["validationEvidence"]["trainingExecutionMode"] = String(get(artifact, "modelKind", ""))
         record["validationEvidence"]["trainingFeatureColumn"] = String(get(artifact, "featureColumn", ""))
+        record["validationEvidence"]["trainingFeatureColumns"] = get(artifact, "featureColumns", String[])
         record["validationEvidence"]["trainingRowCount"] = Int(get(artifact, "trainRowCount", 0))
     end
     return record
@@ -5549,7 +5568,7 @@ function local_csv_training_model_artifact(project::DataScienceProjectRecord, da
             catch
                 error("final evaluation training artifact must contain JSON: $(artifact_ref)")
             end
-            String(get(payload, "modelKind", "")) == "local_csv_single_feature_ols" || continue
+            String(get(payload, "modelKind", "")) in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols") || continue
             isempty(strip(target_column)) || String(get(payload, "targetColumn", "")) == target_column || continue
             payload["artifactRef"] = artifact_ref
             payload["checksumSha256"] = checksum
@@ -5586,22 +5605,38 @@ function local_csv_prediction_values_from_report(dataset::AbstractDict, report::
     validation = get(report, "validationEvidence", Dict{String,Any}())
     evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
     String(get(evidence, "executionMode", "")) == "local_csv_trained_artifact" || return nothing, nothing
-    feature_column = String(get(evidence, "featureColumn", ""))
-    isempty(strip(feature_column)) && return nothing, nothing
+    model_kind = String(get(evidence, "modelKind", ""))
+    feature_columns = model_kind == "local_csv_multi_feature_ols" ?
+        [String(column) for column in get(evidence, "featureColumns", Any[])] :
+        [String(get(evidence, "featureColumn", ""))]
+    feature_columns = [column for column in feature_columns if !isempty(strip(column))]
+    isempty(feature_columns) && return nothing, nothing
     source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
     source_path === nothing && return nothing, nothing
     table = JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path)
     table === nothing && return nothing, nothing
     numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
-    haskey(numeric_columns, feature_column) || return nothing, nothing
-    feature_values = numeric_columns[feature_column]
-    isempty(feature_values) && return nothing, nothing
-    slope = Float64(get(evidence, "baselineSlope", 0.0))
+    all(column -> haskey(numeric_columns, column), feature_columns) || return nothing, nothing
+    coefficients = get(evidence, "coefficients", Dict{String,Any}())
     intercept = Float64(get(evidence, "baselineIntercept", 0.0))
+    if haskey(coefficients, "intercept")
+        intercept = Float64(coefficients["intercept"])
+    end
     values = Float64[]
     for index in 1:Int(row_count)
-        feature = feature_values[min(index, length(feature_values))]
-        push!(values, round(intercept + slope * feature; digits = 6))
+        if model_kind == "local_csv_multi_feature_ols" && haskey(coefficients, "slopes")
+            slopes = get(coefficients, "slopes", Dict{String,Any}())
+            prediction = intercept + sum(
+                Float64(get(slopes, column, 0.0)) * numeric_columns[column][min(index, length(numeric_columns[column]))]
+                for column in feature_columns
+            )
+            push!(values, round(prediction; digits = 6))
+        else
+            slope = haskey(coefficients, "slope") ? Float64(coefficients["slope"]) : Float64(get(evidence, "baselineSlope", 0.0))
+            feature_column = first(feature_columns)
+            feature = numeric_columns[feature_column][min(index, length(numeric_columns[feature_column]))]
+            push!(values, round(intercept + slope * feature; digits = 6))
+        end
     end
     return values, "local_csv_trained_artifact"
 end

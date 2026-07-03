@@ -195,28 +195,45 @@ function final_evaluation_metrics_from_csv(
     execution_mode = "local_csv_baseline"
     scoring_evidence = Dict{String,Any}()
     predictions, baseline_model, baseline_slope, baseline_intercept = final_evaluation_trend_predictions(train_values, length(test_values))
-    if model_artifact !== nothing && String(get(model_artifact, "modelKind", "")) == "local_csv_single_feature_ols"
+    if model_artifact !== nothing && String(get(model_artifact, "modelKind", "")) in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols")
         artifact_target = String(get(model_artifact, "targetColumn", ""))
-        feature_column = String(get(model_artifact, "featureColumn", ""))
+        model_kind = String(get(model_artifact, "modelKind", ""))
+        feature_columns = model_kind == "local_csv_multi_feature_ols" ?
+            [String(column) for column in get(model_artifact, "featureColumns", Any[])] :
+            [String(get(model_artifact, "featureColumn", ""))]
         coefficients = get(model_artifact, "coefficients", Dict{String,Any}())
-        if artifact_target == String(target_column) && haskey(numeric_columns, feature_column) && haskey(coefficients, "intercept") && haskey(coefficients, "slope")
-            feature_values = numeric_columns[feature_column]
-            if length(feature_values) >= total
+        feature_columns = [column for column in feature_columns if !isempty(strip(column))]
+        if artifact_target == String(target_column) && !isempty(feature_columns) && all(column -> haskey(numeric_columns, column), feature_columns) && haskey(coefficients, "intercept")
+            if all(column -> length(numeric_columns[column]) >= total, feature_columns)
                 intercept = Float64(coefficients["intercept"])
-                slope = Float64(coefficients["slope"])
-                test_features = feature_values[(train_count + 1):total]
-                predictions = [intercept + slope * value for value in test_features]
-                execution_mode = "local_csv_trained_artifact"
-                baseline_model = "trained_single_feature_ols"
-                baseline_slope = round(slope; digits = 6)
-                baseline_intercept = round(intercept; digits = 6)
-                scoring_evidence = Dict{String,Any}(
-                    "modelArtifactRef" => String(get(model_artifact, "artifactRef", "")),
-                    "modelArtifactChecksumSha256" => String(get(model_artifact, "checksumSha256", "")),
-                    "modelKind" => String(get(model_artifact, "modelKind", "")),
-                    "featureColumn" => feature_column,
-                    "trainingRowCount" => Int(get(model_artifact, "trainRowCount", train_count)),
-                )
+                artifact_predictions = nothing
+                if model_kind == "local_csv_multi_feature_ols" && haskey(coefficients, "slopes")
+                    slopes = get(coefficients, "slopes", Dict{String,Any}())
+                    artifact_predictions = [
+                        intercept + sum(Float64(get(slopes, column, 0.0)) * numeric_columns[column][row] for column in feature_columns)
+                        for row in (train_count + 1):total
+                    ]
+                elseif haskey(coefficients, "slope")
+                    slope = Float64(coefficients["slope"])
+                    feature_column = first(feature_columns)
+                    artifact_predictions = [intercept + slope * numeric_columns[feature_column][row] for row in (train_count + 1):total]
+                end
+                if artifact_predictions !== nothing
+                    predictions = artifact_predictions
+                    execution_mode = "local_csv_trained_artifact"
+                    baseline_model = model_kind == "local_csv_multi_feature_ols" ? "trained_multi_feature_ols" : "trained_single_feature_ols"
+                    baseline_slope = model_kind == "local_csv_multi_feature_ols" ? 0.0 : round(Float64(get(coefficients, "slope", 0.0)); digits = 6)
+                    baseline_intercept = round(intercept; digits = 6)
+                    scoring_evidence = Dict{String,Any}(
+                        "modelArtifactRef" => String(get(model_artifact, "artifactRef", "")),
+                        "modelArtifactChecksumSha256" => String(get(model_artifact, "checksumSha256", "")),
+                        "modelKind" => model_kind,
+                        "featureColumn" => first(feature_columns),
+                        "featureColumns" => feature_columns,
+                        "coefficients" => coefficients,
+                        "trainingRowCount" => Int(get(model_artifact, "trainRowCount", train_count)),
+                    )
+                end
             end
         end
     end

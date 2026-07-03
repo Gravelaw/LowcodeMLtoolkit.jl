@@ -11,6 +11,7 @@ export local_csv_statistical_evidence_from_path,
     pearson_correlation,
     spearman_correlation,
     simple_linear_ols,
+    simple_multi_linear_ols,
     two_sample_t_test,
     one_way_anova,
     chi_square_independence
@@ -169,6 +170,50 @@ function simple_linear_ols(target::Vector{Float64}, feature::Vector{Float64})
         "n" => n,
         "intercept" => round(intercept; digits = 6),
         "slope" => round(slope; digits = 6),
+        "rSquared" => round(r_squared; digits = 6),
+        "sse" => round(sse; digits = 6),
+    )
+end
+
+function simple_multi_linear_ols(target::Vector{Float64}, features::AbstractVector{<:Pair})
+    isempty(features) && return nothing
+    n = length(target)
+    for pair in features
+        n = min(n, length(pair.second))
+    end
+    feature_count = length(features)
+    n <= 1 && return nothing
+    y = target[1:n]
+    x = zeros(Float64, n, feature_count + 1)
+    x[:, 1] .= 1.0
+    for (feature_index, pair) in enumerate(features)
+        values = pair.second
+        for row in 1:n
+            x[row, feature_index + 1] = values[row]
+        end
+    end
+    xtx = transpose(x) * x
+    for index in 1:size(xtx, 1)
+        xtx[index, index] += 1.0e-8
+    end
+    beta = xtx \ (transpose(x) * y)
+    predictions = x * beta
+    residuals = [y[index] - predictions[index] for index in 1:n]
+    sse = sum(value^2 for value in residuals)
+    y_mean = sample_mean(y)
+    sst = sum((value - y_mean)^2 for value in y)
+    r_squared = sst == 0.0 ? 0.0 : 1.0 - (sse / sst)
+    feature_names = [String(pair.first) for pair in features]
+    slopes = Dict{String,Any}(
+        feature_names[index] => round(beta[index + 1]; digits = 6)
+        for index in eachindex(feature_names)
+    )
+    return Dict{String,Any}(
+        "model" => feature_count == 1 ? "simple_linear_ols" : "simple_multi_linear_ols",
+        "n" => n,
+        "featureColumns" => feature_names,
+        "intercept" => round(beta[1]; digits = 6),
+        "slopes" => slopes,
         "rSquared" => round(r_squared; digits = 6),
         "sse" => round(sse; digits = 6),
     )

@@ -18,11 +18,13 @@ function normalized_dict(value)
 end
 
 function local_csv_ols_service_code(model_id::AbstractString, endpoint_url::AbstractString, model_ref::AbstractString, model_artifact::AbstractDict)
-    feature_column = String(get(model_artifact, "featureColumn", ""))
+    feature_columns = String.(get(model_artifact, "featureColumns", [String(get(model_artifact, "featureColumn", ""))]))
+    isempty(feature_columns) && (feature_columns = [String(get(model_artifact, "featureColumn", ""))])
+    inference_mode = String(get(model_artifact, "modelKind", "local_csv_single_feature_ols"))
     return """using Genie, JSON3
 
 const MODEL_PATH = "$(String(model_ref))"
-const FEATURE_COLUMN = "$(feature_column)"
+const FEATURE_COLUMNS = $(repr(feature_columns))
 
 function local_model_path(ref::AbstractString)
     if startswith(String(ref), "local://")
@@ -52,8 +54,17 @@ end
 function score(payload)
     model = load_model()
     coefficients = model["coefficients"]
+    intercept = Float64(coefficients["intercept"])
+    if haskey(model, "featureColumns") && haskey(coefficients, "slopes")
+        slopes = coefficients["slopes"]
+        prediction = intercept
+        for column in model["featureColumns"]
+            prediction += Float64(slopes[String(column)]) * numeric_payload_value(payload, String(column))
+        end
+        return round(prediction; digits = 6)
+    end
     feature = numeric_payload_value(payload, String(model["featureColumn"]))
-    return round(Float64(coefficients["intercept"]) + Float64(coefficients["slope"]) * feature; digits = 6)
+    return round(intercept + Float64(coefficients["slope"]) * feature; digits = 6)
 end
 
 route("/v1/predict", method = POST) do
@@ -64,8 +75,8 @@ route("/v1/predict", method = POST) do
         "endpoint" => "$(String(endpoint_url))",
         "localOnly" => true,
         "modelArtifactRef" => MODEL_PATH,
-        "inferenceMode" => "local_csv_single_feature_ols",
-        "featureColumn" => FEATURE_COLUMN,
+        "inferenceMode" => "$(inference_mode)",
+        "featureColumns" => FEATURE_COLUMNS,
         "prediction" => prediction,
     ))
 end
@@ -80,7 +91,7 @@ function local_deploy_service_code(
     model_ref::AbstractString,
     model_artifact::Union{Nothing,AbstractDict} = nothing,
 )
-    if model_artifact !== nothing && String(get(model_artifact, "modelKind", "")) == "local_csv_single_feature_ols"
+    if model_artifact !== nothing && String(get(model_artifact, "modelKind", "")) in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols")
         return local_csv_ols_service_code(model_id, endpoint_url, model_ref, model_artifact)
     end
     return """using Genie, JSON3
@@ -133,8 +144,9 @@ end
 
 function deploy_runtime_inference_mode(model_artifact)
     model_artifact isa AbstractDict || return "echo_payload_fallback"
-    return String(get(model_artifact, "modelKind", "")) == "local_csv_single_feature_ols" ?
-        "local_csv_single_feature_ols" :
+    model_kind = String(get(model_artifact, "modelKind", ""))
+    return model_kind in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols") ?
+        model_kind :
         "echo_payload_fallback"
 end
 

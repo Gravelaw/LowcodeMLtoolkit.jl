@@ -20,6 +20,27 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Multi-Feature OLS Artifact Slice - 2026-07-03
+
+### Work Done Till Date
+
+- Local CSV training now emits `local_csv_multi_feature_ols` artifacts when multiple numeric non-target predictors are available, while preserving `local_csv_single_feature_ols` for one-feature datasets.
+- Training artifact evidence records bounded feature columns, coefficient slopes, checksum/size evidence, and train/validation/test row counts.
+- Final evaluation scores both single-feature and multi-feature persisted OLS artifacts from checksum-verified JSON evidence.
+- Prediction export uses trained-artifact scoring for multi-feature local CSV exports when artifact evidence is available.
+- Generated local deploy Genie service code scores both single-feature and multi-feature local CSV OLS artifacts at runtime.
+- Julia helper and gateway coverage verifies multi-feature OLS math, final-evaluation evidence, export scoring, deploy inference mode, and generated service-code behavior.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is still a bounded local CSV OLS artifact path rather than MLJ-backed model families or tuned model selection.
+- Richer preprocessing, broader drift methodology, CPU/GPU trial execution, and final reviewer/architect/persona/application-test agents remain open.
+
+### Next Items To Implement
+
+- Extend persisted model artifacts toward MLJ-backed model families and tuned model selection.
+- Continue toward CPU/GPU trial execution evidence and final review passes.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local Deploy Runtime Inference Slice - 2026-07-03
 
 ### Work Done Till Date
@@ -32,7 +53,7 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 remains open because deploy runtime inference is limited to the local CSV single-feature OLS artifact path.
+- AKS-36 remains open because deploy runtime inference is limited to the bounded local CSV OLS artifact path; the later 2026-07-03 multi-feature slice removes the single-feature-only limitation for numeric CSV predictors.
 - MLJ-backed model families, tuned model selection, richer preprocessing, drift methodology, and CPU/GPU trial execution remain open.
 - Final reviewer/architect/persona/application-test agents remain deferred until parent evidence is complete.
 
@@ -115,7 +136,7 @@ Each checkpoint entry must contain:
 
 ### Gaps Pending
 
-- AKS-36 remains open because artifact-backed scoring is still limited to the narrow local CSV single-feature OLS path.
+- AKS-36 remains open because artifact-backed scoring is still limited to the bounded local CSV OLS artifact path rather than MLJ-backed model families.
 - Worker-backed real MLJ training/tuning/evaluation/scoring/drift/deploy runtime semantics remain open.
 
 ### Next Items To Implement

@@ -434,6 +434,27 @@ end
     @test occursin("function score(payload)", ols_service_code)
     @test occursin("\"prediction\" => prediction", ols_service_code)
     @test occursin("\"inferenceMode\" => \"local_csv_single_feature_ols\"", ols_service_code)
+    multi_model_record = Dict{String,Any}(
+        "modelId" => "multi-helper",
+        "checkpointTag" => "chk-helper",
+        "artifactEvidence" => [
+            Dict{String,Any}(
+                "kind" => "model",
+                "artifactRef" => "local://models/multi-helper/model.json",
+                "checksumSha256" => repeat("f", 64),
+                "modelKind" => "local_csv_multi_feature_ols",
+                "featureColumn" => "margin",
+                "featureColumns" => ["margin", "units"],
+                "targetColumn" => "amount",
+            ),
+        ],
+    )
+    multi_artifact = deploy.deploy_model_artifact(multi_model_record)
+    @test deploy.deploy_runtime_inference_mode(multi_artifact) == "local_csv_multi_feature_ols"
+    multi_service_code = deploy.local_deploy_service_code("multi-helper", endpoint["endpointUrl"], "local://models/multi-helper/model.json", multi_artifact)
+    @test occursin("const FEATURE_COLUMNS = [\"margin\", \"units\"]", multi_service_code)
+    @test occursin("for column in model[\"featureColumns\"]", multi_service_code)
+    @test occursin("\"inferenceMode\" => \"local_csv_multi_feature_ols\"", multi_service_code)
 
     artifact_evidence = deploy.deploy_artifact_evidence(
         "wf-helper",
@@ -608,7 +629,7 @@ end
     @test metrics["mae"] == 0.9
     mktempdir() do temp_dir
         csv_path = joinpath(temp_dir, "evaluation.csv")
-        write(csv_path, "row_id,amount,margin\n1,10,2\n2,20,4\n3,30,9\n4,40,11\n")
+        write(csv_path, "row_id,amount,margin,units\n1,10,2,1\n2,20,4,2\n3,30,9,3\n4,40,11,4\n")
         csv_result = evaluation.final_evaluation_metrics_from_csv(
             Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
             csv_path,
@@ -645,6 +666,27 @@ end
         @test model_result["evidence"]["modelArtifactRef"] == "local://models/model-helper/model.json"
         @test model_result["evidence"]["featureColumn"] == "margin"
         @test model_result["evidence"]["rawMetrics"]["rmse"] == 3.84615
+        multi_model_result = evaluation.final_evaluation_metrics_from_csv(
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
+            csv_path,
+            "amount",
+            ["rmse", "mae"],
+            Dict{String,Any}("testFraction" => 0.25),
+            Dict{String,Any}(
+                "modelKind" => "local_csv_multi_feature_ols",
+                "artifactRef" => "local://models/model-helper/multi-model.json",
+                "checksumSha256" => repeat("b", 64),
+                "targetColumn" => "amount",
+                "featureColumn" => "margin",
+                "featureColumns" => ["margin", "units"],
+                "trainRowCount" => 3,
+                "coefficients" => Dict("intercept" => 0.0, "slopes" => Dict("margin" => 0.0, "units" => 10.0)),
+            ),
+        )
+        @test multi_model_result["evidence"]["executionMode"] == "local_csv_trained_artifact"
+        @test multi_model_result["evidence"]["baselineModel"] == "trained_multi_feature_ols"
+        @test multi_model_result["evidence"]["featureColumns"] == ["margin", "units"]
+        @test multi_model_result["evidence"]["rawMetrics"]["rmse"] == 0.0
     end
     report = evaluation.final_evaluation_report_record(
         "eval-helper",
@@ -800,6 +842,16 @@ end
     @test evidence["inferentialTests"]["tTest"]["groups"] == ["East", "West"]
     @test evidence["inferentialTests"]["chiSquare"]["degreesOfFreedom"] == 1
     @test evidence["inferentialTests"]["spearmanCorrelation"]["columns"] == ["amount", "margin"]
+    multi_ols = stats.simple_multi_linear_ols(
+        [15.0, 25.0, 35.0, 45.0],
+        ["margin" => [1.0, 2.0, 3.0, 4.0], "units" => [5.0, 6.0, 7.0, 8.0]],
+    )
+    @test multi_ols !== nothing
+    @test multi_ols["model"] == "simple_multi_linear_ols"
+    @test multi_ols["featureColumns"] == ["margin", "units"]
+    @test haskey(multi_ols["slopes"], "margin")
+    @test haskey(multi_ols["slopes"], "units")
+    @test multi_ols["rSquared"] > 0.99
 
     code = stats.statistical_analysis_code_artifact(
         "stats-sample",

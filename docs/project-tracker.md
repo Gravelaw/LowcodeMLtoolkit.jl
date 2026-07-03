@@ -18,9 +18,28 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-07-02`
+- Last updated: `2026-07-03`
 
 ## Work Done Till Date
+### AKS-36 Local CSV Multi-Feature OLS Artifact Slice (2026-07-03)
+
+- Local CSV training now emits `local_csv_multi_feature_ols` artifacts when multiple numeric non-target predictors are available, while preserving `local_csv_single_feature_ols` for one-feature datasets.
+- The training artifact records bounded feature columns, coefficient slopes, checksum/size evidence, and train/validation/test row counts.
+- Final evaluation now scores both single-feature and multi-feature persisted OLS artifacts from checksum-verified JSON evidence.
+- Prediction export uses the same trained-artifact scoring path for multi-feature exports when artifact evidence is available.
+- Generated local deploy Genie service code now scores both single-feature and multi-feature local CSV OLS artifacts at runtime.
+- Julia helper and gateway coverage verify multi-feature OLS math, evaluation evidence, prediction/export scoring, deploy inference mode, and generated service-code behavior.
+
+### Gaps Pending
+
+- AKS-36 remains open because this is still a bounded local CSV OLS path, not MLJ-backed model families or tuned model selection.
+- Richer preprocessing, broader drift methodology, CPU/GPU trial execution, and final reviewer/architect/persona/application-test passes remain open.
+
+### Next Items To Implement
+
+- Extend model artifact formats/loaders toward MLJ-backed models and tuned model selection.
+- Add CPU/GPU trial execution evidence and broader classical-ML dataset validation before final review agents run.
+
 ### AKS-36 Local Deploy Runtime Inference Slice (2026-07-03)
 
 - Local deploy packaging now generates a Genie service that performs runtime scoring for `local_csv_single_feature_ols` model artifacts.
@@ -31,7 +50,7 @@ Tracker always records 3 things:
 
 ### Gaps Pending
 
-- AKS-36 remains open because runtime inference is still limited to the local CSV single-feature OLS artifact path.
+- AKS-36 remains open because runtime inference is still limited to the bounded local CSV OLS artifact path; the later 2026-07-03 multi-feature slice removes the single-feature-only limitation for numeric CSV predictors.
 - Broader MLJ-backed model families, tuned model selection, richer preprocessing, drift methodology, and CPU/GPU trial execution remain open.
 
 ### Next Items To Implement
@@ -50,7 +69,7 @@ Tracker always records 3 things:
 
 ### Gaps Pending
 
-- AKS-36 remains open because this is still the narrow local CSV single-feature OLS path.
+- AKS-36 remains open because artifact-backed evaluation/export is still limited to the bounded local CSV OLS artifact path; the later 2026-07-03 multi-feature slice removes the single-feature-only limitation for numeric CSV predictors.
 - Broader MLJ-backed training/tuning/model selection, richer feature preprocessing, drift methodology, and CPU/GPU trial execution remain open.
 
 ### Next Items To Implement
@@ -104,7 +123,7 @@ Tracker always records 3 things:
 
 ### Gaps Pending
 
-- AKS-36 remains open because artifact-backed scoring is still limited to the narrow local CSV single-feature OLS path.
+- AKS-36 remains open because artifact-backed scoring is still limited to the bounded local CSV OLS artifact path rather than MLJ-backed model families.
 - Real MLJ-backed model training, tuning, evaluation, scoring, drift, and deploy-runtime execution remain open.
 
 ### Next Items To Implement
