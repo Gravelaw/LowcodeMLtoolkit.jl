@@ -18,9 +18,25 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-07-03`
+- Last updated: `2026-07-04`
 
 ## Work Done Till Date
+### AKS-36 MLJ-Compatible Model Evidence Slice (2026-07-04)
+
+- Added a focused MLJ helper module for MLJ-prefixed algorithm detection, model-family naming, package-availability evidence, generated Julia training code, and explicit local fallback metadata.
+- Local CSV training artifacts, tuning trials, final evaluation, registry, prediction/export scoring, and deploy runtime selection now preserve both requested MLJ-compatible model evidence and native local scoring shape.
+- Julia helper coverage verifies adapter metadata, MLJ-compatible classifier tuning evidence, and final-evaluation scoring for MLJ-compatible regression artifacts.
+
+### Gaps Pending
+
+- AKS-36 remains open because MLJ packages are not part of the current project dependency surface; this slice provides explicit unavailable/fallback evidence, not full package-backed MLJ optimization.
+- Actual MLJ package-backed fitting/tuning, actual GPU-accelerated trial execution, final integrated classical-ML tests, and reviewer/architect/persona/application-test passes remain open.
+
+### Next Items To Implement
+
+- Continue toward package-backed MLJ execution or the final integrated classical-ML dataset harness.
+- Add final review agents only after parent AKS-36 implementation and combined final tests are complete.
+
 ### AKS-36 Local CSV Hyperparameter Grid Tuning Slice (2026-07-03)
 
 - Validation-scored local CSV tuning now uses the additional `maxTrials` budget for feature-set plus hyperparameter grid evidence.

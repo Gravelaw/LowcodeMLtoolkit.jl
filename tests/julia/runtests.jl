@@ -547,6 +547,21 @@ end
 
 @testset "Data science project tuning helpers" begin
     tuning = JuliaFlowApiGateway.JuliaFlowDataScienceProjectTuning
+    mlj = JuliaFlowApiGateway.JuliaFlowDataScienceProjectMLJ
+    @test mlj.mlj_algorithm_requested("MLJ.LinearRegressor")
+    @test !mlj.mlj_algorithm_requested("local_csv_ols")
+    mlj_evidence = mlj.mlj_adapter_evidence(
+        "MLJ.LinearRegressor",
+        "local_csv_multi_feature_ols",
+        ["margin", "units"],
+        "amount",
+    )
+    @test mlj_evidence["modelKind"] == "mlj_compatible_linear_regressor"
+    @test mlj_evidence["nativeModelKind"] == "local_csv_multi_feature_ols"
+    @test mlj_evidence["modelFamily"] == "mlj_regression"
+    @test haskey(mlj_evidence, "mljPackageAvailable")
+    @test haskey(mlj_evidence, "mljLinearModelsPackageAvailable")
+    @test occursin("MLJLinearModels", mlj.mlj_generated_training_code("MLJ.LinearRegressor", "amount", ["margin", "units"]))
     project = DataScienceProjectRecord(project_id = "tuning-helper", name = "Tuning Helper")
     project.split_plans = [
         Dict{String,Any}(
@@ -652,8 +667,17 @@ end
             Dict{String,Any}("validationFraction" => 0.34, "testFraction" => 0.0),
         )
         @test classifier_trials !== nothing
-        @test classifier_trials[1]["parameters"]["modelFamily"] == "local_csv_binary_centroid"
-        @test classifier_trials[1]["validationEvidence"]["modelKind"] == "local_csv_binary_centroid_classifier"
+        @test classifier_trials[1]["parameters"]["modelFamily"] == "mlj_binary_classification"
+        @test classifier_trials[1]["parameters"]["modelKind"] == "mlj_compatible_binary_classifier"
+        @test classifier_trials[1]["parameters"]["nativeModelKind"] == "local_csv_binary_centroid_classifier"
+        @test classifier_trials[1]["validationEvidence"]["modelKind"] == "mlj_compatible_binary_classifier"
+        @test classifier_trials[1]["validationEvidence"]["nativeModelKind"] == "local_csv_binary_centroid_classifier"
+        @test classifier_trials[1]["validationEvidence"]["mljEvidence"]["mljRequested"] == true
+        @test classifier_trials[1]["validationEvidence"]["mljEvidence"]["localFallbackUsed"] == (
+            !(classifier_trials[1]["validationEvidence"]["mljEvidence"]["mljPackageAvailable"] &&
+              classifier_trials[1]["validationEvidence"]["mljEvidence"]["mljLinearModelsPackageAvailable"])
+        )
+        @test occursin("using MLJ", classifier_trials[1]["validationEvidence"]["generatedJuliaCode"])
         @test haskey(classifier_trials[1]["validationEvidence"]["coefficients"], "positiveMeans")
         @test haskey(classifier_trials[1]["metrics"], "accuracy")
         @test haskey(classifier_trials[1]["metrics"], "auc")
@@ -789,6 +813,33 @@ end
         @test multi_model_result["evidence"]["baselineModel"] == "trained_multi_feature_ols"
         @test multi_model_result["evidence"]["featureColumns"] == ["margin", "units"]
         @test multi_model_result["evidence"]["rawMetrics"]["rmse"] == 0.0
+        mlj_model_result = evaluation.final_evaluation_metrics_from_csv(
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
+            csv_path,
+            "amount",
+            ["rmse", "mae"],
+            Dict{String,Any}("testFraction" => 0.25),
+            Dict{String,Any}(
+                "modelKind" => "mlj_compatible_linear_regressor",
+                "nativeModelKind" => "local_csv_multi_feature_ols",
+                "modelFamily" => "mlj_regression",
+                "requestedAlgorithm" => "MLJ.LinearRegressor",
+                "artifactRef" => "local://models/model-helper/mlj-model.json",
+                "checksumSha256" => repeat("d", 64),
+                "targetColumn" => "amount",
+                "featureColumn" => "margin",
+                "featureColumns" => ["margin", "units"],
+                "trainRowCount" => 3,
+                "coefficients" => Dict("intercept" => 0.0, "slopes" => Dict("margin" => 0.0, "units" => 10.0)),
+                "mljEvidence" => Dict("mljRequested" => true, "mljExecutionMode" => "mlj_unavailable_local_csv_fallback"),
+            ),
+        )
+        @test mlj_model_result["evidence"]["executionMode"] == "local_csv_trained_artifact"
+        @test mlj_model_result["evidence"]["modelKind"] == "mlj_compatible_linear_regressor"
+        @test mlj_model_result["evidence"]["nativeModelKind"] == "local_csv_multi_feature_ols"
+        @test mlj_model_result["evidence"]["modelFamily"] == "mlj_regression"
+        @test mlj_model_result["evidence"]["mljEvidence"]["mljRequested"] == true
+        @test mlj_model_result["evidence"]["rawMetrics"]["rmse"] == 0.0
         classifier_csv_path = joinpath(temp_dir, "classification.csv")
         write(classifier_csv_path, "row_id,survived,age,fare\n1,0,20,8\n2,0,25,9\n3,1,60,80\n4,1,65,90\n")
         classifier_result = evaluation.final_evaluation_metrics_from_csv(

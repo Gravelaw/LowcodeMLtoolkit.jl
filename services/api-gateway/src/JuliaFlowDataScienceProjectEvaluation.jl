@@ -197,10 +197,11 @@ function final_evaluation_metrics_from_csv(
     execution_mode = "local_csv_baseline"
     scoring_evidence = Dict{String,Any}()
     predictions, baseline_model, baseline_slope, baseline_intercept = final_evaluation_trend_predictions(train_values, length(test_values))
-    if model_artifact !== nothing && String(get(model_artifact, "modelKind", "")) in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier")
+    if model_artifact !== nothing && String(get(model_artifact, "nativeModelKind", String(get(model_artifact, "modelKind", "")))) in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier")
         artifact_target = String(get(model_artifact, "targetColumn", ""))
         model_kind = String(get(model_artifact, "modelKind", ""))
-        feature_columns = model_kind in ("local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier") ?
+        native_model_kind = String(get(model_artifact, "nativeModelKind", model_kind))
+        feature_columns = native_model_kind in ("local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier") ?
             [String(column) for column in get(model_artifact, "featureColumns", Any[])] :
             [String(get(model_artifact, "featureColumn", ""))]
         coefficients = get(model_artifact, "coefficients", Dict{String,Any}())
@@ -210,7 +211,7 @@ function final_evaluation_metrics_from_csv(
             if all(column -> length(numeric_columns[column]) >= total, feature_columns)
                 intercept = Float64(get(coefficients, "intercept", 0.0))
                 artifact_predictions = nothing
-                if model_kind == "local_csv_binary_centroid_classifier"
+                if native_model_kind == "local_csv_binary_centroid_classifier"
                     centroid_model = Dict{String,Any}(
                         "featureColumns" => feature_columns,
                         "positiveLabel" => get(coefficients, "positiveLabel", 1.0),
@@ -226,7 +227,7 @@ function final_evaluation_metrics_from_csv(
                         feature_pairs,
                         (train_count + 1):total,
                     )
-                elseif model_kind == "local_csv_multi_feature_ols" && haskey(coefficients, "slopes")
+                elseif native_model_kind == "local_csv_multi_feature_ols" && haskey(coefficients, "slopes")
                     slopes = get(coefficients, "slopes", Dict{String,Any}())
                     artifact_predictions = [
                         intercept + sum(Float64(get(slopes, column, 0.0)) * numeric_columns[column][row] for column in feature_columns)
@@ -240,19 +241,23 @@ function final_evaluation_metrics_from_csv(
                 if artifact_predictions !== nothing
                     predictions = artifact_predictions
                     execution_mode = "local_csv_trained_artifact"
-                    baseline_model = model_kind == "local_csv_binary_centroid_classifier" ? "trained_binary_centroid_classifier" :
-                        (model_kind == "local_csv_multi_feature_ols" ? "trained_multi_feature_ols" : "trained_single_feature_ols")
-                    baseline_slope = model_kind == "local_csv_multi_feature_ols" ? 0.0 : round(Float64(get(coefficients, "slope", 0.0)); digits = 6)
+                    baseline_model = native_model_kind == "local_csv_binary_centroid_classifier" ? "trained_binary_centroid_classifier" :
+                        (native_model_kind == "local_csv_multi_feature_ols" ? "trained_multi_feature_ols" : "trained_single_feature_ols")
+                    baseline_slope = native_model_kind == "local_csv_multi_feature_ols" ? 0.0 : round(Float64(get(coefficients, "slope", 0.0)); digits = 6)
                     baseline_intercept = round(intercept; digits = 6)
                     scoring_evidence = Dict{String,Any}(
                         "modelArtifactRef" => String(get(model_artifact, "artifactRef", "")),
                         "modelArtifactChecksumSha256" => String(get(model_artifact, "checksumSha256", "")),
                         "modelKind" => model_kind,
+                        "nativeModelKind" => native_model_kind,
+                        "modelFamily" => String(get(model_artifact, "modelFamily", "")),
+                        "requestedAlgorithm" => String(get(model_artifact, "requestedAlgorithm", "")),
                         "featureColumn" => first(feature_columns),
                         "featureColumns" => feature_columns,
                         "coefficients" => coefficients,
                         "trainingRowCount" => Int(get(model_artifact, "trainRowCount", train_count)),
                     )
+                    haskey(model_artifact, "mljEvidence") && (scoring_evidence["mljEvidence"] = model_artifact["mljEvidence"])
                 end
             end
         end

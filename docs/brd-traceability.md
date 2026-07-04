@@ -1,6 +1,6 @@
 # JuliaFlow BRD Traceability
 
-Last updated: 2026-07-03
+Last updated: 2026-07-04
 
 | BRD Area | Current Status | Evidence | Next Gap |
 | --- | --- | --- | --- |
@@ -150,6 +150,7 @@ Checked P0/P1/P2 items in `docs/TODO.md` must be linked here before they are all
 | AKS-36 prediction export execution evidence slice | `packages/contracts/src/index.ts`; `packages/contracts/openapi/openapi.json`; `services/api-gateway/src/JuliaFlowApiGateway.jl`; `tests/contracts/workflow-schema.test.mjs`; `tests/julia/runtests.jl`; `Plan.md`; `docs/TODO.md`; `docs/risk-register.md`; `docs/project-tracker.md`; `docs/checkpoint-log.md`; `docs/brd-traceability.md` | `npm run validate:contracts`; `npm run build`; `npm run validate:control-doc-sync`; `npm run validate:brd-traceability`; `git diff --check`; local Julia blocked because no `julia` executable is available in this shell, so PR CI must verify `tests/julia/runtests.jl` |
 | AKS-36 model lifecycle rollback and retraining action slice | `packages/contracts/src/index.ts`; `packages/contracts/openapi/openapi.json`; `services/api-gateway/src/JuliaFlowApiGateway.jl`; `tests/contracts/fixtures/gateway-client-usage.ts`; `tests/contracts/workflow-schema.test.mjs`; `tests/julia/runtests.jl`; `Plan.md`; `docs/TODO.md`; `docs/risk-register.md`; `docs/project-tracker.md`; `docs/checkpoint-log.md`; `docs/brd-traceability.md` | `npm run validate:contracts`; `npm run build`; `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`; `npm run validate:control-doc-sync`; `npm run validate:brd-traceability`; `git diff --check` |
 | AKS-36 project job resource evidence slice | `packages/contracts/src/index.ts`; `packages/contracts/openapi/openapi.json`; `services/api-gateway/src/JuliaFlowApiGateway.jl`; `tests/contracts/workflow-schema.test.mjs`; `tests/julia/runtests.jl`; `Plan.md`; `docs/TODO.md`; `docs/risk-register.md`; `docs/project-tracker.md`; `docs/checkpoint-log.md`; `docs/brd-traceability.md` | `npm run validate:contracts`; `npm run build`; `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`; `npm run validate:control-doc-sync`; `npm run validate:brd-traceability`; `git diff --check` |
+| AKS-36 MLJ-compatible model evidence slice | `services/api-gateway/src/JuliaFlowDataScienceProjectMLJ.jl`; `services/api-gateway/src/JuliaFlowDataScienceProjectTuning.jl`; `services/api-gateway/src/JuliaFlowDataScienceProjectEvaluation.jl`; `services/api-gateway/src/JuliaFlowDataScienceProjectDeploy.jl`; `services/api-gateway/src/JuliaFlowApiGateway.jl`; `tests/julia/runtests.jl`; `Plan.md`; `docs/TODO.md`; `docs/risk-register.md`; `docs/project-tracker.md`; `docs/checkpoint-log.md`; `docs/brd-traceability.md` | `node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl`; `npm run validate:contracts`; `npm run build`; `npm run validate:control-doc-sync`; `npm run validate:brd-traceability`; `git diff --check` |
 
 ## Evidence Rule
 

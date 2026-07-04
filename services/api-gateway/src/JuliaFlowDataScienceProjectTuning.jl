@@ -2,6 +2,7 @@ module JuliaFlowDataScienceProjectTuning
 
 using ..JuliaFlowGatewayRepository
 using ..JuliaFlowDataScienceProjectStatistics
+using ..JuliaFlowDataScienceProjectMLJ
 
 export project_split_plan_for_request,
     validate_tuning_split_context,
@@ -374,8 +375,16 @@ function local_csv_validation_tuning_trials(
             best_index = length(trials) + 1
             best_value = selection_value
         end
-        model_kind = classifier !== nothing ? "local_csv_binary_centroid_classifier" : (length(candidate) == 1 ? "local_csv_single_feature_ols" : "local_csv_multi_feature_ols")
-        model_family = classifier !== nothing ? "local_csv_binary_centroid" : "local_csv_ols"
+        native_model_kind = classifier !== nothing ? "local_csv_binary_centroid_classifier" : (length(candidate) == 1 ? "local_csv_single_feature_ols" : "local_csv_multi_feature_ols")
+        model_kind = JuliaFlowDataScienceProjectMLJ.mlj_model_kind(native_model_kind, algorithm; classifier_mode = classifier !== nothing)
+        model_family = JuliaFlowDataScienceProjectMLJ.mlj_model_family(algorithm; classifier_mode = classifier !== nothing)
+        mlj_evidence = JuliaFlowDataScienceProjectMLJ.mlj_adapter_evidence(
+            algorithm,
+            native_model_kind,
+            candidate,
+            target_column;
+            classifier_mode = classifier !== nothing,
+        )
         coefficients = if classifier !== nothing
             Dict{String,Any}(
                 "positiveLabel" => classifier["positiveLabel"],
@@ -385,10 +394,10 @@ function local_csv_validation_tuning_trials(
                 "negativeMeans" => classifier["negativeMeans"],
                 "featureScales" => classifier["featureScales"],
             )
-        elseif model_kind == "local_csv_single_feature_ols"
-            tuning_ols_coefficients(ols, model_kind, regularization_strength)
+        elseif native_model_kind == "local_csv_single_feature_ols"
+            tuning_ols_coefficients(ols, native_model_kind, regularization_strength)
         else
-            tuning_ols_coefficients(ols, model_kind, regularization_strength)
+            tuning_ols_coefficients(ols, native_model_kind, regularization_strength)
         end
         push!(
             trials,
@@ -397,6 +406,8 @@ function local_csv_validation_tuning_trials(
                 "parameters" => Dict(
                     "algorithm" => String(algorithm),
                     "modelFamily" => model_family,
+                    "modelKind" => model_kind,
+                    "nativeModelKind" => native_model_kind,
                     "featureColumns" => candidate,
                     "candidateIndex" => Int(get(spec, "candidateIndex", index)),
                     "searchIndex" => index,
@@ -409,9 +420,18 @@ function local_csv_validation_tuning_trials(
                     "sourceRef" => String(get(dataset, "sourceUri", "")),
                     "targetColumn" => String(target_column),
                     "modelKind" => model_kind,
+                    "nativeModelKind" => native_model_kind,
+                    "modelFamily" => model_family,
                     "featureColumn" => first(candidate),
                     "featureColumns" => candidate,
                     "hyperparameters" => hyperparameters,
+                    "mljEvidence" => mlj_evidence,
+                    "generatedJuliaCode" => JuliaFlowDataScienceProjectMLJ.mlj_generated_training_code(
+                        algorithm,
+                        target_column,
+                        candidate;
+                        classifier_mode = classifier !== nothing,
+                    ),
                     "selectionMetric" => primary_metric,
                     "selectionDirection" => lower_is_better ? "lower_is_better" : "higher_is_better",
                     "selectionValue" => selection_value,

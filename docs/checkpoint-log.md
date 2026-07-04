@@ -20,6 +20,26 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 MLJ-Compatible Model Evidence Slice - 2026-07-04
+
+### Work Done Till Date
+
+- Added a focused `JuliaFlowDataScienceProjectMLJ` gateway helper module for MLJ-prefixed algorithm detection, model-family naming, package-availability evidence, generated Julia training code, and explicit local fallback metadata.
+- Local CSV training artifacts now preserve native scoring shape while adding `modelFamily`, `nativeModelKind`, requested algorithm, MLJ package availability, fallback reason, and generated Julia evidence.
+- Validation-only tuning trials now carry MLJ-compatible model-family evidence for MLJ-prefixed regression/classification requests while retaining final-test protection and native local CSV fallback scoring.
+- Final evaluation, prediction export, registry, and deploy paths now score/deploy MLJ-compatible artifacts through their `nativeModelKind` without losing the requested MLJ model evidence.
+- Julia helper coverage verifies adapter metadata, MLJ-compatible classifier tuning evidence, and final-evaluation scoring for MLJ-compatible regression artifacts.
+
+### Gaps Pending
+
+- AKS-36 remains open because MLJ packages are optional/unavailable in the current project dependency surface; this slice records explicit package-unavailable fallback evidence rather than closing real package-backed MLJ optimization.
+- Actual MLJ package-backed fitting/tuning, actual GPU-accelerated trial execution, final integrated classical-ML tests, and reviewer/architect/persona/application-test agents remain open.
+
+### Next Items To Implement
+
+- Continue toward package-backed MLJ execution or the final integrated classical-ML dataset harness.
+- Add final review agents only after parent AKS-36 implementation and combined final tests are complete.
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 Local CSV Hyperparameter Grid Tuning Slice - 2026-07-03
 
 ### Work Done Till Date

@@ -169,10 +169,11 @@ function local_deploy_service_code(
     model_ref::AbstractString,
     model_artifact::Union{Nothing,AbstractDict} = nothing,
 )
-    if model_artifact !== nothing && String(get(model_artifact, "modelKind", "")) == "local_csv_binary_centroid_classifier"
+    native_model_kind = model_artifact === nothing ? "" : String(get(model_artifact, "nativeModelKind", String(get(model_artifact, "modelKind", ""))))
+    if model_artifact !== nothing && native_model_kind == "local_csv_binary_centroid_classifier"
         return local_csv_binary_classifier_service_code(model_id, endpoint_url, model_ref, model_artifact)
     end
-    if model_artifact !== nothing && String(get(model_artifact, "modelKind", "")) in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols")
+    if model_artifact !== nothing && native_model_kind in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols")
         return local_csv_ols_service_code(model_id, endpoint_url, model_ref, model_artifact)
     end
     return """using Genie, JSON3
@@ -226,7 +227,8 @@ end
 function deploy_runtime_inference_mode(model_artifact)
     model_artifact isa AbstractDict || return "echo_payload_fallback"
     model_kind = String(get(model_artifact, "modelKind", ""))
-    return model_kind in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier") ?
+    native_model_kind = String(get(model_artifact, "nativeModelKind", model_kind))
+    return native_model_kind in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier") ?
         model_kind :
         "echo_payload_fallback"
 end

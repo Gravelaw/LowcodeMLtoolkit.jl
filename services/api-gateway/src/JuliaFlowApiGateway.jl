@@ -11,6 +11,7 @@ include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectCatalog.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectPredictionExport.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectMonitoring.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectDeploy.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectMLJ.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectTuning.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectEvaluation.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectTransforms.jl"))
@@ -27,6 +28,7 @@ using .JuliaFlowDataScienceProjectCatalog
 using .JuliaFlowDataScienceProjectPredictionExport
 using .JuliaFlowDataScienceProjectMonitoring
 using .JuliaFlowDataScienceProjectDeploy
+using .JuliaFlowDataScienceProjectMLJ
 using .JuliaFlowDataScienceProjectTuning
 using .JuliaFlowDataScienceProjectEvaluation
 using .JuliaFlowDataScienceProjectTransforms
@@ -3041,9 +3043,17 @@ function local_csv_training_artifact!(
             JuliaFlowDataScienceProjectStatistics.simple_multi_linear_ols(train_target, feature_pairs)
     ) : nothing
     (binary_classifier === nothing && ols === nothing) && return nothing
-    model_kind = binary_classifier !== nothing ? "local_csv_binary_centroid_classifier" : (length(feature_pairs) == 1 ? "local_csv_single_feature_ols" : "local_csv_multi_feature_ols")
+    native_model_kind = binary_classifier !== nothing ? "local_csv_binary_centroid_classifier" : (length(feature_pairs) == 1 ? "local_csv_single_feature_ols" : "local_csv_multi_feature_ols")
+    model_kind = JuliaFlowDataScienceProjectMLJ.mlj_model_kind(native_model_kind, String(get(experiment, "modelKind", "")); classifier_mode = binary_classifier !== nothing)
+    mlj_evidence = JuliaFlowDataScienceProjectMLJ.mlj_adapter_evidence(
+        String(get(experiment, "modelKind", "")),
+        native_model_kind,
+        feature_columns,
+        target_column;
+        classifier_mode = binary_classifier !== nothing,
+    )
     feature_column = first(feature_columns)
-    coefficients = if model_kind == "local_csv_binary_centroid_classifier"
+    coefficients = if native_model_kind == "local_csv_binary_centroid_classifier"
         Dict{String,Any}(
             "positiveLabel" => binary_classifier["positiveLabel"],
             "negativeLabel" => binary_classifier["negativeLabel"],
@@ -3052,7 +3062,7 @@ function local_csv_training_artifact!(
             "negativeMeans" => binary_classifier["negativeMeans"],
             "featureScales" => binary_classifier["featureScales"],
         )
-    elseif model_kind == "local_csv_single_feature_ols"
+    elseif native_model_kind == "local_csv_single_feature_ols"
         Dict{String,Any}(
             "intercept" => ols["intercept"],
             "slope" => ols["slope"],
@@ -3070,6 +3080,9 @@ function local_csv_training_artifact!(
     artifact_payload = Dict{String,Any}(
         "modelId" => model_id,
         "modelKind" => model_kind,
+        "nativeModelKind" => native_model_kind,
+        "modelFamily" => String(get(mlj_evidence, "modelFamily", "")),
+        "requestedAlgorithm" => String(get(experiment, "modelKind", "")),
         "projectId" => project.project_id,
         "datasetId" => dataset_id,
         "sourceRef" => String(get(dataset, "sourceUri", "")),
@@ -3081,9 +3094,16 @@ function local_csv_training_artifact!(
         "validationRowCount" => validation_count,
         "testRowCount" => test_count,
         "coefficients" => coefficients,
-        "metrics" => model_kind == "local_csv_binary_centroid_classifier" ?
+        "metrics" => native_model_kind == "local_csv_binary_centroid_classifier" ?
             Dict{String,Any}("trainAccuracy" => binary_classifier["trainAccuracy"]) :
             Dict{String,Any}("trainR2" => ols["rSquared"], "trainSse" => ols["sse"]),
+        "mljEvidence" => mlj_evidence,
+        "generatedJuliaCode" => JuliaFlowDataScienceProjectMLJ.mlj_generated_training_code(
+            String(get(experiment, "modelKind", "")),
+            target_column,
+            feature_columns;
+            classifier_mode = binary_classifier !== nothing,
+        ),
         "createdAt" => String(timestamp),
         "localOnly" => true,
     )
@@ -3096,11 +3116,15 @@ function local_csv_training_artifact!(
         "checksumSha256" => checksum,
         "sizeBytes" => filesize(artifact_path),
         "modelKind" => model_kind,
+        "nativeModelKind" => native_model_kind,
+        "modelFamily" => String(get(mlj_evidence, "modelFamily", "")),
+        "requestedAlgorithm" => String(get(experiment, "modelKind", "")),
         "targetColumn" => target_column,
         "featureColumn" => feature_column,
         "featureColumns" => feature_columns,
         "trainRowCount" => train_count,
         "metrics" => artifact_payload["metrics"],
+        "mljEvidence" => mlj_evidence,
     )
 end
 
@@ -3676,14 +3700,21 @@ function model_registry_payload(state::GatewayState, execution::GatewayExecution
             "checksumSha256" => String(get(artifact, "checksumSha256", "")),
             "sizeBytes" => Int(get(artifact, "sizeBytes", 0)),
             "modelKind" => String(get(artifact, "modelKind", "")),
+            "nativeModelKind" => String(get(artifact, "nativeModelKind", String(get(artifact, "modelKind", "")))),
+            "modelFamily" => String(get(artifact, "modelFamily", "")),
+            "requestedAlgorithm" => String(get(artifact, "requestedAlgorithm", "")),
             "targetColumn" => String(get(artifact, "targetColumn", "")),
             "featureColumn" => String(get(artifact, "featureColumn", "")),
             "featureColumns" => get(artifact, "featureColumns", String[]),
             "trainRowCount" => Int(get(artifact, "trainRowCount", 0)),
         )
+        haskey(artifact, "mljEvidence") && (model_artifact["mljEvidence"] = artifact["mljEvidence"])
         artifacts = [item for item in get(record, "artifactEvidence", Any[]) if String(get(item, "kind", "")) != "model"]
         record["artifactEvidence"] = [model_artifact, artifacts...]
         record["modelKind"] = String(get(artifact, "modelKind", record["modelKind"]))
+        record["validationEvidence"]["trainingNativeModelKind"] = String(get(artifact, "nativeModelKind", String(get(artifact, "modelKind", ""))))
+        record["validationEvidence"]["trainingModelFamily"] = String(get(artifact, "modelFamily", ""))
+        record["validationEvidence"]["trainingRequestedAlgorithm"] = String(get(artifact, "requestedAlgorithm", ""))
         record["validationEvidence"]["trainingArtifactRef"] = String(get(artifact, "artifactRef", ""))
         record["validationEvidence"]["trainingArtifactChecksumSha256"] = String(get(artifact, "checksumSha256", ""))
         record["validationEvidence"]["trainingExecutionMode"] = String(get(artifact, "modelKind", ""))
@@ -5664,7 +5695,7 @@ function local_csv_training_model_artifact(project::DataScienceProjectRecord, da
             catch
                 error("final evaluation training artifact must contain JSON: $(artifact_ref)")
             end
-            String(get(payload, "modelKind", "")) in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier") || continue
+            String(get(payload, "nativeModelKind", String(get(payload, "modelKind", "")))) in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier") || continue
             isempty(strip(target_column)) || String(get(payload, "targetColumn", "")) == target_column || continue
             payload["artifactRef"] = artifact_ref
             payload["checksumSha256"] = checksum
@@ -5702,7 +5733,8 @@ function local_csv_prediction_values_from_report(dataset::AbstractDict, report::
     evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
     String(get(evidence, "executionMode", "")) == "local_csv_trained_artifact" || return nothing, nothing
     model_kind = String(get(evidence, "modelKind", ""))
-    feature_columns = model_kind in ("local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier") ?
+    native_model_kind = String(get(evidence, "nativeModelKind", model_kind))
+    feature_columns = native_model_kind in ("local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier") ?
         [String(column) for column in get(evidence, "featureColumns", Any[])] :
         [String(get(evidence, "featureColumn", ""))]
     feature_columns = [column for column in feature_columns if !isempty(strip(column))]
@@ -5719,7 +5751,7 @@ function local_csv_prediction_values_from_report(dataset::AbstractDict, report::
         intercept = Float64(coefficients["intercept"])
     end
     values = Float64[]
-    if model_kind == "local_csv_binary_centroid_classifier"
+    if native_model_kind == "local_csv_binary_centroid_classifier"
         centroid_model = Dict{String,Any}(
             "featureColumns" => feature_columns,
             "positiveLabel" => get(coefficients, "positiveLabel", 1.0),
@@ -5734,7 +5766,7 @@ function local_csv_prediction_values_from_report(dataset::AbstractDict, report::
         return probabilities, "local_csv_trained_artifact"
     end
     for index in 1:Int(row_count)
-        if model_kind == "local_csv_multi_feature_ols" && haskey(coefficients, "slopes")
+        if native_model_kind == "local_csv_multi_feature_ols" && haskey(coefficients, "slopes")
             slopes = get(coefficients, "slopes", Dict{String,Any}())
             prediction = intercept + sum(
                 Float64(get(slopes, column, 0.0)) * numeric_columns[column][min(index, length(numeric_columns[column]))]
