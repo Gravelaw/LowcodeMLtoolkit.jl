@@ -46,6 +46,7 @@ export GatewayCheckpoint,
     list_events_after,
     load_consumer_cursor,
     save_consumer_cursor!,
+    validate_postgres_identifier!,
     create_postgres_schema!,
     load_repository
 
@@ -248,6 +249,14 @@ end
 
 const LIBPQ_MODULE = Ref{Any}(nothing)
 
+function validate_postgres_identifier!(value::AbstractString, label::AbstractString = "PostgreSQL identifier")
+    identifier = String(value)
+    isempty(identifier) && error("$(label) cannot be empty")
+    ncodeunits(identifier) <= 63 || error("$(label) must be 63 bytes or fewer")
+    occursin(r"^[A-Za-z_][A-Za-z0-9_]*$", identifier) || error("$(label) must use only letters, numbers, and underscores, and must not start with a number")
+    return identifier
+end
+
 function libpq()
     if LIBPQ_MODULE[] === nothing
         LIBPQ_MODULE[] = Base.require(Base.PkgId(Base.UUID("194296ae-ab2e-5f79-8cd4-7183a0a5a0d1"), "LibPQ"))
@@ -257,6 +266,24 @@ end
 
 function execute(conn, statement::AbstractString, args...; kwargs...)
     return Base.invokelatest(libpq().execute, conn, statement, args...; kwargs...)
+end
+
+function materialize_result_rows(result)
+    rows = Vector{Any}()
+    for row in result
+        push!(rows, [row[index] for index in 1:length(row)])
+    end
+    return rows
+end
+
+function result_rows(result)
+    return Base.invokelatest(materialize_result_rows, result)
+end
+
+function first_result_row(result)
+    rows = result_rows(result)
+    isempty(rows) && return nothing
+    return first(rows)
 end
 
 function close_connection(conn)
@@ -1420,7 +1447,7 @@ function FileGatewayRepository(root::AbstractString)
 end
 
 function PostgreSQLGatewayRepository(connection_string::AbstractString; schema::AbstractString = "public")
-    return PostgreSQLGatewayRepository(connection_string = String(connection_string), schema = String(schema))
+    return PostgreSQLGatewayRepository(connection_string = String(connection_string), schema = validate_postgres_identifier!(schema, "PostgreSQL schema"))
 end
 
 function workflows_dir(repo::FileGatewayRepository)
@@ -1550,6 +1577,7 @@ function ensure_repository!(repo::FileGatewayRepository)
 end
 
 function connect(repo::PostgreSQLGatewayRepository)
+    validate_postgres_identifier!(repo.schema, "PostgreSQL schema")
     return Base.invokelatest(libpq().Connection, repo.connection_string)
 end
 
@@ -2106,7 +2134,7 @@ function load_checkpoints(repo::PostgreSQLGatewayRepository)
     checkpoints = GatewayCheckpoint[]
     try
         result = execute(conn, "SELECT tag, summary, created_at::text FROM $(repo.schema).checkpoints ORDER BY created_at ASC;")
-        for row in result
+        for row in result_rows(result)
             push!(
                 checkpoints,
                 GatewayCheckpoint(
@@ -2128,7 +2156,7 @@ function load_executions(repo::PostgreSQLGatewayRepository)
     executions = GatewayExecution[]
     try
         result = execute(conn, "SELECT execution_payload FROM $(repo.schema).executions ORDER BY created_at ASC;")
-        for row in result
+        for row in result_rows(result)
             item = JSON3.read(String(row[1]))
             push!(executions, gateway_execution(item))
         end
@@ -2151,7 +2179,7 @@ function load_events(repo::PostgreSQLGatewayRepository)
             ORDER BY sequence ASC;
             """,
         )
-        for row in result
+        for row in result_rows(result)
             push!(
                 events,
                 GatewayEvent(
@@ -2178,9 +2206,9 @@ function load_auth_policy(repo::PostgreSQLGatewayRepository)
     conn = connect(repo)
     try
         result = execute(conn, "SELECT policy_payload FROM $(repo.schema).auth_policy WHERE policy_id = 'default';")
-        row = iterate(result)
+        row = first_result_row(result)
         row === nothing && return GatewayAuthPolicy()
-        return gateway_auth_policy(JSON3.read(String(row[1][1]), Dict{String,Any}))
+        return gateway_auth_policy(JSON3.read(String(row[1]), Dict{String,Any}))
     finally
         close_connection(conn)
     end
@@ -2191,9 +2219,9 @@ function load_auth_directory(repo::PostgreSQLGatewayRepository)
     conn = connect(repo)
     try
         result = execute(conn, "SELECT directory_payload FROM $(repo.schema).auth_directory WHERE directory_id = 'default';")
-        row = iterate(result)
+        row = first_result_row(result)
         row === nothing && return GatewayAuthDirectory()
-        return gateway_auth_directory(JSON3.read(String(row[1][1]), Dict{String,Any}))
+        return gateway_auth_directory(JSON3.read(String(row[1]), Dict{String,Any}))
     finally
         close_connection(conn)
     end
@@ -2205,7 +2233,7 @@ function load_hub_extensions(repo::PostgreSQLGatewayRepository)
     extensions = HubExtensionRecord[]
     try
         result = execute(conn, "SELECT extension_payload FROM $(repo.schema).hub_extensions ORDER BY extension_id ASC;")
-        for row in result
+        for row in result_rows(result)
             item = JSON3.read(String(row[1]))
             push!(extensions, gateway_hub_extension(item))
         end
@@ -2222,7 +2250,7 @@ function load_published_dashboards(repo::PostgreSQLGatewayRepository)
     dashboards = PublishedDashboardRecord[]
     try
         result = execute(conn, "SELECT dashboard_payload FROM $(repo.schema).published_dashboards ORDER BY dashboard_id ASC;")
-        for row in result
+        for row in result_rows(result)
             item = JSON3.read(String(row[1]))
             push!(dashboards, gateway_published_dashboard(item))
         end
@@ -2238,7 +2266,7 @@ function load_data_science_projects(repo::PostgreSQLGatewayRepository)
     projects = DataScienceProjectRecord[]
     try
         result = execute(conn, "SELECT project_payload FROM $(repo.schema).data_science_projects ORDER BY project_id ASC;")
-        for row in result
+        for row in result_rows(result)
             item = JSON3.read(String(row[1]))
             push!(projects, gateway_data_science_project(item))
         end
@@ -2261,7 +2289,7 @@ function load_model_registry_records(
         else
             result = execute(conn, "SELECT registry_payload FROM $(repo.schema).model_registry WHERE workflow_id = \$1 ORDER BY updated_at DESC, model_id ASC;", [String(workflow_id)])
         end
-        for row in result
+        for row in result_rows(result)
             push!(records, Dict{String,Any}(String(key) => value for (key, value) in pairs(JSON3.read(String(row[1]), Dict{String,Any}))))
         end
     finally
@@ -2284,7 +2312,7 @@ function load_workflows(repo::PostgreSQLGatewayRepository)
     workflows = Dict{String,WorkflowDefinition}()
     try
         result = execute(conn, "SELECT workflow_toml FROM $(repo.schema).workflows ORDER BY workflow_id ASC;")
-        for row in result
+        for row in result_rows(result)
             workflow = load_workflow_definition_text(String(row[1]))
             workflows[workflow.id] = workflow
         end
@@ -2658,9 +2686,9 @@ function append_event!(
             """,
             [String(event_id), String(event_type), String(aggregate_type), String(aggregate_id), String(occurred_at), String(producer), Int(payload_version), JSON3.write(payload)],
         )
-        row = iterate(result)
+        row = first_result_row(result)
         row === nothing && error("failed to append event")
-        sequence = Int(row[1][1])
+        sequence = Int(row[1])
         return GatewayEvent(
             event_id = String(event_id),
             event_type = String(event_type),
@@ -2691,7 +2719,7 @@ function list_events_after(repo::PostgreSQLGatewayRepository, after_sequence::In
     events = GatewayEvent[]
     try
         result = execute(conn, query, [Int(after_sequence)])
-        for row in result
+        for row in result_rows(result)
             push!(
                 events,
                 GatewayEvent(
@@ -2722,9 +2750,9 @@ function load_consumer_cursor(repo::PostgreSQLGatewayRepository, consumer_id::Ab
             "SELECT last_sequence FROM $(repo.schema).event_cursors WHERE consumer_id = \$1;",
             [String(consumer_id)],
         )
-        row = iterate(result)
+        row = first_result_row(result)
         row === nothing && return 0
-        return Int(row[1][1])
+        return Int(row[1])
     finally
         close_connection(conn)
     end

@@ -1,0 +1,28 @@
+name: release-candidate-evidence
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*-rc.*"
+
+jobs:
+  debian-release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.12"
+      - run: npx playwright install --with-deps chromium
+      - run: npm run verify:release
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-release-verification
+          path: artifacts/release-verification/latest
+          if-no-files-found: error

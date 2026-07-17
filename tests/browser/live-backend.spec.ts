@@ -232,6 +232,10 @@ test.describe("live-backend release smoke", () => {
 
     await page.getByRole("button", { name: "Visualize" }).click();
     await expect(page.getByRole("heading", { name: "Visualize" })).toBeVisible();
+    await expect(page.getByText("Project Statistical Analysis Evidence")).toBeVisible();
+    await expect(page.getByText(/summary,pearson_correlation,spearman_correlation,ols,t_test,chi_square,anova/)).toBeVisible();
+    await expect(page.getByText(new RegExp(`local://analysis/${datasetId}/stats-.*?/results.json`)).first()).toBeVisible();
+    await expect(page.getByText(new RegExp(`local://analysis/${datasetId}/stats-.*?/analysis.jl`)).first()).toBeVisible();
     await expect(page.getByText("Dashboard Builder")).toBeVisible();
     await expect(page.getByText("Artifact Rows", { exact: true })).toBeVisible();
     await expect(page.getByText("No artifact-backed dashboard rows are available")).toHaveCount(0);

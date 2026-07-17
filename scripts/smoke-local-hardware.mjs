@@ -54,7 +54,7 @@ try {
     JULIAFLOW_CPU_WORKER_MEMORY_LIMIT_BYTES: String(512 * 1024 * 1024)
   });
 
-  const cudaSmoke = run("julia", ["--project=.", "scripts/smoke-cuda-kernel.jl"], {
+  const cudaSmoke = run(process.execPath, ["scripts/run-julia.mjs", "--project=.", "scripts/smoke-cuda-kernel.jl"], {
     JULIAFLOW_CUDA_SMOKE: "0"
   }, { capture: true });
   const cudaStatus = parseLastJsonLine(cudaSmoke.stdout);

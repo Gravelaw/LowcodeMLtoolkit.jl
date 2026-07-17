@@ -102,12 +102,26 @@ function data_source_options(dataset_id::AbstractString, source_uri::AbstractStr
     arrow_path = "local://data/$(target_zone)/$(artifact_stem).arrow"
     parquet_path = "local://data/processed/$(artifact_stem).parquet"
     duckdb_path = String(get(health, "dataEstateDuckdbQueryPath", "local://data/_duckdb/local-data-estate.sql"))
-    return [
+    object_store_status = String(get(health, "objectStoreCompatibilityStatus", "unavailable"))
+    object_store_ready = object_store_status == "local_compatibility"
+    object_store_reason = object_store_ready ?
+        "Local compatibility mode is enabled; provider credentials and network object stores remain optional compatibility work." :
+        "Object-store connectors are disabled for the local appliance until explicit local compatibility is enabled."
+    options = [
         Dict("mode" => "csv", "label" => "CSV raw source", "path" => source_uri, "status" => read_mode == "csv" ? "active" : "ready", "semantics" => "Raw local file read for ingest and reproducible source checks."),
         Dict("mode" => "arrow_ipc", "label" => "Arrow IPC artifact", "path" => arrow_path, "status" => read_mode == "arrow_ipc" ? "active" : "ready", "semantics" => "Fast local columnar boundary used between JuliaFlow nodes."),
         Dict("mode" => "parquet", "label" => "Parquet managed artifact", "path" => parquet_path, "status" => read_mode == "parquet" ? "active" : "ready", "semantics" => "Durable local analytics artifact for processed and feature zones."),
         Dict("mode" => "duckdb", "label" => "DuckDB query view", "path" => duckdb_path, "status" => read_mode == "duckdb" ? "active" : String(get(health, "dataEstateDuckdbStatus", "pending")), "semantics" => "Persistent local SQL view for profiling, joins, and aggregate reads."),
     ]
+    append!(
+        options,
+        [
+            Dict("mode" => "s3", "label" => "S3-compatible object store", "path" => "s3://", "status" => object_store_ready ? "available" : "unavailable", "semantics" => object_store_reason),
+            Dict("mode" => "gcs", "label" => "Google Cloud Storage", "path" => "gs://", "status" => "unavailable", "semantics" => "Cloud object stores are optional compatibility work and are not enabled in local-appliance mode."),
+            Dict("mode" => "azure_blob", "label" => "Azure Blob Storage", "path" => "az://", "status" => "unavailable", "semantics" => "Cloud object stores are optional compatibility work and are not enabled in local-appliance mode."),
+        ],
+    )
+    return options
 end
 
 function data_lineage_artifacts(dataset_id::AbstractString, source_uri::AbstractString, target_zone::AbstractString, checksum::AbstractString, row_count::Integer, health::AbstractDict)

@@ -16,6 +16,7 @@ include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectTuning.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectEvaluation.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectTransforms.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectExperiments.jl"))
+include(joinpath(@__DIR__, "JuliaFlowGatewayPresentation.jl"))
 include(joinpath(@__DIR__, "..", "..", "worker-service", "src", "JuliaFlowWorkerService.jl"))
 
 using .JuliaFlowGatewayRepository
@@ -33,6 +34,7 @@ using .JuliaFlowDataScienceProjectTuning
 using .JuliaFlowDataScienceProjectEvaluation
 using .JuliaFlowDataScienceProjectTransforms
 using .JuliaFlowDataScienceProjectExperiments
+using .JuliaFlowGatewayPresentation
 using .JuliaFlowWorkerService
 using Base64
 using Dates
@@ -150,6 +152,17 @@ end
 
 function normalized_string_dict(value)
     return Dict{String,Any}(String(key) => item for (key, item) in pairs(value))
+end
+
+function json_compatible_value(value)
+    if value isa AbstractDict || value isa JSON3.Object
+        return Dict{String,Any}(String(key) => json_compatible_value(item) for (key, item) in pairs(value))
+    elseif value isa AbstractVector || value isa JSON3.Array || value isa Tuple
+        return [json_compatible_value(item) for item in value]
+    elseif value isa Symbol
+        return String(value)
+    end
+    return value
 end
 
 function normalize_flow_variable(variable)
@@ -946,92 +959,6 @@ function local_hub_cache_health(appliance_home::AbstractString, extensions)
     )
 end
 
-function plotly_chart_spec(
-    chart_id::AbstractString,
-    title::AbstractString,
-    kind::AbstractString,
-    traces;
-    layout = Dict{String,Any}(),
-    config = Dict{String,Any}(),
-    source_label::AbstractString = "JuliaFlow local gateway",
-    summary::AbstractString = "",
-    status::AbstractString = "ready",
-    empty_reason = nothing,
-    evidence_ref = nothing,
-)
-    spec = Dict{String,Any}(
-        "chartId" => String(chart_id),
-        "title" => String(title),
-        "renderer" => "plotly",
-        "kind" => String(kind),
-        "status" => String(status),
-        "data" => traces,
-        "layout" => merge(
-            Dict{String,Any}(
-                "paper_bgcolor" => "rgba(0,0,0,0)",
-                "plot_bgcolor" => "rgba(0,0,0,0)",
-                "margin" => Dict("l" => 34, "r" => 12, "t" => 20, "b" => 34),
-                "font" => Dict("family" => "Inter, system-ui, sans-serif", "size" => 11, "color" => "#344054"),
-            ),
-            Dict{String,Any}(String(key) => value for (key, value) in pairs(layout)),
-        ),
-        "config" => merge(
-            Dict{String,Any}(
-                "displaylogo" => false,
-                "responsive" => true,
-                "toImageButtonOptions" => Dict("format" => "png", "filename" => String(chart_id)),
-            ),
-            Dict{String,Any}(String(key) => value for (key, value) in pairs(config)),
-        ),
-        "source" => Dict{String,Any}(
-            "label" => String(source_label),
-            "localOnly" => true,
-            "updatedAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
-        ),
-        "summary" => isempty(summary) ? "$(title) generated locally by JuliaFlow." : String(summary),
-        "export" => Dict("fileName" => "$(chart_id)", "png" => true, "html" => true),
-    )
-    empty_reason === nothing || (spec["emptyReason"] = String(empty_reason))
-    evidence_ref === nothing || (spec["source"]["evidenceRef"] = String(evidence_ref))
-    return spec
-end
-
-function local_artifact_kind(path::AbstractString)
-    lower = lowercase(String(path))
-    endswith(lower, ".csv") && return "dataset"
-    (endswith(lower, ".arrow") || endswith(lower, ".parquet")) && return "table"
-    (endswith(lower, ".jl") || endswith(lower, ".toml")) && return "code"
-    endswith(lower, ".jls") && return "model"
-    (endswith(lower, ".json") || endswith(lower, ".md")) && return "metadata"
-    return "artifact"
-end
-
-function local_artifact_size_label(bytes::Integer)
-    bytes < 1024 && return "$(bytes) B"
-    units = ("KB", "MB", "GB", "TB")
-    value = Float64(bytes)
-    unit_index = 0
-    while value >= 1024 && unit_index < length(units)
-        value /= 1024
-        unit_index += 1
-    end
-    return "$(round(value; digits = value >= 10 ? 1 : 2)) $(units[unit_index])"
-end
-
-function workspace_artifact_summaries(data_root::AbstractString)
-    records = local_data_estate_artifact_records(data_root)
-    return [
-        Dict{String,Any}(
-            "path" => String(record["relativePath"]),
-            "kind" => local_artifact_kind(String(record["relativePath"])),
-            "size" => local_artifact_size_label(Int64(record["sizeBytes"])),
-            "status" => get(record, "present", false) == true ? "local" : "missing",
-            "localOnly" => true,
-        )
-        for record in records
-    ]
-end
-
 function workspace_summary_payload(
     state::GatewayState,
     appliance_home::AbstractString,
@@ -1051,7 +978,7 @@ function workspace_summary_payload(
     workflow_names = [String(workflow.name) for workflow in values(state.workflows)]
     project_name = isempty(workflow_names) ? "Local_Workspace" : replace(first(workflow_names), r"[^A-Za-z0-9]+" => "_")
     project_root = "$(appliance_home)/Projects/$(project_name)"
-    artifacts = workspace_artifact_summaries(data_root)
+    artifacts = workspace_artifact_summaries(local_data_estate_artifact_records(data_root))
     executions = reverse(state.executions)
     activities = [
         Dict{String,Any}(
@@ -1090,44 +1017,6 @@ function workspace_summary_payload(
         "activities" => activities,
         "artifacts" => artifacts,
     )
-end
-
-function workspace_chart_specs(summary::AbstractDict)
-    cpu = Float64(summary["cpuUsagePercent"])
-    ram_total = Float64(summary["ramTotalBytes"])
-    disk_total = Float64(summary["diskTotalBytes"])
-    ram_percent = ram_total > 0 ? round(Int, 100 * Float64(summary["ramUsedBytes"]) / ram_total) : 0
-    disk_percent = disk_total > 0 ? round(Int, 100 * Float64(summary["diskUsedBytes"]) / disk_total) : 0
-    labels = ["-25m", "-20m", "-15m", "-10m", "-5m", "now"]
-    return [
-        plotly_chart_spec(
-            "workspace-cpu-trend",
-            "CPU Trend",
-            "line",
-            [Dict("type" => "scatter", "mode" => "lines+markers", "x" => labels, "y" => [max(0, cpu - 8), cpu - 4, cpu + 5, cpu - 2, cpu + 3, cpu], "line" => Dict("color" => "#5b2eea", "width" => 3))];
-            layout = Dict("yaxis" => Dict("range" => [0, 100], "ticksuffix" => "%")),
-            source_label = "Gateway health",
-            summary = "CPU trend is generated from local gateway health evidence.",
-        ),
-        plotly_chart_spec(
-            "workspace-ram-trend",
-            "RAM Trend",
-            "line",
-            [Dict("type" => "scatter", "mode" => "lines+markers", "x" => labels, "y" => [max(0, ram_percent - 6), ram_percent - 3, ram_percent + 2, ram_percent + 4, ram_percent + 1, ram_percent], "line" => Dict("color" => "#16a34a", "width" => 3))];
-            layout = Dict("yaxis" => Dict("range" => [0, 100], "ticksuffix" => "%")),
-            source_label = "Gateway health",
-            summary = "RAM trend is generated from local gateway health evidence.",
-        ),
-        plotly_chart_spec(
-            "workspace-disk-trend",
-            "Disk Trend",
-            "line",
-            [Dict("type" => "scatter", "mode" => "lines+markers", "x" => labels, "y" => [max(0, disk_percent - 3), disk_percent - 2, disk_percent - 1, disk_percent, disk_percent + 1, disk_percent], "line" => Dict("color" => "#2563eb", "width" => 3))];
-            layout = Dict("yaxis" => Dict("range" => [0, 100], "ticksuffix" => "%")),
-            source_label = "Gateway health",
-            summary = "Disk trend is generated from local data estate evidence.",
-        ),
-    ]
 end
 
 function healthcheck(state::GatewayState)
@@ -1191,6 +1080,7 @@ function healthcheck(state::GatewayState)
             "localServiceUrls" => local_service_urls(),
             "postgresProfileStatus" => local_profile_dependency_status(profile, :postgres),
             "minioProfileStatus" => local_profile_dependency_status(profile, :minio),
+            "objectStoreCompatibilityStatus" => object_store_compatibility_status(),
             "cloudCredentialsRequired" => false,
             "cpuThreadCount" => Threads.nthreads(),
             "totalMemoryBytes" => Sys.total_memory(),
@@ -1380,6 +1270,12 @@ function juliaflow_runtime_mode()
     mode = lowercase(strip(get(ENV, "JULIAFLOW_RUNTIME_MODE", "development")))
     mode in ("demo", "development", "release", "local-appliance") || error("unsupported JULIAFLOW_RUNTIME_MODE: $(mode)")
     return mode
+end
+
+function object_store_compatibility_status()
+    mode = lowercase(strip(get(ENV, "JULIAFLOW_OBJECT_STORE_COMPATIBILITY", "disabled")))
+    mode in ("disabled", "local_compatibility") || error("unsupported JULIAFLOW_OBJECT_STORE_COMPATIBILITY: $(mode)")
+    return mode == "local_compatibility" ? "local_compatibility" : "unavailable"
 end
 
 function fixture_substitution_allowed(mode::AbstractString)
@@ -2737,6 +2633,14 @@ function validate_local_data_import_sample!(path::AbstractString)
     return JuliaFlowDataScienceProjectLocalSources.validate_local_data_import_sample!(path)
 end
 
+function validate_source_identifier!(value::AbstractString, label::AbstractString)
+    return JuliaFlowDataScienceProjectLocalSources.validate_source_identifier!(value, label)
+end
+
+function validate_local_data_import_connector_policy!(body::AbstractDict, source_uri::AbstractString)
+    return JuliaFlowDataScienceProjectLocalSources.validate_local_data_import_connector_policy!(body, source_uri)
+end
+
 function validate_local_data_import_file!(path::AbstractString, source_format::AbstractString)
     return JuliaFlowDataScienceProjectLocalSources.validate_local_data_import_file!(
         path,
@@ -2759,6 +2663,10 @@ function local_data_import_audit_source_details(source_uri)
     return JuliaFlowDataScienceProjectLocalSources.local_data_import_audit_source_details(source_uri)
 end
 
+function local_data_import_redaction_preview(source_uri)
+    return JuliaFlowDataScienceProjectLocalSources.local_data_import_redaction_preview(source_uri)
+end
+
 function local_data_import_audit_details(body::AbstractDict; outcome::AbstractString, reason = nothing)
     dataset_id = haskey(body, "datasetId") ? String(body["datasetId"]) : "workflow-dataset"
     details = Dict{String,Any}(
@@ -2768,6 +2676,10 @@ function local_data_import_audit_details(body::AbstractDict; outcome::AbstractSt
         "outcome" => String(outcome),
     )
     merge!(details, local_data_import_audit_source_details(get(body, "sourceUri", nothing)))
+    raw_source_uri = get(body, "sourceUri", nothing)
+    managed_source = raw_source_uri !== nothing && startswith(lowercase(replace(strip(String(raw_source_uri)), "\\" => "/")), "local://")
+    details["connector"] = lowercase(String(get(body, "connector", managed_source ? "managed_local" : "local_file")))
+    details["redactionPreview"] = local_data_import_redaction_preview(get(body, "sourceUri", nothing))
     reason === nothing || (details["reason"] = String(reason))
     return details
 end
@@ -2780,8 +2692,18 @@ function data_import_profile_response!(state::GatewayState, body::AbstractDict)
     dataset_id = safe_local_dataset_id(requested_dataset_id)
     default_source_uri = "local://data/raw/$(dataset_id).csv"
     source_format = String(get(body, "format", "csv"))
-    source_uri = validate_local_data_import_source!(String(get(body, "sourceUri", default_source_uri)))
-    startswith(lowercase(replace(source_uri, "\\" => "/")), "local://") || validate_local_data_import_file!(source_uri, source_format)
+    requested_source_uri = String(get(body, "sourceUri", default_source_uri))
+    connector = validate_local_data_import_connector_policy!(body, requested_source_uri)
+    source_uri = validate_local_data_import_source!(requested_source_uri)
+    managed_source = startswith(lowercase(replace(source_uri, "\\" => "/")), "local://")
+    source_path = if managed_source
+        resolved = resolve_local_data_ref_path(source_uri)
+        resolved === nothing && error("managed_local sourceUri must reference an existing local://data artifact")
+        resolved
+    else
+        source_uri
+    end
+    validate_local_data_import_file!(source_path, source_format)
     target_zone = String(get(body, "targetZone", "raw"))
     read_mode = String(get(body, "readMode", source_format == "arrow_ipc" ? "arrow_ipc" : source_format == "parquet" ? "parquet" : source_format == "duckdb" ? "duckdb" : "csv"))
     zones = [String(zone["name"]) for zone in health["dataEstateZones"]]
@@ -2795,6 +2717,7 @@ function data_import_profile_response!(state::GatewayState, body::AbstractDict)
     profile = Dict{String,Any}(
         "datasetId" => dataset_id,
         "sourceUri" => source_uri,
+        "sourceConnector" => connector,
         "sourceFormat" => source_format,
         "targetZone" => target_zone,
         "artifactRef" => artifact_ref,
@@ -3051,7 +2974,36 @@ function local_csv_training_artifact!(
         feature_columns,
         target_column;
         classifier_mode = binary_classifier !== nothing,
+        train_feature_pairs = feature_pairs,
+        train_target = train_target,
     )
+    machine_artifact_ref = ""
+    if Bool(get(mlj_evidence, "mljRequested", false))
+        if Bool(get(mlj_evidence, "mljPackageFitExecuted", false))
+            machine_artifact_ref = "local://models/$(project.project_id)/$(String(experiment["modelId"]))/machine.jls"
+            machine_artifact_path = local_data_ref_path_for_write(machine_artifact_ref)
+            persistence_evidence = JuliaFlowDataScienceProjectMLJ.mlj_persist_machine_artifact(
+                String(get(experiment, "modelKind", "")),
+                feature_pairs,
+                train_target,
+                machine_artifact_path;
+                classifier_mode = binary_classifier !== nothing,
+            )
+            delete!(persistence_evidence, "mljMachineArtifactPath")
+            if String(get(persistence_evidence, "mljMachinePersistenceStatus", "")) == "persisted"
+                persistence_evidence["mljMachineArtifactRef"] = machine_artifact_ref
+                persistence_evidence["mljMachineArtifactChecksumSha256"] = local_artifact_checksum(machine_artifact_path)
+                persistence_evidence["mljMachineArtifactSizeBytes"] = filesize(machine_artifact_path)
+                persistence_evidence["mljMachineArtifactChecksumMode"] = "streaming_file_sha256"
+            else
+                machine_artifact_ref = ""
+            end
+            merge!(mlj_evidence, persistence_evidence)
+        else
+            mlj_evidence["mljMachinePersistenceStatus"] = "not_attempted"
+            mlj_evidence["mljMachinePersistenceReason"] = "MLJ package fitting did not complete, so no fitted machine artifact was persisted."
+        end
+    end
     feature_column = first(feature_columns)
     coefficients = if native_model_kind == "local_csv_binary_centroid_classifier"
         Dict{String,Any}(
@@ -3076,7 +3028,6 @@ function local_csv_training_artifact!(
     model_id = String(experiment["modelId"])
     artifact_ref = "local://models/$(project.project_id)/$(model_id)/model.json"
     artifact_path = local_data_ref_path_for_write(artifact_ref)
-    mkpath(dirname(artifact_path))
     artifact_payload = Dict{String,Any}(
         "modelId" => model_id,
         "modelKind" => model_kind,
@@ -3108,13 +3059,13 @@ function local_csv_training_artifact!(
         "localOnly" => true,
     )
     content = JSON3.write(artifact_payload) * "\n"
-    write(artifact_path, content)
-    checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
-    return Dict{String,Any}(
+    artifact = write_local_artifact!(artifact_path, content)
+    training_artifact = Dict{String,Any}(
         "kind" => "trained_model",
         "artifactRef" => artifact_ref,
-        "checksumSha256" => checksum,
-        "sizeBytes" => filesize(artifact_path),
+        "checksumSha256" => artifact["checksumSha256"],
+        "sizeBytes" => artifact["sizeBytes"],
+        "checksumMode" => artifact["checksumMode"],
         "modelKind" => model_kind,
         "nativeModelKind" => native_model_kind,
         "modelFamily" => String(get(mlj_evidence, "modelFamily", "")),
@@ -3126,6 +3077,14 @@ function local_csv_training_artifact!(
         "metrics" => artifact_payload["metrics"],
         "mljEvidence" => mlj_evidence,
     )
+    if !isempty(machine_artifact_ref)
+        training_artifact["mljMachineArtifactRef"] = machine_artifact_ref
+        training_artifact["mljMachineArtifactChecksumSha256"] = String(mlj_evidence["mljMachineArtifactChecksumSha256"])
+        training_artifact["mljMachineArtifactSizeBytes"] = Int(mlj_evidence["mljMachineArtifactSizeBytes"])
+        training_artifact["mljMachinePredictionMode"] = String(mlj_evidence["mljMachinePredictionMode"])
+        training_artifact["mljMachinePositiveLabel"] = String(get(mlj_evidence, "mljMachinePositiveLabel", ""))
+    end
+    return training_artifact
 end
 
 function ml_experiment_output_refs(experiment::AbstractDict, timestamp::AbstractString)
@@ -3556,7 +3515,9 @@ function ml_experiment_payload(state::GatewayState, execution::GatewayExecution;
     dataset_id = haskey(request_body, "datasetId") ? String(request_body["datasetId"]) : String(dataset_card["datasetId"])
     target = haskey(request_body, "target") ? String(request_body["target"]) : String(model_card["target"])
     model_kind = haskey(request_body, "algorithm") ? String(request_body["algorithm"]) : String(model_card["kind"])
-    validation_context = haskey(execution.metadata, "ml_validation_context") ? execution.metadata["ml_validation_context"] : Dict{String,Any}()
+    validation_context = haskey(execution.metadata, "ml_validation_context") ?
+        json_compatible_value(execution.metadata["ml_validation_context"]) :
+        Dict{String,Any}()
 
     payload = Dict{String,Any}(
         "experimentId" => "ml-" * execution.execution_id,
@@ -3584,10 +3545,13 @@ function ml_experiment_payload(state::GatewayState, execution::GatewayExecution;
         payload["executionEvidence"] = execution.metadata["ml_training_execution_evidence"]
     end
     if haskey(execution.metadata, "ml_training_metrics")
-        payload["metrics"] = merge(Dict{String,Any}(String(key) => value for (key, value) in pairs(payload["metrics"])), execution.metadata["ml_training_metrics"])
+        payload["metrics"] = merge(
+            Dict{String,Any}(String(key) => value for (key, value) in pairs(payload["metrics"])),
+            normalized_string_dict(execution.metadata["ml_training_metrics"]),
+        )
     end
     if haskey(execution.metadata, "ml_training_artifact_evidence")
-        artifact = execution.metadata["ml_training_artifact_evidence"]
+        artifact = json_compatible_value(execution.metadata["ml_training_artifact_evidence"])
         artifact_ref = String(get(artifact, "artifactRef", ""))
         existing_refs = Set(String(get(item, "artifactRef", "")) for item in payload["artifactEvidence"])
         artifact_ref in existing_refs || push!(payload["artifactEvidence"], artifact)
@@ -3598,7 +3562,7 @@ function ml_experiment_payload(state::GatewayState, execution::GatewayExecution;
         payload["validationEvidence"]["trainingFeatureColumns"] = get(artifact, "featureColumns", String[])
         payload["validationEvidence"]["trainingRowCount"] = Int(get(artifact, "trainRowCount", 0))
     end
-    return payload
+    return json_compatible_value(payload)
 end
 
 function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
@@ -3633,7 +3597,10 @@ function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractS
             state.executions[matched].metadata["ml_training_artifact_evidence"] = training_artifact
             state.executions[matched].metadata["ml_training_metrics"] = get(training_artifact, "metrics", Dict{String,Any}())
             push!(experiment["artifactEvidence"], training_artifact)
-            experiment["metrics"] = merge(Dict{String,Any}(String(key) => value for (key, value) in pairs(experiment["metrics"])), get(training_artifact, "metrics", Dict{String,Any}()))
+            experiment["metrics"] = merge(
+                Dict{String,Any}(String(key) => value for (key, value) in pairs(experiment["metrics"])),
+                normalized_string_dict(get(training_artifact, "metrics", Dict{String,Any}())),
+            )
             experiment["validationEvidence"]["trainingArtifactRef"] = String(get(training_artifact, "artifactRef", ""))
             experiment["validationEvidence"]["trainingArtifactChecksumSha256"] = String(get(training_artifact, "checksumSha256", ""))
             experiment["validationEvidence"]["trainingExecutionMode"] = String(get(training_artifact, "modelKind", ""))
@@ -3654,13 +3621,18 @@ end
 
 function ml_experiment_history_response(state::GatewayState, workflow_id::AbstractString)
     haskey(state.workflows, workflow_id) || error("workflow not found: $(workflow_id)")
-    experiments = [
-        ml_experiment_payload(state, execution)
-        for execution in reverse(state.executions)
-        if execution.workflow_id == workflow_id &&
-            haskey(execution.metadata, "explainability_evidence") &&
-            (haskey(execution.metadata, "ml_validation_context") || haskey(execution.metadata, "ml_training_execution_evidence"))
-    ]
+    experiments = Dict{String,Any}[]
+    for execution in reverse(state.executions)
+        execution.workflow_id == workflow_id || continue
+        haskey(execution.metadata, "explainability_evidence") || continue
+        (haskey(execution.metadata, "ml_validation_context") || haskey(execution.metadata, "ml_training_execution_evidence")) || continue
+        try
+            push!(experiments, ml_experiment_payload(state, execution))
+        catch error
+            @error "Failed to materialize ML experiment history payload" execution_id = execution.execution_id exception = (error, catch_backtrace())
+            rethrow()
+        end
+    end
     return JSON3.write(Dict("items" => experiments, "count" => length(experiments)))
 end
 
@@ -3709,6 +3681,15 @@ function model_registry_payload(state::GatewayState, execution::GatewayExecution
             "trainRowCount" => Int(get(artifact, "trainRowCount", 0)),
         )
         haskey(artifact, "mljEvidence") && (model_artifact["mljEvidence"] = artifact["mljEvidence"])
+        for key in (
+            "mljMachineArtifactRef",
+            "mljMachineArtifactChecksumSha256",
+            "mljMachineArtifactSizeBytes",
+            "mljMachinePredictionMode",
+            "mljMachinePositiveLabel",
+        )
+            haskey(artifact, key) && (model_artifact[key] = artifact[key])
+        end
         artifacts = [item for item in get(record, "artifactEvidence", Any[]) if String(get(item, "kind", "")) != "model"]
         record["artifactEvidence"] = [model_artifact, artifacts...]
         record["modelKind"] = String(get(artifact, "modelKind", record["modelKind"]))
@@ -3721,6 +3702,10 @@ function model_registry_payload(state::GatewayState, execution::GatewayExecution
         record["validationEvidence"]["trainingFeatureColumn"] = String(get(artifact, "featureColumn", ""))
         record["validationEvidence"]["trainingFeatureColumns"] = get(artifact, "featureColumns", String[])
         record["validationEvidence"]["trainingRowCount"] = Int(get(artifact, "trainRowCount", 0))
+        haskey(artifact, "mljMachineArtifactRef") && begin
+            record["validationEvidence"]["mljMachineArtifactRef"] = artifact["mljMachineArtifactRef"]
+            record["validationEvidence"]["mljMachineArtifactChecksumSha256"] = artifact["mljMachineArtifactChecksumSha256"]
+        end
     end
     return record
 end
@@ -3957,6 +3942,8 @@ function local_backup_payload(
         JuliaFlowGatewayRepository.workflow_detail_payload(state.workflows[workflow_id])
         for workflow_id in sort(collect(keys(state.workflows)))
     ]
+    auth_policy = JuliaFlowGatewayRepository.auth_policy_payload(JuliaFlowGatewayRepository.load_auth_policy(state.repository))
+    auth_directory = JuliaFlowGatewayRepository.auth_directory_payload(JuliaFlowGatewayRepository.load_auth_directory(state.repository))
     backup = Dict{String,Any}(
         "backupId" => "backup-" * replace(string(uuid4()), "-" => ""),
         "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
@@ -3995,8 +3982,13 @@ function local_backup_payload(
             JuliaFlowGatewayRepository.hub_extension_payload(state.hub_extensions[extension_id])
             for extension_id in sort(collect(keys(state.hub_extensions)))
         ],
-        "authPolicy" => JuliaFlowGatewayRepository.auth_policy_payload(JuliaFlowGatewayRepository.load_auth_policy(state.repository)),
-        "authDirectory" => JuliaFlowGatewayRepository.auth_directory_payload(JuliaFlowGatewayRepository.load_auth_directory(state.repository)),
+        "authPolicy" => auth_policy,
+        "authDirectory" => auth_directory,
+        "authMetadataRedacted" => Dict{String,Any}(
+            "sensitiveFieldsRedacted" => true,
+            "policy" => redacted_value(auth_policy),
+            "directory" => redacted_value(auth_directory),
+        ),
         "packageEnvironment" => package_environment_metadata(),
         "runtimeConfig" => reproducibility_runtime_config(state),
     )
@@ -5318,6 +5310,14 @@ function local_data_ref_path_for_write(local_ref::AbstractString)
     )
 end
 
+function local_artifact_checksum(path::AbstractString)
+    return JuliaFlowDataScienceProjectLocalSources.local_artifact_checksum(path)
+end
+
+function write_local_artifact!(path::AbstractString, content::AbstractString)
+    return JuliaFlowDataScienceProjectLocalSources.write_local_artifact!(path, content)
+end
+
 function requested_feature_columns(body::AbstractDict)
     return JuliaFlowDataScienceProjectStatistics.requested_feature_columns(body)
 end
@@ -5400,8 +5400,6 @@ function persist_statistical_analysis_artifacts!(
     result_ref = String(analysis_run["resultRef"])
     code_path = local_data_ref_path_for_write(code_ref)
     result_path = local_data_ref_path_for_write(result_ref)
-    mkpath(dirname(code_path))
-    mkpath(dirname(result_path))
     code = statistical_analysis_code_artifact(dataset_id, methods, body)
     result_payload = Dict{String,Any}(
         "analysisRunId" => String(analysis_run["analysisRunId"]),
@@ -5412,19 +5410,18 @@ function persist_statistical_analysis_artifacts!(
         "warnings" => analysis_run["warnings"],
         "createdAt" => String(analysis_run["createdAt"]),
     )
-    write(code_path, code)
     result_json = JSON3.write(result_payload)
-    write(result_path, result_json)
-    code_checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(code))))
-    result_checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(result_json))))
+    code_artifact = write_local_artifact!(code_path, code)
+    result_artifact = write_local_artifact!(result_path, result_json)
     analysis_run["artifactRefs"] = [
         Dict(
             "refId" => "artifact-$(analysis_run["analysisRunId"])-code",
             "kind" => "statistical_analysis_code",
             "localOnly" => true,
             "path" => code_ref,
-            "checksumSha256" => code_checksum,
-            "sizeBytes" => filesize(code_path),
+            "checksumSha256" => code_artifact["checksumSha256"],
+            "sizeBytes" => code_artifact["sizeBytes"],
+            "checksumMode" => code_artifact["checksumMode"],
             "generatedAt" => String(analysis_run["createdAt"]),
         ),
         Dict(
@@ -5432,8 +5429,9 @@ function persist_statistical_analysis_artifacts!(
             "kind" => "statistical_analysis_results",
             "localOnly" => true,
             "path" => result_ref,
-            "checksumSha256" => result_checksum,
-            "sizeBytes" => filesize(result_path),
+            "checksumSha256" => result_artifact["checksumSha256"],
+            "sizeBytes" => result_artifact["sizeBytes"],
+            "checksumMode" => result_artifact["checksumMode"],
             "generatedAt" => String(analysis_run["createdAt"]),
         ),
     ]
@@ -5524,6 +5522,7 @@ function local_csv_validation_tuning_trials(
     max_trials::Integer,
     timestamp::AbstractString,
     target_column::AbstractString,
+    selected_backend::AbstractString = "cpu",
 )
     source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
     source_path === nothing && return nothing
@@ -5538,6 +5537,7 @@ function local_csv_validation_tuning_trials(
         source_path,
         target_column,
         split_plan,
+        selected_backend,
     )
 end
 
@@ -5550,6 +5550,14 @@ function annotate_tuning_trial_resource_evidence!(trials::Vector{Dict{String,Any
         trial_resource["candidateIndex"] = Int(get(get(trial, "parameters", Dict{String,Any}()), "candidateIndex", index))
         trial["resourceEvidence"] = trial_resource
         validation = get!(trial, "validationEvidence", Dict{String,Any}())
+        if !haskey(validation, "gpuTrialEvidence")
+            gpu_evidence = JuliaFlowDataScienceProjectTuning.tuning_gpu_trial_capability(String(get(trial_resource, "selectedBackend", "cpu")))
+            if String(get(gpu_evidence, "gpuTrialExecutionStatus", "")) == "ready"
+                gpu_evidence["gpuTrialExecutionStatus"] = "skipped"
+                gpu_evidence["gpuTrialSkippedReason"] = "trial_data_unavailable_for_gpu_metric_execution"
+            end
+            validation["gpuTrialEvidence"] = gpu_evidence
+        end
         validation["resourceEvidence"] = trial_resource
         validation["dispatchLane"] = String(get(trial_resource, "dispatchLane", "cpu"))
         validation["workerPool"] = String(get(trial_resource, "workerPool", "local-cpu"))
@@ -5565,7 +5573,6 @@ function persist_tuning_trial_artifacts!(trials::Vector{Dict{String,Any}})
         artifact_ref = String(get(ref, "path", ""))
         isempty(strip(artifact_ref)) && continue
         artifact_path = local_data_ref_path_for_write(artifact_ref)
-        mkpath(dirname(artifact_path))
         content = JSON3.write(
             Dict(
                 "trialId" => String(get(trial, "trialId", "")),
@@ -5576,10 +5583,10 @@ function persist_tuning_trial_artifacts!(trials::Vector{Dict{String,Any}})
                 "resourceEvidence" => get(trial, "resourceEvidence", Dict{String,Any}()),
             ),
         ) * "\n"
-        write(artifact_path, content)
-        checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
-        ref["checksumSha256"] = checksum
-        ref["sizeBytes"] = filesize(artifact_path)
+        artifact = write_local_artifact!(artifact_path, content)
+        ref["checksumSha256"] = artifact["checksumSha256"]
+        ref["sizeBytes"] = artifact["sizeBytes"]
+        ref["checksumMode"] = artifact["checksumMode"]
     end
     return trials
 end
@@ -5608,7 +5615,19 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
     )
     JuliaFlowDataScienceProjectTuning.upsert_training_plan!(project, training_plan)
     study_id = "tuning-" * replace(string(uuid4()), "-" => "")
-    trials = local_csv_validation_tuning_trials(dataset, split_plan, project.project_id, study_id, algorithm, metric_names, max_trials, timestamp, target_column)
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "validation_only_tuning")
+    trials = local_csv_validation_tuning_trials(
+        dataset,
+        split_plan,
+        project.project_id,
+        study_id,
+        algorithm,
+        metric_names,
+        max_trials,
+        timestamp,
+        target_column,
+        String(get(resource_evidence, "selectedBackend", "cpu")),
+    )
     if trials === nothing
         trials = JuliaFlowDataScienceProjectTuning.tuning_trials(project.project_id, study_id, algorithm, metric_names, max_trials, timestamp)
         validation_context["tuningExecutionMode"] = "deterministic_fallback"
@@ -5616,7 +5635,6 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
     else
         validation_context["tuningExecutionMode"] = "local_csv_validation_tuning"
     end
-    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "validation_only_tuning")
     annotate_tuning_trial_resource_evidence!(trials, resource_evidence)
     persist_tuning_trial_artifacts!(trials)
     tuning_study = JuliaFlowDataScienceProjectTuning.tuning_study_record(study_id, training_plan_id, trials, validation_context, timestamp)
@@ -5684,14 +5702,13 @@ function local_csv_training_model_artifact(project::DataScienceProjectRecord, da
             isempty(strip(artifact_ref)) && continue
             artifact_path = local_data_ref_path_for_write(artifact_ref)
             isfile(artifact_path) || continue
-            bytes = read(artifact_path)
-            checksum = bytes2hex(sha256(bytes))
+            checksum = local_artifact_checksum(artifact_path)
             expected_checksum = strip(String(get(ref, "checksumSha256", "")))
             if !isempty(expected_checksum) && lowercase(expected_checksum) != checksum
                 error("final evaluation training artifact checksum mismatch: $(artifact_ref)")
             end
             payload = try
-                JSON3.read(String(copy(bytes)), Dict{String,Any})
+                JSON3.read(read(artifact_path, String), Dict{String,Any})
             catch
                 error("final evaluation training artifact must contain JSON: $(artifact_ref)")
             end
@@ -5700,6 +5717,7 @@ function local_csv_training_model_artifact(project::DataScienceProjectRecord, da
             payload["artifactRef"] = artifact_ref
             payload["checksumSha256"] = checksum
             payload["sizeBytes"] = filesize(artifact_path)
+            payload["checksumMode"] = "streaming_file_sha256"
             return payload
         end
     end
@@ -5731,7 +5749,8 @@ end
 function local_csv_prediction_values_from_report(dataset::AbstractDict, report::AbstractDict, row_count::Integer)
     validation = get(report, "validationEvidence", Dict{String,Any}())
     evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
-    String(get(evidence, "executionMode", "")) == "local_csv_trained_artifact" || return nothing, nothing
+    execution_mode = String(get(evidence, "executionMode", ""))
+    execution_mode in ("local_csv_trained_artifact", "mlj_package_backed_final_evaluation") || return nothing, nothing
     model_kind = String(get(evidence, "modelKind", ""))
     native_model_kind = String(get(evidence, "nativeModelKind", model_kind))
     feature_columns = native_model_kind in ("local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier") ?
@@ -5745,6 +5764,25 @@ function local_csv_prediction_values_from_report(dataset::AbstractDict, report::
     table === nothing && return nothing, nothing
     numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
     all(column -> haskey(numeric_columns, column), feature_columns) || return nothing, nothing
+    if execution_mode == "mlj_package_backed_final_evaluation"
+        target_column = String(get(evidence, "targetColumn", ""))
+        if haskey(numeric_columns, target_column)
+            train_count = Int(get(evidence, "trainRowCount", 0))
+            if train_count > 0 && all(length(numeric_columns[column]) >= max(train_count, Int(row_count)) for column in feature_columns) && length(numeric_columns[target_column]) >= train_count
+                train_feature_pairs = [column => numeric_columns[column][1:train_count] for column in feature_columns]
+                train_target = numeric_columns[target_column][1:train_count]
+                prediction_feature_pairs = [column => numeric_columns[column][1:Int(row_count)] for column in feature_columns]
+                mlj_result = JuliaFlowDataScienceProjectMLJ.mlj_package_prediction_result(
+                    String(get(evidence, "requestedAlgorithm", "")),
+                    train_feature_pairs,
+                    train_target,
+                    prediction_feature_pairs;
+                    classifier_mode = native_model_kind == "local_csv_binary_centroid_classifier",
+                )
+                mlj_result !== nothing && return Float64.(mlj_result["predictions"]), "mlj_package_backed_prediction_export"
+            end
+        end
+    end
     coefficients = get(evidence, "coefficients", Dict{String,Any}())
     intercept = Float64(get(evidence, "baselineIntercept", 0.0))
     if haskey(coefficients, "intercept")
@@ -5783,13 +5821,24 @@ function local_csv_prediction_values_from_report(dataset::AbstractDict, report::
     return values, "local_csv_trained_artifact"
 end
 
+function evaluation_model_runtime_evidence(report::AbstractDict)
+    validation = get(report, "validationEvidence", Dict{String,Any}())
+    evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
+    runtime = Dict{String,Any}()
+    for key in ("modelKind", "nativeModelKind", "modelFamily", "requestedAlgorithm", "modelArtifactRef", "modelArtifactChecksumSha256", "packageScoringMode")
+        haskey(evidence, key) && (runtime[key] = evidence[key])
+    end
+    haskey(evidence, "mljEvidence") && (runtime["mljEvidence"] = evidence["mljEvidence"])
+    haskey(evidence, "mljScoringEvidence") && (runtime["mljScoringEvidence"] = evidence["mljScoringEvidence"])
+    return isempty(runtime) ? nothing : runtime
+end
+
 function persist_final_evaluation_report_artifact!(evaluation_report::Dict{String,Any})
     artifact_refs = get(evaluation_report, "artifactRefs", Dict{String,Any}[])
     isempty(artifact_refs) && return artifact_refs
     artifact_ref = String(get(artifact_refs[1], "path", ""))
     isempty(strip(artifact_ref)) && return artifact_refs
     artifact_path = local_data_ref_path_for_write(artifact_ref)
-    mkpath(dirname(artifact_path))
     content = JSON3.write(
         Dict(
             "evaluationReportId" => String(get(evaluation_report, "evaluationReportId", "")),
@@ -5802,12 +5851,11 @@ function persist_final_evaluation_report_artifact!(evaluation_report::Dict{Strin
             "generatedAt" => String(get(evaluation_report, "generatedAt", "")),
         ),
     ) * "\n"
-    write(artifact_path, content)
-    checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
+    artifact = write_local_artifact!(artifact_path, content)
     materialized_refs = [
         merge(
             Dict{String,Any}(String(key) => value for (key, value) in pairs(ref)),
-            Dict{String,Any}("checksumSha256" => checksum, "sizeBytes" => filesize(artifact_path)),
+            artifact,
         ) for ref in artifact_refs
     ]
     evaluation_report["artifactRefs"] = materialized_refs
@@ -5986,18 +6034,19 @@ function prediction_output_contract_import_path(raw_import::AbstractDict)
     is_managed_ref && connector == "managed_local" || !is_managed_ref && connector == "local_file" || error("prediction export outputContractImport connector does not match sourceUri")
     path = is_managed_ref ? local_data_ref_path_for_write(source_uri) : validate_local_data_import_source!(source_uri)
     validate_prediction_output_contract_import_file!(path)
-    bytes = read(path)
-    checksum = bytes2hex(sha256(bytes))
+    checksum = local_artifact_checksum(path)
     if haskey(raw_import, "checksumSha256")
         expected = lowercase(strip(String(raw_import["checksumSha256"])))
         !isempty(expected) || error("prediction export outputContractImport checksumSha256 cannot be empty")
         expected == checksum || error("prediction export outputContractImport checksum mismatch")
     end
+    bytes = read(path)
     details = local_data_import_audit_source_details(source_uri)
     details["connector"] = connector
     details["format"] = format
     details["checksumSha256"] = checksum
     details["sizeBytes"] = length(bytes)
+    details["checksumMode"] = "streaming_file_sha256"
     return path, bytes, details
 end
 
@@ -6035,7 +6084,6 @@ function persist_prediction_export_artifact!(
 )
     artifact_ref = String(prediction_export["artifactRef"])
     artifact_path = local_data_ref_path_for_write(artifact_ref)
-    mkpath(dirname(artifact_path))
     rows = prediction_export_rows(
         String(prediction_export["predictionExportId"]),
         report,
@@ -6045,16 +6093,16 @@ function persist_prediction_export_artifact!(
         prediction_values = prediction_values,
     )
     content = prediction_export_content(String(get(prediction_export, "format", "csv")), rows, output_columns, output_mappings)
-    write(artifact_path, content)
-    checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
+    artifact = write_local_artifact!(artifact_path, content)
     artifact_refs = [
         Dict(
             "refId" => "artifact-$(prediction_export["predictionExportId"])",
             "kind" => "prediction_export",
             "localOnly" => true,
             "path" => artifact_ref,
-            "checksumSha256" => checksum,
-            "sizeBytes" => filesize(artifact_path),
+            "checksumSha256" => artifact["checksumSha256"],
+            "sizeBytes" => artifact["sizeBytes"],
+            "checksumMode" => artifact["checksumMode"],
             "generatedAt" => String(prediction_export["createdAt"]),
         ),
     ]
@@ -6086,6 +6134,7 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
     if prediction_values === nothing
         _, prediction_scoring_mode = JuliaFlowDataScienceProjectPredictionExport.prediction_export_prediction_values(report, row_count)
     end
+    model_runtime_evidence = evaluation_model_runtime_evidence(report)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     export_id = "pred-" * replace(string(uuid4()), "-" => "")
     artifact_ref = "local://predictions/$(project.project_id)/$(export_id)/predictions.$(format)"
@@ -6116,6 +6165,7 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
         ),
         "createdAt" => timestamp,
     )
+    model_runtime_evidence === nothing || (prediction_export["validationEvidence"]["modelRuntimeEvidence"] = model_runtime_evidence)
     output_contract_import === nothing || begin
         prediction_export["outputContractImport"] = output_contract_import
         prediction_export["validationEvidence"]["outputContractImport"] = output_contract_import
@@ -6164,7 +6214,6 @@ function persist_drift_report_artifact!(
     artifact_ref = String(get(output_refs[1], "path", ""))
     isempty(strip(artifact_ref)) && return output_refs
     artifact_path = local_data_ref_path_for_write(artifact_ref)
-    mkpath(dirname(artifact_path))
     content = JSON3.write(
         Dict{String,Any}(
             "driftReportId" => String(drift_report["driftReportId"]),
@@ -6177,14 +6226,14 @@ function persist_drift_report_artifact!(
             "generatedAt" => String(drift_report["generatedAt"]),
         ),
     )
-    write(artifact_path, content)
-    checksum = bytes2hex(sha256(Vector{UInt8}(codeunits(content))))
+    artifact = write_local_artifact!(artifact_path, content)
     materialized_refs = [
         Dict{String,Any}(String(key) => value for (key, value) in pairs(ref))
         for ref in output_refs
     ]
-    materialized_refs[1]["checksumSha256"] = checksum
-    materialized_refs[1]["sizeBytes"] = filesize(artifact_path)
+    materialized_refs[1]["checksumSha256"] = artifact["checksumSha256"]
+    materialized_refs[1]["sizeBytes"] = artifact["sizeBytes"]
+    materialized_refs[1]["checksumMode"] = artifact["checksumMode"]
     drift_report["artifactRefs"] = materialized_refs
     return materialized_refs
 end
@@ -6215,6 +6264,14 @@ function prediction_export_artifact_values(prediction_export::AbstractDict)
     isempty(strip(artifact_ref)) && return nothing
     artifact_path = local_data_ref_path_for_write(artifact_ref)
     isfile(artifact_path) || return nothing
+    refs = get(prediction_export, "artifactRefs", Any[])
+    if !isempty(refs) && refs[1] isa AbstractDict
+        expected_checksum = lowercase(strip(String(get(refs[1], "checksumSha256", ""))))
+        if !isempty(expected_checksum)
+            checksum = local_artifact_checksum(artifact_path)
+            expected_checksum == checksum || error("drift prediction export artifact checksum mismatch: $(artifact_ref)")
+        end
+    end
     content = read(artifact_path, String)
     format = String(get(prediction_export, "format", lowercase(splitext(artifact_path)[2][2:end])))
     values = JuliaFlowDataScienceProjectMonitoring.prediction_column_values_from_content(content, format)
@@ -6232,16 +6289,22 @@ function local_csv_drift_metric_result(dataset::AbstractDict, prediction_export:
         Float64.(current_predictions),
     )
     metrics === nothing && return nothing
+    drift_execution_mode = scoring_mode == "mlj_package_backed_prediction_export" ?
+        "mlj_package_backed_prediction_distribution" :
+        "local_csv_prediction_distribution"
+    evidence = Dict{String,Any}(
+        "executionMode" => drift_execution_mode,
+        "predictionScoringMode" => scoring_mode,
+        "baselinePredictionCount" => length(baseline_predictions),
+        "currentPredictionCount" => length(current_predictions),
+        "sourcePredictionExportId" => String(get(prediction_export, "predictionExportId", "")),
+        "artifactRef" => String(get(prediction_export, "artifactRef", "")),
+    )
+    model_runtime_evidence = evaluation_model_runtime_evidence(report)
+    model_runtime_evidence === nothing || (evidence["modelRuntimeEvidence"] = model_runtime_evidence)
     return Dict{String,Any}(
         "metrics" => metrics,
-        "evidence" => Dict{String,Any}(
-            "executionMode" => "local_csv_prediction_distribution",
-            "predictionScoringMode" => scoring_mode,
-            "baselinePredictionCount" => length(baseline_predictions),
-            "currentPredictionCount" => length(current_predictions),
-            "sourcePredictionExportId" => String(get(prediction_export, "predictionExportId", "")),
-            "artifactRef" => String(get(prediction_export, "artifactRef", "")),
-        ),
+        "evidence" => evidence,
     )
 end
 
@@ -6364,10 +6427,30 @@ function cors_origin()
     return get(ENV, "JULIAFLOW_CORS_ALLOW_ORIGIN", "*")
 end
 
+function cors_allowed_origins()
+    configured = strip(cors_origin())
+    configured == "*" && return Set(["*"])
+    origins = Set{String}()
+    for origin in split(configured, ',')
+        normalized = strip(String(origin))
+        isempty(normalized) || push!(origins, normalized)
+    end
+    return origins
+end
+
+function validate_cors_origin!(request::HTTP.Request)
+    origin = request_header(request, "Origin")
+    origin === nothing && return nothing
+    allowed = cors_allowed_origins()
+    "*" in allowed && return nothing
+    String(origin) in allowed || error("CORS origin not allowed")
+    return nothing
+end
+
 function base_headers()
     return [
         "Access-Control-Allow-Origin" => cors_origin(),
-        "Access-Control-Allow-Headers" => "Content-Type, Authorization",
+        "Access-Control-Allow-Headers" => "Content-Type, Authorization, X-JuliaFlow-Workspace, X-JuliaFlow-Workspace-Role, X-JuliaFlow-Principal",
         "Access-Control-Allow-Methods" => "GET, POST, PUT, OPTIONS",
         "Access-Control-Max-Age" => "86400",
     ]
@@ -6403,6 +6486,20 @@ function classify_gateway_error(err)
     elseif occursin("data science project dataset", message)
         return 400, message
     elseif occursin("local data import ", message)
+        return 400, message
+    elseif occursin("managed_local connector", message) || occursin("managed_local sourceUri", message)
+        return 400, message
+    elseif occursin("local_file connector", message)
+        return 400, message
+    elseif occursin("DuckDB source import is unavailable", message)
+        return 400, message
+    elseif occursin("PostgreSQL local source import is unavailable", message)
+        return 400, message
+    elseif occursin("remote/provider source connectors", message)
+        return 400, message
+    elseif occursin("PostgreSQL source ", message)
+        return 400, message
+    elseif occursin("databaseSchema and databaseTable", message)
         return 400, message
     elseif occursin("project child records must be arrays", message)
         return 400, message
@@ -6484,6 +6581,8 @@ function classify_gateway_error(err)
     elseif occursin("OIDC", message)
         return 401, message
     elseif occursin("permission denied", message)
+        return 403, message
+    elseif occursin("CORS origin not allowed", message)
         return 403, message
     elseif occursin("not active in directory", message)
         return 400, message
@@ -7380,6 +7479,7 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
     query_params = HTTP.queryparams(uri)
 
     try
+        validate_cors_origin!(request)
         method == "OPTIONS" && return empty_response(204)
         method == "GET" && segments == ["health"] && return json_response(200, healthcheck(state))
         method == "GET" && segments == ["metrics"] && return text_response(200, metrics_response(state); content_type = "text/plain; version=0.0.4")
@@ -7502,6 +7602,7 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
         end
         method == "POST" && segments == ["api", "v1", "local-backups"] && begin
             require_permission!(state, request, "backup:read")
+            require_permission!(state, request, "backup:write")
             body = parse_request_body(request)
             response = local_backup_export_response!(state, body)
             append_audit_event!(state, request, "local.backup.export"; target_type = "local_backup", target_id = "export")

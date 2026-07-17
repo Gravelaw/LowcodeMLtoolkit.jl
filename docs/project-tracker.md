@@ -18,18 +18,333 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-07-04`
+- Last updated: `2026-07-17`
 
 ## Work Done Till Date
+### AKS-36 RC1 Baseline Closure Slice (2026-07-17)
+
+- Reconciled the v1 source scope to enabled confined `local_file` and `managed_local` execution; unsupported database, watched-folder, USB, and cloud sources stay disabled with explicit reasons.
+- Made release verification host-aware (`doctor:windows` on Windows and `doctor:debian` on Debian) without changing the summary schema, and added a Debian RC evidence workflow that uploads the full release summary.
+- Added dialog focus entry/trapping/Escape/restore behavior, visible focus styling, keyboard tab navigation, and browser coverage for the persisted Dataset Wizard and non-pointer Transform inspection.
+- Extended pull-request CI with contract, governed-document, and clean-diff checks.
+- Extended the bounded lab-team smoke startup allowance to 90 seconds because first-run PostgreSQL schema initialization exceeded the single-user 30-second allowance after Docker recovery; the health and capability assertions remain unchanged.
+- Routed the CUDA skip probe through `scripts/run-julia.mjs` so Windows release verification consistently uses the repo-local Julia depot instead of an Application-Control-blocked user-global compiled cache.
+- Made the no-fixture live-backend browser harness materialize its own confined managed-local churn CSV before import; source-trust enforcement correctly rejected the previous nonexistent `local://data/raw/customer-churn-local.csv` reference.
+- Extended live-browser expectation/test bounds to 60/240 seconds because compiled-modules-disabled gateway hydration can exceed 15 seconds after the real vertical setup; assertions still fail closed on the release-unavailable banner and fixture substitution.
+- Switched the release browser smoke from Vite development mode to an explicit frontend production build plus preview server, avoiding development-only Strict Mode request cancellation and verifying the actual RC-style bundle.
+
+### Gaps Pending
+
+- The Windows no-skip release gate is green; Debian RC workflow evidence is not yet produced.
+- AKS-40 remains open for health/workspace, chart-data, and project-route boundary extraction; PR #40 review/merge, Linear readback, version bump, tag, and prerelease publication remain later delivery gates.
+
+### Next Items To Implement
+
+- Publish this closure set to PR #40 with the child-ticket acceptance matrix, obtain Debian workflow evidence, and keep the PR draft until remaining AKS-40/review gates are resolved.
+
+### AKS-40 Gateway Presentation Module Slice (2026-07-10)
+
+- Extracted Plotly chart payload construction, workspace chart series, and artifact presentation formatting from `JuliaFlowApiGateway.jl` into `JuliaFlowGatewayPresentation.jl`.
+- Gateway health/workspace composition remains the route owner and passes data-estate artifact records into the presentation module, preserving the `/health` wire shape.
+- Added a timed presentation-only Julia slice for direct helper reruns.
+
+### Gaps Pending
+
+- Broader endpoint-compatible health/workspace, route, and chart-data extraction remains open; AKS-40 and AKS-36 are not complete.
+- CUDA-compatible success evidence, richer drift/tuning work, Docker-backed release verification, and final child-ticket traceability remain open.
+
+### Verification
+
+- `npm run julia:test:presentation` (19 assertions)
+- `npm run julia:test:api-gateway` (1,069 assertions)
+
+### Next Items To Implement
+
+- Continue a focused gateway boundary extraction or address the remaining local data-estate ref/path consistency risk before final trust review.
+
+### AKS-36 Local-Source Connector Policy Slice (2026-07-10)
+
+- Moved connector/source consistency policy into the focused local-source module.
+- `managed_local` now requires a `local://` source that resolves to an existing confined `local://data` artifact.
+- Managed files receive the same size, extension, sensitive-filename, UTF-8 sample, credential-marker, and PII-marker checks as approved filesystem imports.
+- `local_file` now rejects managed and remote URIs.
+- DuckDB and PostgreSQL source imports return explicit unavailable errors until real execution and redacted provenance are implemented; PostgreSQL identifiers are validated first.
+- Profile evidence records the accepted connector, and audit defaults infer the connector without exposing full paths or samples.
+
+### Gaps Pending
+
+- Folder grant semantics, real DuckDB/PostgreSQL source execution if prioritized, deeper connector-specific redaction previews, and final trust-boundary review remain open.
+- CUDA-compatible success evidence, broader gateway split/drift/tuning work, Docker-backed release verification, and final child-ticket traceability remain open.
+
+### Verification
+
+- `npm run julia:test:local-sources` (36 assertions)
+- `npm run julia:test:api-gateway` (1,069 assertions)
+
+### Next Items To Implement
+
+- Continue the remaining gateway split or trust-boundary review, then rerun the no-skip release gate with Docker available.
+
+### AKS-36 Hardware-Gated GPU Trial Execution Slice (2026-07-10)
+
+- Tuning now distinguishes selected CUDA dispatch from a successfully executed CUDA trial operation.
+- Supported validation metrics run as real `CuArray` reductions only after CUDA package, runtime, and visible-device checks.
+- Trial evidence records requested/executed status, backend, device count, accelerated metric names, scope, CPU fit backend, and exact skipped/failure reason.
+- Simulated CUDA is explicitly evidence-only and never counted as hardware execution.
+- CPU metric results remain authoritative fallback when CUDA initialization or execution fails.
+
+### Gaps Pending
+
+- The current host detects CUDA but cannot execute the metric kernel because CUDA 13.3 differs from the CUDA.jl 13.2 precompile. A compatible hardware/runtime run is still required before claiming successful GPU-accelerated trial evidence.
+- Richer preprocessing/tuned model fitting on GPU, broader drift semantics, gateway/trust-boundary closure, release rerun, and final child-ticket traceability remain open.
+
+### Verification
+
+- `npm run julia:test:tuning` (152 assertions)
+- `npm run julia:test:api-gateway` (1,053 assertions)
+
+### Next Items To Implement
+
+- Preserve this conditional gate in CI/hardware runs and continue the remaining gateway/trust-boundary or richer tuning gaps.
+
+### AKS-36 Persisted MLJ Machine And Deploy-Runtime Slice (2026-07-10)
+
+- Explicitly enabled bounded MLJ training now serializes the fitted regression or binary-classification machine beside the deterministic JSON fallback artifact.
+- Machine evidence records artifact ref, streaming SHA-256 checksum, size, model type, ordered features, prediction mode, positive-class label, and train-row count.
+- Model registry and deploy package evidence propagate the machine artifact independently from the JSON fallback.
+- Generated local Genie deploy code checksum-validates and deserializes the persisted machine before scoring payload features through MLJ.
+- Focused tests cover persistence/reload scoring, missing artifacts, route-level materialization, registry/deploy evidence, runtime selection, generated checksum validation, and fallback preservation.
+
+### Gaps Pending
+
+- AKS-36 remains open for richer preprocessing and tuned model selection, actual GPU trial execution, broader drift semantics, gateway/trust-boundary closure, final child-ticket traceability, and a new full release verification run.
+
+### Verification
+
+- `npm run julia:test:helpers` (141 tuning-helper assertions; 37 deploy-helper assertions)
+- `npm run julia:test` (1,049 API Gateway assertions plus all subsystem suites)
+- `npm run validate:contracts`
+- `npm run build`
+- `npm run smoke:local-data-estate`
+- `npm run validate:control-doc-sync`
+- `npm run validate:brd-traceability`
+- `git diff --check`
+- `npm run verify:release` was attempted. It exposed and drove the `Serialization` dependency and compiled-module fixes, then stopped because Docker Desktop was unavailable for the required PostgreSQL smoke.
+
+### Next Items To Implement
+
+- Rerun the no-skip release gate when Docker Desktop is available, then continue GPU trial execution or the remaining gateway/trust-boundary closure.
+
+### AKS-36 MLJ Package-Backed Final/Export/Drift Scoring Slice (2026-07-09)
+
+- Added bounded MLJ package prediction helper support for refitting from train-scope rows and scoring requested rows.
+- Final evaluation now uses package-backed MLJ scoring for final-test rows when the training artifact has executed MLJ package-fit evidence.
+- Prediction export now scores approved MLJ-backed reports through the same package-backed path.
+- Drift now records package-backed prediction-distribution evidence when current predictions are recomputed through MLJ package export scoring.
+- Focused helper tests verify final evaluation, prediction export, and drift package-backed scoring evidence while preserving native local CSV fallback coverage.
+
+### Gaps Pending
+
+- AKS-36 remains open. This is package-backed scoring by train-scope refit, not persisted MLJ machine storage. Persisted MLJ artifacts, richer preprocessing/tuning, deploy-runtime MLJ serving, GPU trial execution, broader gateway split, and final child-ticket traceability remain open.
+
+### Verification
+
+- `npm run julia:test:helpers`
+
+### Next Items To Implement
+
+- Continue persisted MLJ model artifacts/deploy-runtime serving or close the remaining AKS-36 child-ticket traceability gaps.
+
+### AKS-36 MLJ Dependency-Backed Package-Fit Verification Slice (2026-07-09)
+
+- Added MLJ and MLJLinearModels to the project dependency surface for the bounded local proof.
+- Package-backed fitting remains explicitly opt-in through `JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT=true`.
+- The MLJ helper now coerces classifier targets into MLJ finite targets before fitting `LogisticClassifier`.
+- Focused helper tests now prove package-backed local CPU fit/scoring evidence for `MLJ.LinearRegressor` and `MLJ.LogisticClassifier`, while preserving disabled/unavailable/unsupported fallback coverage.
+
+### Gaps Pending
+
+- AKS-36 remains open. This verifies bounded package-backed fit/scoring evidence; the follow-up scoring slice covers final evaluation, prediction export, and drift by refitting from train-scope rows. Persisted MLJ model artifacts, richer preprocessing/tuning, GPU trial execution, broader gateway split, and final child-ticket traceability remain open.
+
+### Verification
+
+- `npm run julia:test:helpers`
+
+### Next Items To Implement
+
+- Continue persisted MLJ model artifacts/deploy-runtime serving or close the remaining AKS-36 child-ticket traceability gaps.
+
+### AKS-36 Release Verification And Runtime Hardening Slice (2026-07-09)
+
+- Full no-skip `npm run verify:release` now passes with summary evidence at `artifacts/release-verification/latest/summary.json`.
+- Release verification found and drove a real base-extension trust-boundary fix: tabular sink paths now normalize both logical slash refs and Windows backslash separators before parent traversal/creation, so symlinked parent directories are rejected before any outside-root write.
+- Release verification also found and drove a PostgreSQL lab-team runtime fix: repository read paths now materialize dynamically loaded `LibPQ.Result` rows through `Base.invokelatest` wrappers, and metadata-smoke cleanup uses repository `execute`/`close_connection` helpers instead of direct `LibPQ`/`close` calls.
+- Focused `npm run smoke:local-metadata` passes for file and Docker PostgreSQL repository contracts after the fix.
+
+### Gaps Pending
+
+- AKS-36 remains open. The full release gate is now green, but package-backed MLJ evaluation/scoring/drift, actual GPU trial execution, broader gateway split, and final child-ticket/control-doc traceability closure remain open.
+
+### Verification
+
+- `npm run smoke:local-metadata`
+- `npm run verify:release`
+
+### Next Items To Implement
+
+- Continue persisted/package-backed MLJ scoring/drift or close remaining AKS-36 child-ticket traceability gaps.
+
+### AKS-36 MLJ Runtime Evidence Propagation Slice (2026-07-09)
+
+- Added reusable final-evaluation model runtime evidence extraction for downstream project routes.
+- Prediction export validation evidence now carries model/runtime evidence, including `mljEvidence`, when the approved final evaluation was scored from an MLJ-compatible trained artifact.
+- Local drift evidence now carries the same model/runtime evidence so monitoring records preserve package-fit/runtime status through evaluation -> export -> drift.
+- Focused Julia helper coverage verifies MLJ-compatible evaluation evidence can be extracted for downstream propagation.
+
+### Gaps Pending
+
+- AKS-36 remains open. This preserves MLJ runtime evidence downstream but still uses local CSV scoring when package-backed scoring/drift has not executed.
+
+### Verification
+
+- `npm run julia:test:helpers`
+- `npm run julia:test`
+- `npm run validate:contracts`
+- `npm run build`
+- `npm run validate:control-doc-sync`
+- `npm run validate:brd-traceability`
+- `git diff --check`
+
+### Next Items To Implement
+
+- Continue toward package-backed scoring/drift or AKS-50 release verification.
+
+### AKS-36 MLJ Route-Wired Package-Fit Hook Slice (2026-07-09)
+
+- Added a conditional MLJ package-fit hook to `JuliaFlowDataScienceProjectMLJ`; the follow-up dependency-backed slice now adds MLJ and MLJLinearModels for the bounded proof.
+- Supported MLJ LinearRegressor/LogisticClassifier-style requests now report `mljPackageFitRouteWired=true` when MLJ/MLJLinearModels are discoverable and `JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT=true`.
+- Training and validation-only tuning paths now pass train-scope feature/target rows into the MLJ evidence helper.
+- The helper dynamically imports MLJ/MLJLinearModels only for route-wired requests, attempts local CPU fit/scoring when runtime packages are available, and records `runtime_import_failed`, `fit_failed`, or `fit_executed` status without hiding the deterministic local CSV fallback.
+- Focused Julia helper coverage now verifies disabled, available-disabled, route-wired-with-train-data, unsupported algorithm, and generated-code states.
+
+### Gaps Pending
+
+- AKS-36 remains open. This is route wiring and runtime attempt evidence; the follow-up dependency-backed slice verifies bounded package-backed fits, while broader package-backed training/tuning/evaluation/scoring/drift semantics plus GPU trial execution remain open.
+
+### Verification
+
+- `npm run julia:test:helpers`
+- `npm run julia:test`
+- `npm run validate:contracts`
+- `npm run build`
+- `npm run validate:control-doc-sync`
+- `npm run validate:brd-traceability`
+- `git diff --check`
+
+### Next Items To Implement
+
+- Continue toward MLJ-backed evaluation/scoring/drift and AKS-50 release verification.
+
+### Julia Test Runtime And API Gateway State Isolation Slice (2026-07-08)
+
+- Isolated the API Gateway CORS mutation checks onto a fresh execution id so allowed-origin mutation coverage no longer changes the execution used by the later transition-status assertions.
+- Preserved the intended API Gateway edge cases: CORS preflight success, configured-origin success, rejected-origin blocking, accepted-to-queued transition success, and invalid transition rejection.
+- Added `scripts/time-julia-runtests.mjs` plus npm-visible Julia test commands for the full gate, timed full gate, helper slice, repository slice, worker slice, and API Gateway slice.
+- Added `docs/julia-test-runtime.md` to record the runtime finding and the longer-term subsystem split recommendation.
+
+### Gaps Pending
+
+- `tests/julia/runtests.jl` remains a monolithic integration suite; the API Gateway testset still dominates local runtime and should be split into scenario files with independent gateway fixtures in a future refactor.
+- AKS-36 remains open for broader gateway split, trust-boundary hardening, real package-backed MLJ execution, and AKS-50 release verification.
+
+### Verification
+
+- `npm run julia:test:api-gateway`
+- `npm run julia:test:repository`
+- `npm run julia:test`
+- `npm run validate:contracts`
+- `npm run build`
+- `npm run validate:control-doc-sync`
+- `npm run validate:brd-traceability`
+- `git diff --check`
+
+### Next Items To Implement
+
+- Continue AKS-36 implementation work after the Julia suite is stable again.
+
+### AKS-36 MLJ Package-Fit Gate Evidence Slice (2026-07-08)
+
+- Separated MLJ package availability, explicit package-fit opt-in, bounded supported family status, route-wiring status, and actual fit/scoring execution evidence.
+- Added `mljPackageFitEnabled`, `mljPackageFitSupported`, `mljPackageFitRouteWired`, and `mljPackageSupportStatus` fields to the MLJ evidence payload.
+- Bounded the package-backed proof family to LinearRegressor and LogisticClassifier-style requests while keeping other MLJ algorithms explicit unsupported/fallback states.
+- Updated generated MLJ code to include the intended `machine`/`fit!`/`predict` path.
+- Extended focused Julia helper tests for disabled, enabled, unsupported, and generated-code states.
+
+### Gaps Pending
+
+- AKS-36 remains open. This earlier evidence slice did not execute package-backed MLJ fitting; the 2026-07-09 follow-up adds route-wired runtime attempts, but package-backed evaluation/scoring/drift and dependency-backed verification remain open.
+- The prior full-suite 5 minute timeout has been replaced by the Julia test runtime follow-up above; the full suite now passes locally when run with an appropriate timeout.
+
+### Verification
+
+- Focused MLJ helper smoke through `node scripts/run-julia.mjs --compiled-modules=no --project=. -e ...`
+
+### Next Items To Implement
+
+- Extend the route-wired MLJ fit hook into package-backed evaluation/scoring/drift evidence when MLJ dependencies are available.
+
+### AKS-36 Visualize Project EDA Evidence Slice (2026-07-08)
+
+- Added Visualize EDA rendering for project-backed `DataScienceProject.statisticalAnalysisRuns`.
+- Visualize now shows statistical-analysis run id, method, backend status, persisted result ref, generated Julia code ref, and checksum prefix from project artifact evidence.
+- Extended focused frontend coverage for local-appliance Visualize evidence so project-backed EDA is visible without fixture-only substitution.
+- Extended the live-backend browser smoke to assert Visualize renders the gateway-created statistical-analysis result and generated-code refs during the full project-backed local-appliance path.
+
+### Gaps Pending
+
+- AKS-36 remains open. Full AKS-50 release/browser verification, actual package-backed MLJ fitting/tuning/scoring, GPU trial execution, and remaining trust-boundary/gateway extraction work are still pending.
+
+### Verification
+
+- `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`
+- `npm run build`
+- `npm run validate:contracts`
+- `npm run smoke:live-backend-browser`
+- `npm run validate:control-doc-sync`
+- `npm run validate:brd-traceability`
+- `git diff --check`
+
+### Next Items To Implement
+
+- Continue with AKS-50 release verification and deeper MLJ/GPU semantics.
+
+### AKS-36 Readiness Review, Dataset Wizard, And Transform Accessibility Slice (2026-07-08)
+
+- Added an implementation-readiness review addendum and a local-source threat model for AKS-36.
+- Added `batch_scoring` to the typed project job contract/OpenAPI enum.
+- Added a project-backed Local Dataset Wizard in Data for dataset role, schema role suggestion, validation split defaults, and final-test locking.
+- Added a keyboard-accessible Transform pipeline outline for non-pointer node inspection/selection.
+- Extended focused frontend coverage for the wizard and keyboard outline.
+
+### Gaps Pending
+
+- AKS-36 remains open. Broader gateway module split, security negative tests, actual package-backed MLJ fitting/tuning/scoring, and full AKS-50 release verification are still pending.
+
+### Next Items To Implement
+
+- Run focused contract/frontend/build/control-doc gates.
+- Continue with trust-boundary negative tests and AKS-50 browser/release verification.
+
 ### AKS-36 MLJ-Compatible Model Evidence Slice (2026-07-04)
 
 - Added a focused MLJ helper module for MLJ-prefixed algorithm detection, model-family naming, package-availability evidence, generated Julia training code, and explicit local fallback metadata.
 - Local CSV training artifacts, tuning trials, final evaluation, registry, prediction/export scoring, and deploy runtime selection now preserve both requested MLJ-compatible model evidence and native local scoring shape.
+- Follow-up tightened capability evidence so package availability/version detection is distinct from `mljPackageFitExecuted`; requested MLJ paths record `mlj_available_local_csv_adapter` plus `localFallbackUsed=true` when packages are discoverable but package-backed fitting has not actually run.
 - Julia helper coverage verifies adapter metadata, MLJ-compatible classifier tuning evidence, and final-evaluation scoring for MLJ-compatible regression artifacts.
 
 ### Gaps Pending
 
-- AKS-36 remains open because MLJ packages are not part of the current project dependency surface; this slice provides explicit unavailable/fallback evidence, not full package-backed MLJ optimization.
+- AKS-36 remains open because MLJ package-backed fitting/tuning/scoring is not executed yet; this slice provides explicit capability/fallback evidence, not full package-backed MLJ optimization.
 - Actual MLJ package-backed fitting/tuning, actual GPU-accelerated trial execution, final integrated classical-ML tests, and reviewer/architect/persona/application-test passes remain open.
 
 ### Next Items To Implement
@@ -810,12 +1125,19 @@ Tracker always records 3 things:
 - Added `services/api-gateway/src/JuliaFlowDataScienceProjectLocalSources.jl` as a focused gateway-internal module for local import roots, path containment, sensitive filename checks, text sample credential/PII sniffing, bounded file validation, source URI validation, redaction-safe audit source details, managed local data ref resolution, and local artifact write-path confinement.
 - Gateway local data import and statistical/artifact helper wrappers now delegate source-boundary behavior to the extracted module while preserving route-owned health/profile construction, audit event writes, project persistence, chart generation, and response contracts.
 - Added direct Julia helper assertions for allowed import roots, escaped path rejection, remote URI rejection, sensitive filename rejection, credential-content rejection, audit detail redaction, managed local ref resolution, artifact write confinement, and traversal rejection.
-- Verification passed locally: focused Julia local-source smoke with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`. Full Julia suite remains blocked on this host by `C:\Users\aksha\.ssh\known_hosts` permission denial while dependency packages load.
+- 2026-07-08 follow-up hardens the same helper so raw local data import rejects symlink/junction-resolved filesystem paths, with conditional helper and gateway route assertions when the host allows symlink creation.
+- 2026-07-08 follow-up also hardens configured gateway CORS behavior: when `JULIAFLOW_CORS_ALLOW_ORIGIN` is a concrete local origin, mismatched browser `Origin` requests are rejected before preflight/mutation routes proceed; route tests cover allowed and rejected preflight plus authenticated mutation requests.
+- 2026-07-08 follow-up hardens PostgreSQL repository schema handling with an allowlisted identifier guard before repository construction/connection uses interpolated schema names; tests reject semicolons, dotted names, hyphenated names, leading numbers, empty names, and overlong names without requiring a live PostgreSQL service.
+- 2026-07-08 follow-up exposes object-store connector states without enabling cloud/provider paths: data profile source options now include S3/GCS/Azure as unavailable by default, S3-compatible local mode is gated behind `JULIAFLOW_OBJECT_STORE_COMPATIBILITY=local_compatibility`, and Data disables unavailable source options.
+- 2026-07-08 follow-up hardens backup/export sensitivity: local backup export now requires owner-level `backup:write`, viewer backup export is rejected, and backup payloads include redacted auth metadata review evidence while preserving restore-capable auth records.
+- 2026-07-08 follow-up hardens PostgreSQL local import connector metadata: `databaseSchema` and `databaseTable` now use allowlisted identifier validation before source use, and local import audit details include explicit redaction-preview metadata for omitted full paths and sample values.
+- 2026-07-08 follow-up adds streaming file-checksum evidence for DataScienceProject artifacts: model, statistical-analysis, tuning, final-evaluation, prediction-export, drift-report, and output-contract import paths now record `streaming_file_sha256`.
+- Verification passed locally for focused Julia parse/import smokes with `node scripts/run-julia.mjs --compiled-modules=no --project=. -`; the symlink-specific smoke is conditional because this Windows session cannot create symlinks. Full `tests/julia/runtests.jl` timed out locally after 5 minutes and still needs CI or a longer local run.
 
 ### Gaps Pending
 
 - AKS-36 parent is still open. This is another focused gateway module split; route orchestration, data catalog, monitoring/drift, deploy/export, thin dispatch extraction, worker-backed jobs, connector-specific policy, and project-backed frontend migration remain open.
-- Local source boundaries are modularized, but broader connector-specific trust policy and redaction previews remain open.
+- Local source boundaries are modularized and now include symlink/junction, configured-origin, PostgreSQL schema identifier rejection, PostgreSQL import table identifier rejection, object-store unavailable-state gating, owner-only backup export, explicit audit redaction-preview metadata, and streaming checksum evidence on materialized project artifacts, but broader connector-specific trust policy and deeper redaction preview semantics remain open.
 
 ### Next Items To Implement
 

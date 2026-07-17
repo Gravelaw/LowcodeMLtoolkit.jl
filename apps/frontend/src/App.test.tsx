@@ -284,15 +284,23 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Data" }));
-    fireEvent.click(screen.getByRole("button", { name: "sampling" }));
+    fireEvent.click(screen.getByRole("tab", { name: "sampling" }));
     fireEvent.change(screen.getByLabelText("Preview sample"), { target: { value: "2" } });
-    fireEvent.click(screen.getByRole("button", { name: "table" }));
+    fireEvent.click(screen.getByRole("tab", { name: "table" }));
     expect(screen.getByText("C-1001")).toBeInTheDocument();
     expect(screen.getByText("C-1005")).toBeInTheDocument();
     expect(screen.queryByText("C-1003")).not.toBeInTheDocument();
     expect(screen.getByText("Project Schema Diagnostics")).toBeInTheDocument();
     expect(screen.getByText("Validation And Test Plan")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "schema" }));
+    expect(screen.getByText("Local Dataset Wizard")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /S3-compatible object store/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Google Cloud Storage/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Azure Blob Storage/ })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Dataset role"), { target: { value: "reference" } });
+    expect(screen.getByDisplayValue("reference")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Apply Role Suggestions" }));
+    expect(screen.getByText(/Assign target and id roles|Dataset onboarding is ready/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "schema" }));
     fireEvent.change(screen.getByLabelText("Column role for monthly_charges"), { target: { value: "target" } });
     expect(screen.getByText("Project schema and validation choices updated in demo workspace.")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Logical type for contract_type"), { target: { value: "ordinal" } });
@@ -300,9 +308,11 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.change(screen.getByLabelText("Validation strategy"), { target: { value: "grouped" } });
     expect(screen.getByDisplayValue("grouped")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Lock Final Test Split" }));
-    expect(screen.getByRole("button", { name: "Final Test Locked" })).toBeDisabled();
+    expect(screen.getAllByRole("button", { name: "Final Test Locked" }).every((button) => button.hasAttribute("disabled"))).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Transform" }));
+    expect(screen.getByText("Pipeline Keyboard Outline")).toBeInTheDocument();
+    expect(screen.getByLabelText("Keyboard-accessible transform nodes")).toBeInTheDocument();
     fireEvent.click(screen.getAllByText("Feature Engineering")[0]);
     fireEvent.change(screen.getByLabelText("Output column prefix"), { target: { value: "encoded_features" } });
     expect(screen.getByDisplayValue("encoded_features")).toBeInTheDocument();
@@ -424,6 +434,80 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("summary, correlation, t_test, chi_square, anova (completed)")).toBeInTheDocument();
     expect(screen.getAllByText("stats/customer-churn/statistical_results.json").length).toBeGreaterThan(0);
     expect(screen.getByText("stats/customer-churn/statistical_eda.jl")).toBeInTheDocument();
+  });
+
+  it("renders project-backed statistical analysis evidence in Visualize", async () => {
+    window.__JULIAFLOW_CONFIG__ = {
+      gatewayBaseUrl: "http://127.0.0.1:8088",
+      runtimeMode: "local-appliance"
+    };
+    const datasetId = dataScienceProject.datasets[0]?.datasetId ?? "customer-churn-local";
+    const projectWithVisualizeEvidence = {
+      ...dataScienceProject,
+      statisticalAnalysisRuns: [
+        {
+          analysisRunId: "stats-project-visualize-001",
+          datasetId,
+          method: "ols_residual_diagnostics",
+          status: "completed",
+          generatedCodeRef: "stats/customer-churn/ols_diagnostics.jl",
+          resultRef: "stats/customer-churn/ols_diagnostics.json",
+          resultSummary: { rSquared: 0.71, residualWarningCount: 1 },
+          artifactRefs: [
+            {
+              refId: "stats-project-visualize-001-result",
+              kind: "statistics",
+              localOnly: true,
+              checksumSha256: "f".repeat(64),
+              path: "stats/customer-churn/ols_diagnostics.json",
+              generatedAt: "2026-06-28T11:15:00Z"
+            }
+          ],
+          charts: [],
+          warnings: ["Residual normality warning"],
+          createdAt: "2026-06-28T11:15:00Z"
+        }
+      ]
+    };
+    const health = {
+      ...localHealth,
+      runtime: {
+        mode: "local-appliance",
+        fixtureProvenance: "backend",
+        fixtureSubstitutionAllowed: false,
+        unavailable: []
+      },
+      runtimeMode: "local-appliance",
+      fixtureProvenance: "backend",
+      fixtureSubstitutionAllowed: false,
+      unavailable: []
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/health")) return json(health);
+      if (url.endsWith("/api/v1/workflows")) return json({ items: [workflowSummary] });
+      if (url.endsWith("/api/v1/executions")) return json({ items: [], count: 0 });
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
+      if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
+      if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithVisualizeEvidence], count: 1 });
+      if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
+      if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
+      if (url.includes("/models")) return json({ items: [], count: 0 });
+      if (url.includes("/deploy/packages")) return json({ items: [], count: 0 });
+      if (url.includes("/dashboards/")) return json({ dashboardId: "dashboard-local-churn", charts: [], rows: [] });
+      return json({});
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    fireEvent.click(screen.getByRole("button", { name: "Visualize" }));
+    expect(screen.getByText("Project Statistical Analysis Evidence")).toBeInTheDocument();
+    expect(screen.getByText("stats-project-visualize-001")).toBeInTheDocument();
+    expect(screen.getByText("ols_residual_diagnostics")).toBeInTheDocument();
+    expect(screen.getByText("stats/customer-churn/ols_diagnostics.json")).toBeInTheDocument();
+    expect(screen.getByText("stats/customer-churn/ols_diagnostics.jl")).toBeInTheDocument();
+    expect(screen.getByText("ffffffffffff")).toBeInTheDocument();
   });
 
   it("renders project-backed transform fit/apply evidence from the active project", async () => {
@@ -949,7 +1033,7 @@ describe("JuliaFlow local-only app redesign", () => {
     ));
     await waitFor(() => expect(screen.getByText("Gateway action completed locally.")).toBeInTheDocument());
     expect(screen.getAllByText("CA-2016-152156").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: "schema" }));
+    fireEvent.click(screen.getByRole("tab", { name: "schema" }));
     fireEvent.change(screen.getByLabelText("Column role for monthly_charges"), { target: { value: "target" } });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       "http://127.0.0.1:8088/api/v1/data-science-projects/customer-churn-project",

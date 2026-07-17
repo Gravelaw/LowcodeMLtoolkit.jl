@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: "tests/browser",
   testIgnore: /live-backend\.spec\.ts/,
   timeout: 30_000,
+  workers: 2,
   expect: {
     timeout: 5_000
   },

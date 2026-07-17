@@ -11,6 +11,8 @@ export project_split_plan_for_request,
     tuning_training_plan_record,
     upsert_training_plan!,
     tuning_trials,
+    tuning_gpu_trial_capability,
+    tuning_gpu_trial_metric,
     local_csv_validation_tuning_trials,
     tuning_study_record,
     tuning_output_refs
@@ -308,6 +310,96 @@ function tuning_classifier_requested(algorithm::AbstractString, target_values::V
     return classifier_algorithm && length(unique(target_values)) == 2
 end
 
+function tuning_gpu_trial_capability(selected_backend::AbstractString)
+    backend = String(selected_backend)
+    backend == "cuda" || return Dict{String,Any}(
+        "gpuTrialRequested" => false,
+        "gpuTrialExecutionStatus" => "not_requested",
+        "gpuTrialSkippedReason" => backend == "simulated_cuda" ? "simulated_cuda_is_not_hardware_execution" : "cpu_backend_selected",
+        "gpuTrialBackend" => backend == "simulated_cuda" ? "simulated_cuda_evidence_only" : "cpu",
+        "gpuTrialDeviceCount" => 0,
+        "gpuTrialScope" => "validation_metric_acceleration",
+        "gpuTrialFitBackend" => "local_cpu",
+    )
+    Base.find_package("CUDA") === nothing && return Dict{String,Any}(
+        "gpuTrialRequested" => true,
+        "gpuTrialExecutionStatus" => "skipped",
+        "gpuTrialSkippedReason" => "cuda_package_unavailable",
+        "gpuTrialBackend" => "cpu_fallback",
+        "gpuTrialDeviceCount" => 0,
+        "gpuTrialScope" => "validation_metric_acceleration",
+        "gpuTrialFitBackend" => "local_cpu",
+    )
+    try
+        CUDA = Base.require(Base.PkgId(Base.UUID("052768ef-5323-5732-b1bb-66c8b64840ba"), "CUDA"))
+        return Base.invokelatest(() -> begin
+            functional = CUDA.functional()
+            devices = functional ? collect(CUDA.devices()) : Any[]
+            ready = functional && !isempty(devices)
+            Dict{String,Any}(
+                "gpuTrialRequested" => true,
+                "gpuTrialExecutionStatus" => ready ? "ready" : "skipped",
+                "gpuTrialSkippedReason" => ready ? "none" : "cuda_runtime_or_hardware_unavailable",
+                "gpuTrialBackend" => ready ? "cuda" : "cpu_fallback",
+                "gpuTrialDeviceCount" => length(devices),
+                "gpuTrialScope" => "validation_metric_acceleration",
+                "gpuTrialFitBackend" => "local_cpu",
+            )
+        end)
+    catch error
+        return Dict{String,Any}(
+            "gpuTrialRequested" => true,
+            "gpuTrialExecutionStatus" => "skipped",
+            "gpuTrialSkippedReason" => "cuda_runtime_probe_failed",
+            "gpuTrialFailureReason" => sprint(showerror, error),
+            "gpuTrialBackend" => "cpu_fallback",
+            "gpuTrialDeviceCount" => 0,
+            "gpuTrialScope" => "validation_metric_acceleration",
+            "gpuTrialFitBackend" => "local_cpu",
+        )
+    end
+end
+
+function tuning_gpu_trial_metric(
+    metric::AbstractString,
+    target::Vector{Float64},
+    predictions::Vector{Float64},
+    capability::AbstractDict;
+    classification_threshold::Float64 = 0.5,
+)
+    String(get(capability, "gpuTrialExecutionStatus", "")) == "ready" || return nothing
+    metric_name = lowercase(String(metric))
+    metric_name in ("mae", "mse", "rmse", "accuracy") || return nothing
+    n = min(length(target), length(predictions))
+    n > 0 || return nothing
+    try
+        CUDA = Base.require(Base.PkgId(Base.UUID("052768ef-5323-5732-b1bb-66c8b64840ba"), "CUDA"))
+        return Base.invokelatest(() -> begin
+            target_gpu = CUDA.CuArray(target[1:n])
+            prediction_gpu = CUDA.CuArray(predictions[1:n])
+            value = if metric_name == "mae"
+                sum(abs.(target_gpu .- prediction_gpu)) / n
+            elseif metric_name == "mse"
+                sum((target_gpu .- prediction_gpu) .^ 2) / n
+            elseif metric_name == "rmse"
+                sqrt(sum((target_gpu .- prediction_gpu) .^ 2) / n)
+            else
+                sum((prediction_gpu .>= classification_threshold) .== (target_gpu .>= classification_threshold)) / n
+            end
+            CUDA.synchronize()
+            Dict{String,Any}(
+                "status" => "executed",
+                "value" => Float64(value),
+            )
+        end)
+    catch error
+        return Dict{String,Any}(
+            "status" => "failed",
+            "reason" => sprint(showerror, error),
+        )
+    end
+end
+
 function local_csv_validation_tuning_trials(
     project_id::AbstractString,
     study_id::AbstractString,
@@ -319,6 +411,7 @@ function local_csv_validation_tuning_trials(
     source_path::AbstractString,
     target_column::AbstractString,
     split_plan::AbstractDict,
+    selected_backend::AbstractString = "cpu",
 )
     table = JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path)
     table === nothing && return nothing
@@ -342,6 +435,7 @@ function local_csv_validation_tuning_trials(
     primary_metric = String(first(metric_names))
     lower_is_better = tuning_lower_is_better(primary_metric)
     classifier_mode = tuning_classifier_requested(algorithm, target_values[1:row_count])
+    gpu_capability = tuning_gpu_trial_capability(selected_backend)
     candidate_specs = tuning_candidate_specs(String.(feature_columns), max_trials; classifier_mode = classifier_mode)
     isempty(candidate_specs) && return nothing
     trials = Dict{String,Any}[]
@@ -366,9 +460,38 @@ function local_csv_validation_tuning_trials(
             tuning_predictions_from_ols(ols, feature_pairs, validation_range; regularization_strength = regularization_strength)
         predictions === nothing && continue
         metrics = Dict{String,Any}()
+        gpu_metric_names = String[]
+        gpu_metric_failures = String[]
         for metric in metric_names
             metric_predictions = tuning_metric_predictions(String(metric), predictions, classifier, classification_threshold)
-            metrics[String(metric)] = tuning_metric_from_errors(String(metric), validation_target, metric_predictions)
+            cpu_metric = tuning_metric_from_errors(String(metric), validation_target, metric_predictions)
+            gpu_metric = tuning_gpu_trial_metric(
+                String(metric),
+                validation_target,
+                Float64.(metric_predictions),
+                gpu_capability;
+                classification_threshold = classification_threshold,
+            )
+            gpu_executed = gpu_metric isa AbstractDict && String(get(gpu_metric, "status", "")) == "executed"
+            metrics[String(metric)] = gpu_executed ? Float64(gpu_metric["value"]) : cpu_metric
+            gpu_executed && push!(gpu_metric_names, String(metric))
+            if gpu_metric isa AbstractDict && String(get(gpu_metric, "status", "")) == "failed"
+                push!(gpu_metric_failures, String(get(gpu_metric, "reason", "CUDA metric execution failed")))
+            end
+        end
+        trial_gpu_evidence = Dict{String,Any}(String(key) => value for (key, value) in pairs(gpu_capability))
+        if !isempty(gpu_metric_names)
+            trial_gpu_evidence["gpuTrialExecutionStatus"] = "executed"
+            trial_gpu_evidence["gpuTrialSkippedReason"] = "none"
+            trial_gpu_evidence["gpuTrialExecutedMetrics"] = gpu_metric_names
+        elseif !isempty(gpu_metric_failures)
+            trial_gpu_evidence["gpuTrialExecutionStatus"] = "skipped"
+            trial_gpu_evidence["gpuTrialSkippedReason"] = "gpu_metric_execution_failed"
+            trial_gpu_evidence["gpuTrialFailureReason"] = first(gpu_metric_failures)
+            trial_gpu_evidence["gpuTrialBackend"] = "cpu_fallback"
+        elseif String(get(trial_gpu_evidence, "gpuTrialExecutionStatus", "")) == "ready"
+            trial_gpu_evidence["gpuTrialExecutionStatus"] = "skipped"
+            trial_gpu_evidence["gpuTrialSkippedReason"] = "metric_not_gpu_supported"
         end
         selection_value = Float64(get(metrics, primary_metric, 0.0))
         if best_index == 0 || (lower_is_better ? selection_value < best_value : selection_value > best_value)
@@ -384,6 +507,8 @@ function local_csv_validation_tuning_trials(
             candidate,
             target_column;
             classifier_mode = classifier !== nothing,
+            train_feature_pairs = train_pairs,
+            train_target = train_target,
         )
         coefficients = if classifier !== nothing
             Dict{String,Any}(
@@ -425,6 +550,7 @@ function local_csv_validation_tuning_trials(
                     "featureColumn" => first(candidate),
                     "featureColumns" => candidate,
                     "hyperparameters" => hyperparameters,
+                    "gpuTrialEvidence" => trial_gpu_evidence,
                     "mljEvidence" => mlj_evidence,
                     "generatedJuliaCode" => JuliaFlowDataScienceProjectMLJ.mlj_generated_training_code(
                         algorithm,

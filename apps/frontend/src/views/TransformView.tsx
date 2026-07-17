@@ -243,6 +243,34 @@ export function TransformView({
         )}
       </Card>
 
+      <Card title="Pipeline Keyboard Outline" eyebrow="Non-pointer transform navigation">
+        <div className="keyboard-outline" role="list" aria-label="Keyboard-accessible transform nodes">
+          {nodes.map((node) => {
+            const isSelected = node.id === selectedNodeId;
+            const label = data.workflow.nodes.find((workflowNode) => workflowNode.id === node.id)?.name
+              ?? paletteNodes[node.id]?.name
+              ?? node.id;
+            const outgoing = edges.filter((edge) => edge.source === node.id).map((edge) => edge.target);
+            return (
+              <button
+                type="button"
+                role="listitem"
+                key={node.id}
+                className={isSelected ? "active" : ""}
+                aria-pressed={isSelected}
+                onClick={() => setSelectedNodeId(node.id)}
+              >
+                <strong>{label}</strong>
+                <span>{outgoing.length > 0 ? `Next: ${outgoing.join(", ")}` : "No outgoing edge"}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="workflow-guidance" aria-live="polite">
+          Selected node: {selectedNode?.name ?? (selectedNodeId || "none")}. Use the outline to inspect or edit pipeline settings without pointer interaction.
+        </p>
+      </Card>
+
       <Card title="Transform Settings" className="right-panel">
         <div className="key-values wrap-values">
           <span>Node</span><strong>{selectedNode?.name ?? (selectedNodeId || "No node selected")}</strong>

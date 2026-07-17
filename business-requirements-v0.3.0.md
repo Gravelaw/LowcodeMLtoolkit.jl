@@ -79,7 +79,7 @@ JuliaFlow must support two local database modes:
 
 - **Single-user mode:** DuckDB for analytics plus lightweight metadata persistence for workflow catalog, execution history, checkpoints, and settings.
 - **Lab/team mode:** local PostgreSQL for concurrent metadata writes, users, workspaces, RBAC policies, audit logs, execution history, and shared workflow catalog.
-- Local source connectors should include local files, watched folders, SQLite, DuckDB, PostgreSQL, MySQL, USB import, and drag/drop file or local-path import. Optional external connectors must be disabled by default and clearly marked as non-core.
+- The v1.0 RC source-execution scope is deliberately narrower: confined `local_file` imports and managed-local (`local://`) artifacts are enabled. Watched-folder, SQLite, DuckDB, PostgreSQL, MySQL, USB, and cloud source execution remain visible only as disabled capabilities with explicit reasons until their connector-specific confinement, authorization, provenance, redaction, and negative tests are complete. PostgreSQL remains supported as the lab/team metadata backend; that does not imply PostgreSQL dataset-source execution.
 
 DuckDB must not be treated as the only database for every multi-process service concern. PostgreSQL is preferred when multiple services or users need concurrent metadata writes.
 
@@ -109,7 +109,7 @@ JuliaFlow must provide a cohesive local application surface with the following m
 
 #### 5.5.2 Data
 
-- Local data-source browser for files, watched folders, SQLite, DuckDB, PostgreSQL, MySQL, USB import, and drag/drop imports.
+- Local data-source browser that enables confined local files and managed-local artifacts for v1.0 RC, while presenting watched-folder, SQLite, DuckDB, PostgreSQL, MySQL, USB, and cloud sources as disabled with explicit enablement requirements.
 - Dataset view tabs for table, schema, profile, filters, sort, joins, transforms, sampling, and lineage.
 - Column search, filter controls, page size, local refresh, local data profile, data-quality warnings, file path/size/modified metadata, and exportable column summary.
 - Julia code preview for local data loading/profiling operations.

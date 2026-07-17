@@ -163,12 +163,91 @@ up(host = "127.0.0.1", port = 8000)
 """
 end
 
+function mlj_machine_service_code(model_id::AbstractString, endpoint_url::AbstractString, model_artifact::AbstractDict)
+    machine_ref = String(get(model_artifact, "mljMachineArtifactRef", ""))
+    machine_checksum = String(get(model_artifact, "mljMachineArtifactChecksumSha256", ""))
+    feature_columns = String.(get(model_artifact, "featureColumns", String[]))
+    prediction_mode = String(get(model_artifact, "mljMachinePredictionMode", "continuous_prediction"))
+    positive_label = String(get(model_artifact, "mljMachinePositiveLabel", ""))
+    return """using DataFrames, Genie, JSON3, MLJ, MLJLinearModels, Serialization, SHA
+
+const MACHINE_REF = "$(machine_ref)"
+const MACHINE_CHECKSUM_SHA256 = "$(machine_checksum)"
+const FEATURE_COLUMNS = $(repr(feature_columns))
+const PREDICTION_MODE = "$(prediction_mode)"
+const POSITIVE_LABEL = "$(positive_label)"
+
+function local_model_path(ref::AbstractString)
+    if startswith(String(ref), "local://")
+        data_root = get(ENV, "JULIAFLOW_DATA_ESTATE_ROOT", joinpath(homedir(), ".juliaflow", "data"))
+        relative = replace(String(ref), "local://" => "")
+        return joinpath(data_root, split(relative, "/")...)
+    end
+    return String(ref)
+end
+
+function load_machine()
+    path = local_model_path(MACHINE_REF)
+    isfile(path) || error("MLJ machine artifact not found")
+    actual_checksum = bytes2hex(sha256(read(path)))
+    actual_checksum == MACHINE_CHECKSUM_SHA256 || error("MLJ machine artifact checksum mismatch")
+    return open(path, "r") do io
+        Serialization.deserialize(io)
+    end
+end
+
+function numeric_payload_value(payload, name::AbstractString)
+    if payload isa AbstractDict && haskey(payload, name)
+        return Float64(payload[name])
+    elseif payload isa AbstractDict && haskey(payload, "features")
+        features = payload["features"]
+        if features isa AbstractDict && haskey(features, name)
+            return Float64(features[name])
+        end
+    end
+    error("missing numeric feature: " * String(name))
+end
+
+function score(payload)
+    frame = DataFrame(Dict(Symbol(name) => [numeric_payload_value(payload, name)] for name in FEATURE_COLUMNS))
+    raw_prediction = only(MLJ.predict(load_machine(), frame))
+    if PREDICTION_MODE == "positive_class_probability"
+        return round(Float64(MLJ.pdf(raw_prediction, POSITIVE_LABEL)); digits = 6)
+    end
+    return round(Float64(raw_prediction); digits = 6)
+end
+
+route("/v1/predict", method = POST) do
+    payload = JSON3.read(rawpayload())
+    prediction = score(payload)
+    return JSON3.write(Dict(
+        "modelId" => "$(String(model_id))",
+        "endpoint" => "$(String(endpoint_url))",
+        "localOnly" => true,
+        "modelArtifactRef" => MACHINE_REF,
+        "modelArtifactChecksumSha256" => MACHINE_CHECKSUM_SHA256,
+        "inferenceMode" => "mlj_persisted_machine",
+        "predictionMode" => PREDICTION_MODE,
+        "featureColumns" => FEATURE_COLUMNS,
+        "prediction" => prediction,
+    ))
+end
+
+up(host = "127.0.0.1", port = 8000)
+"""
+end
+
 function local_deploy_service_code(
     model_id::AbstractString,
     endpoint_url::AbstractString,
     model_ref::AbstractString,
     model_artifact::Union{Nothing,AbstractDict} = nothing,
 )
+    if model_artifact !== nothing &&
+       String(get(model_artifact, "mljMachineArtifactRef", "")) != "" &&
+       String(get(model_artifact, "mljMachineArtifactChecksumSha256", "")) != ""
+        return mlj_machine_service_code(model_id, endpoint_url, model_artifact)
+    end
     native_model_kind = model_artifact === nothing ? "" : String(get(model_artifact, "nativeModelKind", String(get(model_artifact, "modelKind", ""))))
     if model_artifact !== nothing && native_model_kind == "local_csv_binary_centroid_classifier"
         return local_csv_binary_classifier_service_code(model_id, endpoint_url, model_ref, model_artifact)
@@ -226,6 +305,10 @@ end
 
 function deploy_runtime_inference_mode(model_artifact)
     model_artifact isa AbstractDict || return "echo_payload_fallback"
+    if !isempty(strip(String(get(model_artifact, "mljMachineArtifactRef", "")))) &&
+       !isempty(strip(String(get(model_artifact, "mljMachineArtifactChecksumSha256", ""))))
+        return "mlj_persisted_machine"
+    end
     model_kind = String(get(model_artifact, "modelKind", ""))
     native_model_kind = String(get(model_artifact, "nativeModelKind", model_kind))
     return native_model_kind in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier") ?
@@ -259,6 +342,19 @@ function deploy_artifact_evidence(
         ),
     ]
     append!(artifact_evidence, [normalized_dict(item) for item in get(model_record, "artifactEvidence", Any[])])
+    model_artifact = deploy_model_artifact(model_record)
+    if model_artifact !== nothing && !isempty(strip(String(get(model_artifact, "mljMachineArtifactRef", ""))))
+        push!(
+            artifact_evidence,
+            Dict{String,Any}(
+                "kind" => "mlj_machine",
+                "artifactRef" => String(model_artifact["mljMachineArtifactRef"]),
+                "checksumSha256" => String(get(model_artifact, "mljMachineArtifactChecksumSha256", "")),
+                "sizeBytes" => Int(get(model_artifact, "mljMachineArtifactSizeBytes", 0)),
+                "predictionMode" => String(get(model_artifact, "mljMachinePredictionMode", "")),
+            ),
+        )
+    end
     return artifact_evidence
 end
 

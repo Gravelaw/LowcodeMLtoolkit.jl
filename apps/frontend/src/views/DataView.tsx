@@ -1,14 +1,17 @@
 import { useMemo, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
 import { InteractiveChart } from "../components/InteractiveChart";
 import { localCode } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
 import type {
   DataScienceColumnRole,
+  DataScienceProjectDatasetRole,
   DataScienceSplitStrategy,
   DatasetSplitPlan,
   GatewayDataImportProfile,
   GatewayDataSourceOption,
+  ProjectDataset,
   SchemaColumnContract,
   UpdateDataScienceProjectRequest
 } from "@juliaflow/contracts";
@@ -17,6 +20,7 @@ type DataTab = "table" | "schema" | "profile" | "filters" | "sort" | "joins" | "
 
 const dataTabs: DataTab[] = ["table", "schema", "profile", "filters", "sort", "joins", "transforms", "sampling", "lineage"];
 const columnRoles: DataScienceColumnRole[] = ["feature", "target", "id", "group", "time", "depth", "sensitive", "ignore"];
+const datasetRoles: DataScienceProjectDatasetRole[] = ["train", "validation", "test", "evaluation", "output", "reference"];
 const logicalTypes = ["continuous", "categorical", "binary", "date", "datetime", "identifier", "text", "ordinal"];
 const splitStrategies: DataScienceSplitStrategy[] = ["random", "stratified", "grouped", "time", "depth", "external"];
 
@@ -58,8 +62,28 @@ function uniqueValues(rows: Array<Record<string, unknown>>, field: string) {
   return Array.from(new Set(rows.map((row) => String(row[field] ?? "")).filter(Boolean))).slice(0, 6);
 }
 
+function moveDataTabFocus(event: KeyboardEvent<HTMLButtonElement>, index: number, select: (tab: DataTab) => void) {
+  const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+  const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? dataTabs.length - 1 : direction ? (index + direction + dataTabs.length) % dataTabs.length : -1;
+  if (nextIndex < 0) return;
+  event.preventDefault();
+  select(dataTabs[nextIndex]);
+  event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role='tab']")[nextIndex]?.focus();
+}
+
 function semanticColumnOption(schemaColumns: SchemaColumnContract[], role: DataScienceColumnRole) {
   return schemaColumns.find((column) => column.role === role)?.name ?? "";
+}
+
+function wizardRoleForColumn(column: SchemaColumnContract): DataScienceColumnRole {
+  const name = column.name.toLowerCase();
+  if (/(^|_)(churn|label|target|outcome|response)($|_)/.test(name)) return "target";
+  if (/(^|_)(id|uuid|key)($|_)/.test(name)) return "id";
+  if (/(group|segment|contract|category|class)/.test(name)) return "group";
+  if (/(date|time|timestamp|tenure)/.test(name)) return "time";
+  if (/(depth|measured_depth|tvd)/.test(name)) return "depth";
+  if (/(email|phone|ssn|token|secret|password)/.test(name)) return "sensitive";
+  return column.role === "ignore" ? "ignore" : "feature";
 }
 
 function newestBy<T>(items: T[], timestamp: (item: T) => string | undefined): T | undefined {
@@ -91,6 +115,7 @@ export function DataView({
   const sourceOptions = activeProfile.sourceOptions ?? [];
   const previewRows = activeProfile.previewRows ?? [];
   const project = data.dataScienceProject;
+  const projectDataset = project.datasets.find((dataset) => dataset.datasetId === activeProfile.datasetId) ?? project.datasets[0];
   const schemaContract = project.schemaContracts.find((schema) => schema.datasetId === activeProfile.datasetId) ?? project.schemaContracts[0];
   const schemaColumns = schemaContract?.columns ?? [];
   const activeSplitPlan = project.splitPlans.find((plan) => plan.datasetId === activeProfile.datasetId) ?? project.splitPlans[0];
@@ -116,6 +141,13 @@ export function DataView({
     ? sortField
     : numericFields[0] ?? activeProfile.schemaSummary[0]?.name ?? "field";
   const filterOptions = uniqueValues(previewRows, effectiveFilterField);
+  const wizardTarget = semanticColumnOption(schemaColumns, "target");
+  const wizardId = semanticColumnOption(schemaColumns, "id");
+  const wizardGroup = semanticColumnOption(schemaColumns, "group");
+  const wizardTime = semanticColumnOption(schemaColumns, "time");
+  const wizardDepth = semanticColumnOption(schemaColumns, "depth");
+  const wizardSensitiveCount = schemaColumns.filter((column) => column.role === "sensitive").length;
+  const wizardReady = Boolean(projectDataset && schemaContract && activeSplitPlan && wizardTarget && wizardId && finalTestLock);
 
   const filteredPreview = useMemo(() => {
     const filtered = filterValue === "all"
@@ -150,6 +182,14 @@ export function DataView({
     });
   }
 
+  function updateProjectDataset(dataset: ProjectDataset) {
+    onProjectUpdate({
+      datasets: project.datasets.map((item) => (
+        item.datasetId === dataset.datasetId ? dataset : item
+      ))
+    });
+  }
+
   function updateSplitPlan(patch: Partial<DatasetSplitPlan>) {
     if (!activeSplitPlan) return;
     const updatedPlan = {
@@ -160,6 +200,47 @@ export function DataView({
       splitPlans: project.splitPlans.map((plan) => (
         plan.splitPlanId === updatedPlan.splitPlanId ? updatedPlan : plan
       ))
+    });
+  }
+
+  function applyWizardDefaults() {
+    if (!schemaContract || !activeSplitPlan) return;
+    const nextColumns = schemaContract.columns.map((column) => ({
+      ...column,
+      role: wizardRoleForColumn(column),
+      logicalType: column.logicalType || column.inferredType
+    }));
+    const targetColumn = nextColumns.find((column) => column.role === "target")?.name;
+    const groupColumn = nextColumns.find((column) => column.role === "group")?.name;
+    const timeColumn = nextColumns.find((column) => column.role === "time")?.name;
+    const depthColumn = nextColumns.find((column) => column.role === "depth")?.name;
+    onProjectUpdate({
+      schemaContracts: project.schemaContracts.map((schema) => (
+        schema.schemaId === schemaContract.schemaId
+          ? { ...schemaContract, columns: nextColumns, updatedAt: new Date().toISOString() }
+          : schema
+      )),
+      splitPlans: project.splitPlans.map((plan) => (
+        plan.splitPlanId === activeSplitPlan.splitPlanId
+          ? {
+              ...activeSplitPlan,
+              strategy: groupColumn ? "stratified" : "random",
+              groupColumn,
+              timeColumn,
+              depthColumn,
+              trainFraction: activeSplitPlan.trainFraction ?? 0.7,
+              validationFraction: activeSplitPlan.validationFraction ?? 0.15,
+              testFraction: activeSplitPlan.testFraction ?? 0.15
+            }
+          : plan
+      )),
+      datasets: projectDataset
+        ? project.datasets.map((dataset) => (
+            dataset.datasetId === projectDataset.datasetId
+              ? { ...dataset, role: targetColumn ? "train" : dataset.role }
+              : dataset
+          ))
+        : project.datasets
     });
   }
 
@@ -259,6 +340,49 @@ export function DataView({
         )}
       </Card>
 
+      <Card title="Local Dataset Wizard" eyebrow="Project-backed onboarding" className="right-panel">
+        {projectDataset && schemaContract && activeSplitPlan ? (
+          <div className="dataset-wizard">
+            <div className="key-values wrap-values">
+              <span>Dataset</span><strong>{projectDataset.name}</strong>
+              <span>Source grant</span><strong>{projectDataset.localOnly ? "local-only" : "blocked"}</strong>
+              <span>Dataset role</span><strong>{projectDataset.role}</strong>
+              <span>Target</span><strong>{wizardTarget || "not assigned"}</strong>
+              <span>Identifier</span><strong>{wizardId || "not assigned"}</strong>
+              <span>Group</span><strong>{wizardGroup || "not assigned"}</strong>
+              <span>Time/depth</span><strong>{[wizardTime, wizardDepth].filter(Boolean).join(" / ") || "not assigned"}</strong>
+              <span>Sensitive</span><strong>{wizardSensitiveCount}</strong>
+              <span>Final test</span><strong>{finalTestLock ? "locked" : "unlocked"}</strong>
+            </div>
+            <div className="control-panel-grid single">
+              <label>
+                <span>Dataset role</span>
+                <select
+                  aria-label="Dataset role"
+                  value={projectDataset.role}
+                  onChange={(event) => updateProjectDataset({ ...projectDataset, role: event.target.value as DataScienceProjectDatasetRole })}
+                >
+                  {datasetRoles.map((role) => <option key={role}>{role}</option>)}
+                </select>
+              </label>
+              <button type="button" className="jf-button secondary full-width" onClick={applyWizardDefaults}>
+                Apply Role Suggestions
+              </button>
+              <button type="button" className="jf-button primary full-width" disabled={Boolean(finalTestLock)} onClick={lockFinalTestSplit}>
+                {finalTestLock ? "Final Test Locked" : "Lock Wizard Split"}
+              </button>
+            </div>
+            <p className={`workflow-guidance ${wizardReady ? "ready" : "blocked"}`} aria-live="polite">
+              {wizardReady
+                ? "Dataset onboarding is ready for split-aware EDA, baseline training, validation-only tuning, and final evaluation."
+                : "Assign target and id roles, choose a validation strategy, then lock the final test split before tuning or model promotion."}
+            </p>
+          </div>
+        ) : (
+          <p className="empty-state">No project dataset, schema contract, or split plan is attached yet.</p>
+        )}
+      </Card>
+
       <Card title="Validation And Test Plan" className="right-panel">
         {activeSplitPlan ? (
           <div className="control-panel-grid single">
@@ -341,8 +465,10 @@ export function DataView({
           {sourceOptions.map((option) => (
             <button
               type="button"
-              className={`source-card ${option.mode === activeProfile.activeReadMode ? "active" : ""}`}
+              className={`source-card ${option.mode === activeProfile.activeReadMode ? "active" : ""} ${option.status === "unavailable" ? "disabled" : ""}`}
               key={option.mode}
+              disabled={option.status === "unavailable"}
+              title={option.status === "unavailable" ? option.semantics : option.label}
               onClick={() => onImport(sourceRequest(activeProfile, option))}
             >
               {option.label}
@@ -360,8 +486,18 @@ export function DataView({
           Active source: <strong>{activeSourceLabel}</strong> | Preview: <strong>{preview.length.toLocaleString()}</strong> of <strong>{filteredPreview.length.toLocaleString()}</strong> filtered rows
         </p>
         <div className="mode-tabs" role="tablist" aria-label="Data table workspace tabs">
-          {dataTabs.map((tab) => (
-            <button type="button" key={tab} className={activeTab === tab ? "active" : ""} aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}>
+          {dataTabs.map((tab, index) => (
+            <button
+              type="button"
+              role="tab"
+              id={`data-tab-${tab}`}
+              tabIndex={activeTab === tab ? 0 : -1}
+              key={tab}
+              className={activeTab === tab ? "active" : ""}
+              aria-selected={activeTab === tab}
+              onClick={() => setActiveTab(tab)}
+              onKeyDown={(event) => moveDataTabFocus(event, index, setActiveTab)}
+            >
               {tabLabel(tab)}
             </button>
           ))}

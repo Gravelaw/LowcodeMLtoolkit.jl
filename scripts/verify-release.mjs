@@ -7,6 +7,7 @@ const artifactRoot = join(root, "artifacts", "release-verification", "latest");
 const logRoot = join(artifactRoot, "logs");
 const startedAt = new Date().toISOString();
 const npmBin = process.platform === "win32" ? "npm.cmd" : "npm";
+const doctorScript = process.platform === "win32" ? "doctor:windows" : "doctor:debian";
 const localJulia = join(root, ".juliaup", "bin", "julia");
 const juliaBin = process.env.JULIAFLOW_JULIA_CMD ?? (existsSync(localJulia) ? localJulia : "julia");
 const gitBin = "git";
@@ -26,13 +27,13 @@ const skipped = {
 
 const commands = [
   { phase: "bootstrap", kind: "bootstrap", name: "npm-install", command: npmBin, args: ["install"], skip: skipped.install },
-  { phase: "bootstrap", kind: "bootstrap", name: "doctor-windows", command: npmBin, args: ["run", "doctor:windows"] },
+  { phase: "bootstrap", kind: "bootstrap", name: "doctor-host", command: npmBin, args: ["run", doctorScript] },
   { phase: "bootstrap", kind: "bootstrap", name: "julia-instantiate", command: npmBin, args: ["run", "julia:instantiate"], skip: skipped.julia },
   { phase: "contracts", kind: "product", name: "validate-contracts", command: npmBin, args: ["run", "validate:contracts"] },
   { phase: "frontend", kind: "product", name: "build", command: npmBin, args: ["run", "build"] },
   { phase: "frontend", kind: "product", name: "test", command: npmBin, args: ["run", "test"] },
-  { phase: "julia", kind: "product", name: "julia-repo-tests", command: juliaBin, args: ["--project=.", "tests/julia/runtests.jl"], skip: skipped.julia },
-  { phase: "julia", kind: "product", name: "julia-base-extension-tests", command: juliaBin, args: ["--project=.", "extensions/base/test/runtests.jl"], skip: skipped.julia },
+  { phase: "julia", kind: "product", name: "julia-repo-tests", command: juliaBin, args: ["--compiled-modules=no", "--project=.", "tests/julia/runtests.jl"], skip: skipped.julia },
+  { phase: "julia", kind: "product", name: "julia-base-extension-tests", command: juliaBin, args: ["--compiled-modules=no", "--project=.", "extensions/base/test/runtests.jl"], skip: skipped.julia },
   { phase: "local-smoke", kind: "runtime", name: "smoke-local-bootstrap", command: npmBin, args: ["run", "smoke:local-bootstrap"], skip: skipped.smokes },
   { phase: "local-smoke", kind: "runtime", name: "smoke-local-data-estate", command: npmBin, args: ["run", "smoke:local-data-estate"], skip: skipped.smokes },
   { phase: "local-smoke", kind: "runtime", name: "smoke-local-metadata", command: npmBin, args: ["run", "smoke:local-metadata"], skip: skipped.smokes },

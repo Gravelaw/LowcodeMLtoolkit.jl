@@ -53,6 +53,20 @@ function writeOfflineHubRegistries() {
   return `sha256:${createHash("sha256").update(artifactBytes).digest("hex")}`;
 }
 
+function writeManagedLiveDataset() {
+  const rawRoot = join(liveHome, "data", "raw");
+  const datasetPath = join(rawRoot, "customer-churn-local.csv");
+  mkdirSync(rawRoot, { recursive: true });
+  const rows = Array.from({ length: 30 }, (_, index) => {
+    const churn = index % 3 === 0 ? 1 : 0;
+    const contract = churn ? "monthly" : index % 2 === 0 ? "annual" : "two_year";
+    const tenure = 3 + index * 2;
+    const monthlyCharges = (48 + index * 2.35 + churn * 18).toFixed(2);
+    return `C-${String(index + 1).padStart(4, "0")},${tenure},${monthlyCharges},${contract},${churn}`;
+  });
+  writeFileSync(datasetPath, ["customer_id,tenure_months,monthly_charges,contract_type,churn", ...rows, ""].join("\n"));
+}
+
 function spawnLogged(name, command, args, env = {}) {
   const logPath = join(logRoot, `${name}.log`);
   writeFileSync(logPath, `$ ${command} ${args.join(" ")}\n\n`);
@@ -78,11 +92,13 @@ function spawnLogged(name, command, args, env = {}) {
 
 function runLogged(name, command, args, env = {}) {
   const logPath = join(logRoot, `${name}.log`);
+  const shell = process.platform === "win32" && (command === "npm" || command.endsWith(".cmd"));
   const result = spawnSync(command, args, {
     cwd: root,
     env: { ...process.env, ...env },
     encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024
+    maxBuffer: 64 * 1024 * 1024,
+    shell
   });
   const log = [
     `$ ${command} ${args.join(" ")}`,
@@ -93,6 +109,9 @@ function runLogged(name, command, args, env = {}) {
     "",
     "----- stderr -----",
     result.stderr ?? "",
+    "",
+    "----- spawn error -----",
+    result.error ? result.error.stack ?? result.error.message : "",
     ""
   ].join("\n");
   writeFileSync(logPath, log);
@@ -141,6 +160,7 @@ function stopChildren() {
 try {
   const workflowPath = resolve(root, "tests", "contracts", "fixtures", "foundation.workflow.toml");
   const hubArtifactHash = writeOfflineHubRegistries();
+  writeManagedLiveDataset();
   runLogged("julia-instantiate", juliaBin, [...juliaArgs, "--project=.", "-e", "using Pkg; Pkg.instantiate()"], juliaEnv);
   spawnLogged("gateway", juliaBin, [...juliaArgs, "--project=.", "scripts/run-api-gateway.jl"], {
     ...juliaEnv,
@@ -170,7 +190,8 @@ try {
     throw new Error(`dashboard prepublish failed: ${publishResponse.status} ${await publishResponse.text()}`);
   }
 
-  spawnLogged("frontend", npmBin, ["--workspace", "@juliaflow/frontend", "run", "dev", "--", "--host", "127.0.0.1", "--port", frontendPort]);
+  runLogged("frontend-build", npmBin, ["--workspace", "@juliaflow/frontend", "run", "build"]);
+  spawnLogged("frontend", npmBin, ["--workspace", "@juliaflow/frontend", "run", "preview", "--", "--host", "127.0.0.1", "--port", frontendPort]);
   await waitFor(frontendUrl, "frontend");
 
   const result = await new Promise((resolveRun) => {

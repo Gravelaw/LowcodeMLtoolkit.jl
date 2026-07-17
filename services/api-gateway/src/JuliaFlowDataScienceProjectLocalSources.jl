@@ -1,16 +1,23 @@
 module JuliaFlowDataScienceProjectLocalSources
 
+using SHA
+
 export local_data_import_audit_source_details,
+    local_data_import_redaction_preview,
     local_data_import_roots,
     local_data_import_sample,
+    local_artifact_checksum,
+    write_local_artifact!,
     local_data_ref_path_for_write,
     path_within_root,
     resolve_local_data_ref_path,
     sensitive_import_path,
     split_env_paths,
     validate_local_data_import_file!,
+    validate_local_data_import_connector_policy!,
     validate_local_data_import_sample!,
-    validate_local_data_import_source!
+    validate_local_data_import_source!,
+    validate_source_identifier!
 
 function split_env_paths(value::AbstractString)
     separator = Sys.iswindows() ? ';' : ':'
@@ -37,11 +44,51 @@ function path_within_root(path::AbstractString, root::AbstractString)
     return !isabspath(relative) && !isempty(parts) && first(parts) != ".."
 end
 
+function normalized_filesystem_path(path::AbstractString)
+    normalized = replace(normpath(abspath(path)), "\\" => "/")
+    return Sys.iswindows() ? lowercase(normalized) : normalized
+end
+
 function sensitive_import_path(path::AbstractString)
     filename = lowercase(basename(path))
     sensitive_names = Set([".env", "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", "credentials", "credentials.json", "secrets.json"])
     filename in sensitive_names && return true
     return occursin("secret", filename) || occursin("password", filename) || occursin("token", filename) || occursin("credential", filename)
+end
+
+function validate_source_identifier!(value::AbstractString, label::AbstractString)
+    identifier = String(value)
+    isempty(identifier) && error("$(label) cannot be empty")
+    ncodeunits(identifier) <= 63 || error("$(label) must be 63 bytes or fewer")
+    occursin(r"^[A-Za-z_][A-Za-z0-9_]*$", identifier) || error("$(label) must use only letters, numbers, and underscores, and must not start with a number")
+    return identifier
+end
+
+function validate_local_data_import_connector_policy!(body::AbstractDict, source_uri::AbstractString)
+    normalized_source = lowercase(replace(strip(String(source_uri)), "\\" => "/"))
+    managed_source = startswith(normalized_source, "local://")
+    default_connector = managed_source ? "managed_local" : "local_file"
+    connector = lowercase(String(get(body, "connector", default_connector)))
+    connector in Set(["managed_local", "local_file", "duckdb", "postgresql", "disabled_remote"]) ||
+        error("local data import connector is not supported")
+    if connector == "managed_local"
+        managed_source || error("managed_local connector requires a local:// sourceUri")
+    elseif connector == "local_file"
+        managed_source && error("local_file connector requires a filesystem sourceUri")
+        occursin(r"^[a-z][a-z0-9+.-]*://"i, normalized_source) && error("local_file connector requires a filesystem sourceUri")
+    elseif connector == "postgresql"
+        haskey(body, "databaseSchema") || error("PostgreSQL databaseSchema is required")
+        haskey(body, "databaseTable") || error("PostgreSQL databaseTable is required")
+        validate_source_identifier!(String(body["databaseSchema"]), "PostgreSQL source schema")
+        validate_source_identifier!(String(body["databaseTable"]), "PostgreSQL source table")
+        error("PostgreSQL local source import is unavailable until query execution and redacted connection evidence are implemented")
+    elseif connector == "duckdb"
+        error("DuckDB source import is unavailable; import a managed local file and use the project DuckDB read mode")
+    elseif haskey(body, "databaseSchema") || haskey(body, "databaseTable")
+        error("databaseSchema and databaseTable are only available for PostgreSQL local source imports")
+    end
+    connector == "disabled_remote" && error("remote/provider source connectors are unavailable in local-appliance mode")
+    return connector
 end
 
 function local_data_import_sample(path::AbstractString; max_bytes::Integer = 16_384)
@@ -53,6 +100,25 @@ function local_data_import_sample(path::AbstractString; max_bytes::Integer = 16_
             error("local data import source sample is not valid UTF-8 text")
         end
     end
+end
+
+function local_artifact_checksum(path::AbstractString)
+    isfile(path) || error("local artifact file not found")
+    open(path, "r") do io
+        return bytes2hex(sha256(io))
+    end
+end
+
+function write_local_artifact!(path::AbstractString, content::AbstractString)
+    mkpath(dirname(path))
+    open(path, "w") do io
+        write(io, content)
+    end
+    return Dict{String,Any}(
+        "checksumSha256" => local_artifact_checksum(path),
+        "sizeBytes" => filesize(path),
+        "checksumMode" => "streaming_file_sha256",
+    )
 end
 
 function validate_local_data_import_sample!(path::AbstractString)
@@ -125,7 +191,9 @@ function validate_local_data_import_source!(
     end
     occursin(r"^[a-z][a-z0-9+.-]*://"i, uri) && error("local data import sourceUri must be a local file path or local:// managed artifact ref")
     isfile(uri) || error("local data import source file not found")
+    requested_path = normpath(abspath(uri))
     source_path = realpath(uri)
+    normalized_filesystem_path(requested_path) == normalized_filesystem_path(source_path) || error("local data import source cannot be a symlink or junction")
     roots = [realpath(root) for root in local_data_import_roots(local_home, data_root; import_roots) if isdir(root)]
     isempty(roots) && error("local data import root not configured")
     any(root -> path_within_root(source_path, root), roots) || error("local data import source escapes allowed import roots")
@@ -156,6 +224,32 @@ function local_data_import_audit_source_details(source_uri)
         details["sourceBytes"] = filesize(uri)
     end
     return details
+end
+
+function local_data_import_redaction_preview(source_uri)
+    preview = Dict{String,Any}(
+        "fullPathRedacted" => true,
+        "sampleValuesRedacted" => true,
+        "recordedFields" => ["sourceKind"],
+    )
+    source_uri === nothing && return preview
+    uri = strip(String(source_uri))
+    isempty(uri) && return preview
+    normalized = replace(uri, "\\" => "/")
+    lower = lowercase(normalized)
+    if startswith(lower, "local://")
+        preview["recordedFields"] = ["sourceKind", "sourceRef"]
+        preview["sourceRefPolicy"] = "managed-local-ref-only"
+        return preview
+    end
+    if occursin(r"^[a-z][a-z0-9+.-]*://"i, uri)
+        preview["recordedFields"] = ["sourceKind", "scheme"]
+        preview["sourceRefPolicy"] = "remote-uri-redacted"
+        return preview
+    end
+    preview["recordedFields"] = ["sourceKind", "sourceBasename", "sourceExtension", "sourceBytes"]
+    preview["sourceRefPolicy"] = "filesystem-path-redacted"
+    return preview
 end
 
 function resolve_local_data_ref_path(

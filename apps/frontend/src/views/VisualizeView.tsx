@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { KeyboardEvent } from "react";
 import { Card, DataTable, StatusPill } from "../components/ui";
 import type { ActionFeedback, AppData } from "../types";
 
@@ -10,6 +11,15 @@ const modes: Array<{ id: VisualizeMode; label: string }> = [
   { id: "diagnostics", label: "Model Diagnostics" },
   { id: "compare", label: "Experiment Compare" }
 ];
+
+function moveVisualizeTabFocus(event: KeyboardEvent<HTMLButtonElement>, index: number, select: (mode: VisualizeMode) => void) {
+  const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+  const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? modes.length - 1 : direction ? (index + direction + modes.length) % modes.length : -1;
+  if (nextIndex < 0) return;
+  event.preventDefault();
+  select(modes[nextIndex].id);
+  event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role='tab']")[nextIndex]?.focus();
+}
 
 function datasetRows(data: AppData) {
   const datasetKey = data.dashboard.binding.datasetKey;
@@ -36,6 +46,27 @@ function metricPercent(value: unknown) {
   return `${Math.round(numeric * 1000) / 10}%`;
 }
 
+function latestProjectAnalysisRuns(data: AppData) {
+  return [...data.dataScienceProject.statisticalAnalysisRuns]
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, 4);
+}
+
+function evidenceRefLabel(run: ReturnType<typeof latestProjectAnalysisRuns>[number]) {
+  return run.resultRef ?? run.artifactRefs?.[0]?.path ?? run.artifactRefs?.[0]?.refId ?? "No persisted result";
+}
+
+function checksumLabel(run: ReturnType<typeof latestProjectAnalysisRuns>[number]) {
+  return run.artifactRefs?.find((ref) => ref.checksumSha256)?.checksumSha256?.slice(0, 12) ?? "No checksum";
+}
+
+function statusTone(status: string): "green" | "blue" | "orange" | "neutral" {
+  if (status === "completed") return "green";
+  if (status === "failed" || status === "unavailable") return "orange";
+  if (status === "running") return "blue";
+  return "neutral";
+}
+
 export function VisualizeView({
   data,
   onExport,
@@ -55,6 +86,7 @@ export function VisualizeView({
   const activeExperiment = data.mlExperiments[0];
   const profile = data.dataProfile;
   const readiness = profile.workflowReadiness;
+  const projectAnalysisRuns = latestProjectAnalysisRuns(data);
 
   return (
     <div className="route-grid visualize-route">
@@ -69,14 +101,17 @@ export function VisualizeView({
 
       <Card className="wide" title="Visualization Workspace" eyebrow={profile.datasetId}>
         <div className="mode-tabs" role="tablist" aria-label="Visualize modes">
-          {modes.map((item) => (
+          {modes.map((item, index) => (
             <button
               type="button"
               role="tab"
+              id={`visualize-tab-${item.id}`}
               aria-selected={mode === item.id}
+              tabIndex={mode === item.id ? 0 : -1}
               className={mode === item.id ? "active" : ""}
               key={item.id}
               onClick={() => setMode(item.id)}
+              onKeyDown={(event) => moveVisualizeTabFocus(event, index, setMode)}
             >
               {item.label}
             </button>
@@ -115,6 +150,25 @@ export function VisualizeView({
               rows={profile.profileSummary}
               getRowKey={(row) => String(row.name)}
             />
+          </Card>
+
+          <Card title="Project Statistical Analysis Evidence" className="wide">
+            {projectAnalysisRuns.length === 0 ? (
+              <p className="empty-state">No project-backed statistical analysis runs are available yet. Run EDA from Data to persist analysis evidence for Visualize.</p>
+            ) : (
+              <DataTable
+                columns={[
+                  { key: "analysisRunId", label: "Run" },
+                  { key: "method", label: "Method" },
+                  { key: "status", label: "Status", render: (row) => <StatusPill tone={statusTone(row.status)}>{row.status}</StatusPill> },
+                  { key: "resultRef", label: "Result", render: (row) => evidenceRefLabel(row) },
+                  { key: "generatedCodeRef", label: "Code", render: (row) => row.generatedCodeRef ?? "No code ref" },
+                  { key: "checksum", label: "Checksum", render: (row) => checksumLabel(row) }
+                ]}
+                rows={projectAnalysisRuns}
+                getRowKey={(row) => row.analysisRunId}
+              />
+            )}
           </Card>
 
           <Card title="Distribution And Target Checks" className="wide">

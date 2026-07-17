@@ -2,6 +2,7 @@ module JuliaFlowDataScienceProjectEvaluation
 
 using ..JuliaFlowGatewayRepository
 using ..JuliaFlowDataScienceProjectStatistics
+using ..JuliaFlowDataScienceProjectMLJ
 
 export project_training_plan_for_request,
     project_tuning_study_for_final_evaluation,
@@ -209,9 +210,44 @@ function final_evaluation_metrics_from_csv(
         if artifact_target == String(target_column) && !isempty(feature_columns) && all(column -> haskey(numeric_columns, column), feature_columns) &&
                 (haskey(coefficients, "intercept") || model_kind == "local_csv_binary_centroid_classifier")
             if all(column -> length(numeric_columns[column]) >= total, feature_columns)
+                classifier_mode = native_model_kind == "local_csv_binary_centroid_classifier"
+                mlj_evidence = get(model_artifact, "mljEvidence", Dict{String,Any}())
+                mlj_scoring_result = nothing
+                if Bool(get(mlj_evidence, "mljPackageFitExecuted", false))
+                    train_feature_pairs = [column => numeric_columns[column][1:train_count] for column in feature_columns]
+                    test_feature_pairs = [column => numeric_columns[column][(train_count + 1):total] for column in feature_columns]
+                    mlj_scoring_result = JuliaFlowDataScienceProjectMLJ.mlj_package_prediction_result(
+                        String(get(model_artifact, "requestedAlgorithm", "")),
+                        train_feature_pairs,
+                        train_values,
+                        test_feature_pairs;
+                        classifier_mode = classifier_mode,
+                    )
+                end
                 intercept = Float64(get(coefficients, "intercept", 0.0))
                 artifact_predictions = nothing
-                if native_model_kind == "local_csv_binary_centroid_classifier"
+                if mlj_scoring_result !== nothing
+                    artifact_predictions = Float64.(mlj_scoring_result["predictions"])
+                    execution_mode = "mlj_package_backed_final_evaluation"
+                    baseline_model = classifier_mode ? "mlj_package_logistic_classifier_refit" : "mlj_package_linear_regressor_refit"
+                    baseline_slope = 0.0
+                    baseline_intercept = 0.0
+                    scoring_evidence = Dict{String,Any}(
+                        "modelArtifactRef" => String(get(model_artifact, "artifactRef", "")),
+                        "modelArtifactChecksumSha256" => String(get(model_artifact, "checksumSha256", "")),
+                        "modelKind" => model_kind,
+                        "nativeModelKind" => native_model_kind,
+                        "modelFamily" => String(get(model_artifact, "modelFamily", "")),
+                        "requestedAlgorithm" => String(get(model_artifact, "requestedAlgorithm", "")),
+                        "featureColumn" => first(feature_columns),
+                        "featureColumns" => feature_columns,
+                        "coefficients" => coefficients,
+                        "trainingRowCount" => Int(get(model_artifact, "trainRowCount", train_count)),
+                        "mljEvidence" => mlj_evidence,
+                        "mljScoringEvidence" => mlj_scoring_result["evidence"],
+                        "packageScoringMode" => "refit_from_train_scope_rows",
+                    )
+                elseif native_model_kind == "local_csv_binary_centroid_classifier"
                     centroid_model = Dict{String,Any}(
                         "featureColumns" => feature_columns,
                         "positiveLabel" => get(coefficients, "positiveLabel", 1.0),
@@ -238,7 +274,7 @@ function final_evaluation_metrics_from_csv(
                     feature_column = first(feature_columns)
                     artifact_predictions = [intercept + slope * numeric_columns[feature_column][row] for row in (train_count + 1):total]
                 end
-                if artifact_predictions !== nothing
+                if artifact_predictions !== nothing && mlj_scoring_result === nothing
                     predictions = artifact_predictions
                     execution_mode = "local_csv_trained_artifact"
                     baseline_model = native_model_kind == "local_csv_binary_centroid_classifier" ? "trained_binary_centroid_classifier" :
@@ -258,6 +294,8 @@ function final_evaluation_metrics_from_csv(
                         "trainingRowCount" => Int(get(model_artifact, "trainRowCount", train_count)),
                     )
                     haskey(model_artifact, "mljEvidence") && (scoring_evidence["mljEvidence"] = model_artifact["mljEvidence"])
+                elseif artifact_predictions !== nothing
+                    predictions = artifact_predictions
                 end
             end
         end

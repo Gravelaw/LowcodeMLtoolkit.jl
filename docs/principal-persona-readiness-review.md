@@ -161,3 +161,38 @@ Minimum evidence:
 ## Principal Reviewer Conclusion
 
 Proceed with the `DataScienceProject` design and substrate. Do not deepen ML Studio, Models, Deploy, Monitor, drift, tuning, or local connector behavior until the project aggregate, trust boundaries, typed jobs, and validation gates exist.
+
+## Implementation Readiness Review Addendum - 2026-07-08
+
+Decision: **continue AKS-36 implementation; do not close the P0 blocker yet**.
+
+The current AKS-36 branch now has the core `DataScienceProject` substrate, project-scoped validation/evaluation/export/drift/lifecycle routes, typed project job evidence, worker dispatch metadata, registry persistence, project-backed frontend evidence, and live-browser smoke coverage. The remaining implementation gate is no longer the absence of the aggregate; it is final closure of the local-source trust boundary, broader gateway module split, no-code onboarding, accessibility baseline, and release verification evidence.
+
+### Contract/API Review
+
+- Accepted: additive project contracts and `/api/v1/data-science-projects` remain backward compatible with workflow-scoped endpoints.
+- Accepted: project jobs now include `data_profile`, `training`, `transform_fit_apply`, `statistical_analysis`, `tuning_study`, `final_evaluation`, `batch_scoring`, `prediction_export`, `drift_report`, `deploy_package`, `model_lifecycle`, and `retraining` as explicit contract job types.
+- Remaining: keep generated-client and OpenAPI tests as the authority for any new job or child-record field.
+
+### Security And Local Trust Review
+
+- Accepted: managed-local refs, raw local import roots, output-contract imports, sensitive filename/content sniffing, and redacted audit evidence have implementation coverage.
+- Remaining: maintain `docs/local-source-threat-model.md` as the threat model for browser-to-localhost mutation routes, file/folder import grants, symlink/junction rejection, connector-specific policies, backup/export redaction, PostgreSQL identifier validation, object-store hook gating, and checksum streaming.
+- Blocking rule: broad connector enablement stays disabled until the connector has a documented trust policy and tests.
+
+### ML Validity Review
+
+- Accepted: training/tuning/final evaluation/prediction export/model lifecycle flows carry split/final-test/output-contract evidence and reject final-test use for training/tuning.
+- Accepted: project-backed transform fit/apply records distinguish train-only fitting from held-out application.
+- Remaining: package-backed MLJ fitting/tuning and hardware-backed GPU trials are optional capability paths with explicit fallback evidence until dependencies/hardware are available.
+
+### MLOps Lifecycle Review
+
+- Accepted: registry and lifecycle records now support approval, deployment, rollback, deprecation, archive, retraining request, drift report linkage, worker-backed retraining jobs, and physical registry persistence.
+- Remaining: production-grade drift baselines and retraining review should remain evidence-scoped to local project records until broader operational integrations are intentionally added.
+
+### Frontend And Persona Review
+
+- Accepted: Data, Transform, ML Studio, Models, Deploy, and Monitor now read project-backed evidence for the implemented path.
+- Added: the Data route includes a Local Dataset Wizard for dataset role, schema role suggestions, validation strategy, and final-test locking; Transform includes a keyboard-accessible pipeline outline for non-pointer inspection.
+- Remaining: AKS-48/AKS-49 closure requires browser coverage for local onboarding and accessibility-focused route controls before any daily-workstation readiness claim.

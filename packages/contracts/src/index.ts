@@ -619,6 +619,7 @@ export type DataScienceProjectJobType =
   | "statistical_analysis"
   | "tuning_study"
   | "final_evaluation"
+  | "batch_scoring"
   | "prediction_export"
   | "drift_report"
   | "deploy_package"

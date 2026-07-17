@@ -332,7 +332,8 @@ async function runSmoke(config, env) {
   const gateway = spawnProcess("api-gateway", julia, ["--project=.", "scripts/run-api-gateway.jl"], withJuliaEnv(env));
   const stop = () => gateway.kill("SIGTERM");
   try {
-    const health = await waitForJson(`${config.serviceUrls.gateway}/health`, 30000);
+    const startupTimeoutMs = config.profile === "lab-team" ? 90000 : 30000;
+    const health = await waitForJson(`${config.serviceUrls.gateway}/health`, startupTimeoutMs);
     const workflows = await waitForJson(`${config.serviceUrls.gateway}/api/v1/workflows`, 30000);
     if (health.localProfile !== config.profile) {
       throw new Error(`Expected localProfile ${config.profile}, got ${health.localProfile}`);

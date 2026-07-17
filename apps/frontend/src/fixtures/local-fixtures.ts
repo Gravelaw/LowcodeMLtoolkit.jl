@@ -445,7 +445,10 @@ export const dataProfile: GatewayDataImportProfile = {
     { mode: "csv", label: "CSV raw source", path: "data/raw/churn.csv", status: "active", semantics: "Raw local file read for ingest and reproducible source checks." },
     { mode: "arrow_ipc", label: "Arrow IPC artifact", path: "data/raw/customer-churn-local.arrow", status: "ready", semantics: "Fast local columnar boundary used between JuliaFlow nodes." },
     { mode: "parquet", label: "Parquet managed artifact", path: "data/processed/customer-churn-local.parquet", status: "ready", semantics: "Durable local analytics artifact for processed and feature zones." },
-    { mode: "duckdb", label: "DuckDB query view", path: "data/_duckdb/local-data-estate.sql", status: "ready", semantics: "Persistent local SQL view for profiling, joins, and aggregate reads." }
+    { mode: "duckdb", label: "DuckDB query view", path: "data/_duckdb/local-data-estate.sql", status: "ready", semantics: "Persistent local SQL view for profiling, joins, and aggregate reads." },
+    { mode: "s3", label: "S3-compatible object store", path: "s3://", status: "unavailable", semantics: "Object-store connectors are disabled for the local appliance until explicit local compatibility is enabled." },
+    { mode: "gcs", label: "Google Cloud Storage", path: "gs://", status: "unavailable", semantics: "Cloud object stores are optional compatibility work and are not enabled in local-appliance mode." },
+    { mode: "azure_blob", label: "Azure Blob Storage", path: "az://", status: "unavailable", semantics: "Cloud object stores are optional compatibility work and are not enabled in local-appliance mode." }
   ],
   lineageArtifacts: [
     { stage: "raw", artifactRef: "data/raw/churn.csv", format: "csv", checksumSha256: "b".repeat(64), rowCount: 12500 },
@@ -592,7 +595,10 @@ export const superstoreDataProfile: GatewayDataImportProfile = {
     { mode: "csv", label: "CSV raw source", path: "data/raw/global_superstore.csv", status: "ready", semantics: "Raw local file read for ingest and reproducible source checks." },
     { mode: "arrow_ipc", label: "Arrow IPC artifact", path: "data/raw/global-superstore-local.arrow", status: "ready", semantics: "Fast local columnar boundary used between JuliaFlow nodes." },
     { mode: "parquet", label: "Parquet managed artifact", path: "data/processed/global-superstore-local.parquet", status: "ready", semantics: "Durable local analytics artifact for processed and feature zones." },
-    { mode: "duckdb", label: "DuckDB query view", path: "data/_duckdb/local-data-estate.sql", status: "active", semantics: "Persistent local SQL view for profiling, joins, and aggregate reads." }
+    { mode: "duckdb", label: "DuckDB query view", path: "data/_duckdb/local-data-estate.sql", status: "active", semantics: "Persistent local SQL view for profiling, joins, and aggregate reads." },
+    { mode: "s3", label: "S3-compatible object store", path: "s3://", status: "unavailable", semantics: "Object-store connectors are disabled for the local appliance until explicit local compatibility is enabled." },
+    { mode: "gcs", label: "Google Cloud Storage", path: "gs://", status: "unavailable", semantics: "Cloud object stores are optional compatibility work and are not enabled in local-appliance mode." },
+    { mode: "azure_blob", label: "Azure Blob Storage", path: "az://", status: "unavailable", semantics: "Cloud object stores are optional compatibility work and are not enabled in local-appliance mode." }
   ],
   lineageArtifacts: [
     { stage: "raw", artifactRef: "data/raw/global_superstore.csv", format: "csv", checksumSha256: "9".repeat(64), rowCount: 9800 },

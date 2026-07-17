@@ -1,4 +1,4 @@
-import { Component, useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { GatewayClientError, createGatewayClient } from "@juliaflow/contracts";
 import { Shell, pathForView, viewFromPath } from "./components/Shell";
 import {
@@ -510,6 +510,47 @@ function isDataScienceProject(value: unknown): value is DataScienceProject {
   );
 }
 
+const dialogFocusableSelector = [
+  "button:not([disabled])",
+  "[href]",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])"
+].join(",");
+
+function manageDialogFocus(dialog: HTMLElement | null, close: () => void) {
+  if (!dialog) return;
+  const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(dialogFocusableSelector))
+    .filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+  (focusable()[0] ?? dialog).focus();
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const elements = focusable();
+    if (elements.length === 0) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+    const first = elements[0];
+    const last = elements[elements.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+  dialog.addEventListener("keydown", onKeyDown);
+  return () => dialog.removeEventListener("keydown", onKeyDown);
+}
+
 function authUnavailableState(error: unknown): JuliaFlowUnavailableState {
   const reason = error instanceof GatewayClientError ? error.message : "Gateway authentication failed.";
   return unavailableState(
@@ -527,6 +568,10 @@ function App() {
   const [activeView, setActiveView] = useState<AppView>(() => getInitialView());
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [utilityDialog, setUtilityDialog] = useState<UtilityDialog>(null);
+  const projectDialogRef = useRef<HTMLElement | null>(null);
+  const utilityDialogRef = useRef<HTMLElement | null>(null);
+  const projectDialogTriggerRef = useRef<HTMLElement | null>(null);
+  const utilityDialogTriggerRef = useRef<HTMLElement | null>(null);
   const [data, setData] = useState<AppData>(() =>
     fixtureSubstitutionAllowed
       ? buildDemoData(runtimeMode)
@@ -551,6 +596,22 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!projectDialogOpen) {
+      projectDialogTriggerRef.current?.focus();
+      return;
+    }
+    return manageDialogFocus(projectDialogRef.current, () => setProjectDialogOpen(false));
+  }, [projectDialogOpen]);
+
+  useEffect(() => {
+    if (!utilityDialog) {
+      utilityDialogTriggerRef.current?.focus();
+      return;
+    }
+    return manageDialogFocus(utilityDialogRef.current, () => setUtilityDialog(null));
+  }, [utilityDialog]);
+
+  useEffect(() => {
     if (!gatewayBaseUrl) {
       if (!fixtureSubstitutionAllowed) {
         setData(buildUnavailableData(runtimeMode, [
@@ -565,14 +626,16 @@ function App() {
 
     async function loadGatewayState() {
       try {
-        const fallbackList = <TItem,>(items: TItem[]) =>
-          fixtureSubstitutionAllowed ? { items, count: items.length } : Promise.reject(new Error("backend data required in release mode"));
-        const fallbackValue = <TValue,>(value: TValue) =>
-          fixtureSubstitutionAllowed ? value : Promise.reject(new Error("backend data required in release mode"));
+        const requiredFailure = (label: string, error: unknown) =>
+          new Error(`${label}: ${error instanceof Error ? error.message : "backend data required in release mode"}`);
+        const fallbackList = <TItem,>(items: TItem[], label: string, error: unknown) =>
+          fixtureSubstitutionAllowed ? { items, count: items.length } : Promise.reject(requiredFailure(label, error));
+        const fallbackValue = <TValue,>(value: TValue, label: string, error: unknown) =>
+          fixtureSubstitutionAllowed ? value : Promise.reject(requiredFailure(label, error));
         const [health, workflows, executions] = await Promise.all([
           client.healthcheck(requestOptions(abort.signal)),
           client.listWorkflows(requestOptions(abort.signal)),
-          client.listExecutions(requestOptions(abort.signal)).catch(() => fallbackList(executionRecords))
+          client.listExecutions(requestOptions(abort.signal)).catch((error) => fallbackList(executionRecords, "execution history", error))
         ]);
         if (!fixtureSubstitutionAllowed && workflows.items.length === 0) {
           setData(buildUnavailableData(runtimeMode, [
@@ -581,7 +644,7 @@ function App() {
           return;
         }
         const summary = workflows.items[0] ?? workflowSummary;
-        const metadata = await client.getWorkflow(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackValue(localWorkflow));
+        const metadata = await client.getWorkflow(summary.workflowId, requestOptions(abort.signal)).catch((error) => fallbackValue(localWorkflow, "workflow metadata", error));
         const workflowResult = workflowMetadataToDefinition(metadata, summary.workflowId);
         if (!workflowResult.ok && !fixtureSubstitutionAllowed) {
           setData(buildUnavailableData(runtimeMode, [
@@ -591,16 +654,16 @@ function App() {
         }
         const workflow = workflowResult.ok ? workflowResult.workflow : localWorkflow;
         const [transforms, experiments, models, packages, dashboards, projects] = await Promise.all([
-          client.getWorkflowTransformHistory(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(transformRuns)),
-          client.getWorkflowMlExperimentHistory(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(mlExperiments)),
-          client.listWorkflowModels(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(modelRegistry)),
-          client.listWorkflowDeployPackages(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(deployPackages)),
+          client.getWorkflowTransformHistory(summary.workflowId, requestOptions(abort.signal)).catch((error) => fallbackList(transformRuns, "transform history", error)),
+          client.getWorkflowMlExperimentHistory(summary.workflowId, requestOptions(abort.signal)).catch((error) => fallbackList(mlExperiments, "experiment history", error)),
+          client.listWorkflowModels(summary.workflowId, requestOptions(abort.signal)).catch((error) => fallbackList(modelRegistry, "model registry", error)),
+          client.listWorkflowDeployPackages(summary.workflowId, requestOptions(abort.signal)).catch((error) => fallbackList(deployPackages, "deploy package history", error)),
           client.listPublishedDashboards(summary.workflowId, requestOptions(abort.signal)).catch(() =>
             fixtureSubstitutionAllowed
               ? { items: [publishedDashboard] }
               : { items: [] }
           ),
-          client.listDataScienceProjects(requestOptions(abort.signal)).catch(() => fallbackList([dataScienceProject]))
+          client.listDataScienceProjects(requestOptions(abort.signal)).catch((error) => fallbackList([dataScienceProject], "data science projects", error))
         ]);
         const dashboard =
           dashboards.items[0] ??
@@ -637,13 +700,14 @@ function App() {
         });
       } catch (error) {
         if (!abort.signal.aborted) {
+          const gatewayReason = error instanceof Error ? error.message : "unknown gateway error";
           setData(
             isGatewayAuthError(error)
               ? buildUnavailableData(runtimeMode, [authUnavailableState(error)])
               : fixtureSubstitutionAllowed
               ? { ...buildDemoData(runtimeMode), mode: "fallback" }
               : buildUnavailableData(runtimeMode, [
-                  unavailableState("workflows", "The release gateway could not provide required live workspace data.")
+                  unavailableState("workflows", `The release gateway could not provide required live workspace data: ${gatewayReason}`)
                 ])
           );
         }
@@ -660,7 +724,7 @@ function App() {
           mode: current.mode === "unavailable" ? current.mode : "live",
           runtimeMode: liveRuntime.mode,
           runtime: liveRuntime,
-          unavailable: liveRuntime.unavailable,
+          unavailable: current.mode === "unavailable" ? current.unavailable : liveRuntime.unavailable,
           health: withRuntimeHealth(health, liveRuntime),
           healthLastUpdatedAt: new Date().toISOString(),
           healthStale: false
@@ -690,6 +754,7 @@ function App() {
   }
 
   function openProjectDialog() {
+    projectDialogTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setProjectForm({
       name: data.workflowSummary.name,
       description: "Creates a local workspace scaffold using the current appliance profile and sample workflow template.",
@@ -699,6 +764,11 @@ function App() {
     setProjectDirectoryLabel("");
     setProjectFormError("");
     setProjectDialogOpen(true);
+  }
+
+  function openUtilityDialog(dialog: Exclude<UtilityDialog, null>) {
+    utilityDialogTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setUtilityDialog(dialog);
   }
 
   async function chooseProjectFolder() {
@@ -1169,10 +1239,10 @@ function App() {
       activeView={activeView}
       onNavigate={navigate}
       onPrimaryAction={openProjectDialog}
-      onGridAction={() => setUtilityDialog("grid")}
-      onShareAction={() => setUtilityDialog("share")}
-      onHelpAction={() => setUtilityDialog("help")}
-      onProfileAction={() => setUtilityDialog("profile")}
+      onGridAction={() => openUtilityDialog("grid")}
+      onShareAction={() => openUtilityDialog("share")}
+      onHelpAction={() => openUtilityDialog("help")}
+      onProfileAction={() => openUtilityDialog("profile")}
     >
       {data.mode === "fallback" ? (
         <p className="feedback info">Gateway unavailable. Running deterministic local demo fallback.</p>
@@ -1187,7 +1257,7 @@ function App() {
       ) : null}
       {projectDialogOpen ? (
         <div className="modal-backdrop" role="presentation">
-          <section className="project-dialog" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
+          <section ref={projectDialogRef} className="project-dialog" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
             <div className="project-dialog-head">
               <div>
                 <p className="jf-eyebrow">Local project</p>
@@ -1260,7 +1330,7 @@ function App() {
       ) : null}
       {utilityDialog ? (
         <div className="modal-backdrop" role="presentation">
-          <section className="project-dialog utility-dialog" role="dialog" aria-modal="true" aria-labelledby="utility-dialog-title">
+          <section ref={utilityDialogRef} className="project-dialog utility-dialog" role="dialog" aria-modal="true" aria-labelledby="utility-dialog-title">
             <div className="project-dialog-head">
               <div>
                 <p className="jf-eyebrow">Local workspace</p>

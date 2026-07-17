@@ -292,7 +292,7 @@ function storage_relative_path(ref::String)
         if startswith(ref, scheme)
             remainder = ref[length(scheme)+1:end]
             prefix = replace(first(split(scheme, "://")), "://" => "")
-            parts = [prefix; split(remainder, '/'; keepempty = false)]
+            parts = [prefix; storage_path_parts(remainder)]
             relative = joinpath(parts...)
             is_safe_relative_path(relative) || error("tabular ref path must stay within configured storage root")
             return relative
@@ -302,10 +302,14 @@ function storage_relative_path(ref::String)
     return ref
 end
 
+function storage_path_parts(path::String)
+    return split(replace(path, '\\' => '/'), '/'; keepempty = false)
+end
+
 function is_safe_relative_path(path::String)
     isempty(path) && return false
     isabspath(path) && return false
-    return !any(part -> part == "..", split(path, '/'; keepempty = false))
+    return !any(part -> part == "..", storage_path_parts(path))
 end
 
 function normalized_storage_path(path::String)
@@ -354,7 +358,7 @@ end
 function confined_storage_write_path(root::String, ref::String)
     root_real = root_realpath(root)
     relative = storage_relative_path(ref)
-    parts = split(relative, Base.Filesystem.path_separator; keepempty = false)
+    parts = storage_path_parts(relative)
     isempty(parts) && error("tabular sink path must not be empty")
 
     current = root_real
