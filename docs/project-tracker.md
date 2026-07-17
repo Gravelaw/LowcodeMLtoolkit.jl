@@ -32,15 +32,17 @@ Tracker always records 3 things:
 - Made the no-fixture live-backend browser harness materialize its own confined managed-local churn CSV before import; source-trust enforcement correctly rejected the previous nonexistent `local://data/raw/customer-churn-local.csv` reference.
 - Extended live-browser expectation/test bounds to 60/240 seconds because compiled-modules-disabled gateway hydration can exceed 15 seconds after the real vertical setup; assertions still fail closed on the release-unavailable banner and fixture substitution.
 - Switched the release browser smoke from Vite development mode to an explicit frontend production build plus preview server, avoiding development-only Strict Mode request cancellation and verifying the actual RC-style bundle.
+- Completed AKS-40 workspace-summary, published-dashboard chart-data/CSV, and DataScienceProject route-recognition extraction while keeping authorization, auditing, error mapping, mutations, and dispatch in the gateway; `JuliaFlowApiGateway.jl` is now 7,681 lines.
+- Passed 32 direct presentation/matcher assertions and all 1,069 API Gateway assertions. GitHub check annotations confirm hosted CI did not start any steps because the owner account has a payment/spending-limit blocker.
 
 ### Gaps Pending
 
 - The Windows no-skip release gate is green; Debian RC workflow evidence is not yet produced.
-- AKS-40 remains open for health/workspace, chart-data, and project-route boundary extraction; PR #40 review/merge, Linear readback, version bump, tag, and prerelease publication remain later delivery gates.
+- AKS-40 health/workspace, chart-data, and project-route boundary extraction is implemented and locally verified; its Linear state remains In Progress until PR #40 review/merge and evidence readback. Version bump, tag, and prerelease publication remain later delivery gates.
 
 ### Next Items To Implement
 
-- Publish this closure set to PR #40 with the child-ticket acceptance matrix, obtain Debian workflow evidence, and keep the PR draft until remaining AKS-40/review gates are resolved.
+- Publish the AKS-40 closure follow-up to PR #40, clear the GitHub billing/spending-limit runner blocker, obtain Debian workflow evidence, and keep the PR draft until review gates are resolved.
 
 ### AKS-40 Gateway Presentation Module Slice (2026-07-10)
 

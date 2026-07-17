@@ -166,7 +166,7 @@ Proceed with the `DataScienceProject` design and substrate. Do not deepen ML Stu
 
 Decision: **continue AKS-36 implementation; do not close the P0 blocker yet**.
 
-The current AKS-36 branch now has the core `DataScienceProject` substrate, project-scoped validation/evaluation/export/drift/lifecycle routes, typed project job evidence, worker dispatch metadata, registry persistence, project-backed frontend evidence, and live-browser smoke coverage. The remaining implementation gate is no longer the absence of the aggregate; it is final closure of the local-source trust boundary, broader gateway module split, no-code onboarding, accessibility baseline, and release verification evidence.
+The current AKS-36 branch now has the core `DataScienceProject` substrate, project-scoped validation/evaluation/export/drift/lifecycle routes, typed project job evidence, worker dispatch metadata, registry persistence, project-backed frontend evidence, local-source trust controls, Dataset Wizard onboarding, accessibility coverage, gateway boundary modules, and a no-skip Windows live-browser/release pass. Remaining delivery gates are Debian runner evidence, required review/merge, and final Linear/control-system readback; these do not justify claiming RC publication yet.
 
 ### Contract/API Review
 

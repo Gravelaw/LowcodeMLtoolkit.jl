@@ -31,15 +31,17 @@ Each checkpoint entry must contain:
 - Added an isolated managed-local CSV artifact to the live-backend harness so the AKS-50 import path satisfies the same existence/confinement checks required in release mode instead of relying on a fixture-only URI.
 - Kept the live-browser acceptance fail-closed while allowing slow Windows gateway hydration up to 60 seconds per expectation and four minutes for the full vertical.
 - Corrected the release-browser harness to build and preview the production frontend rather than running the development server, so release hydration is tested without development-only Strict Mode double-effect cancellation.
+- Completed the AKS-40 boundary: workspace-summary composition plus published-dashboard chart-data/CSV behavior moved to `JuliaFlowGatewayPresentation.jl`, and pure DataScienceProject route recognition moved to `JuliaFlowDataScienceProjectRoutes.jl`; gateway authorization, auditing, error mapping, state mutation, and dispatch remain centralized.
+- Verified the extraction with 32 presentation/matcher assertions and all 1,069 API Gateway assertions. GitHub CI readback showed both hosted jobs had zero steps and failed only because account payments/spending limits prevent runner startup.
 
 ### Gaps Pending
 
 - The no-skip Windows release summary is green; equivalent Debian workflow evidence remains pending.
-- Broader AKS-40 gateway extraction, PR review/merge, Linear reconciliation, RC versioning, tagging, and prerelease publication remain open and must occur in that order.
+- AKS-40 gateway extraction is now implemented and locally verified; PR review/merge, final Linear reconciliation, RC versioning, tagging, and prerelease publication remain open and must occur in that order.
 
 ### Next Bounded Action
 
-- Publish the verified closure set to PR #40, obtain Debian evidence, complete the remaining AKS-40 boundary/review work, and reconcile Linear only after GitHub evidence is read back.
+- Publish the verified AKS-40 follow-up to PR #40, clear the GitHub billing/spending-limit runner blocker, obtain Debian evidence, and reconcile Linear only after GitHub review/merge evidence is read back.
 
 ---
 

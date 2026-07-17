@@ -16,6 +16,7 @@ include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectTuning.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectEvaluation.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectTransforms.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectExperiments.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectRoutes.jl"))
 include(joinpath(@__DIR__, "JuliaFlowGatewayPresentation.jl"))
 include(joinpath(@__DIR__, "..", "..", "worker-service", "src", "JuliaFlowWorkerService.jl"))
 
@@ -34,6 +35,7 @@ using .JuliaFlowDataScienceProjectTuning
 using .JuliaFlowDataScienceProjectEvaluation
 using .JuliaFlowDataScienceProjectTransforms
 using .JuliaFlowDataScienceProjectExperiments
+using .JuliaFlowDataScienceProjectRoutes
 using .JuliaFlowGatewayPresentation
 using .JuliaFlowWorkerService
 using Base64
@@ -967,55 +969,15 @@ function workspace_summary_payload(
     disk_status::AbstractDict,
     hardware::AbstractDict,
 )
-    ram_total = Int64(Sys.total_memory())
-    ram_free = Int64(Sys.free_memory())
-    ram_used = max(Int64(0), ram_total - ram_free)
-    disk_total = Int64(get(data_estate, "quotaBytes", 0))
-    disk_used = max(Int64(0), Int64(get(data_estate, "usedBytes", 0)))
-    active_jobs = count(execution -> execution.status in ("queued", "running", "accepted"), state.executions)
-    worker_concurrency = max(1, Int(get(hardware, "cpuWorkerConcurrency", 1)))
-    cpu_usage = min(96, max(4, round(Int, 18 + (active_jobs / worker_concurrency) * 50)))
-    workflow_names = [String(workflow.name) for workflow in values(state.workflows)]
-    project_name = isempty(workflow_names) ? "Local_Workspace" : replace(first(workflow_names), r"[^A-Za-z0-9]+" => "_")
-    project_root = "$(appliance_home)/Projects/$(project_name)"
     artifacts = workspace_artifact_summaries(local_data_estate_artifact_records(data_root))
-    executions = reverse(state.executions)
-    activities = [
-        Dict{String,Any}(
-            "label" => "Execution $(execution.status)",
-            "detail" => "$(execution.workflow_id) $(execution.checkpoint_tag)",
-            "occurredAt" => execution.updated_at,
-            "status" => execution.status,
-        )
-        for execution in first(executions, min(length(executions), 5))
-    ]
-    if isempty(activities)
-        push!(
-            activities,
-            Dict{String,Any}(
-                "label" => "Workspace ready",
-                "detail" => "Local appliance state is available.",
-                "occurredAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
-                "status" => "ready",
-            ),
-        )
-    end
-    return Dict{String,Any}(
-        "cpuUsagePercent" => cpu_usage,
-        "ramUsedBytes" => ram_used,
-        "ramTotalBytes" => ram_total,
-        "diskUsedBytes" => disk_used,
-        "diskTotalBytes" => disk_total,
-        "localDatasetCount" => max(1, length(state.workflows)),
-        "localModelCount" => max(0, length(state.checkpoints)),
-        "recentRunCount" => length(state.executions),
-        "packageInstalledCount" => 142,
-        "packageOutdatedCount" => 2,
-        "runtimeUptimeLabel" => "local process",
-        "activeJobCount" => active_jobs,
-        "projectRoot" => project_root,
-        "activities" => activities,
-        "artifacts" => artifacts,
+    return JuliaFlowGatewayPresentation.workspace_summary_payload(
+        state.workflows,
+        state.checkpoints,
+        state.executions,
+        appliance_home,
+        data_estate,
+        hardware,
+        artifacts,
     )
 end
 
@@ -4786,115 +4748,6 @@ function get_published_dashboard_response(
     return JSON3.write(JuliaFlowGatewayRepository.published_dashboard_payload(dashboard))
 end
 
-function chart_data_rows(dashboard::JuliaFlowGatewayRepository.PublishedDashboardRecord, chart::Dict{String,Any})
-    family = String(chart["family"])
-    x_field = String(get(chart, "xField", "bucket"))
-    y_field = String(get(chart, "yField", "value"))
-    dataset_key = String(dashboard.binding["datasetKey"])
-    if haskey(dashboard.datasets, dataset_key)
-        return [Dict{String,Any}(String(key) => value for (key, value) in pairs(row)) for row in dashboard.datasets[dataset_key]]
-    end
-    if family == "metric"
-        return [Dict("label" => dataset_key, y_field => dashboard.version)]
-    elseif family == "table"
-        return [
-            Dict("field" => x_field, "value" => dataset_key),
-            Dict("field" => y_field, "value" => dashboard.version),
-        ]
-    end
-    return [
-        Dict(x_field => "baseline", y_field => 10),
-        Dict(x_field => "current", y_field => 15 + dashboard.version),
-        Dict(x_field => "target", y_field => 20),
-    ]
-end
-
-function chart_data_fields(rows::Vector{Dict{String,Any}})
-    field_set = Set{String}()
-    for row in rows
-        for key in keys(row)
-            push!(field_set, String(key))
-        end
-    end
-    return sort(collect(field_set))
-end
-
-function field_is_numeric(rows::Vector{Dict{String,Any}}, field::String)
-    observed = 0
-    for row in rows
-        haskey(row, field) || continue
-        value = row[field]
-        (value === missing || value === nothing) && continue
-        value isa Number || return false
-        observed += 1
-    end
-    return observed > 0
-end
-
-function chart_semantic(chart::Dict{String,Any}, rows::Vector{Dict{String,Any}}, fields::Vector{String})
-    x_field = String(get(chart, "xField", "bucket"))
-    y_field = String(get(chart, "yField", "value"))
-    series_field = haskey(chart, "seriesField") && chart["seriesField"] !== nothing ? String(chart["seriesField"]) : nothing
-    measures = String[]
-    dimensions = String[]
-    for field in fields
-        if field == y_field || field_is_numeric(rows, field)
-            push!(measures, field)
-        else
-            push!(dimensions, field)
-        end
-    end
-    ordered_dimensions = unique(dimensions)
-    if x_field in fields
-        ordered_dimensions = vcat([x_field], [field for field in ordered_dimensions if field != x_field])
-    end
-    if series_field !== nothing && series_field in fields && !(series_field in ordered_dimensions)
-        push!(ordered_dimensions, series_field)
-    end
-    ordered_measures = unique(measures)
-    if y_field in fields
-        ordered_measures = vcat([y_field], [field for field in ordered_measures if field != y_field])
-    end
-    return Dict(
-        "dimensions" => ordered_dimensions,
-        "measures" => ordered_measures,
-        "xField" => x_field,
-        "yField" => y_field,
-        "seriesField" => series_field,
-        "availableDimensions" => [field for field in fields if !(field in ordered_measures)],
-        "availableMeasures" => ordered_measures,
-    )
-end
-
-function chart_cache_info(dashboard::JuliaFlowGatewayRepository.PublishedDashboardRecord, chart_id::AbstractString)
-    refresh_mode = String(get(dashboard.binding, "refreshMode", "manual"))
-    return Dict(
-        "cacheKey" => "$(dashboard.dashboard_id):$(chart_id):v$(dashboard.version)",
-        "sourceVersion" => dashboard.version,
-        "snapshotAt" => dashboard.published_at,
-        "refreshMode" => refresh_mode,
-        "live" => refresh_mode == "live",
-        "stale" => false,
-    )
-end
-
-function csv_escape(value)
-    value === nothing && return ""
-    raw = string(value)
-    if occursin(",", raw) || occursin("\"", raw) || occursin("\n", raw) || occursin("\r", raw)
-        return "\"" * replace(raw, "\"" => "\"\"") * "\""
-    end
-    return raw
-end
-
-function chart_data_csv(rows::Vector{Dict{String,Any}}, fields::Vector{String})
-    lines = [join([csv_escape(field) for field in fields], ",")]
-    for row in rows
-        push!(lines, join([csv_escape(get(row, field, "")) for field in fields], ","))
-    end
-    return join(lines, "\n") * "\n"
-end
-
 function published_dashboard_chart_data(
     state::GatewayState,
     dashboard_id::AbstractString,
@@ -4910,25 +4763,7 @@ function published_dashboard_chart_data(
         workspace_token = workspace_token,
         workspace_bearer_token = workspace_bearer_token,
     )
-    chart_index = findfirst(chart -> String(chart["chartId"]) == String(chart_id), dashboard.charts)
-    chart_index === nothing && error("dashboard chart not found: $(chart_id)")
-    chart = dashboard.charts[chart_index]
-    rows = chart_data_rows(dashboard, chart)
-    fields = chart_data_fields(rows)
-    payload = Dict(
-        "dashboardId" => dashboard.dashboard_id,
-        "chartId" => String(chart_id),
-        "datasetKey" => String(dashboard.binding["datasetKey"]),
-        "family" => String(chart["family"]),
-        "fields" => fields,
-        "rows" => rows,
-        "rowCount" => length(rows),
-        "refreshedAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
-        "semantic" => chart_semantic(chart, rows, fields),
-        "cache" => chart_cache_info(dashboard, chart_id),
-        "exportFormats" => ["json", "csv"],
-    )
-    return payload
+    return JuliaFlowGatewayPresentation.dashboard_chart_data_payload(dashboard, chart_id)
 end
 
 function published_dashboard_chart_data_response(state::GatewayState, dashboard_id::AbstractString, chart_id::AbstractString; kwargs...)
@@ -4937,7 +4772,7 @@ end
 
 function published_dashboard_chart_data_csv_response(state::GatewayState, dashboard_id::AbstractString, chart_id::AbstractString; kwargs...)
     payload = published_dashboard_chart_data(state, dashboard_id, chart_id; kwargs...)
-    return chart_data_csv(payload["rows"], payload["fields"])
+    return JuliaFlowGatewayPresentation.chart_data_csv(payload["rows"], payload["fields"])
 end
 
 function install_hub_extension_response!(
@@ -7471,6 +7306,49 @@ function route_request(state::GatewayState, request::HTTP.Request)
     end
 end
 
+function data_science_project_route_response(state::GatewayState, request::HTTP.Request, route)
+    action = route.action
+    project_id = route.project_id
+    if action == :list
+        require_permission!(state, request, "workflow:read")
+        return json_response(200, list_data_science_projects_response(state))
+    elseif action == :create
+        require_permission!(state, request, "workflow:write")
+        body = parse_request_body(request)
+        response = create_data_science_project_response!(state, body)
+        project = JSON3.read(response, Dict{String,Any})
+        created_id = String(project["projectId"])
+        append_audit_event!(state, request, "data_science_project.create"; target_type = "data_science_project", target_id = created_id)
+        return json_response(201, response)
+    end
+
+    permission = action == :get ? "workflow:read" : "workflow:write"
+    require_permission!(state, request, permission; resource_type = "data_science_project", resource_id = project_id)
+    action == :get && return json_response(200, get_data_science_project_response(state, project_id))
+    body = parse_request_body(request)
+    response, audit_action, status = if action == :update
+        (update_data_science_project_response!(state, project_id, body), "data_science_project.update", 200)
+    elseif action == :transform_fit_apply
+        (run_transform_fit_apply_response!(state, project_id, body), "data_science_project.transform.fit_apply", 201)
+    elseif action == :statistical_analysis
+        (run_statistical_analysis_response!(state, project_id, body), "data_science_project.statistical_analysis.run", 201)
+    elseif action == :tuning
+        (run_tuning_study_response!(state, project_id, body), "data_science_project.tuning.run", 201)
+    elseif action == :evaluation
+        (run_final_evaluation_response!(state, project_id, body), "data_science_project.evaluation.run", 201)
+    elseif action == :prediction_export
+        (run_prediction_export_response!(state, project_id, body), "data_science_project.predictions.export", 201)
+    elseif action == :drift
+        (run_drift_report_response!(state, project_id, body), "data_science_project.drift.run", 201)
+    elseif action == :model_lifecycle
+        (model_lifecycle_action_response!(state, project_id, body), "data_science_project.model.lifecycle", 201)
+    else
+        error("unsupported data science project route action: $(action)")
+    end
+    append_audit_event!(state, request, audit_action; target_type = "data_science_project", target_id = project_id)
+    return json_response(status, response)
+end
+
 function route_request_inner(state::GatewayState, request::HTTP.Request)
     method = String(request.method)
     uri = HTTP.URI(String(request.target))
@@ -7643,78 +7521,8 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
                 return error_response(status, message)
             end
         end
-        method == "GET" && segments == ["api", "v1", "data-science-projects"] && begin
-            require_permission!(state, request, "workflow:read")
-            return json_response(200, list_data_science_projects_response(state))
-        end
-        method == "POST" && segments == ["api", "v1", "data-science-projects"] && begin
-            require_permission!(state, request, "workflow:write")
-            body = parse_request_body(request)
-            response = create_data_science_project_response!(state, body)
-            project = JSON3.read(response, Dict{String,Any})
-            append_audit_event!(state, request, "data_science_project.create"; target_type = "data_science_project", target_id = String(project["projectId"]))
-            return json_response(201, response)
-        end
-        method == "GET" && length(segments) == 4 && segments[1:3] == ["api", "v1", "data-science-projects"] && begin
-            require_permission!(state, request, "workflow:read"; resource_type = "data_science_project", resource_id = segments[4])
-            return json_response(200, get_data_science_project_response(state, segments[4]))
-        end
-        method == "PUT" && length(segments) == 4 && segments[1:3] == ["api", "v1", "data-science-projects"] && begin
-            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
-            body = parse_request_body(request)
-            response = update_data_science_project_response!(state, segments[4], body)
-            append_audit_event!(state, request, "data_science_project.update"; target_type = "data_science_project", target_id = segments[4])
-            return json_response(200, response)
-        end
-        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["transforms", "fit-apply"] && begin
-            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
-            body = parse_request_body(request)
-            response = run_transform_fit_apply_response!(state, segments[4], body)
-            append_audit_event!(state, request, "data_science_project.transform.fit_apply"; target_type = "data_science_project", target_id = segments[4])
-            return json_response(201, response)
-        end
-        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["statistical-analysis", "run"] && begin
-            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
-            body = parse_request_body(request)
-            response = run_statistical_analysis_response!(state, segments[4], body)
-            append_audit_event!(state, request, "data_science_project.statistical_analysis.run"; target_type = "data_science_project", target_id = segments[4])
-            return json_response(201, response)
-        end
-        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["tuning", "run"] && begin
-            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
-            body = parse_request_body(request)
-            response = run_tuning_study_response!(state, segments[4], body)
-            append_audit_event!(state, request, "data_science_project.tuning.run"; target_type = "data_science_project", target_id = segments[4])
-            return json_response(201, response)
-        end
-        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["evaluation", "run"] && begin
-            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
-            body = parse_request_body(request)
-            response = run_final_evaluation_response!(state, segments[4], body)
-            append_audit_event!(state, request, "data_science_project.evaluation.run"; target_type = "data_science_project", target_id = segments[4])
-            return json_response(201, response)
-        end
-        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["predictions", "export"] && begin
-            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
-            body = parse_request_body(request)
-            response = run_prediction_export_response!(state, segments[4], body)
-            append_audit_event!(state, request, "data_science_project.predictions.export"; target_type = "data_science_project", target_id = segments[4])
-            return json_response(201, response)
-        end
-        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["drift", "run"] && begin
-            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
-            body = parse_request_body(request)
-            response = run_drift_report_response!(state, segments[4], body)
-            append_audit_event!(state, request, "data_science_project.drift.run"; target_type = "data_science_project", target_id = segments[4])
-            return json_response(201, response)
-        end
-        method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "data-science-projects"] && segments[5:6] == ["models", "lifecycle"] && begin
-            require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = segments[4])
-            body = parse_request_body(request)
-            response = model_lifecycle_action_response!(state, segments[4], body)
-            append_audit_event!(state, request, "data_science_project.model.lifecycle"; target_type = "data_science_project", target_id = segments[4])
-            return json_response(201, response)
-        end
+        project_route = JuliaFlowDataScienceProjectRoutes.match_project_route(method, segments)
+        project_route === nothing || return data_science_project_route_response(state, request, project_route)
         method == "POST" && segments == ["api", "v1", "workflows"] && begin
             require_permission!(state, request, "workflow:write")
             body = parse_request_body(request)

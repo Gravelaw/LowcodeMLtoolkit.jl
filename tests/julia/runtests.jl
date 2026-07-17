@@ -65,6 +65,21 @@ include(joinpath(@__DIR__, "repository_contract_tests.jl"))
     @test [chart["chartId"] for chart in charts] == ["workspace-cpu-trend", "workspace-ram-trend", "workspace-disk-trend"]
     @test charts[2]["data"][1]["y"][end] == 0
     @test charts[3]["data"][1]["y"][end] == 0
+
+    routes = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRoutes
+    @test routes.match_project_route("GET", ["api", "v1", "data-science-projects"]).action == :list
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects"]).action == :create
+    @test routes.match_project_route("GET", ["api", "v1", "data-science-projects", "project-1"]) == (action = :get, project_id = "project-1")
+    @test routes.match_project_route("PUT", ["api", "v1", "data-science-projects", "project-1"]).action == :update
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "transforms", "fit-apply"]).action == :transform_fit_apply
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "statistical-analysis", "run"]).action == :statistical_analysis
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "tuning", "run"]).action == :tuning
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "evaluation", "run"]).action == :evaluation
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "predictions", "export"]).action == :prediction_export
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "drift", "run"]).action == :drift
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "models", "lifecycle"]).action == :model_lifecycle
+    @test routes.match_project_route("DELETE", ["api", "v1", "data-science-projects", "project-1"]) === nothing
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "unknown", "run"]) === nothing
 end
 
 @testset "Data science project core helpers" begin
