@@ -18,9 +18,55 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-07-17`
+- Last updated: `2026-07-30`
 
 ## Work Done Till Date
+### AKS-36 RC1 Closeout And Reconciliation Slice (2026-07-30)
+
+- Reverified draft PR #40 at `efe6d32`, the clean isolated worktree, the
+  user-owned original checkout, and the original checkout's untracked
+  `docs/images/juliaflow-local-first-cicd-architecture-2026-07-18.png`; the
+  image remains outside this worktree and RC scope.
+- Reproduced the broken AppData npm shadow and retained an explicit temporary
+  `NPM_CONFIG_PREFIX=C:\Program Files\nodejs` plus Program Files npm workaround;
+  no host file was changed.
+- Added an exact-PR-head Debian full `npm run verify:release` job to
+  pull-request CI, including always-uploaded SHA-named summary/log evidence.
+- Extended release summaries with commit SHA, tree SHA, platform, and initial
+  and final clean-worktree state. Full no-skip candidates now reject an unclean
+  worktree before running and fail if verification leaves tracked or unignored
+  changes.
+- Exact-head Windows verification exposed an Application Control block on a
+  newly precompiled `LibGit2_jll` DLL during the local bootstrap smoke. The
+  smoke dependency-instantiation and smoke gateway subprocesses now use
+  `--compiled-modules=no`, consistent with the verifier's existing Julia
+  phases. The cold single-user readiness window is aligned to 60 seconds while
+  lab-team remains bounded at 90 seconds.
+- Metadata file/PostgreSQL repository probes retain the configured read-only
+  depot fallback and compiled-modules-disabled mode before the full rerun.
+- Kept the tag/manual `release-candidate.yml` workflow unchanged for post-merge
+  RC evidence.
+
+### Gaps Pending
+
+- Run proportional checks, commit the bounded slice, and run the full no-skip
+  Windows gate against that exact committed head.
+- Push and read back PR #40; hosted `web`, `julia`, and Debian release jobs must
+  run at the exact head. Zero-step billing/spending-limit failures are an
+  external blocker and do not establish regression or Debian parity.
+- Complete contract/API, security/trust-boundary, ML validity/MLOps, gateway
+  architecture, and frontend/accessibility reviews under AKS-38, then resolve
+  or explicitly accept every required finding.
+- Review readiness, merge, PR #39 supersession, RC version metadata, tag,
+  prerelease, final evidence PR, and Linear Done reconciliation remain ordered
+  downstream gates. No successful CUDA or deferred connector claim is open for
+  substitution.
+
+### Next Items To Implement
+
+- Verify and commit this closeout slice, run the exact-head Windows release
+  gate, push PR #40, and inspect hosted checks before any readiness transition.
+
 ### AKS-36 RC1 Baseline Closure Slice (2026-07-17)
 
 - Reconciled the v1 source scope to enabled confined `local_file` and `managed_local` execution; unsupported database, watched-folder, USB, and cloud sources stay disabled with explicit reasons.

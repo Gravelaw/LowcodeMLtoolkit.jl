@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-07-10
+Last updated: 2026-07-30
 Source: BRD gap review against `business-requirements-v0.3.0.md` and current code.
 Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning context is preserved in `docs/project-tracker.md` and `docs/checkpoint-log.md`.
 
@@ -64,6 +64,20 @@ Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning
 
 ## Product Analysis Backlog Notes
 
+- [ ] AKS-36 RC delivery closeout: bounded implementation is complete on draft
+  PR #40. Obtain a clean no-skip Windows summary and hosted Debian full-release
+  summary bound to the same exact head, complete and resolve the five required
+  domain reviews under AKS-38, then satisfy review/check/merge gates. Only after
+  merge may the `1.0.0-rc.1` metadata branch, tag-triggered workflow,
+  prerelease, final evidence PR, and Linear Done reconciliation proceed. PR #39
+  remains an unmerged fallback until PR #40 merges. No database,
+  watched-folder, USB, cloud/provider connector, or successful CUDA claim is
+  included. The Windows smoke bootstrap and smoke gateway use
+  `--compiled-modules=no` after exact-head verification exposed an Application
+  Control block on newly precompiled depot DLLs; cold single-user gateway
+  readiness is bounded at 60 seconds and lab-team remains bounded at 90.
+- Metadata file/PostgreSQL repository probes retain the configured read-only
+  depot fallback and compiled-modules-disabled mode before a full rerun.
 - [ ] AKS-36 remaining closure after persisted MLJ deploy and conditional GPU slices: fitted MLJ machines persist with checksum/size/feature-order evidence and generated local deploy code checksum-validates, deserializes, and scores the bounded regression/classification artifact while retaining deterministic JSON fallback evidence. Tuning now conditionally executes supported validation metrics on real CUDA arrays and records exact CPU fallback evidence; the current CUDA 13.3/CUDA.jl 13.2 mismatch still requires compatible-hardware success evidence. Remaining work is richer preprocessing and tuned selection, broader drift semantics, gateway/trust-boundary closure, full release verification, and final child-ticket/control-doc reconciliation.
 - [ ] AKS-41 remaining trust closure: enabled imports now enforce connector/source consistency; managed refs must resolve to existing confined files and pass size/extension/secret/content checks, filesystem imports remain root-confined, and DuckDB/PostgreSQL source execution is explicitly unavailable rather than fixture-backed. Folder-grant semantics, optional real database import if prioritized, deeper redaction-preview review, and final security acceptance remain open.
 - [ ] Generalized data-science workflow substrate: the project aggregate now supports local train/validation/test onboarding, schema/type corrections, statistical EDA, validation-only tuning, locked final evaluation, aligned transforms, lifecycle records, drift, and prediction/output export. Closure remains open for the full AKS-50 no-fixture vertical, broader model-family evidence, review, and clean release verification. Documented in `docs/data-scientist-persona-competition-readiness-report.md`.

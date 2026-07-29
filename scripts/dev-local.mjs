@@ -253,7 +253,7 @@ function ensureJuliaDependencies(env, options) {
   console.log("[dev:local] ensuring Julia dependencies");
   const result = spawnSync(
     juliaCommand(),
-    ["--project=.", "-e", "using Pkg; Pkg.instantiate()"],
+    ["--compiled-modules=no", "--project=.", "-e", "using Pkg; Pkg.instantiate()"],
     {
       cwd: ROOT_DIR,
       env: withJuliaEnv(env),
@@ -329,10 +329,15 @@ async function waitForJson(url, timeoutMs) {
 
 async function runSmoke(config, env) {
   const julia = juliaCommand();
-  const gateway = spawnProcess("api-gateway", julia, ["--project=.", "scripts/run-api-gateway.jl"], withJuliaEnv(env));
+  const gateway = spawnProcess(
+    "api-gateway",
+    julia,
+    ["--compiled-modules=no", "--project=.", "scripts/run-api-gateway.jl"],
+    withJuliaEnv(env)
+  );
   const stop = () => gateway.kill("SIGTERM");
   try {
-    const startupTimeoutMs = config.profile === "lab-team" ? 90000 : 30000;
+    const startupTimeoutMs = config.profile === "lab-team" ? 90000 : 60000;
     const health = await waitForJson(`${config.serviceUrls.gateway}/health`, startupTimeoutMs);
     const workflows = await waitForJson(`${config.serviceUrls.gateway}/api/v1/workflows`, 30000);
     if (health.localProfile !== config.profile) {

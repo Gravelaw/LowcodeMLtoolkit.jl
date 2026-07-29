@@ -19,7 +19,7 @@ function withJuliaEnv(env) {
   return {
     ...env,
     JULIAUP_DEPOT_PATH: env.JULIAUP_DEPOT_PATH ?? join(ROOT_DIR, ".juliaup"),
-    JULIA_DEPOT_PATH: env.JULIA_DEPOT_PATH ?? join(ROOT_DIR, ".julia-depot")
+    JULIA_DEPOT_PATH: env.JULIA_DEPOT_PATH ?? process.env.JULIA_DEPOT_PATH ?? join(ROOT_DIR, ".julia-depot")
   };
 }
 
@@ -58,7 +58,7 @@ function runDevLocalSmoke(profile, home, gatewayPort, extraArgs = [], extraEnv =
 }
 
 function runRepositorySmoke(backend, home, storeName, extraEnv = {}) {
-  run(juliaCommand(), ["--project=.", "scripts/smoke-local-metadata.jl"], withJuliaEnv({
+  run(juliaCommand(), ["--compiled-modules=no", "--project=.", "scripts/smoke-local-metadata.jl"], withJuliaEnv({
     JULIAFLOW_HOME: home,
     JULIAFLOW_STORE_ROOT: join(home, "metadata", storeName),
     JULIAFLOW_METADATA_SMOKE_BACKEND: backend,
@@ -68,7 +68,7 @@ function runRepositorySmoke(backend, home, storeName, extraEnv = {}) {
 
 function cleanupPostgresSchema(schemaName) {
   assertSafeSchemaName(schemaName);
-  run(juliaCommand(), ["--project=.", "scripts/smoke-local-metadata.jl"], withJuliaEnv({
+  run(juliaCommand(), ["--compiled-modules=no", "--project=.", "scripts/smoke-local-metadata.jl"], withJuliaEnv({
     JULIAFLOW_METADATA_SMOKE_BACKEND: "postgres-cleanup",
     JULIAFLOW_DATABASE_URL: postgresUrl,
     JULIAFLOW_DATABASE_SCHEMA: schemaName,

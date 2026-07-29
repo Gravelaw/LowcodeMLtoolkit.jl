@@ -1,12 +1,39 @@
 # JuliaFlow Risk Register
 
-Last updated: 2026-07-09
+Last updated: 2026-07-30
 
 This register tracks active BRD delivery risks that should be burned down through thin, verified slices. It complements `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md`.
 
 ## Current Risk Focus
 
 Next implementation lane: local-first GA proof after the BRD v0.4.1 product-surface refresh. The active risk burn-down now prioritizes local appliance bootstrap, mock-aligned local product modules, local filesystem/DuckDB data estate, local PostgreSQL lab/team metadata mode, local CPU/GPU hardware validation, explainability/model evidence, offline Hub, academic reproducibility, and backup/restore. Provider-specific deployment, cloud object stores, external registries, enterprise identity, and cloud multi-GPU closure are optional compatibility paths rather than core GA blockers.
+
+### AKS-36 RC Closeout And Evidence-Binding Risk Note - 2026-07-30
+
+- Bounded RC implementation is complete on draft PR #40; product/API/runtime
+  feature expansion is not part of this closeout.
+- Pull-request CI now defines a full Debian `verify:release` job against the PR
+  head SHA. Release summaries bind commit SHA, tree SHA, platform, and
+  clean-worktree state, and a no-skip candidate fails closed when dirty.
+- Exact-head Windows verification exposed an Application Control block on a
+  newly precompiled `LibGit2_jll` depot DLL. The local smoke dependency
+  bootstrap and smoke gateway now run with compiled modules disabled, matching
+  the existing release Julia phases without weakening product assertions. Cold
+  single-user smoke readiness is bounded at 60 seconds; lab-team remains
+  bounded at 90 seconds.
+- Metadata repository probes preserve the configured read-only depot fallback
+  and use compiled-modules-disabled mode, retaining fail-closed file and
+  PostgreSQL assertions for the exact candidate environment.
+- Residual delivery risk is exact-head Windows and hosted Debian evidence,
+  structured domain review and finding disposition, required checks, merge,
+  post-merge RC metadata, tag workflow, prerelease publication, final evidence
+  reconciliation, and Linear readback.
+- GitHub-hosted jobs at the prior head failed before steps because the owner
+  account billing/spending limit prevented runner startup. This is an external
+  delivery blocker, not regression evidence, and it also provides no Debian
+  parity.
+- Database, watched-folder, USB, cloud/provider connector support and successful
+  CUDA execution remain outside the RC claim boundary.
 
 ### AKS-36 Hyperparameter-Grid Risk Note - 2026-07-03
 

@@ -20,6 +20,50 @@ Each checkpoint entry must contain:
 
 ---
 
+## Checkpoint: `cp/02-alpha-core` AKS-36 RC1 Closeout And Reconciliation - 2026-07-30
+
+### Work Done Till Date
+
+- Reverified draft PR #40 at `efe6d32`, current GitHub/Linear state, the clean
+  isolated worktree, and preservation of the original checkout's untracked
+  architecture PNG.
+- Retained a temporary Program Files npm routing workaround after reproducing
+  the broken AppData npm shadow; no out-of-workspace host repair was made.
+- Added an exact-PR-head Debian full-release job to pull-request CI while
+  retaining `release-candidate.yml` for post-merge manual/tag evidence.
+- Bound release summaries to commit SHA, tree SHA, platform, and clean-worktree
+  state, with fail-closed behavior for dirty no-skip candidates.
+- Fixed the exact-head Windows release blocker where local smoke dependency
+  bootstrap attempted to load a newly precompiled `LibGit2_jll` DLL rejected
+  by Application Control; smoke dependency bootstrap and smoke gateway startup
+  now use `--compiled-modules=no`, with cold single-user readiness bounded at
+  60 seconds and lab-team still bounded at 90.
+- Metadata repository probes now preserve the configured read-only depot
+  fallback and compiled-modules-disabled mode before the full release rerun.
+- Reconciled control documents so bounded RC implementation is complete while
+  external delivery, review, merge, release, and tracker gates remain open.
+
+### Gaps Pending
+
+- Proportional checks and a full clean no-skip Windows release run must pass at
+  the new committed head.
+- Hosted `web`, `julia`, and Debian full-release checks must run at that same
+  head; the current billing/spending-limit zero-step failure remains external
+  blocker evidence, not a product regression or Debian pass.
+- Required domain reviews, finding disposition, PR readiness/merge, PR #39
+  supersession, RC metadata/tag/prerelease, final evidence PR, and Linear
+  closure remain open and ordered.
+- No successful CUDA, database, watched-folder, USB, cloud, or provider
+  connector capability is claimed.
+
+### Next Bounded Action
+
+- Run proportional validation, commit, execute the full exact-head Windows
+  release gate, push PR #40, and read back hosted checks before changing
+  readiness state.
+
+---
+
 ## Checkpoint: `cp/02-alpha-core` AKS-36 RC1 Baseline Closure - 2026-07-17
 
 ### Work Done Till Date

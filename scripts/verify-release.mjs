@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { arch, platform, release } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -23,6 +24,39 @@ const skipped = {
   smokes: args.has("--skip-smokes"),
   browser: args.has("--skip-browser"),
   controlDocs: args.has("--skip-control-docs")
+};
+const enforceCleanCandidate = !Object.values(skipped).some(Boolean);
+
+function gitOutput(args) {
+  const result = spawnSync(gitBin, args, {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024
+  });
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || result.error?.message || "unknown git error").trim();
+    throw new Error(`git ${args.join(" ")} failed: ${detail}`);
+  }
+  return result.stdout.trim();
+}
+
+function readWorktreeStatus() {
+  const output = gitOutput(["status", "--porcelain", "--untracked-files=all"]);
+  return output ? output.split(/\r?\n/) : [];
+}
+
+const worktreeStatusAtStart = readWorktreeStatus();
+const candidate = {
+  commitSha: gitOutput(["rev-parse", "HEAD"]),
+  treeSha: gitOutput(["rev-parse", "HEAD^{tree}"]),
+  platform: {
+    name: platform(),
+    architecture: arch(),
+    release: release()
+  },
+  cleanWorktreeRequired: enforceCleanCandidate,
+  cleanWorktreeAtStart: worktreeStatusAtStart.length === 0,
+  worktreeStatusAtStart
 };
 
 const commands = [
@@ -62,16 +96,45 @@ mkdirSync(logRoot, { recursive: true });
 const results = [];
 
 function writeSummary(status, extra = {}) {
+  const worktreeStatusAtFinish = readWorktreeStatus();
+  const cleanWorktreeAtFinish = worktreeStatusAtFinish.length === 0;
   const summary = {
     status,
     startedAt,
     finishedAt: new Date().toISOString(),
     artifactRoot,
+    commitSha: candidate.commitSha,
+    treeSha: candidate.treeSha,
+    platform: candidate.platform,
+    cleanWorktree: candidate.cleanWorktreeAtStart && cleanWorktreeAtFinish,
+    candidate: {
+      ...candidate,
+      cleanWorktreeAtFinish,
+      worktreeStatusAtFinish
+    },
     skipped,
     results,
     ...extra
   };
   writeFileSync(join(artifactRoot, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
+}
+
+if (enforceCleanCandidate && !candidate.cleanWorktreeAtStart) {
+  results.push({
+    name: "git-clean-worktree",
+    phase: "candidate",
+    failureKind: "governance",
+    status: "failed",
+    exitCode: 1,
+    durationMs: 0
+  });
+  writeSummary("failed", {
+    failedPhase: "candidate",
+    failedCommand: "git-clean-worktree",
+    failureKind: "governance"
+  });
+  console.error("Release verification requires a clean worktree for a no-skip candidate.");
+  process.exit(1);
 }
 
 for (const item of commands) {
@@ -128,6 +191,25 @@ for (const item of commands) {
     });
     process.exit(result.status ?? 1);
   }
+}
+
+const worktreeStatusAtFinish = readWorktreeStatus();
+if (enforceCleanCandidate && worktreeStatusAtFinish.length > 0) {
+  results.push({
+    name: "git-clean-worktree-final",
+    phase: "candidate",
+    failureKind: "governance",
+    status: "failed",
+    exitCode: 1,
+    durationMs: 0
+  });
+  writeSummary("failed", {
+    failedPhase: "candidate",
+    failedCommand: "git-clean-worktree-final",
+    failureKind: "governance"
+  });
+  console.error("Release verification left the candidate worktree unclean.");
+  process.exit(1);
 }
 
 writeSummary("passed");

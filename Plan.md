@@ -1,6 +1,6 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-07-10
+Last updated: 2026-07-30
 
 ## Current Phase
 
@@ -10,6 +10,24 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
 
 ## Current Baseline
 
+- AKS-36 bounded RC implementation is complete on draft PR #40; this is not a
+  release-readiness or delivery-completion claim. Pull-request CI now defines an
+  exact-head Debian `verify:release` gate, and release summaries bind commit SHA,
+  tree SHA, platform, and clean-worktree evidence. Required domain review,
+  exact-head Windows and hosted Debian passes, PR merge, RC metadata/versioning,
+  tag workflow, prerelease publication, final evidence PR, and Linear closure
+  remain ordered open gates.
+- Windows local smoke dependency bootstrap and smoke gateway startup now use
+  `--compiled-modules=no`, matching the existing release Julia phases and
+  preventing Application Control from treating newly generated depot DLLs as
+  valid RC evidence. The fail-closed single-user smoke readiness window is 60
+  seconds for cold compiled-modules-disabled startup; lab-team remains bounded
+  at 90 seconds.
+- Metadata repository probes preserve an explicitly configured read-only depot
+  fallback and use compiled-modules-disabled mode before full candidate reruns.
+- The RC execution boundary remains confined to approved `local_file` and
+  `managed_local` sources. Database, watched-folder, USB, cloud/provider
+  connectors, and successful CUDA execution remain unclaimed.
 - P0 local-platform scope is closed for base nodes, Arrow/DataFrames materialization, BI, auth/RBAC, streaming, and GPU MVP.
 - P1 is closed for Hub hardening, component/control-flow contracts, and observability/perf gates.
 - P2 is closed for Kustomize-backed ArgoCD workload manifests and provider-neutral dependency seams.
