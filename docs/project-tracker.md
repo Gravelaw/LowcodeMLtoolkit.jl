@@ -18,7 +18,7 @@ Tracker always records 3 things:
 - BRD: `business-requirements-v0.3.0.md` v0.4.1 local product-surface refresh
 - Current target phase: `Local-First GA Proof / Explainable Local Appliance`
 - Current checkpoint path: `cp/00-foundation -> cp/01-contracts-frozen -> cp/02-alpha-core`
-- Last updated: `2026-07-30`
+- Last updated: `2026-08-10`
 
 ## Work Done Till Date
 ### AKS-36 RC1 Closeout And Reconciliation Slice (2026-07-30)
@@ -46,14 +46,18 @@ Tracker always records 3 things:
   depot fallback and compiled-modules-disabled mode before the full rerun.
 - Kept the tag/manual `release-candidate.yml` workflow unchanged for post-merge
   RC evidence.
+- Hosted readback at `e6c7440` passed `web` and `julia`; the Debian release gate
+  failed before product phases because the fresh repo-local depot ran
+  `Pkg.resolve()` without a registry. The bounded repair uses `Pkg.instantiate()`
+  only, matching the passing Julia job; it is not yet fresh exact-head evidence.
 
 ### Gaps Pending
 
 - Run proportional checks, commit the bounded slice, and run the full no-skip
   Windows gate against that exact committed head.
 - Push and read back PR #40; hosted `web`, `julia`, and Debian release jobs must
-  run at the exact head. Zero-step billing/spending-limit failures are an
-  external blocker and do not establish regression or Debian parity.
+  run at the exact head. The latest Debian failure is a bootstrap defect, not a
+  zero-step billing failure, and does not establish Debian parity.
 - Complete contract/API, security/trust-boundary, ML validity/MLOps, gateway
   architecture, and frontend/accessibility reviews under AKS-38, then resolve
   or explicitly accept every required finding.

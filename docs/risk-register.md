@@ -1,6 +1,6 @@
 # JuliaFlow Risk Register
 
-Last updated: 2026-07-30
+Last updated: 2026-08-10
 
 This register tracks active BRD delivery risks that should be burned down through thin, verified slices. It complements `docs/TODO.md`, `docs/brd-traceability.md`, `docs/project-tracker.md`, and `docs/checkpoint-log.md`.
 
@@ -15,6 +15,10 @@ Next implementation lane: local-first GA proof after the BRD v0.4.1 product-surf
 - Pull-request CI now defines a full Debian `verify:release` job against the PR
   head SHA. Release summaries bind commit SHA, tree SHA, platform, and
   clean-worktree state, and a no-skip candidate fails closed when dirty.
+- Hosted readback at `e6c7440` passed `web` and `julia`; the Debian gate failed
+  before product phases because the fresh repo-local depot ran `Pkg.resolve()`
+  without a registry. The bounded instantiate-only bootstrap repair is pending
+  fresh exact-head Windows and hosted reruns, so it is not Debian parity.
 - Exact-head Windows verification exposed an Application Control block on a
   newly precompiled `LibGit2_jll` depot DLL. The local smoke dependency
   bootstrap and smoke gateway now run with compiled modules disabled, matching

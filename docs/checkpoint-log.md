@@ -20,7 +20,7 @@ Each checkpoint entry must contain:
 
 ---
 
-## Checkpoint: `cp/02-alpha-core` AKS-36 RC1 Closeout And Reconciliation - 2026-07-30
+## Checkpoint: `cp/02-alpha-core` AKS-36 RC1 Closeout And Reconciliation - 2026-08-10
 
 ### Work Done Till Date
 
@@ -42,14 +42,18 @@ Each checkpoint entry must contain:
   fallback and compiled-modules-disabled mode before the full release rerun.
 - Reconciled control documents so bounded RC implementation is complete while
   external delivery, review, merge, release, and tracker gates remain open.
+- Hosted readback at `e6c7440` passed `web` and `julia`; the Debian gate failed
+  before product phases because the fresh repo-local depot invoked `Pkg.resolve()`
+  without a registry. The bounded instantiate-only repair awaits fresh
+  exact-head Windows and hosted evidence.
 
 ### Gaps Pending
 
 - Proportional checks and a full clean no-skip Windows release run must pass at
   the new committed head.
 - Hosted `web`, `julia`, and Debian full-release checks must run at that same
-  head; the current billing/spending-limit zero-step failure remains external
-  blocker evidence, not a product regression or Debian pass.
+  head; the latest Debian failure is a bootstrap defect before product phases,
+  not a Debian pass.
 - Required domain reviews, finding disposition, PR readiness/merge, PR #39
   supersession, RC metadata/tag/prerelease, final evidence PR, and Linear
   closure remain open and ordered.

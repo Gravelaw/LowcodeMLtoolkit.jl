@@ -1,6 +1,6 @@
 # JuliaFlow Current Development Plan
 
-Last updated: 2026-07-30
+Last updated: 2026-08-10
 
 ## Current Phase
 
@@ -17,6 +17,12 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
   exact-head Windows and hosted Debian passes, PR merge, RC metadata/versioning,
   tag workflow, prerelease publication, final evidence PR, and Linear closure
   remain ordered open gates.
+- 2026-08-10 hosted readback at `e6c7440` passed `web` and `julia`, but the
+  Debian release gate failed before product phases because the fresh repo-local
+  depot invoked `Pkg.resolve()` without a registry. The bounded bootstrap repair
+  now uses `Pkg.instantiate()` only, matching the passing Julia job; fresh
+  exact-head Windows and hosted evidence remain required before any readiness
+  claim.
 - Windows local smoke dependency bootstrap and smoke gateway startup now use
   `--compiled-modules=no`, matching the existing release Julia phases and
   preventing Application Control from treating newly generated depot DLLs as

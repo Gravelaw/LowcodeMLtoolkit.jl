@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last updated: 2026-07-30
+Last updated: 2026-08-10
 Source: BRD gap review against `business-requirements-v0.3.0.md` and current code.
 Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning context is preserved in `docs/project-tracker.md` and `docs/checkpoint-log.md`.
 
@@ -75,7 +75,11 @@ Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning
   included. The Windows smoke bootstrap and smoke gateway use
   `--compiled-modules=no` after exact-head verification exposed an Application
   Control block on newly precompiled depot DLLs; cold single-user gateway
-  readiness is bounded at 60 seconds and lab-team remains bounded at 90.
+  readiness is bounded at 60 seconds and lab-team remains bounded at 90. The
+  2026-08-10 hosted Debian failure at `e6c7440` was a fresh-depot
+  `Pkg.resolve()` registry failure before product phases; its bounded
+  instantiate-only repair still requires fresh exact-head Windows and hosted
+  evidence.
 - Metadata file/PostgreSQL repository probes retain the configured read-only
   depot fallback and compiled-modules-disabled mode before a full rerun.
 - [ ] AKS-36 remaining closure after persisted MLJ deploy and conditional GPU slices: fitted MLJ machines persist with checksum/size/feature-order evidence and generated local deploy code checksum-validates, deserializes, and scores the bounded regression/classification artifact while retaining deterministic JSON fallback evidence. Tuning now conditionally executes supported validation metrics on real CUDA arrays and records exact CPU fallback evidence; the current CUDA 13.3/CUDA.jl 13.2 mismatch still requires compatible-hardware success evidence. Remaining work is richer preprocessing and tuned selection, broader drift semantics, gateway/trust-boundary closure, full release verification, and final child-ticket/control-doc reconciliation.

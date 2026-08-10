@@ -34,7 +34,7 @@
     "doctor:debian": "node scripts/ensure-debian-toolchain.mjs --julia && node -p \"process.platform + ' ' + process.execPath\" && npm --version && npx --version",
     "doctor:windows": "node scripts/ensure-debian-toolchain.mjs --julia && node -p \"process.platform + ' ' + process.execPath\" && npm --version && npx --version",
     "doctor:wsl-node": "npm run doctor:debian",
-    "julia:instantiate": "node scripts/run-julia.mjs --compiled-modules=no --project=. -e \"using Pkg; Pkg.resolve(); Pkg.instantiate()\"",
+    "julia:instantiate": "node scripts/run-julia.mjs --compiled-modules=no --project=. -e \"using Pkg; Pkg.instantiate()\"",
     "julia:test": "node scripts/run-julia.mjs --compiled-modules=no --project=. tests/julia/runtests.jl",
     "julia:test:timed": "node scripts/time-julia-runtests.mjs",
     "julia:test:presentation": "node scripts/time-julia-runtests.mjs --slice=presentation",
