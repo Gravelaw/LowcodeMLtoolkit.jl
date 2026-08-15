@@ -19,6 +19,10 @@ Next implementation lane: local-first GA proof after the BRD v0.4.1 product-surf
   before product phases because the fresh repo-local depot ran `Pkg.resolve()`
   without a registry. The bounded instantiate-only bootstrap repair is pending
   fresh exact-head Windows and hosted reruns, so it is not Debian parity.
+- At `948ba4d`, hosted web and Julia passed, while the Debian full-release job
+  was cancelled by its 90-minute ceiling during the Docker-backed metadata
+  smoke rather than a product assertion. The 180-minute ceiling repair must
+  still produce a completed exact-head Debian summary before parity is claimed.
 - Exact-head Windows verification exposed an Application Control block on a
   newly precompiled `LibGit2_jll` depot DLL. The local smoke dependency
   bootstrap and smoke gateway now run with compiled modules disabled, matching

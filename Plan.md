@@ -23,6 +23,11 @@ P0/P1/P2 evidence is tracked in `docs/brd-traceability.md`. The core BRD directi
   now uses `Pkg.instantiate()` only, matching the passing Julia job; fresh
   exact-head Windows and hosted evidence remain required before any readiness
   claim.
+- The subsequent exact-head hosted Debian run at `948ba4d` passed web and
+  Julia, then was cancelled only by the 90-minute job ceiling during the
+  Docker-backed metadata smoke. The bounded CI repair raises that full-release
+  job ceiling to 180 minutes; a completed exact-head Debian summary remains
+  required before readiness.
 - Windows local smoke dependency bootstrap and smoke gateway startup now use
   `--compiled-modules=no`, matching the existing release Julia phases and
   preventing Application Control from treating newly generated depot DLLs as

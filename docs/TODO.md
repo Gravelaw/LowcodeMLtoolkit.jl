@@ -79,7 +79,10 @@ Plan: `Plan.md`; active lane/risks: `docs/risk-register.md`; historical planning
   2026-08-10 hosted Debian failure at `e6c7440` was a fresh-depot
   `Pkg.resolve()` registry failure before product phases; its bounded
   instantiate-only repair still requires fresh exact-head Windows and hosted
-  evidence.
+  evidence. The following hosted run passed web and Julia but hit the
+  90-minute Debian job ceiling during Docker-backed metadata smoke; the
+  bounded 180-minute CI budget repair still requires a completed Debian
+  summary.
 - Metadata file/PostgreSQL repository probes retain the configured read-only
   depot fallback and compiled-modules-disabled mode before a full rerun.
 - [ ] AKS-36 remaining closure after persisted MLJ deploy and conditional GPU slices: fitted MLJ machines persist with checksum/size/feature-order evidence and generated local deploy code checksum-validates, deserializes, and scores the bounded regression/classification artifact while retaining deterministic JSON fallback evidence. Tuning now conditionally executes supported validation metrics on real CUDA arrays and records exact CPU fallback evidence; the current CUDA 13.3/CUDA.jl 13.2 mismatch still requires compatible-hardware success evidence. Remaining work is richer preprocessing and tuned selection, broader drift semantics, gateway/trust-boundary closure, full release verification, and final child-ticket/control-doc reconciliation.

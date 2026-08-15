@@ -46,6 +46,10 @@ Each checkpoint entry must contain:
   before product phases because the fresh repo-local depot invoked `Pkg.resolve()`
   without a registry. The bounded instantiate-only repair awaits fresh
   exact-head Windows and hosted evidence.
+- The following hosted run at `948ba4d` passed web and Julia but was cancelled
+  by the 90-minute Debian job ceiling during Docker-backed metadata smoke. The
+  bounded workflow budget is now 180 minutes; completed exact-head Debian
+  evidence remains open.
 
 ### Gaps Pending
 

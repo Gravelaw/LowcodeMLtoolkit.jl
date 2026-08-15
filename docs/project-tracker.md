@@ -50,6 +50,10 @@ Tracker always records 3 things:
   failed before product phases because the fresh repo-local depot ran
   `Pkg.resolve()` without a registry. The bounded repair uses `Pkg.instantiate()`
   only, matching the passing Julia job; it is not yet fresh exact-head evidence.
+- The next hosted run at `948ba4d` passed web and Julia but was cancelled at the
+  90-minute Debian job ceiling during Docker-backed metadata smoke. The bounded
+  workflow budget is now 180 minutes; a completed exact-head Debian summary is
+  still required before any readiness transition.
 
 ### Gaps Pending
 

@@ -36,7 +36,9 @@ jobs:
   debian-release-gate:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # A fresh hosted depot plus the full Docker-backed release suite exceeded
+    # the previous 90-minute job ceiling without an assertion failure.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
         with:
