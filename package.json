@@ -43,7 +43,7 @@
     "smoke:local-migration": "node scripts/smoke-local-migration.mjs"
   },
   "dependencies": {
-    "smol-toml": "^1.3.4"
+    "smol-toml": "^1.7.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
