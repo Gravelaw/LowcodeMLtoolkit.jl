@@ -43,3 +43,13 @@ The original and diagnostic Windows probes excluded dependency instantiation onl
 Hardware/runtime/compiler/scale, broader analysis/model operations, complete design approval, frontend journeys and packaging remain separately tracked M2–M7 gaps. Current 1,000-row and immutable-split constraints remain. No broad persona issue becomes Done solely through integration.
 
 Rollback uses scoped corrective commits; preserve all existing worktrees, branches, PRs and artifacts. No storage migration, force push, protection changes, tags, releases or deployment reruns.
+
+## Bounded compilation repair
+
+The installed Julia 1.12 Pkg implementation (`should_autoprecompile`) requires compiled modules to be enabled. Both dependency bootstrap and smoke gateway startup forced `--compiled-modules=no`; the original standalone module-load probe completed only after 62,861 ms, already beyond the 60,000 ms readiness deadline. It did not reach state initialization in the original failing run.
+
+Repair: remove that override from the two launcher invocations, using the same normal compiled-module policy as dev:local. Preserve the original MLJ implementation, gateway state/health behavior, all auth and smoke assertions, and 60/90/30-second readiness deadlines. A measured optional-import experiment alone still failed at listener/health readiness and was not retained as a product change.
+
+Normal dependency precompilation completed successfully with recorded CUDA 13.4/13.2 and UTCDateTimes warnings; no GPU-success claim. Compilation-policy-only Windows bootstrap then passed: module loaded 9,807 ms, state ready 18,328 ms, listener/health ready 57,891 ms, authenticated workflow assertions passed. Log SHA-256 `123f4190b6517529fb0250a8aeeabfa025418aaeeef4c4283c83df72247f3ed4`. These timings show limited Windows margin; full clean-candidate Windows/hosted Debian remain required, not inferred.
+
+The first hosted diagnostic candidate (75525e3, run 35526439547, artifact 10610276170) failed a malformed-JSON regression because final deadline abort erased the previous error. Retained zip SHA-256 `bf78852c2e72660b62820769b238dfa30d17cd0d4d15a2d43a67db368f12ee1f`. The fix preserves prior evidence on abort, with an explicit malformed-then-hanging regression. Additional review tests protect multiline configured secrets and limit repeated live stage messages. Latest Windows startup suite: 15 pass, one POSIX-only skip. Full CI tests must exercise POSIX escalation.

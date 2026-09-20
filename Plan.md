@@ -6,9 +6,9 @@ Reconciled 2026-09-20 for [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-ju
 
 The approved product is a **local hardware-aware data-science workstation**, delivered first as Windows EXE and Linux/Docker. Supported GPU numerical preparation, EDA, chart-data computation, fitting, inference and evaluation, plus meaningful compiler integration, are first-release requirements. NVIDIA is first; CPU-only operation and explicit unsupported/fallback reasons remain required. Windows compiler execution uses an explicitly enabled local authenticated/confined Linux/Docker worker.
 
-This task delivers documents and Linear tracking only from `c363e0086552334fc2268222550ea031c548b4f9`. It changes no product code, schema, dependency or design board. Frontend implementation is frozen until the user explicitly approves the final design.
+The separate AKS-57 documentation commit `f3be33e` is preserved. Authorized M1 integration now proceeds in PR #56 with startup diagnostics and a bounded compilation-policy repair. Frontend implementation is frozen until the user explicitly approves the final design.
 
-Live GitHub readback: PR #40 and #47–55 are open drafts, without submitted reviews. Web/Julia pass; Debian #47–51 cancelled and #40/#52–55 failed. PR #55's latest failed `verify:release` step is not diagnosed here. Earlier 1,492 gateway/boundary assertions and five browser scenarios retain their original revision attribution and PostgreSQL skip. They do not certify this release. [Evidence and decisions](docs/source-reconciliation-2026-09-20.md).
+Live GitHub readback: PR #40 and #47–55 are open drafts, without submitted reviews. Web/Julia pass; Debian #47–51 cancelled and #40/#52–55 failed. PR #55's retained bootstrap failure is reproduced locally: disabled compiled modules make module loading exceed the 60-second deadline. Normal dependency precompilation and gateway compilation restore the local smoke without changing deadlines/assertions. Hosted confirmation and full candidate gates remain open. Earlier 1,492 gateway/boundary assertions and five browser scenarios retain their original revision attribution and PostgreSQL skip. They do not certify this release. [Evidence and decisions](docs/source-reconciliation-2026-09-20.md).
 
 Current execution is <=1,000 unquoted CSV rows with unique headers; split plans/membership/folds/locks are immutable and changed sources/splits need new plans. Numeric train-fitted standardization exists; broader transforms/composition remain proposed. Worker source retains mock GPU evidence and missing actual device binding. The older single-device KA smoke does not prove training/compiler/multi-GPU readiness.
 
@@ -24,11 +24,11 @@ Current execution is <=1,000 unquoted CSV rows with unique headers; split plans/
 | M6 | Approved cross-route analysis/modeling flows, onboarding/state and lifecycle/drift provenance | Reuse AKS-45–49; UI waits for explicit final design approval and required backend capabilities. |
 | M7 | Windows EXE/Linux-Docker, local Windows compiler worker, offline installs, migration and full certification | AKS-65/66 plus AKS-38/50; same-candidate Windows/Debian and required hardware tests. |
 
-No dates are invented. AKS-67 is deferred Medium-priority compatibility; new release work AKS-58–66 is High-priority Todo, owned by Akshay. Existing issue priorities/owners/statuses remain; no issue completion follows from this rewrite.
+No dates are invented. AKS-67 is deferred Medium-priority compatibility; AKS-64 design is In Progress; other new release work AKS-58–66 remains High-priority Todo, owned by Akshay. Existing issue priorities/owners/statuses remain; no issue completion follows from this rewrite.
 
 ## Next bounded action
 
-Under existing AKS-50, inspect the latest logs and artifacts for [run 35518798354](https://github.com/Gravelaw/LowcodeMLtoolkit.jl/actions/runs/35518798354) at `c363e008`, identify the first failing product/runtime boundary, and scope a root-cause repair without weakening assertions/timeouts or rerunning deployments. Refresh head/checks first. The [next-steps plan](docs/next-steps.md) defines the handoff, commands, acceptance and integration/approval boundaries.
+Under existing AKS-50, finish exact-head PR #56 Windows/hosted Debian `verify:release`, review combined contracts/security/splits/lifecycle evidence, resolve blocking findings, and merge with a merge commit only after required checks/reviews. Preserve all source branches and evidence. [Diagnosis and exact results](docs/verification-m1-integration.md).
 
 In parallel, AKS-64 can refine design only: remaining lifecycle/settings routes, compute preference/coverage, real-file onboarding, <=1,000-row current sample, new-plan split semantics and project-loading guards. The existing 404 hydration race remains unfixed; controls must ultimately wait for real identity on initial load and project switch.
 

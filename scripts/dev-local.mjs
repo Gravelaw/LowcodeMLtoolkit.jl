@@ -244,10 +244,11 @@ function ensureJuliaDependencies(env, options) {
     console.log("[dev:local] skipping Julia dependency instantiation");
     return;
   }
+  // Disabling compiled modules here also disables Pkg automatic precompilation.
   console.log("[dev:local] ensuring Julia dependencies");
   const result = spawnSync(
     juliaCommand(),
-    ["--compiled-modules=no", "--project=.", "-e", "using Pkg; Pkg.instantiate()"],
+    ["--project=.", "-e", "using Pkg; Pkg.instantiate()"],
     {
       cwd: ROOT_DIR,
       env: withJuliaEnv(env),
@@ -306,9 +307,10 @@ async function waitForPostgres(timeoutMs = 30000) {
 async function runSmoke(config, env) {
   const julia = juliaCommand();
   console.log("[dev:local] starting api-gateway");
+  // Match the compiled-module policy used by normal dev:local startup.
   const gateway = startDiagnosticProcess(
     julia,
-    ["--compiled-modules=no", "--project=.", "scripts/run-api-gateway.jl"],
+    ["--project=.", "scripts/run-api-gateway.jl"],
     { cwd: ROOT_DIR, env: withJuliaEnv(env) }
   );
   let failure;

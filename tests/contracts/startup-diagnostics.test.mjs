@@ -135,3 +135,23 @@ test("cleanup escalates termination when the child ignores SIGTERM", { skip: pro
   assert.equal(gateway.snapshot().signal, "SIGKILL");
   assert.equal(gateway.snapshot().closed, true);
 });
+
+test("multiline configured secrets are redacted line by line", async () => {
+  const stream = new PassThrough();
+  let output = "";
+  const env = { PRIVATE_KEY: "first-private-line\nsecond-private-line" };
+  captureStartupOutput(stream, (line) => { output += line; }, (line) => redactStartup(line, env));
+  stream.end("first-private-line\nsecond-private-line\n");
+  await once(stream, "end");
+  assert.ok(!output.includes("private-line"));
+  assert.equal(output, "[REDACTED]\n[REDACTED]\n");
+});
+
+test("repeated stage markers cannot flood live diagnostics", async (t) => {
+  const lines = [];
+  const gateway = startDiagnosticProcess(process.execPath, ["-e", 'for(let i=0;i<1000;i++) console.log("[gateway:startup] module-loading elapsedMs=1");'], { env: process.env, log: (line) => lines.push(line) });
+  t.after(() => gateway.stop());
+  await once(gateway.child, "close");
+  assert.equal(lines.length, 1);
+  assert.ok(gateway.output().length <= 16384);
+});

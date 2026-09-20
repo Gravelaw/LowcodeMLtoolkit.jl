@@ -1,5 +1,10 @@
 # JuliaFlow checkpoint log
 
+## AKS-50 bounded repair ready for candidate verification
+
+Normal dependency and gateway compilation fixes the reproduced Windows bootstrap with original MLJ code: module load 9.807 s, state ready 18.328 s, health ready 57.891 s; all existing smoke assertions pass within unchanged deadlines. Source compilation previously exceeded 60 s before state initialization. The smaller two-invocation policy correction is retained; optional-import experiments remain only in evidence. Startup diagnostic regressions pass 15 checks, with one explicit POSIX-only Windows skip. Docker/PostgreSQL is ready. Full same-candidate Windows/Debian gates and combined/required reviews remain pending and block merge. [Exact diagnosis and retained outcomes](verification-m1-integration.md).
+
+
 ## 2026-09-20 — AKS-50 preserved integration and startup diagnostics
 
 Preserved separate AKS-57 commit `f3be33e` and created isolated `codex/aks-50-stabilize-integration` without rebasing/squashing. Retained PR #55 Debian artifact 10608053036 with verified SHA-256. Original Windows startup reproduces the 60-second failure. Diagnostics locate module loading, before state/listener milestones, with a live child and ECONNREFUSED; cleanup closes pipes and process. Underlying repair and hosted confirmation remain open.

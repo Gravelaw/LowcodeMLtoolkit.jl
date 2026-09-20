@@ -10,7 +10,7 @@ export function redactStartup(value, env = {}) {
   let text = String(value);
   const secrets = Object.entries(env)
     .filter(([key, val]) => /TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY|DATABASE_URL|CONNECTION_STRING|COOKIE|CREDENTIAL/i.test(key) && val)
-    .flatMap(([, val]) => [String(val), String(val).trim(), encodeURIComponent(String(val))])
+    .flatMap(([, val]) => [String(val), String(val).trim(), encodeURIComponent(String(val)), ...String(val).split(/\r?\n/).map((line) => line.trim())])
     .filter(Boolean).sort((a, b) => b.length - a.length);
   for (const secret of secrets) text = text.split(secret).join("[REDACTED]");
   return text
@@ -68,10 +68,13 @@ export function startDiagnosticProcess(command, args, { cwd, env, log = console.
   const redact = (value) => redactStartup(value, env);
   const state = { spawned: false, pid: null, exitCode: null, signal: null, spawnError: null, exited: false, closed: false };
   let output = "";
+  const reportedStages = new Set();
   const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"], shell: false });
   const append = (line) => {
     output = (output + line).slice(-OUTPUT_LIMIT);
-    if (/^\[gateway:startup\] (module-loading|module-loaded|state-initializing|state-ready|listener-starting) elapsedMs=\d+\s*$/.test(line)) {
+    const stage = line.match(/^\[gateway:startup\] (module-loading|module-loaded|state-initializing|state-ready|listener-starting) elapsedMs=\d+\s*$/)?.[1];
+    if (stage && !reportedStages.has(stage)) {
+      reportedStages.add(stage);
       log(`[api-gateway] ${line.trim()}`);
     }
   };

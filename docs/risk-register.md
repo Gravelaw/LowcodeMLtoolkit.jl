@@ -6,7 +6,7 @@ Reconciled 2026-09-20 for [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-ju
 
 | Risk | Owner issue / milestone | Evidence, mitigation and remaining acceptance |
 | --- | --- | --- |
-| R-CI-RELEASE-001 | AKS-50/38, M1/M7 | Latest c363e008 Debian fails verify:release; root cause undiagnosed. Diagnose exact logs, retain artifacts, fix cause without weakening gates; required review and same-candidate Windows/Debian proof remain open. |
+| R-CI-RELEASE-001 | AKS-50/38, M1/M7 | c363e008 bootstrap failure reproduced: disabling compiled modules bypasses Pkg precompilation and exceeds readiness during source loading. Normal compilation fixes the local smoke at 57.9 s; little Windows timing margin remains. Full Windows/hosted Debian verification and required review remain blocking gates; keep deadlines and assertions. |
 | R-RESTART-001 / R-DEPENDENCY-001 | AKS-41/51/52/53–56, M1 | Candidate auth/path/contracts/strict-evidence/split/fixture repairs and dependency preparation are in unmerged drafts. Earlier local passes are revision-bound; no submitted reviews. Reuse existing scope and obtain integration/review/platform evidence. |
 | R-GPU-001 / R-HW-001 | AKS-58, M2 | Mock/invented registry can overstate GPU work, device selection is not bound, required-GPU and real fallback have gaps. Real inventory/probe/binding and negative tests required; single old KA smoke is insufficient. GPU stage coverage is now mandatory first-release work. |
 | R-COMPILER-001 | AKS-60/65, M3/M4/M7 | Reactant NVIDIA path documented on Linux; numerical compatibility and performance unverified. Require meaningful function compilation, equivalence/cache/control-flow tests and full costs. Native Windows uses adapters plus opt-in local Linux worker; no universal conversion. |

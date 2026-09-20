@@ -4,7 +4,7 @@ Reconciled 2026-09-20 for [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-ju
 
 ## Active first-release work
 
-- [ ] **M1 / AKS-38/41/50/51/52/53–56:** diagnose PR #55 c363e008 Debian run 35518798354 at verify:release; review/integrate existing remediation with explicit authorization and exact-candidate evidence. Web/Julia pass, Debian #47–51 cancelled/#52–55 failed; no submitted reviews or merge. Reuse current issues.
+- [ ] **M1 / AKS-38/41/50/51/52/53–56:** PR #56 preserves the stack and separate AKS-57 revision. Windows reproduces module-loading deadline failure; normal compilation/precompilation repairs the bounded local smoke. Finish same-candidate Windows/Debian verification, combined review and merge gates; retain all failure artifacts and open M2–M7 criteria.
 - [ ] **M2 / AKS-58, with AKS-43/56:** real CPU/RAM/disk/GPU/runtime discovery and operation probes, user preference, actual device binding, strict required-GPU rejection and truthful fallback/resource evidence.
 - [ ] **M3 / AKS-59/60/61:** contract-first runtime/capabilities/planning/phase evidence, native and required compiler integration, safe memory/movement/retry, scalable local ingestion replacing <=1,000 unquoted rows without losing row/split/checksum semantics.
 - [ ] **M4 / AKS-60/62/63:** verified GPU preparation/EDA/chart-data/fitting/inference/evaluation, meaningful CPU numerical package/function compilation beyond affine smoke, numerical equivalence and cold/transfer/kernel/end-to-end/resource benchmarks.
