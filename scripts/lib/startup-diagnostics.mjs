@@ -131,7 +131,8 @@ export async function waitForStartupJson(url, timeoutMs, { headers = {}, process
         lastError = "JSON response is not ready";
       }
     } catch (error) {
-      lastError = errorDetail(error);
+      // A final deadline abort must not erase the connection/HTTP/JSON diagnosis.
+      if (!controller.signal.aborted || lastError === "no response") lastError = errorDetail(error);
     } finally {
       clearTimeout(timer);
       gateway?.child.removeListener("exit", onExit);

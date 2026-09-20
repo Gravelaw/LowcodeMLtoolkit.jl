@@ -75,6 +75,15 @@ test("HTTP errors, malformed JSON and non-ready JSON do not pass readiness", asy
   }
 });
 
+test("deadline preserves an earlier malformed response when the next request hangs", async (t) => {
+  let requests = 0;
+  const url = await server(t, (_req, res) => {
+    if (++requests === 1) res.end("invalid-json");
+  });
+  await assert.rejects(waitForStartupJson(url, 150, { pollMs: 10 }), /readiness deadline expired.*SyntaxError/);
+  assert.ok(requests >= 2);
+});
+
 test("a non-ready response may become ready within the unchanged deadline", async (t) => {
   let requests = 0;
   const url = await server(t, (_req, res) => res.end(JSON.stringify({ status: "ok", metadataReady: ++requests > 1 })));

@@ -6,7 +6,7 @@ Preserved separate AKS-57 commit `f3be33e` and created isolated `codex/aks-50-st
 
 Contract suite: 43 pass, one explicit POSIX termination skip on Windows. Startup coverage includes success, spawn/early-exit failures, refusal, invalid/non-ready responses, deadline, redaction and cleanup. Snapshot-scoped Git attributes repair Windows CRLF conversion without changing the original BRD snapshot or its manifest; all nine archive hashes pass. Candidate dependencies instantiated after retaining a stale-manifest failure. Existing npm CLI verified with task-local launchers; no global repair. Docker engine restored, metadata gates pending.
 
-Next: confirm hosted diagnosis, establish the smallest repair, run full clean same-candidate Windows/Debian verification and combined review. AKS-64 design proceeds independently; frontend frozen. No merge/release claim. [Verification](verification-m1-integration.md).
+Hosted diagnostic run 35526439547 failed the new malformed-JSON assertion because its final deadline abort replaced the earlier SyntaxError. Preserve the earlier diagnosis on abort; add a hanging-retry regression without changing assertions/timeouts. The artifact is retained under SHA-256 `bf78852c2e72660b62820769b238dfa30d17cd0d4d15a2d43a67db368f12ee1f`. Startup rerun: 13 passed, one POSIX-only Windows skip. Next: confirm hosted bootstrap diagnosis, establish the smallest repair, run full clean same-candidate Windows/Debian verification and combined review. AKS-64 design proceeds independently; frontend frozen. No merge/release claim. [Verification](verification-m1-integration.md).
 
 ## 2026-09-20 — AKS-57 BRD v0.5.0 and roadmap/tracker implementation
 

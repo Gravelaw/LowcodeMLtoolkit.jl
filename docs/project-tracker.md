@@ -24,7 +24,7 @@ Current gaps: <=1,000 unquoted rows; immutable materialized plans; broader trans
 
 ## AKS-50 integration execution
 
-One integration PR and merge commit are authorized after required checks and reviews. Original Windows bootstrap failed after 60.38 seconds; diagnostics show `/health` ECONNREFUSED while the child is alive in module loading at the unchanged 60-second deadline. Cleanup closes the child and pipes. Root-cause repair and hosted confirmation remain open. Docker is restored; metadata/full release checks are pending. [Evidence and gates](verification-m1-integration.md).
+One integration PR and merge commit are authorized after required checks and reviews. Original Windows bootstrap failed after 60.38 seconds; diagnostics show `/health` ECONNREFUSED while the child is alive in module loading at the unchanged 60-second deadline. Cleanup closes the child and pipes. Root-cause repair and hosted confirmation remain open. Hosted diagnostic tests exposed deadline-abort error replacement; the correction preserves the earlier failure and adds a hanging-retry regression (13 startup checks pass; one POSIX-only Windows skip). Docker is restored; metadata/full release checks are pending. [Evidence and gates](verification-m1-integration.md).
 
 ## Retained historical tracker context
 
