@@ -271,9 +271,9 @@ function with_postgres_repository(f::Function)
         return f(repo)
     finally
         try
-            JuliaFlowApiGateway.JuliaFlowGatewayRepository.libpq().execute(conn, "DROP SCHEMA IF EXISTS $(repo.schema) CASCADE;")
+            JuliaFlowApiGateway.JuliaFlowGatewayRepository.execute(conn, "DROP SCHEMA IF EXISTS $(repo.schema) CASCADE;")
         finally
-            close(conn)
+            JuliaFlowApiGateway.JuliaFlowGatewayRepository.close_connection(conn)
         end
     end
 end

@@ -25,9 +25,7 @@ Use [AC-12 through AC-28](acceptance-v0.5.0.md#ac-12) for scalable input, split,
 
 [AKS-64](https://linear.app/gravelaw/issue/AKS-64/m5-complete-nine-route-design-and-obtain-explicit-final-approval) owns the continuation of [Penpot Revision 2](https://design.penpot.app/#/workspace?team-id=ceed1600-61c0-8087-8007-e64ef71f5ffb&file-id=d8ac01df-6646-81d2-8008-aafe1c7924ba&page-id=a3ebef02-2fe2-80f8-8008-aafdca5313c5).
 
-Complete Models/Deploy/Monitor/Settings and responsive/persona coverage; design real-file and compute discovery/preference/support states. Keep themes independent of guidance/density. Show actual limits, immutable split/new-plan behavior, standardization as the supported example and proposed transforms honestly. Define loading guards and retry/reselection for AKS-49's initial-load/switch race.
-
-Capture **explicit final user design approval** as its own evidence. AKS-64 is In Progress in its existing design task; preserve Revision 2 and deliver the new editable revision, portable package and persona scripts. Prototype checks are separate from actual participant testing. Only later approved M6 work implements UI, reusing AKS-45–49 scope.
+[Revision 3](verification-design-r3.md) is complete and reviewable, preserving Revision 2. Review the editable artifact, portable package and eight persona scripts. The user explicitly approved Revision 3 after reviewing the complete artifact; participant sessions remain zero. AKS-64 remains In Progress. Backend capability reconciliation and AKS-49 hydration implementation remain open; frontend implementation is frozen.
 
 ## Packaging and verification handoff
 
@@ -37,4 +35,4 @@ Run existing relevant npm gates from [acceptance](acceptance-v0.5.0.md), add mis
 
 ## Documentation-task closeout
 
-Review the preserved AKS-57 commit, requirement mappings and [Linear/source readback](source-reconciliation-2026-09-20.md). Direct Node control validators are permitted because the system npm launcher still references a missing npm CLI; no global tooling repair or dependency install is needed. Existing archives and 46 mappings remain intact. Publication and product execution are separate later actions.
+Review the preserved AKS-57 commit, requirement mappings and [Linear/source readback](source-reconciliation-2026-09-20.md). Direct Node control validators are permitted because the system npm launcher still references a missing npm CLI; no global tooling repair or dependency install is needed. Existing archives and 46 mappings remain intact. The original documentation-only authorization is historical; the current user instruction authorizes bounded M1 execution, publication and gated merge.

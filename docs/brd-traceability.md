@@ -43,6 +43,8 @@ All 32 new IDs map to milestone, owning issue and an explicit success/rejection 
 
 Shared future interfaces span `packages/contracts/src/index.ts`, `packages/contracts/openapi/openapi.json`, Julia mapping/validation, repository, producers, frontend and fixtures. No contract or product file changes in AKS-57. Missing historical evidence remains unavailable. Current <=1,000-row source guards and immutable split membership stay until AKS-61's verified replacement.
 
+Current design evidence for JF-UX-001–005 / AC-07–11: [Revision 3](verification-design-r3.md), complete authored prototype and checks. Final design approval is recorded; participant testing and product acceptance remain open; no historical checked mapping changes.
+
 ## Historical evidence retained from c363e008
 
 The following text and all 46 TODO mappings retain their original attribution. References below to “current”, “complete”, “no longer blocks”, older platform priorities or old CI states refer to their historical revision, not v0.5.0 readiness. Current scope/status and mandatory GPU/compiler/release gates above supersede those qualifications. Use the [source record](source-reconciliation-2026-09-20.md) for fresh readback.

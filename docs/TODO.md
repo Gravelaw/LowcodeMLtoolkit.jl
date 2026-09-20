@@ -1,5 +1,7 @@
 # JuliaFlow TODO
 
+Current handoff: [Revision 3 design evidence](verification-design-r3.md) is reviewable; final design approval is recorded; participant testing remains open. AKS-68 repairs a separately reproduced PostgreSQL test-cleanup failure before the next full M1 gate.
+
 Reconciled 2026-09-20 for [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-juliaflow-brd-v050-and-first-release-roadmap-coordination). [BRD v0.5.0](../business-requirements-v0.3.0.md), [roadmap](product-roadmap.md) and [acceptance](acceptance-v0.5.0.md) govern current scope. Linear owns delivery status. No new requirement is complete from this documentation revision.
 
 ## Active first-release work
@@ -14,9 +16,9 @@ Reconciled 2026-09-20 for [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-ju
 - [ ] **Deferred / AKS-67:** separately verify other vendors and real multi-device execution; keep honest detection and CPU operation meanwhile.
 - [ ] **Existing criterion reconciliation:** AKS-36 In Progress; AKS-37/38/39/41/51–56 In Review; AKS-40/42–50 In Progress. Preserve existing owners/priorities/statuses, candidate evidence and remaining security/ML/persona/release criteria.
 
-Current materialized plans, assignments, folds and locks are immutable. Changed source/split creates a new plan. Numeric train-fitted standardization exists; custom transforms/automatic pipeline composition and the 2,000-row design example remain proposed. Historical absent evidence stays unavailable.
+Current materialized plans, assignments, folds and locks are immutable. Changed source/split creates a new plan. Numeric train-fitted standardization exists; custom transforms/automatic pipeline composition and larger data remain proposed. Revision 3 uses the supported 1,000-row example. Historical absent evidence stays unavailable.
 
-PR #39 is retained as unmerged fallback; optional connectors/providers stay disabled/unavailable until their own gates pass. No merge, deployment rerun, tag or release is authorized. [Source ledger](source-reconciliation-2026-09-20.md) qualifies all current claims.
+PR #39 is retained as unmerged fallback; optional connectors/providers stay disabled/unavailable until their own gates pass. Integration publication and a merge commit are authorized only after required verification and review; deployment reruns, tags and releases are not authorized. [Source ledger](source-reconciliation-2026-09-20.md) qualifies all current claims.
 
 ## Historical bounded-slice checklist
 

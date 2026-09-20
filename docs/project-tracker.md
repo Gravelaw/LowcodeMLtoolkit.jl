@@ -1,5 +1,11 @@
 # JuliaFlow project tracker
 
+## 2026-09-20 — candidate f113e90 gate failure and Revision 3 handoff
+
+Clean Windows `verify:release` at `f113e909` passed setup, contracts, build and workspace tests, then stopped in the Julia repository suite: 100 checks passed, but PostgreSQL test cleanup invoked dynamically loaded LibPQ methods directly and raised world-age errors. Eight artifact files remain retained; summary SHA-256 `2fa3732d7564dbd2b3cf542b37e7819003a23cf578d766f277d4f1e8462f959d`, Julia log SHA-256 `a1c9d6224e4a0d6feb0dece2771dda913c5fa57efdd1503da03956361fbd7122`. Later phases did not run. Separate AKS-68 owns the two-line helper correction to existing world-age-safe repository wrappers, followed by focused real-PostgreSQL and clean full-candidate reruns. No assertions or deadlines are relaxed. Focused real-PostgreSQL verification passed 100 repository and 275 payload checks (375 total); both schema cleanup and connection cleanup completed. Log SHA-256 `4e33f47ebd6ca741b943ebd965342a399ef749ca0fbbcef437fa9a6905aa072d`.
+
+AKS-64 delivered [Revision 3 design and its review package](verification-design-r3.md). All nine routes and both 1,000-row journeys are reviewable; heuristic/prototype checks passed, participant sessions remain zero, final design approval was explicitly granted by the user after reviewability. Frontend implementation stays frozen. Integration review and matching Windows/Debian gates remain open; no merge or release claim.
+
 ## AKS-50 bounded repair ready for candidate verification
 
 Normal dependency and gateway compilation fixes the reproduced Windows bootstrap with original MLJ code: module load 9.807 s, state ready 18.328 s, health ready 57.891 s; all existing smoke assertions pass within unchanged deadlines. Source compilation previously exceeded 60 s before state initialization. The smaller two-invocation policy correction is retained; optional-import experiments remain only in evidence. Startup diagnostic regressions pass 15 checks, with one explicit POSIX-only Windows skip. Docker/PostgreSQL is ready. Full same-candidate Windows/Debian gates and combined/required reviews remain pending and block merge. [Exact diagnosis and retained outcomes](verification-m1-integration.md).
@@ -14,7 +20,7 @@ The separately committed AKS-57 document revision (`f3be33e`) updates the canoni
 | Lane | Current state | Next bounded action |
 | --- | --- | --- |
 | Documentation / AKS-57 | Separate documentation commit preserved; snapshot checkout fix verified | Review artifact and verified Linear readback; preserve open product/release gates. |
-| M1 / existing AKS-38/41/50/51/52/53–56 | Remediation drafts #40/#47–55 unmerged, no submitted reviews; web/Julia pass, Debian cancelled/failed | Confirm the reproduced module-loading boundary on hosted CI, then repair and verify the matching Windows/Debian candidate. |
+| M1 / existing AKS-38/41/50/51/52/53–56 | Remediation drafts #40/#47–55 unmerged, no submitted reviews; web/Julia pass, Debian cancelled/failed | Hosted diagnostic boundary confirmed; verify the compilation and AKS-68 cleanup repairs on matching Windows/Debian candidate. |
 | M2 / AKS-58 | Todo / High | Real discovery, actual binding, strict GPU/fallback and resource evidence. |
 | M3 / AKS-59/60/61 | Todo / High | Runtime/contracts/compiler and scalable data, after bounded prerequisite clearance. |
 | M4 / AKS-60/62/63 | Todo / High | Verify all six numerical stage categories plus meaningful CPU-function compilation and benchmarks. |
