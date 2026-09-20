@@ -4,16 +4,16 @@ Reconciled 2026-09-20 · [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-jul
 
 ## Current delivery
 
-The local document revision updates the canonical BRD to internal v0.5.0, rewrites Plan/roadmap/next steps, maps 32 requirement IDs to issues and acceptance, and preserves the dated v0.4.1 snapshot and 46 historical mappings. Product code, schemas, dependencies and frontend remain unchanged. [Verification record](verification-brd-v0.5.0.md).
+The separately committed AKS-57 document revision (`f3be33e`) updates the canonical BRD to internal v0.5.0, rewrites Plan/roadmap/next steps, maps 32 requirement IDs to issues and acceptance, and preserves the dated v0.4.1 snapshot and 46 historical mappings. AKS-50 now adds bounded startup diagnostics on the isolated integration branch; frontend implementation remains frozen. [Verification record](verification-brd-v0.5.0.md).
 
 | Lane | Current state | Next bounded action |
 | --- | --- | --- |
-| Documentation / AKS-57 | In Progress, local reviewable diff; no PR publication requested | Review artifact and verified Linear readback; preserve open product/release gates. |
-| M1 / existing AKS-38/41/50/51/52/53–56 | Remediation drafts #40/#47–55 unmerged, no submitted reviews; web/Julia pass, Debian cancelled/failed | Diagnose c363e008 run 35518798354; no new root-cause claim. |
+| Documentation / AKS-57 | Separate documentation commit preserved; snapshot checkout fix verified | Review artifact and verified Linear readback; preserve open product/release gates. |
+| M1 / existing AKS-38/41/50/51/52/53–56 | Remediation drafts #40/#47–55 unmerged, no submitted reviews; web/Julia pass, Debian cancelled/failed | Confirm the reproduced module-loading boundary on hosted CI, then repair and verify the matching Windows/Debian candidate. |
 | M2 / AKS-58 | Todo / High | Real discovery, actual binding, strict GPU/fallback and resource evidence. |
 | M3 / AKS-59/60/61 | Todo / High | Runtime/contracts/compiler and scalable data, after bounded prerequisite clearance. |
 | M4 / AKS-60/62/63 | Todo / High | Verify all six numerical stage categories plus meaningful CPU-function compilation and benchmarks. |
-| M5 / AKS-64 | Todo / High, prior design exploration retained | Complete nine-route/state/persona design in parallel; explicit final approval remains required. |
+| M5 / AKS-64 | In Progress / High, Revision 2 retained | Complete nine-route/state/persona design in parallel; explicit final approval remains required. |
 | M6 / existing AKS-45–49 | Existing In Progress statuses preserved; frontend frozen | After approval, implement onboarding/state/hydration, analysis/model/lifecycle and compute UI. |
 | M7 / AKS-65/66 | Todo / High | Local Windows compiler worker and offline Windows EXE/Linux-Docker/hardware/release certification. |
 | Deferred / AKS-67 | Todo / Medium | Qualify additional vendors/devices separately. |
@@ -21,6 +21,10 @@ The local document revision updates the canonical BRD to internal v0.5.0, rewrit
 All new work is assigned to Akshay. Original project description remains intact with a dated v0.5.0 appendix and linked roadmap. Existing issue descriptions get scoped requirement pointers; priorities/owners/statuses are preserved. New dependencies are read back; no comments/messages to people or product Done transitions. [Issue links, exact PR heads and evidence limits](source-reconciliation-2026-09-20.md).
 
 Current gaps: <=1,000 unquoted rows; immutable materialized plans; broader transforms/composition proposed; AKS-49 hydration 404 unfixed; mock GPU labels/device-binding gaps; no compiler or broad training proof; incomplete design approval/persona coverage; no same-candidate full release/hardware/package proof. Older local 1,492 assertions and five browser scenarios retain revision attribution and PostgreSQL skip.
+
+## AKS-50 integration execution
+
+One integration PR and merge commit are authorized after required checks and reviews. Original Windows bootstrap failed after 60.38 seconds; diagnostics show `/health` ECONNREFUSED while the child is alive in module loading at the unchanged 60-second deadline. Cleanup closes the child and pipes. Root-cause repair and hosted confirmation remain open. Docker is restored; metadata/full release checks are pending. [Evidence and gates](verification-m1-integration.md).
 
 ## Retained historical tracker context
 

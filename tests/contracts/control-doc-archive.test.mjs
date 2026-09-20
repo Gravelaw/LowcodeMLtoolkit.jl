@@ -32,3 +32,16 @@ test("risk consolidation retains every historical risk identifier", () => {
   assert.ok(ids.length > 20);
   for (const id of ids) assert.ok(after.includes(`| ${id} |`), id);
 });
+
+test("BRD v0.4.1 snapshot keeps original bytes across platform checkouts", () => {
+  const root = new URL("../../docs/archive/2026-09-20-brd-v0.4.1/", import.meta.url);
+  const record = JSON.parse(readFileSync(new URL("manifest.json", root), "utf8"));
+  assert.equal(record.sourceCommit, "c363e0086552334fc2268222550ea031c548b4f9");
+  assert.equal(record.files.length, 1);
+  for (const file of record.files) {
+    assert.match(file.archivePath, /^[A-Za-z0-9_.-]+$/);
+    const bytes = readFileSync(new URL(file.archivePath, root));
+    assert.equal(bytes.length, file.bytes);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), file.sha256);
+  }
+});

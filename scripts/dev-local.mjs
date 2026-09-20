@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 import { localAuthEnv } from "./lib/local-auth.mjs";
+import { startDiagnosticProcess, waitForStartupJson, startupFailure } from "./lib/startup-diagnostics.mjs";
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PROFILES = new Set(["single-user", "lab-team", "s3-compatible-local", "developer"]);
@@ -302,39 +303,28 @@ async function waitForPostgres(timeoutMs = 30000) {
   throw new Error(`Timed out waiting for Postgres readiness: ${lastError?.message ?? "pg_isready did not succeed"}`);
 }
 
-async function waitForJson(url, timeoutMs, headers = {}) {
-  const started = Date.now();
-  let lastError = null;
-  while (Date.now() - started < timeoutMs) {
-    try {
-      const response = await fetch(url, { headers });
-      if (response.ok) {
-        return await response.json();
-      }
-      lastError = new Error(`${url} returned ${response.status}`);
-    } catch (error) {
-      lastError = error;
-    }
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 300));
-  }
-  throw lastError ?? new Error(`Timed out waiting for ${url}`);
-}
-
 async function runSmoke(config, env) {
   const julia = juliaCommand();
-  const gateway = spawnProcess(
-    "api-gateway",
+  console.log("[dev:local] starting api-gateway");
+  const gateway = startDiagnosticProcess(
     julia,
     ["--compiled-modules=no", "--project=.", "scripts/run-api-gateway.jl"],
-    withJuliaEnv(env)
+    { cwd: ROOT_DIR, env: withJuliaEnv(env) }
   );
-  const stop = () => gateway.kill("SIGTERM");
+  let failure;
+  let stateAtFailure;
+  let cleanupError;
   try {
     const startupTimeoutMs = config.profile === "lab-team" ? 90000 : 60000;
-    const health = await waitForJson(`${config.serviceUrls.gateway}/health`, startupTimeoutMs);
+    const health = await waitForStartupJson(`${config.serviceUrls.gateway}/health`, startupTimeoutMs, {
+      process: gateway, ready: (payload) => payload?.status === "ok" && payload?.metadataReady === true
+    });
+    console.log(`[dev:local] listener ready endpoint=${config.serviceUrls.gateway}/health elapsedMs=${gateway.snapshot().elapsedMs}`);
     const token = env.JULIAFLOW_AUTH_MODE === "oidc" ? env.VITE_JULIAFLOW_OIDC_ACCESS_TOKEN : env.JULIAFLOW_DEV_AUTH_TOKEN;
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const workflows = await waitForJson(`${config.serviceUrls.gateway}/api/v1/workflows`, 30000, headers);
+    const workflows = await waitForStartupJson(`${config.serviceUrls.gateway}/api/v1/workflows`, 30000, {
+      headers, process: gateway, ready: (payload) => Array.isArray(payload?.items)
+    });
     if (health.localProfile !== config.profile) {
       throw new Error(`Expected localProfile ${config.profile}, got ${health.localProfile}`);
     }
@@ -425,9 +415,13 @@ async function runSmoke(config, env) {
     }
     console.log("[dev:local] smoke passed");
     console.log(JSON.stringify({ profile: config.profile, home: config.home, workflowCount: workflows.items.length }, null, 2));
+  } catch (error) {
+    failure = error;
+    stateAtFailure = gateway.snapshot();
   } finally {
-    stop();
+    try { await gateway.stop(); } catch (error) { cleanupError = error; }
   }
+  if (failure || cleanupError) throw startupFailure(failure ?? cleanupError, gateway, stateAtFailure, cleanupError);
 }
 
 async function main() {
@@ -490,5 +484,5 @@ async function main() {
 
 main().catch((error) => {
   console.error(`[dev:local] ${error.message}`);
-  process.exit(1);
+  process.exitCode = 1;
 });

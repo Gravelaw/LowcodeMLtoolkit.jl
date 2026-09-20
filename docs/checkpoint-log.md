@@ -1,5 +1,13 @@
 # JuliaFlow checkpoint log
 
+## 2026-09-20 — AKS-50 preserved integration and startup diagnostics
+
+Preserved separate AKS-57 commit `f3be33e` and created isolated `codex/aks-50-stabilize-integration` without rebasing/squashing. Retained PR #55 Debian artifact 10608053036 with verified SHA-256. Original Windows startup reproduces the 60-second failure. Diagnostics locate module loading, before state/listener milestones, with a live child and ECONNREFUSED; cleanup closes pipes and process. Underlying repair and hosted confirmation remain open.
+
+Contract suite: 43 pass, one explicit POSIX termination skip on Windows. Startup coverage includes success, spawn/early-exit failures, refusal, invalid/non-ready responses, deadline, redaction and cleanup. Snapshot-scoped Git attributes repair Windows CRLF conversion without changing the original BRD snapshot or its manifest; all nine archive hashes pass. Candidate dependencies instantiated after retaining a stale-manifest failure. Existing npm CLI verified with task-local launchers; no global repair. Docker engine restored, metadata gates pending.
+
+Next: confirm hosted diagnosis, establish the smallest repair, run full clean same-candidate Windows/Debian verification and combined review. AKS-64 design proceeds independently; frontend frozen. No merge/release claim. [Verification](verification-m1-integration.md).
+
 ## 2026-09-20 — AKS-57 BRD v0.5.0 and roadmap/tracker implementation
 
 Started clean at approved `c363e0086552334fc2268222550ea031c548b4f9` in an isolated worktree; branch `codex/aks-57-brd-v050-roadmap`. Scope is documents and authorized Linear updates only. BRD internal v0.5.0 keeps its canonical filename; the exact v0.4.1 Git blob is retained in a new dated SHA-256 snapshot. Existing archives, source artifacts, signed tooling, inherited product files and 46 historical mappings remain preserved.
