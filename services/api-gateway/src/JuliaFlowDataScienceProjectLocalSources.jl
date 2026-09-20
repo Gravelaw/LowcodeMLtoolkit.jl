@@ -9,6 +9,7 @@ export local_data_import_audit_source_details,
     local_artifact_checksum,
     write_local_artifact!,
     local_data_ref_path_for_write,
+    confined_data_estate_path,
     path_within_root,
     resolve_local_data_ref_path,
     sensitive_import_path,
@@ -47,6 +48,43 @@ end
 function normalized_filesystem_path(path::AbstractString)
     normalized = replace(normpath(abspath(path)), "\\" => "/")
     return Sys.iswindows() ? lowercase(normalized) : normalized
+end
+
+function canonical_data_estate_root(root::AbstractString)
+    candidate = normpath(abspath(root))
+    missing = String[]
+    # The configured root may itself be an intentional alias or not yet exist.
+    for _ in 1:length(splitpath(candidate))
+        isdir(candidate) && return normpath(joinpath(realpath(candidate), reverse(missing)...))
+        (ispath(candidate) || islink(candidate)) && error("local data estate root must be a directory")
+        push!(missing, basename(candidate))
+        candidate = dirname(candidate)
+    end
+    error("local data estate root cannot be resolved")
+end
+
+function confined_data_estate_path(root::AbstractString, relative::AbstractString)
+    normalized = replace(String(relative), "\\" => "/")
+    (isabspath(normalized) || occursin(':', normalized) || any(c -> c in ('\0', '\r', '\n'), normalized)) &&
+        error("local artifact path must be relative to the data estate")
+    parts = split(normalized, '/'; keepempty = false)
+    ".." in parts && error("local artifact path escapes local data estate")
+    root_path = canonical_data_estate_root(root)
+    candidate = root_path
+    for part in parts
+        part == "." && continue
+        candidate = joinpath(candidate, part)
+        # Check every existing parent, including dangling links, before creating outputs.
+        islink(candidate) && error("local artifact path cannot contain a symlink or junction")
+        if ispath(candidate)
+            resolved = realpath(candidate)
+            path_within_root(resolved, root_path) || error("local artifact path escapes local data estate")
+            normalized_filesystem_path(candidate) == normalized_filesystem_path(resolved) ||
+                error("local artifact path cannot contain a symlink or junction")
+        end
+    end
+    path_within_root(candidate, root_path) || error("local artifact path escapes local data estate")
+    return candidate
 end
 
 function sensitive_import_path(path::AbstractString)
@@ -266,9 +304,7 @@ function resolve_local_data_ref_path(
     relative = normalized[nextind(normalized, firstindex(normalized), length("local://data/")):end]
     isempty(strip(relative, ['/'])) && return nothing
     isdir(data_root) || return nothing
-    root = realpath(data_root)
-    candidate = normpath(joinpath(root, split(relative, '/'; keepempty = false)...))
-    path_within_root(candidate, root) || error("statistical analysis dataset source escapes local data estate")
+    candidate = confined_data_estate_path(data_root, relative)
     return isfile(candidate) ? candidate : nothing
 end
 
@@ -284,9 +320,7 @@ function local_data_ref_path_for_write(
     validate_local_ref(ref, "artifactRef")
     relative = normalized[nextind(normalized, firstindex(normalized), length("local://")):end]
     mkpath(data_root)
-    root = realpath(data_root)
-    candidate = normpath(joinpath(root, split(relative, '/'; keepempty = false)...))
-    path_within_root(candidate, root) || error("local artifact ref escapes local data estate")
+    candidate = confined_data_estate_path(data_root, relative)
     return candidate
 end
 

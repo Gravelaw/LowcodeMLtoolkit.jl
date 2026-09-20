@@ -7799,3 +7799,7 @@ end
     @test isempty(state.canvas_subscriptions)
     @test isempty(state.dashboard_subscriptions)
 end
+
+@testset "Gateway managed path boundary" begin
+    include(joinpath(@__DIR__, "managed_path_boundary_tests.jl"))
+end

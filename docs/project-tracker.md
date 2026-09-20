@@ -2,7 +2,7 @@
 
 Last reconciled: 2026-09-20.
 
-Approved restart execution: AKS-55 is In Progress on a separate implementation branch from `87aa8166`; local gateway/auth/realtime, contracts, frontend/build, bootstrap and live-browser checks pass; draft PR publication and hosted review remain open. Remaining sequence: AKS-41 managed confinement, AKS-56 contracts, AKS-53 evidence, AKS-54 split membership. The isolated Figma task owns mockups only; no frontend implementation before explicit final design approval. See [remediation evidence](blocker-remediation-2026-09-20.md).
+Approved restart execution: AKS-55 is In Review in draft PR #50 (`ea765a7`); its local verification passes and hosted checks/review remain open. AKS-41 managed confinement passes 87 boundary, 36 existing local-source, 152 tuning, 1,069 gateway and 37 authority assertions plus bootstrap; draft publication and hosted review remain open. Remaining sequence: AKS-41 managed confinement, AKS-56 contracts, AKS-53 evidence, AKS-54 split membership. The isolated design task owns mockups only; no frontend implementation before explicit final design approval. See [remediation evidence](blocker-remediation-2026-09-20.md).
 
 | Work | Verified delivery state | Next bounded action |
 | --- | --- | --- |

@@ -6,7 +6,7 @@ Linear owns acceptance and delivery status. Checked items below preserve histori
 
 ## Active acceptance gaps
 
-- [ ] **Approved remediation and design split:** AKS-55 local verification is complete; hosted checks/review remain open; AKS-41/56/53/54 follow sequentially. See [remediation evidence](blocker-remediation-2026-09-20.md). Figma direction selection and final design approval are separate gates; frontend implementation remains frozen.
+- [ ] **Approved remediation and design split:** AKS-55 is In Review in draft PR #50; AKS-41 managed confinement passes local verification and awaits hosted review; AKS-56/53/54 follow sequentially. See [remediation evidence](blocker-remediation-2026-09-20.md). Design direction selection and final design approval are separate gates; frontend implementation remains frozen.
 
 - [ ] **AKS-52 dependency remediation:** compatible targets from PRs #41–#46 and aligned Vitest/coverage pass clean audit and local gates; review/merge and exact-head hosted readback remain open. See [evidence](dependency-remediation-2026-09-20.md).
 - [ ] **AKS-53 / AKS-54 review blockers:** reject synthetic analysis success in release/local-appliance mode; enforce declared split membership and final-test isolation before deeper feature development. Product repairs are separate follow-ups.

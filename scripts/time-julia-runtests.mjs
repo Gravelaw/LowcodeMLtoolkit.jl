@@ -34,7 +34,7 @@ const SLICES = {
     "Data science project job helpers"
   ],
   tuning: ["Data science project tuning helpers"],
-  "local-sources": ["Data science project local source helpers"],
+  "local-sources": ["Data science project local source helpers", "Gateway managed path boundary"],
   "node-sdk": ["Node SDK"],
   "execution-service": ["Execution Service"],
   repository: ["Gateway Repository"],

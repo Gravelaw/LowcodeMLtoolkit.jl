@@ -732,7 +732,7 @@ end
 
 function local_zone_writable(path::AbstractString)
     isdir(path) || return false
-    marker = joinpath(path, ".juliaflow-write-check")
+    marker = JuliaFlowDataScienceProjectLocalSources.confined_data_estate_path(path, ".juliaflow-write-check")
     try
         open(marker, "w") do io
             write(io, "ok")
@@ -748,7 +748,7 @@ end
 function local_data_estate_zones(root::AbstractString)
     statuses = Vector{Dict{String,Any}}()
     for zone in LOCAL_DATA_ESTATE_ZONES
-        path = joinpath(root, zone)
+        path = JuliaFlowDataScienceProjectLocalSources.confined_data_estate_path(root, zone)
         ensure_local_zone(path)
         push!(
             statuses,
@@ -786,11 +786,14 @@ function directory_size_bytes(root::AbstractString)
     isdir(root) || return 0
     total = 0
     visited = 0
-    for (dir, _dirs, files) in walkdir(root)
+    for (dir, dirs, files) in walkdir(root)
+        for child in dirs
+            JuliaFlowDataScienceProjectLocalSources.confined_data_estate_path(root, relpath(joinpath(dir, child), root))
+        end
         for file in files
             visited += 1
             visited <= 10_000 || return total
-            path = joinpath(dir, file)
+            path = JuliaFlowDataScienceProjectLocalSources.confined_data_estate_path(root, relpath(joinpath(dir, file), root))
             isfile(path) || continue
             total += filesize(path)
         end
@@ -810,8 +813,7 @@ function file_sha256(path::AbstractString)
 end
 
 function local_zone_manifest(root::AbstractString, zone::AbstractString, zone_path::AbstractString, quota_bytes::Int)
-    manifest_dir = joinpath(root, "_manifests")
-    manifest_path = joinpath(manifest_dir, "$(zone).json")
+    manifest_path = JuliaFlowDataScienceProjectLocalSources.confined_data_estate_path(root, joinpath("_manifests", "$(zone).json"))
     payload = Dict(
         "version" => "0.1.0",
         "zone" => zone,
@@ -831,12 +833,12 @@ function local_zone_manifest(root::AbstractString, zone::AbstractString, zone_pa
 end
 
 function local_data_estate_duckdb_query_path(root::AbstractString)
-    return joinpath(root, "_duckdb", "local-data-estate.sql")
+    return JuliaFlowDataScienceProjectLocalSources.confined_data_estate_path(root, joinpath("_duckdb", "local-data-estate.sql"))
 end
 
 function local_data_estate_management(root::AbstractString, zones)
     quota_bytes = local_data_estate_quota_bytes()
-    backup_root = joinpath(root, "_backups")
+    backup_root = JuliaFlowDataScienceProjectLocalSources.confined_data_estate_path(root, "_backups")
     duckdb_query_path = local_data_estate_duckdb_query_path(root)
     processed_glob = replace(joinpath(root, "processed", "**", "*.parquet"), "\\" => "/")
     ensure_managed_data_estate_file(
@@ -2350,14 +2352,17 @@ end
 function local_data_estate_artifact_records(root::AbstractString)
     isdir(root) || return Dict{String,Any}[]
     records = Dict{String,Any}[]
-    root_path = normpath(String(root))
+    root_path = realpath(root)
     visited = 0
-    for (dir, _dirs, files) in walkdir(root_path)
-        "_backups" in splitpath(dir) && continue
+    for (dir, dirs, files) in walkdir(root_path)
+        "_backups" in splitpath(relpath(dir, root_path)) && continue
+        for child in dirs
+            JuliaFlowDataScienceProjectLocalSources.confined_data_estate_path(root_path, relpath(joinpath(dir, child), root_path))
+        end
         for file in sort(files)
             visited += 1
             visited <= 10_000 || return records
-            path = joinpath(dir, file)
+            path = JuliaFlowDataScienceProjectLocalSources.confined_data_estate_path(root_path, relpath(joinpath(dir, file), root_path))
             isfile(path) || continue
             relative_path = relpath(path, root_path)
             push!(
@@ -2365,7 +2370,7 @@ function local_data_estate_artifact_records(root::AbstractString)
                 Dict{String,Any}(
                     "relativePath" => relative_path,
                     "sizeBytes" => filesize(path),
-                    "checksumSha256" => bytes2hex(sha256(read(path))),
+                    "checksumSha256" => local_artifact_checksum(path),
                     "present" => true,
                 ),
             )
@@ -3967,14 +3972,7 @@ function local_backup_export_response!(state::GatewayState, body::AbstractDict)
 end
 
 function safe_backup_artifact_path(root::AbstractString, relative_path::AbstractString)
-    path = normpath(joinpath(String(root), String(relative_path)))
-    root_path = normpath(String(root))
-    relative_to_root = relpath(path, root_path)
-    !isempty(splitpath(relative_to_root)) &&
-        splitpath(relative_to_root)[1] == ".." &&
-        error("backup artifact path escapes data estate: $(relative_path)")
-    isabspath(relative_to_root) && error("backup artifact path escapes data estate: $(relative_path)")
-    return path
+    return JuliaFlowDataScienceProjectLocalSources.confined_data_estate_path(root, relative_path)
 end
 
 function validate_backup_artifacts(backup::AbstractDict, data_root::AbstractString)
@@ -3991,7 +3989,7 @@ function validate_backup_artifacts(backup::AbstractDict, data_root::AbstractStri
             push!(missing, artifact)
             continue
         end
-        actual_checksum = bytes2hex(sha256(read(path)))
+        actual_checksum = local_artifact_checksum(path)
         if !isempty(expected_checksum) && actual_checksum != expected_checksum
             push!(
                 mismatches,
