@@ -1,4 +1,22 @@
-# JuliaFlow Checkpoint Log
+# JuliaFlow checkpoint log
+
+## 2026-09-20 — AKS-57 BRD v0.5.0 and roadmap/tracker implementation
+
+Started clean at approved `c363e0086552334fc2268222550ea031c548b4f9` in an isolated worktree; branch `codex/aks-57-brd-v050-roadmap`. Scope is documents and authorized Linear updates only. BRD internal v0.5.0 keeps its canonical filename; the exact v0.4.1 Git blob is retained in a new dated SHA-256 snapshot. Existing archives, source artifacts, signed tooling, inherited product files and 46 historical mappings remain preserved.
+
+Reconciled the three source tasks, source/design artifacts, official Reactant/CUDA/Docker constraints and live GitHub/Linear. All PRs #40/#47–55 are open drafts with zero submitted reviews and web/Julia success; Debian #47–51 cancelled, #40/#52–55 failed. Latest #55 run 35518798354 fails verify:release; root cause is not diagnosed here. Prior 1,492 gateway/boundary assertions and five browser scenarios remain historical with PostgreSQL skipped. No fresh product pass is claimed.
+
+Implemented 32 stable requirements, M1–M7 roadmap with parallel M5 design, bounded next action and success/rejection acceptance. Added AKS-57 High/In Progress coordination and AKS-58–66 High/Todo release requirements plus AKS-67 Medium/Todo deferred compatibility, all Akshay. Existing work reused and owners/priorities/statuses preserved. Project context retained with v0.5.0 appendix; readback verifies issues/dependencies and project. No product Done transitions or messages/comments to people.
+
+Frontend remains frozen until explicit final design approval. GPU preparation/EDA/chart-data/fitting/inference/evaluation and meaningful CPU-oriented compiler integration are mandatory first-release gates; unsupported regions keep CPU reasons and required-GPU rejection. Windows EXE/Linux-Docker, native NVIDIA plus opt-in authenticated/confined local Windows compiler worker are selected platforms. Current 1,000-row/immutable-plan safeguards stay; AKS-49 hydration remains unfixed.
+
+Documentation checks, archive/link/mapping integrity and final readback: [verification](verification-brd-v0.5.0.md). Direct Node repository validators are authorized because npm launcher points to a missing CLI; no system repair/install. Product tests, browser/Julia/hardware/compiler/packaging and full release gates are not run. No publication, merge, tag, release, deployment or destructive cleanup.
+
+Next bounded action: AKS-50 exact-head Debian diagnosis, then bounded M1 review/integration/verification; AKS-64 design may progress in parallel. Rollback is a scoped documentation revision using the retained snapshot and explicit tracker correction, no data migration.
+
+## Earlier checkpoint records
+
+Entries below are retained unchanged from the baseline and retain their original revisions, outcomes and temporal meaning.
 
 ## 2026-09-20 - AKS-56 migration smoke fixture correction
 

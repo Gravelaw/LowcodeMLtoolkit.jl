@@ -1,28 +1,22 @@
 # JuliaFlow TODO
 
-Last reconciled: 2026-09-20 (AKS-38).
+Reconciled 2026-09-20 for [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-juliaflow-brd-v050-and-first-release-roadmap-coordination). [BRD v0.5.0](../business-requirements-v0.3.0.md), [roadmap](product-roadmap.md) and [acceptance](acceptance-v0.5.0.md) govern current scope. Linear owns delivery status. No new requirement is complete from this documentation revision.
 
-Linear owns acceptance and delivery status. Checked items below preserve historical bounded-slice claims and their 46 existing traceability checks; they do not certify the current PR head. Full descriptions remain in [the immutable snapshot](archive/2026-09-20/TODO.md).
+## Active first-release work
 
-## Active acceptance gaps
+- [ ] **M1 / AKS-38/41/50/51/52/53–56:** diagnose PR #55 c363e008 Debian run 35518798354 at verify:release; review/integrate existing remediation with explicit authorization and exact-candidate evidence. Web/Julia pass, Debian #47–51 cancelled/#52–55 failed; no submitted reviews or merge. Reuse current issues.
+- [ ] **M2 / AKS-58, with AKS-43/56:** real CPU/RAM/disk/GPU/runtime discovery and operation probes, user preference, actual device binding, strict required-GPU rejection and truthful fallback/resource evidence.
+- [ ] **M3 / AKS-59/60/61:** contract-first runtime/capabilities/planning/phase evidence, native and required compiler integration, safe memory/movement/retry, scalable local ingestion replacing <=1,000 unquoted rows without losing row/split/checksum semantics.
+- [ ] **M4 / AKS-60/62/63:** verified GPU preparation/EDA/chart-data/fitting/inference/evaluation, meaningful CPU numerical package/function compilation beyond affine smoke, numerical equivalence and cold/transfer/kernel/end-to-end/resource benchmarks.
+- [ ] **M5 / AKS-64, parallel:** finish all nine routes and real-file/compute/immutable-split/hydration states, independent themes/guidance/density, responsive/accessibility/persona testing and explicit final design approval.
+- [ ] **M6 / AKS-45–49:** implement later approved analysis-only/modeling journeys, shared project state/invalidation, lifecycle/drift provenance, onboarding and compute UI. Frontend remains frozen; AKS-49's placeholder-project 404 is unfixed.
+- [ ] **M7 / AKS-65/66 plus AKS-38/50:** explicitly enabled authenticated/confined local Windows Linux/Docker compiler worker; Windows EXE/Linux-Docker offline packages, CPU/NVIDIA hardware, migration and same-candidate Windows/Debian no-skip release proof.
+- [ ] **Deferred / AKS-67:** separately verify other vendors and real multi-device execution; keep honest detection and CPU operation meanwhile.
+- [ ] **Existing criterion reconciliation:** AKS-36 In Progress; AKS-37/38/39/41/51–56 In Review; AKS-40/42–50 In Progress. Preserve existing owners/priorities/statuses, candidate evidence and remaining security/ML/persona/release criteria.
 
-- [ ] **Approved remediation and design split:** AKS-55, the managed-path AKS-41 patch, AKS-56, AKS-53 and AKS-54 are locally verified and In Review in draft PRs #50 through #54. Hosted web/Julia checks pass on #50-#53; #54 web passes while Julia/Debian verification remains open. Debian failed at local-bootstrap startup on #52 and an incomplete migration-smoke registry fixture on #53. The separate AKS-56 fixture correction passes local migration smoke; fresh hosted platform proof and human review remain open. AKS-54 reuses persisted membership across preparation, training, tuning and final evaluation, with 1,492 final gateway/boundary assertions and five live-browser scenarios passing. See [remediation evidence](blocker-remediation-2026-09-20.md). Design direction selection and final design approval are separate gates; frontend implementation remains frozen.
+Current materialized plans, assignments, folds and locks are immutable. Changed source/split creates a new plan. Numeric train-fitted standardization exists; custom transforms/automatic pipeline composition and the 2,000-row design example remain proposed. Historical absent evidence stays unavailable.
 
-- [ ] **AKS-52 dependency remediation:** compatible targets from PRs #41–#46 and aligned Vitest/coverage pass clean audit and local gates; review/merge and exact-head hosted readback remain open. See [evidence](dependency-remediation-2026-09-20.md).
-- [ ] **AKS-53 / AKS-54 review blockers:** reject synthetic analysis success in release/local-appliance mode; enforce declared split membership and final-test isolation before deeper feature development. Product repairs are separate follow-ups.
-- [ ] **AKS-55 / AKS-56 review blockers:** constrain default browser mutation authority and align resource-evidence contracts with runtime payload validation. See [current review and criterion matrix](restart-review-2026-09-20.md) and [threat model](restart-threat-model-2026-09-20.md).
-- [ ] **AKS-37 / AKS-39 delivery:** corrected from Done to In Review; their substrate is in unmerged PR #40. Preserve implementation evidence and close only after composite Done requirements.
-
-- [ ] **AKS-51 housekeeping:** review/merge the cleanup and control-validator changes; report hosted checks and local retention exceptions. Preserve user edits, tooling evidence, runtime environments, and unmerged work.
-- [ ] **AKS-36 / AKS-50 RC closeout:** obtain clean no-skip Windows and hosted Debian release summaries bound to the same candidate head, resolve required reviews under AKS-38, and reconcile child criteria, blockers, merge, and evidence before Done. The last observed PR #40 head was `a70ea67`; web/Julia passed and the Debian browser phase failed. No new readiness claim.
-- [ ] **AKS-38 reviews:** current sequential agent review is recorded for contracts, security, ML validity, MLOps and frontend/personas. Review the report and resolve/explicitly accept blockers; human approval is not claimed.
-- [ ] **AKS-40 / AKS-41 boundaries:** reconcile the verified module extraction and managed-file validation with remaining security acceptance, folder-grant/redaction requirements, and review evidence. Database, watched-folder, USB, and cloud source execution remain out of scope unless separately prioritized.
-- [ ] **AKS-42 / AKS-43 / AKS-44 validity and jobs:** reconcile schema/split locks, train-only fit/apply, validation-only tuning, typed execution evidence, statistical EDA, and final-test negative paths against their acceptance criteria.
-- [ ] **AKS-45 / AKS-46 lifecycle:** reconcile registry, drift, rollback/retraining, final evaluation, prediction export, and local deploy evidence. Broader model families/preprocessing/tuning/drift require separately scoped proof.
-- [ ] **AKS-47 / AKS-48 / AKS-49 frontend:** reconcile project state, Dataset Wizard, guided no-code flow, accessibility, and final browser/persona acceptance.
-- [ ] **Hardware claims:** CPU fallback is explicit; successful CUDA/multi-GPU execution requires compatible real hardware evidence. Simulation or a requested GPU lane is not hardware proof.
-
-PR #39 remains an unmerged fallback until PR #40 merges, per the pre-existing RC plan. Provider/cloud compatibility remains optional. No merge, tag, prerelease, or deployment is authorized by this checklist.
+PR #39 is retained as unmerged fallback; optional connectors/providers stay disabled/unavailable until their own gates pass. No merge, deployment rerun, tag or release is authorized. [Source ledger](source-reconciliation-2026-09-20.md) qualifies all current claims.
 
 ## Historical bounded-slice checklist
 

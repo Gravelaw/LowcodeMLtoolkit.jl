@@ -1,19 +1,30 @@
-# JuliaFlow Project Tracker
+# JuliaFlow project tracker
 
-Last reconciled: 2026-09-20.
+Reconciled 2026-09-20 · [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-juliaflow-brd-v050-and-first-release-roadmap-coordination) · Owner: Akshay.
 
-Approved restart execution: AKS-55, the managed-path AKS-41 patch, AKS-56, AKS-53 and AKS-54 are locally verified and In Review in draft PRs #50 through #54. Hosted web/Julia checks pass on #50-#53; #54 web passes while Julia/Debian verification remains open. Debian failed at local-bootstrap startup on #52 and an incomplete migration-smoke registry fixture on #53. The separate AKS-56 fixture correction passes local migration smoke; fresh hosted platform proof and human review remain open. AKS-54 reuses persisted membership across preparation, training, tuning and final evaluation, with 1,492 final gateway/boundary assertions and five live-browser scenarios passing. The isolated design task owns mockups only; no frontend implementation before explicit final design approval. See [remediation evidence](blocker-remediation-2026-09-20.md).
+## Current delivery
 
-| Work | Verified delivery state | Next bounded action |
+The local document revision updates the canonical BRD to internal v0.5.0, rewrites Plan/roadmap/next steps, maps 32 requirement IDs to issues and acceptance, and preserves the dated v0.4.1 snapshot and 46 historical mappings. Product code, schemas, dependencies and frontend remain unchanged. [Verification record](verification-brd-v0.5.0.md).
+
+| Lane | Current state | Next bounded action |
 | --- | --- | --- |
-| AKS-36 DataScienceProject | Linear In Progress; PR #40 draft at audited head `a70ea67`; web/Julia green, Debian release browser failure | Review the setup repair, then obtain same-head platform evidence and resolve acceptance/review/merge gates |
-| AKS-38 | Current five-concern agent review and acceptance matrix prepared against `f9e10f3` | Review documentation PR; resolve AKS-53–56 and existing acceptance gaps; no human approval claimed |
-| AKS-40–AKS-50 | Mixed delivery: AKS-41 managed-path draft is In Review; the criterion matrix retains other function/evidence gaps | Follow the ordered restart backlog in the dated review |
-| AKS-37 / AKS-39 | Corrected to In Review after verifying Done relied on unmerged PR #40 | Complete criterion/review/check/merge gates; preserve historical evidence |
-| AKS-51 repository cleanup | Local implementation verified on an isolated branch based on PR #40 | Review the scoped stacked PR and report hosted results separately |
-| AKS-52 npm advisories | Compatible candidate implemented; clean audit and local verification pass | Review stacked draft PR, read hosted checks; leave #41–#46 open until approved integration |
-| AKS-53–AKS-56 | All four are locally verified and In Review; AKS-54 is draft PR #54 at `7e89658` | Complete human review and exact-head hosted checks; retain broader lifecycle and release gaps |
-| AKS-56 migration smoke follow-up | Existing required registry fields added to the storage fixture; local migration smoke passes | Publish the separate maintenance draft after #54; obtain fresh exact-head Debian evidence |
+| Documentation / AKS-57 | In Progress, local reviewable diff; no PR publication requested | Review artifact and verified Linear readback; preserve open product/release gates. |
+| M1 / existing AKS-38/41/50/51/52/53–56 | Remediation drafts #40/#47–55 unmerged, no submitted reviews; web/Julia pass, Debian cancelled/failed | Diagnose c363e008 run 35518798354; no new root-cause claim. |
+| M2 / AKS-58 | Todo / High | Real discovery, actual binding, strict GPU/fallback and resource evidence. |
+| M3 / AKS-59/60/61 | Todo / High | Runtime/contracts/compiler and scalable data, after bounded prerequisite clearance. |
+| M4 / AKS-60/62/63 | Todo / High | Verify all six numerical stage categories plus meaningful CPU-function compilation and benchmarks. |
+| M5 / AKS-64 | Todo / High, prior design exploration retained | Complete nine-route/state/persona design in parallel; explicit final approval remains required. |
+| M6 / existing AKS-45–49 | Existing In Progress statuses preserved; frontend frozen | After approval, implement onboarding/state/hydration, analysis/model/lifecycle and compute UI. |
+| M7 / AKS-65/66 | Todo / High | Local Windows compiler worker and offline Windows EXE/Linux-Docker/hardware/release certification. |
+| Deferred / AKS-67 | Todo / Medium | Qualify additional vendors/devices separately. |
+
+All new work is assigned to Akshay. Original project description remains intact with a dated v0.5.0 appendix and linked roadmap. Existing issue descriptions get scoped requirement pointers; priorities/owners/statuses are preserved. New dependencies are read back; no comments/messages to people or product Done transitions. [Issue links, exact PR heads and evidence limits](source-reconciliation-2026-09-20.md).
+
+Current gaps: <=1,000 unquoted rows; immutable materialized plans; broader transforms/composition proposed; AKS-49 hydration 404 unfixed; mock GPU labels/device-binding gaps; no compiler or broad training proof; incomplete design approval/persona coverage; no same-candidate full release/hardware/package proof. Older local 1,492 assertions and five browser scenarios retain revision attribution and PostgreSQL skip.
+
+## Retained historical tracker context
+
+The following AKS-51-era entries remain historical; their “current” statements and next actions are superseded by the v0.5.0 tracker above.
 
 ## AKS-51 scope and evidence
 

@@ -1,430 +1,279 @@
-# JuliaFlow Local-First Low-Code Data Science Toolkit
+# JuliaFlow — Hardware-aware Local Data Science Workstation
 
-## Document Control
+## Document control
 
-- **Date:** 2026-06-16
-- **Owner:** Product / Data Platform
-- **Version:** 0.4.1 local product-surface refresh
-- **Status:** Active BRD direction
-- **Supersedes:** v0.3.0 provider/cloud-oriented deployment, storage, Hub, GPU, and explainability priorities; v0.4.0 local-first baseline product-surface gaps
+- Version: **0.5.0**. Date: **2026-09-20**. Owner: **Akshay / LowCodeML**.
+- Status: **Approved requirements and roadmap; implementation and release acceptance open.** This document is not final frontend design approval.
+- Canonical filename remains `business-requirements-v0.3.0.md` for existing links and validators.
+- Supersedes v0.4.1 at `c363e0086552334fc2268222550ea031c548b4f9`; the [dated immutable snapshot](docs/archive/2026-09-20-brd-v0.4.1/README.md) records exact source bytes and SHA-256. Existing archives are unchanged.
+- Coordination: [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-juliaflow-brd-v050-and-first-release-roadmap-coordination) · [roadmap](docs/product-roadmap.md) · [next steps](docs/next-steps.md) · [acceptance](docs/acceptance-v0.5.0.md) · [sources](docs/source-reconciliation-2026-09-20.md).
 
-## 1. Purpose
+## Product promise
 
-Define business requirements for a 100% local, plug-and-play, low-code data science toolkit powered by a Julia backend. The product is intended for users who cannot depend on cloud resources because of cost, academic procurement delays, offline environments, data residency concerns, or limited infrastructure support.
+JuliaFlow is a local hardware-aware data-science workstation for answering analysis questions and developing reproducible models. After Windows EXE or Linux/Docker installation, it discovers CPU, RAM, working disk and GPU/runtime capabilities, explains usable operations and lets the user choose compute preferences. Supported numerical GPU regions across preparation, EDA, chart-data computation, fitting, inference and evaluation are first-release requirements. Native adapters and compiler integration are both required.
 
-JuliaFlow must let users create and manage local projects, ingest data, explore it, prepare features, train and evaluate models, explain results, manage a local model registry, deploy local endpoints/jobs/packages, publish local dashboards, checkpoint work, and export reproducibility bundles without requiring cloud accounts, managed object stores, external registries, external APIs, telemetry, or cloud GPU provisioning.
+Code is possible but not required. Users manage and prepare data, answer and export an analysis without training a model, or continue through valid modeling, explanation, local deployment and monitoring. Core work is offline and local-only; no cloud account, remote GPU, public registry or telemetry is required. Local service authentication and filesystem controls remain mandatory.
 
-## 2. Product Vision
+Acceleration coverage is explicit by operation, model/package version, dtype, shape and backend. Compatible CPU-oriented Julia numerical code can use compiler integration; arbitrary packages are not promised to convert. Unsupported regions execute on CPU with reasons where policy permits. A required-GPU request rejects instead of silently weakening its contract. Selected estimators are never silently exchanged for different GPU models.
 
-JuliaFlow is a local analytics appliance for data science:
+## People and journeys
 
-> A self-contained visual workflow environment that installs locally, initializes its own local data estate, uses local CPU/GPU hardware to the fullest safe extent, explains model behavior, and produces reproducible academic-grade artifacts without cloud dependency.
+| Persona | Required journey |
+| --- | --- |
+| Programming data scientists | Inspect Julia and provenance, use governed declared custom steps, choose resources, compare compatible runs and export reproducible work. Arbitrary code does not promise reversible visual editing. |
+| Non-coding analysts and domain experts | Import real data, correct schema/roles, prepare and analyze it, understand assumptions and save/export findings without code or model fitting. Domain expertise and coding skill are independent. |
+| Researchers, students and teaching labs | Guided or compact workflows, protected validation/test boundaries, interpretable evidence, offline templates, repeatable seeds/environments and cross-installation bundles. |
+| Data engineers | Confined ingestion, data quality/schema changes, stable row/artifact identity, explicit resource/format limits and failure recovery. |
+| MLOps and lab/team users | Evidence-based registry/deploy/rollback, PostgreSQL metadata/RBAC/audit, versioned drift baselines, local endpoint/batch outputs and reproducible retraining review. |
 
-The product remains extensible enough for lab/team deployments and future cloud compatibility, but the default product promise is local-first.
+Guidance, density and appearance are independent preferences. Every persona can use System, Light or Dark and may need advanced statistical controls.
 
-## 3. Target Users
+## Nine coherent routes
 
-- **Academic researchers:** need reproducible workflows, explainable outputs, and local operation on lab machines.
-- **Students and teaching labs:** need guided workflows, offline-friendly install, and transparent model behavior.
-- **University labs:** need shared local servers where cloud procurement is slow or unavailable.
-- **Small teams:** need professional data science tooling without cloud spend.
-- **Public-sector or regulated users:** need data to remain on local hardware unless explicitly exported.
-- **Senior/principal data scientists:** need custom Julia extensibility, hardware controls, auditability, and reproducibility.
+| Route | First-release responsibility |
+| --- | --- |
+| Explorer | Durable project selection, question/brief, recent work, local privacy, services, storage and hardware health. |
+| Data | Real-file onboarding, source grants, full versus sampled scope, schema/type correction and target/id/group/time/depth/sensitive/ignore roles. |
+| Transform | Verified fit/apply preparation, learned train-only parameters, row/split provenance, previews and non-drag operations; proposed functions remain unavailable. |
+| Visualize | Analysis-first questions, statistical outputs, chart-data scope/units, accessible tables, saved analyses and local dashboard/export without modeling prerequisites. |
+| ML Studio | Baselines, supported estimators, valid training/tuning/evaluation, compatible comparisons and phase-level compute evidence. |
+| Models | Registry, cards/explanations, artifact integrity and evidence-gated lifecycle transitions. |
+| Deploy | Local endpoints/batch jobs and exports, prerequisites, authority and rollback. Cloud deployment is optional. |
+| Monitor | Job/resource/failure evidence, valid/stale/missing baselines, drift definitions, review and retraining provenance. |
+| Settings | Roots, auth/RBAC, offline extensions, backups, appearance/guidance/density, capabilities/preferences and opt-in local compiler worker. |
 
-## 4. Core Design Principles
+Every route needs actionable loading, empty, denied, error and unsupported states, responsive layouts and accessible keyboard/non-drag operation. Preserve the route shell, runtime `juliaflow-config.js`, selectors and coverage unless an approved replacement proves equivalent behavior.
 
-1. **Local-first by default:** no cloud account, cloud credential, or managed provider is required for core use.
-2. **Plug-and-play install:** a fresh machine can initialize the app, local data folders, local database, services, sample workflows, and health checks with minimal manual steps.
-3. **Data stays local:** data, models, logs, checkpoints, dashboards, preferences, API keys, and extension artifacts remain on the local machine unless the user exports or syncs them intentionally.
-4. **Hardware-aware execution:** JuliaFlow detects local CPU, memory, disk, and GPU capability and schedules work within safe resource limits.
-5. **Explainable by design:** model behavior, feature influence, assumptions, limitations, and evaluation evidence are first-class workflow outputs.
-6. **Reproducible by default:** every checkpoint can capture workflow definition, environment, data references, model artifacts, metrics, explainability outputs, and dashboard snapshots.
-7. **Code-possible, not code-required:** low-code workflows remain primary, but users can inspect/export Julia representations and add governed custom Julia nodes.
-8. **Local product surfaces are first-class:** Explorer, Data, Transform, ML Studio, Models, Deploy, Visualize, and Settings are product modules, not demo-only screens.
+## Evidence language and current truth
 
-## 5. In Scope
+| Classification | Meaning |
+| --- | --- |
+| Delivered / merged behavior | Requires merged revision plus criterion-specific executable evidence. Historical completion is limited to its source; no v0.5.0 requirement is newly certified here. |
+| Locally verified review candidate | Bounded behavior tested at recorded revisions in open draft PRs. Platform, review and merge gates remain open. |
+| Approved requirement | Normative v0.5.0 obligation; approval does not assert implementation. |
+| Proposed design | Penpot concepts and unimplemented capabilities, not production evidence or final design approval. |
+| Deferred compatibility | Other vendors, macOS packaging, cloud/provider expansion and multi-device qualification beyond selected first-release scope. |
 
-### 5.1 Local Appliance Bootstrap
+The approved baseline is PR #55 `c363e008`. Current execution supports at most **1,000 unquoted CSV data rows with unique headers**. The 2,000-row design sample is incompatible today. Split plans/assignments/folds/locks are immutable; source or split changes require a new plan. Numeric train-fitted standardization exists in the candidate; broader custom transforms and automatic pipeline composition remain proposed.
 
-- One-command or installer-based startup for single-machine use.
-- Local service initialization for frontend, API gateway, execution service, worker service, data estate, database, and Hub cache.
-- Health checks for ports, filesystem permissions, database readiness, worker availability, CPU/GPU detection, and free disk space.
-- Starter datasets and workflows that run fully offline after installation.
-- Local workspace overview showing CPU/RAM/disk usage, local dataset/model/run counts, project browser, recent local activity, environment/package status, runtime summary, privacy status, workspace storage breakdown, and local compute configuration.
-- Installation profiles:
-  - `single-user`: filesystem data estate plus DuckDB analytics and lightweight local metadata.
-  - `lab-team`: local PostgreSQL for metadata/RBAC/audit plus shared local data estate.
-  - `s3-compatible-local`: optional MinIO profile for S3 API compatibility.
-  - `developer`: hot-reload services and test fixtures.
+Earlier remediation records 1,492 gateway/boundary assertions and five browser scenarios at their original revisions, with PostgreSQL integration skipped. These are not fresh release results. Source still contains mock-derived worker GPU metadata and unbound recorded device selection. One KA CUDA smoke passed on one RTX 5080 in the older `efe6d32` assessment with a CUDA 13.4/13.2 warning; a compiled-modules-disabled diagnostic failed. Broad training, compiler and multi-GPU proof is absent. [Exact revisions/checks/limits](docs/source-reconciliation-2026-09-20.md).
 
-### 5.2 Local Data Estate
+## Stable requirements
 
-JuliaFlow must create and manage a local data estate with stable folder zones:
+These are new v0.5.0 IDs. Existing FR/NFR labels and all 46 historical checklist mappings remain in [traceability](docs/brd-traceability.md), without renumbering or promotion. Every ID maps to a milestone, issue and scenario. All are required for the selected first release except explicitly deferred JF-COMP-001.
 
-- `raw/` for imported original files.
-- `processed/` for cleaned datasets.
-- `features/` for feature tables and derived datasets.
-- `models/` for trained model artifacts.
-- `runs/` for run logs, metrics, and intermediate outputs.
-- `checkpoints/` for workflow and artifact snapshots.
-- `dashboards/` for published local BI datasets.
-- `logs/` for local audit and service logs.
-- `extensions/` for bundled and locally installed Hub artifacts.
+### JF-LOC-001 — Local-only workstation
 
-Durable analytical data should prefer Parquet for local columnar storage and Arrow IPC for runtime node payload exchange. DuckDB should be used for local analytical querying over local files and managed local tables.
+Core analysis/modeling, artifacts and settings work locally with no cloud account, telemetry, network or automatic uploads once installation media is available.
 
-### 5.3 Local Database Modes
+Acceptance: [AC-01](docs/acceptance-v0.5.0.md#ac-01) · M6–M7 · [AKS-48](https://linear.app/gravelaw/issue/AKS-48/local-dataset-wizard-mvp), [AKS-66](https://linear.app/gravelaw/issue/AKS-66/m7-certify-windows-exe-and-linux-docker-offline-release).
 
-JuliaFlow must support two local database modes:
+### JF-LOC-002 — Local authority and confinement
 
-- **Single-user mode:** DuckDB for analytics plus lightweight metadata persistence for workflow catalog, execution history, checkpoints, and settings.
-- **Lab/team mode:** local PostgreSQL for concurrent metadata writes, users, workspaces, RBAC policies, audit logs, execution history, and shared workflow catalog.
-- The v1.0 RC source-execution scope is deliberately narrower: confined `local_file` imports and managed-local (`local://`) artifacts are enabled. Watched-folder, SQLite, DuckDB, PostgreSQL, MySQL, USB, and cloud source execution remain visible only as disabled capabilities with explicit reasons until their connector-specific confinement, authorization, provenance, redaction, and negative tests are complete. PostgreSQL remains supported as the lab/team metadata backend; that does not imply PostgreSQL dataset-source execution.
+Authenticated local mutations, expected origins, approved real paths, symlink/junction policy, owner-only or redacted exports, encrypted credential storage, audit and lab/team RBAC apply to all new compute boundaries.
 
-DuckDB must not be treated as the only database for every multi-process service concern. PostgreSQL is preferred when multiple services or users need concurrent metadata writes.
+Acceptance: [AC-02](docs/acceptance-v0.5.0.md#ac-02) · M1/M7 · [AKS-41](https://linear.app/gravelaw/issue/AKS-41/local-gateway-and-import-trust-boundary-hardening), [AKS-55](https://linear.app/gravelaw/issue/AKS-55/constrain-default-local-gateway-browser-mutation-authority), [AKS-65](https://linear.app/gravelaw/issue/AKS-65/m7-opt-in-confined-local-linux-compiler-worker-on-windows).
 
-### 5.4 CRISP-DM Workflow Coverage
+### JF-LOC-003 — Durable data and metadata
 
-JuliaFlow must cover:
+Preserve Arrow IPC between nodes and TOML round trips, managed data zones and checksums, single-user metadata and local PostgreSQL lab/team metadata. Retain Parquet/Arrow analytical artifacts and local-query direction; metadata support does not enable database source connectors.
 
-- Business understanding: project brief, success criteria, constraints, assumptions.
-- Data understanding: local file ingestion, schema inference, profiling, quality checks, bias/drift screens.
-- Data preparation: filter, join, aggregate, pivot, type casting, missing-value handling, feature engineering.
-- Modeling: baseline interpretable models, common regression/classification/clustering/time-series models, custom Julia nodes, CPU/GPU execution where supported.
-- Evaluation: train/validation/test splits, cross-validation, metrics, error analysis, slice analysis, calibration.
-- Deployment/output: local batch scoring, local dashboard publishing, model artifact export, reproducibility bundle export.
+Acceptance: [AC-03](docs/acceptance-v0.5.0.md#ac-03) · M3/M7 · [AKS-61](https://linear.app/gravelaw/issue/AKS-61/m3-replace-bounded-csv-execution-with-verified-scalable-ingestion), [AKS-66](https://linear.app/gravelaw/issue/AKS-66/m7-certify-windows-exe-and-linux-docker-offline-release).
 
-Cloud deployment is not required for v1 local-first GA.
+### JF-LOC-004 — Offline Hub trust
 
-### 5.5 Local Product Modules
+Bundled/local extensions, cache and offline mirror work without a public registry; verify artifact checksums, trust and sandboxed compatibility; unsigned/unsafe extensions are blocked by default.
 
-JuliaFlow must provide a cohesive local application surface with the following modules.
-
-#### 5.5.1 Explorer / Workspace
-
-- Local workspace overview with system health, local environment, package status, runtime summary, storage breakdown, local project browser, and recent local activity.
-- Project creation/opening, workspace path selection, active project metadata, and local project folder visibility.
-- Local privacy/security status confirming offline mode, no telemetry, no remote compute, and no silent data transfer.
-- Local compute controls showing CPU threads, BLAS/backend, GPU readiness, acceleration availability, and active jobs.
-
-#### 5.5.2 Data
-
-- Local data-source browser that enables confined local files and managed-local artifacts for v1.0 RC, while presenting watched-folder, SQLite, DuckDB, PostgreSQL, MySQL, USB, and cloud sources as disabled with explicit enablement requirements.
-- Dataset view tabs for table, schema, profile, filters, sort, joins, transforms, sampling, and lineage.
-- Column search, filter controls, page size, local refresh, local data profile, data-quality warnings, file path/size/modified metadata, and exportable column summary.
-- Julia code preview for local data loading/profiling operations.
-- Data handling status that confirms local-only storage, in-memory/local processing, and no uploads to external APIs.
+Acceptance: [AC-04](docs/acceptance-v0.5.0.md#ac-04) · M7 · [AKS-66](https://linear.app/gravelaw/issue/AKS-66/m7-certify-windows-exe-and-linux-docker-offline-release).
 
-#### 5.5.3 Transform
-
-- Visual transformation pipeline canvas with run, validate, zoom, metrics, and per-step selection controls.
-- Transform library grouped by cleaning, encoding, feature engineering, combine, and aggregate operations.
-- Required built-in transform families include missing-value cleanup, duplicate removal, text trimming/standardization, outlier handling, type casting, categorical encoding, one-hot encoding, label/target encoding, date feature extraction, binning, mathematical transforms, lag/rolling windows, joins, unions, appends, grouping, pivots, and window aggregates.
-- Transform settings panel with strategy options, per-column controls, preview-on-data action, and advanced settings.
-- Before/after data preview, pipeline metrics, generated Julia code, logs, custom transform creation, and history/lineage view.
+### JF-REP-001 — Reproducibility and recovery
 
-#### 5.5.4 ML Studio
+Export/import workflow, source hashes, split/fit state, seeds, package/runtime versions, actual compute, cards, metrics/explanations, dashboards and notes. Backup filesystem and metadata, offer scheduled snapshot retention and restore/migration integrity.
 
-- Local MLJ-centered training workspace for classification, regression, clustering, ranking, and time-series workflows where supported.
-- Algorithm, model type, target column, split strategy, and shuffle controls.
-- Feature selection, hyperparameter configuration, optional local auto-tuning, and train action with no remote compute.
-- Metric cards and visual diagnostics including accuracy, F1, ROC AUC, precision, recall, log loss, ROC curve, confusion matrix, feature importance, metric comparison, and cross-validation evidence where applicable.
-- Pipeline step visualization and local experiment tracker with searchable/filterable run history.
-- Julia ecosystem visibility for installed modeling packages such as MLJ.jl, EvoTrees.jl, XGBoost.jl, Flux.jl, and comparable local Julia packages.
-
-#### 5.5.5 Models
-
-- Local model registry with search, filters, tags, owner, type, version, status, primary metric, update time, and local deployment status.
-- Model import and train-new-model entry points.
-- Model comparison across versions and models, performance-over-version charts, drift summary, and monitoring summary.
-- Model detail panel with performance metrics, algorithm/framework, training data size, model path, local storage status, tags, artifacts, and training lineage.
-- Artifact access for model binaries, metadata, metrics, and training configuration, with download/copy-path actions that never require a cloud registry.
-
-#### 5.5.6 Deploy
-
-- Local deployment targets for desktop app, REST API, batch inference job, local Docker container, edge device, and air-gapped package.
-- Deployment pipeline stages for validate, build, test, package, staging-local deploy, and production-local deploy.
-- Generated Julia API code using local Julia web tooling where appropriate.
-- Local endpoint status with protocol, host, port, version, uptime, latency, throughput, error rate, and recent local request logs.
-- Deployment configuration for environment variables, hardware, scaling, and security.
-- Deployed artifacts, local runtime environment summary, local scaling summary, and explicit indicators for LAN-accessible, offline-capable, and this-machine-only modes.
-
-#### 5.5.7 Visualize
-
-- Local dashboard builder over local datasets with add chart, add text, save locally, export PNG, export HTML, and local-only share/export controls.
-- Chart types include line, bar, area, scatter, histogram, pie, treemap, heatmap, map, gauge, table, and text.
-- Chart properties panel with data, style, annotation, and advanced tabs.
-- Dataset column browser, calculated-column creation, grid/auto/freeform layouts, snap-to-grid, filters, sorting, series configuration, and local data information.
-- Dashboard-local Julia transform panel with runnable code, output selection, preview data, and local execution status.
-
-#### 5.5.8 Settings
-
-- Profile, workspace paths, project defaults, theme/accent/UI-density preferences, notifications, package environment, Julia version, compute resources, autosave, export preferences, security/privacy, access control, local API keys, and backups/snapshots.
-- Workspace settings must keep data, models, cache, temp, exports, autosaves, and backups in explicit local paths.
-- Project defaults must include default project location, data folder, model folder, new-project template, and default file format.
-- Package environment settings must support local environments, local package mirrors, offline package use, and environment management.
-- Julia settings must show active Julia version, executable path, compatibility status, and offline update checks.
-- Security/privacy settings must expose no-telemetry, no-data-sharing, local logs only, and crash-report controls with private defaults.
-- Access control must support single-user defaults, optional multi-user mode, workspace lock/passcode, and local-user allowance.
-- Local API keys must be scoped to this device or LAN and should be managed without cloud key services.
-- Backups/snapshots must support local automatic snapshots, retention settings, backup location, and create-now action.
-
-### 5.6 Local Hardware Runtime
-
-JuliaFlow must detect and report:
-
-- CPU core count and thread capacity.
-- Available RAM and memory pressure.
-- Disk capacity and free working space.
-- GPU availability, vendor, driver/runtime readiness, VRAM, and selected backend.
-- CUDA readiness for NVIDIA systems where available.
-
-Runtime requirements:
-
-- CPU parallel execution with configurable worker counts.
-- Memory-aware scheduling and bounded worker queues.
-- GPU execution when a supported local GPU is available.
-- CPU fallback when GPU is unavailable or unsupported.
-- Explicit fallback reason in execution records.
-- Multi-GPU execution only when the local machine actually has multiple visible GPUs.
-
-### 5.7 AI Explainability And Model Transparency
-
-Explainability is core scope.
-
-JuliaFlow must support explainability outputs for applicable modeling workflows:
-
-- Global feature importance.
-- Local prediction explanation.
-- Permutation feature importance for model-agnostic inspection.
-- Partial dependence and individual conditional expectation style views where practical.
-- Confusion matrix, residual/error analysis, calibration, and slice-level metrics.
-- Baseline interpretable model comparison before opaque model promotion.
-- Model card generation with inputs, metrics, data version, limitations, ethical caveats, and intended use.
-- Dataset card generation with schema, lineage, missingness, sensitive columns, quality checks, and known limitations.
-- Explanation export inside checkpoints and reproducibility bundles.
-- Warnings when explainability is unavailable, unstable, expensive, or not meaningful for a selected model/data shape.
-
-Explainability should be grounded in trustworthiness principles: transparency, interpretability, documentation, reproducibility, and auditability.
-
-### 5.8 Offline Hub And Extension Management
-
-JuliaFlow Hub must work without an external registry for core use:
-
-- Bundled official extensions.
-- Local extension folder install.
-- Local artifact cache.
-- Offline package mirror support.
-- Checksum verification for extension artifacts.
-- Sandboxed compatibility tests.
-- Blocking of unsigned or unsafe local extensions by default.
-- Optional external registry support only as a future compatibility path.
-
-### 5.9 Security, Governance, And Local Trust Boundaries
-
-Core security requirements:
-
-- Local admin bootstrap.
-- Local-only auth mode for single-user use.
-- Optional lab/team RBAC.
-- Local audit logs.
-- No real secrets committed to project files.
-- Encrypted local credential storage where credentials are used.
-- Safe local filesystem path handling.
-- Extension sandbox controls.
-- Explicit data residency guarantee.
-- No telemetry or data sharing by default.
-- Local API keys and LAN access controls for local services.
-- Workspace lock/passcode controls where local access control is enabled.
-
-Cloud IAM, enterprise OIDC, and provider secret managers are optional extensions, not local-first GA requirements.
-
-### 5.10 Backup, Restore, And Migration
-
-JuliaFlow must support:
-
-- Local data estate backup.
-- Local database backup.
-- Local automatic snapshots with configurable interval and retention.
-- Checkpoint export/import.
-- Workflow bundle export/import.
-- Dashboard, model, package-environment, and settings export/import where needed for migration.
-- Lab-machine migration path.
-- Integrity checks for restored artifacts.
-
-### 5.11 Academic Reproducibility Bundle
-
-Every major run/checkpoint should be exportable as a reproducibility bundle containing:
-
-- Workflow definition.
-- Data references and checksums.
-- Dataset/profile cards.
-- Julia package/environment metadata.
-- Random seeds and runtime configuration.
-- Model artifact.
-- Metrics and evaluation outputs.
-- Explainability outputs.
-- Dashboard snapshot.
-- User notes and assumptions.
-
-## 6. Out Of Scope For Local-First GA
-
-The following are removed or downgraded from core GA:
-
-- Provider-specific cloud deployment proof.
-- AWS/GCS/Azure object-store proof.
-- External Hub registry/provider mirror proof.
-- Cloud IAM as a required dependency.
-- Cloud GPU provisioning or cloud multi-GPU scheduling proof.
-- Kubernetes/ArgoCD production overlays as a required product path.
-- Real-time sub-second online inference at cloud scale.
-- Full managed MLOps replacement.
-- Hosted SaaS collaboration, cloud telemetry, cloud model registry, and remote managed inference as required product paths.
-
-Optional/future:
-
-- Kubernetes lab-server deployment.
-- S3-compatible local MinIO profile.
-- Cloud provider adapters.
-- Enterprise OIDC/SSO.
-- External registry sync.
-- Optional connectors to GitHub, Slack, Amazon S3, remote databases, and similar services when explicitly enabled by the user or administrator.
-
-## 7. Non-Functional Requirements
-
-- **Local performance:** interactive previews under 2 seconds on sampled local data; batch workflows should use available CPU/GPU within configured resource caps.
-- **Resource safety:** default worker limits must avoid exhausting RAM, VRAM, or disk.
-- **Offline operation:** core workflows, bundled extensions, starter datasets, and sample runs must work without internet after installation media is available.
-- **Reliability:** checkpointed runs, restartable services, and clear recovery prompts.
-- **Portability:** Debian/Linux is the active development baseline; Windows and macOS remain product portability aspirations, with GPU support depending on platform/vendor maturity.
-- **Usability:** guided mode for students/junior users, expert mode for advanced users, accessible canvas, clear error messages.
-- **Security:** safe local defaults, explicit trust boundaries, no silent external uploads.
-- **Maintainability:** package/version pinning, local diagnostics, health reports, and upgrade/migration checks.
-- **Local UI completeness:** core local product modules must be usable without hidden cloud-only dependencies.
-
-## 8. Architecture Direction
-
-### 8.1 Default Local Architecture
-
-- React/Vite frontend served locally.
-- Julia API gateway.
-- Julia execution service.
-- Julia worker service.
-- Local filesystem data estate.
-- DuckDB for analytical query acceleration.
-- File-backed or lightweight local metadata for single-user mode.
-- Arrow IPC runtime payload boundary.
-- Parquet/Arrow durable local artifacts.
-- Offline Hub artifact cache.
-- Local model registry, local deployment runtime, local dashboard artifacts, local package environment, and local settings store.
-
-### 8.2 Lab/Team Architecture
-
-- Same core services as default mode.
-- Local PostgreSQL for metadata, RBAC, audit, execution history, and shared workflow catalog.
-- Shared local data estate on workstation/server storage.
-- Optional MinIO only when S3 API compatibility is needed.
-
-### 8.3 Optional Compatibility Architecture
-
-- Kustomize/Kubernetes, cloud providers, managed object stores, external registries, and enterprise identity providers remain optional future integrations.
-
-## 9. Recommended Technology Choices
-
-- **Runtime and services:** Julia, HTTP.jl, JSON3.jl, DataFrames.jl, Arrow.jl, Tables.jl.
-- **Local analytics:** DuckDB for local OLAP and Parquet querying.
-- **Metadata:** lightweight local metadata in single-user mode; PostgreSQL in lab/team mode.
-- **Durable data:** Parquet for analytical tables; Arrow IPC for runtime payloads.
-- **Low-code ML:** MLJ.jl ecosystem for model selection/training, with local package integrations such as EvoTrees.jl, XGBoost.jl, Flux.jl, and comparable Julia packages where appropriate.
-- **Local API deployment:** Julia-native local web serving such as Genie.jl or HTTP.jl for generated local REST endpoints.
-- **GPU:** CUDA.jl for NVIDIA, KernelAbstractions.jl for backend-portable kernels where practical.
-- **Explainability:** model-native coefficients/importances, permutation importance, SHAP-style explanations where available, partial dependence/ICE style summaries where practical.
-- **Packaging:** Docker Compose profiles for local service variants; future desktop packaging may evaluate Tauri/Electron plus Julia bundling constraints.
-
-## 10. Success Metrics
-
-- Fresh local install to first successful sample workflow in under 30 minutes.
-- No cloud credentials required for core demo, EDA, modeling, dashboard, and checkpoint workflows.
-- Local data estate initialized and health-checked automatically.
-- At least one complete offline CRISP-DM workflow ships as a starter template.
-- Explorer, Data, Transform, ML Studio, Models, Deploy, Visualize, and Settings modules expose local-first status and complete core workflows without internet.
-- Users can import/profile local data, build transforms, train a local model, inspect the local registry, deploy a local endpoint or batch job, and build/export a dashboard without remote services.
-- Reproducibility bundle exports and reimports successfully on another local install.
-- GPU smoke runs when compatible hardware exists; CPU fallback is explicit when it does not.
-- Model card and explanation outputs generated for supported modeling workflows.
-- Local audit/dependency/security checks pass before release.
-
-## 11. Risks And Mitigations
-
-| Risk | Impact | Mitigation |
-| --- | --- | --- |
-| Hardware variability across academic machines | Install/run failures and inconsistent performance | Hardware profiler, preflight checks, conservative defaults, CPU fallback |
-| GPU driver/CUDA mismatch | GPU workflows fail or confuse users | Driver/runtime diagnostics, CUDA smoke, clear fallback reasons |
-| DuckDB concurrent write limits | Metadata corruption or service contention in team mode | Use DuckDB primarily for analytics; use PostgreSQL for lab/team metadata |
-| Local disk exhaustion | Failed runs or corrupted artifacts | Quotas, cleanup tools, disk preflight, retention policies |
-| Local data loss | Loss of research artifacts | Backup/restore workflow, checksum manifests, export bundles |
-| Offline package availability | Install cannot complete without internet | Bundled official extensions, local artifact cache, offline mirror docs |
-| Extension sandbox escape | Security incident on local machine | Signed/checksummed extensions, sandbox tests, safe defaults |
-| Explainability misuse | Users overtrust explanations | Warnings, method notes, uncertainty/limitations in model cards |
-| Cross-platform installer complexity | Poor adoption | Start with Docker Compose/local scripts, then mature desktop installers |
-| Academic reproducibility gaps | Results cannot be defended or rerun | Environment capture, seeds, data checksums, model cards, export bundles |
-| Mock/product surface drift | Product requirements omit visible local-app workflows | Keep BRD product modules aligned with mock designs and retire stale cloud-first assumptions |
-
-## 12. Revised Implementation Priority
-
-1. **Local appliance bootstrap:** one-command local stack, health checks, local folders, starter workflow.
-2. **Local data estate proof:** filesystem zones, Parquet/Arrow roundtrip, DuckDB query path.
-3. **Local metadata/database proof:** single-user metadata plus optional PostgreSQL lab/team mode.
-4. **Local hardware runtime proof:** CPU scheduling, GPU detection, CUDA smoke when available, CPU fallback.
-5. **Explainability and model evidence:** model cards, dataset cards, feature importance, local/global explanations, reproducibility bundle integration.
-6. **Offline Hub proof:** bundled/local extensions, checksum verification, sandbox compatibility.
-7. **Mock-aligned local product surface:** Explorer, Data, Transform, ML Studio, Models, Deploy, Visualize, and Settings requirements tracked as local-first product modules.
-8. **Academic reproducibility workflow:** full offline EDA -> model -> explain -> dashboard -> export path.
-9. **Backup/restore and migration:** local data estate and metadata portability.
-
-## 13. Add / Remove / Rework Summary
-
-### Add
-
-- Local appliance install and health-check requirement.
-- Managed local data estate.
-- DuckDB local analytics path.
-- PostgreSQL local lab/team mode.
-- Offline Hub and extension cache.
-- AI explainability and model transparency section.
-- Dataset cards, model cards, and reproducibility bundles.
-- Backup/restore and local migration.
-- Hardware profiler and CPU/GPU fallback evidence.
-- Mock-aligned local modules for Explorer, Data, Transform, ML Studio, Models, Deploy, Visualize, and Settings.
-- Local model registry, local deployment runtime, local dashboard builder/export, local package environment, local API keys, autosave, and local snapshots.
-
-### Remove From Core GA
-
-- Provider-specific deployment proof.
-- AWS/GCS/Azure object-store proof.
-- External Hub registry/provider mirror proof.
-- Cloud GPU and cloud multi-GPU closure.
-- Cloud IAM/OIDC as a required dependency.
-- Kubernetes/ArgoCD as required production path.
-- Hosted SaaS collaboration, remote managed inference, cloud telemetry, and cloud model registries as required paths.
-
-### Rework
-
-- Object storage becomes local data estate first; MinIO is optional.
-- Deployment becomes local appliance first; cloud is future compatibility.
-- GPU closure becomes conditional local hardware validation.
-- Hub registry becomes offline/local first.
-- Security becomes local trust/data residency first, enterprise identity optional.
-- Explainability becomes a release requirement for supported model workflows.
-- Frontend surface becomes a required local product experience, not a temporary demo shell.
-
-## 14. Source Notes
-
-This baseline is informed by current public documentation and risk guidance:
-
-- NIST AI Risk Management Framework for trustworthy AI, explainability, and transparency.
-- DuckDB documentation on local analytics, Parquet support, extension security, and concurrency constraints.
-- Apache Arrow documentation for columnar memory and IPC format.
-- MinIO documentation on single-node single-drive limitations.
-- CUDA.jl and KernelAbstractions.jl documentation for local GPU enablement and CPU/GPU backend strategy.
-- scikit-learn model inspection documentation and SHAP-style explainability references for model explanation patterns.
+Acceptance: [AC-05](docs/acceptance-v0.5.0.md#ac-05) · M6–M7 · [AKS-45](https://linear.app/gravelaw/issue/AKS-45/model-registry-lifecycle-gates-and-first-class-repository), [AKS-66](https://linear.app/gravelaw/issue/AKS-66/m7-certify-windows-exe-and-linux-docker-offline-release).
+
+### JF-EXP-001 — Explainability and provenance
+
+Supported models provide meaningful global/local explanations, permutation importance, coefficient/importances and applicable residual/calibration/slice/PDP/ICE views, dataset/model cards, assumptions and limits; unsupported methods show reasons.
+
+Acceptance: [AC-06](docs/acceptance-v0.5.0.md#ac-06) · M6 · [AKS-44](https://linear.app/gravelaw/issue/AKS-44/statistical-eda-and-schema-diagnostics-foundation), [AKS-45](https://linear.app/gravelaw/issue/AKS-45/model-registry-lifecycle-gates-and-first-class-repository).
+
+### JF-UX-001 — Nine routes and two complete journeys
+
+Explorer, Data, Transform, Visualize, ML Studio, Models, Deploy, Monitor and Settings share durable project context. Support independent analysis-only and modeling/lifecycle journeys for code-capable and non-coding users.
+
+Acceptance: [AC-07](docs/acceptance-v0.5.0.md#ac-07) · M5–M6 · [AKS-64](https://linear.app/gravelaw/issue/AKS-64/m5-complete-nine-route-design-and-obtain-explicit-final-approval), [AKS-47](https://linear.app/gravelaw/issue/AKS-47/project-backed-frontend-state-migration), [AKS-48](https://linear.app/gravelaw/issue/AKS-48/local-dataset-wizard-mvp), [AKS-49](https://linear.app/gravelaw/issue/AKS-49/guided-no-code-workflow-and-accessibility-baseline).
+
+### JF-UX-002 — Appearance independent of assistance
+
+System, Light and Dark select appearance only; guidance, density and Julia inspection are independent. Preserve selection/project/task and series identity when changing any setting.
+
+Acceptance: [AC-08](docs/acceptance-v0.5.0.md#ac-08) · M5–M6 · [AKS-64](https://linear.app/gravelaw/issue/AKS-64/m5-complete-nine-route-design-and-obtain-explicit-final-approval), [AKS-49](https://linear.app/gravelaw/issue/AKS-49/guided-no-code-workflow-and-accessibility-baseline).
+
+### JF-UX-003 — Accessible responsive interactions
+
+Essential workflows support keyboard and non-drag alternatives, visible focus, accessible dialogs/tabs, chart text/table alternatives, labelled units/scope, responsive narrow layouts and zoom, and actionable empty/loading/error/unavailable states.
+
+Acceptance: [AC-09](docs/acceptance-v0.5.0.md#ac-09) · M5–M6 · [AKS-64](https://linear.app/gravelaw/issue/AKS-64/m5-complete-nine-route-design-and-obtain-explicit-final-approval), [AKS-49](https://linear.app/gravelaw/issue/AKS-49/guided-no-code-workflow-and-accessibility-baseline), [AKS-50](https://linear.app/gravelaw/issue/AKS-50/persona-flow-browser-and-release-verification-for-datascienceproject).
+
+### JF-UX-004 — Resolved-project mutation gate
+
+Disable project mutations on initial load and project switch until actual project identity/context resolves. Failure keeps mutations disabled and exposes Retry loading and Choose another project.
+
+Acceptance: [AC-10](docs/acceptance-v0.5.0.md#ac-10) · M5–M6 · [AKS-64](https://linear.app/gravelaw/issue/AKS-64/m5-complete-nine-route-design-and-obtain-explicit-final-approval), [AKS-49](https://linear.app/gravelaw/issue/AKS-49/guided-no-code-workflow-and-accessibility-baseline).
+
+### JF-UX-005 — Explicit final design approval
+
+Complete remaining lifecycle/settings routes, real-file compute states, responsive/accessibility and representative persona tests. Record explicit user approval of final design before frontend implementation.
+
+Acceptance: [AC-11](docs/acceptance-v0.5.0.md#ac-11) · M5 before M6 UI · [AKS-64](https://linear.app/gravelaw/issue/AKS-64/m5-complete-nine-route-design-and-obtain-explicit-final-approval), [AKS-38](https://linear.app/gravelaw/issue/AKS-38/design-review-gate-for-p0-architecture-artifacts).
+
+### JF-DS-001 — Scalable local ingestion
+
+Replace the current <=1,000 unquoted-row unique-header execution bound with verified streaming/batched ingestion, full-file row identity/checksums, schema and resource envelopes. Keep current safeguards until verified replacement.
+
+Acceptance: [AC-12](docs/acceptance-v0.5.0.md#ac-12) · M3 · [AKS-61](https://linear.app/gravelaw/issue/AKS-61/m3-replace-bounded-csv-execution-with-verified-scalable-ingestion), [AKS-48](https://linear.app/gravelaw/issue/AKS-48/local-dataset-wizard-mvp).
+
+### JF-DS-002 — Immutable split and train-only fit
+
+Reuse concrete checksummed assignments, folds and locks across fit/tune/evaluate and CPU/GPU batches. Source or split changes create a new plan. Preserve whole-group/time/depth isolation and final-test policy.
+
+Acceptance: [AC-13](docs/acceptance-v0.5.0.md#ac-13) · M1/M3/M4 · [AKS-42](https://linear.app/gravelaw/issue/AKS-42/validation-and-test-strategy-contracts-with-enforcement-gates), [AKS-54](https://linear.app/gravelaw/issue/AKS-54/enforce-declared-split-assignments-and-exclude-final-test-data-from), [AKS-61](https://linear.app/gravelaw/issue/AKS-61/m3-replace-bounded-csv-execution-with-verified-scalable-ingestion).
+
+### JF-DS-003 — Preparation and code boundaries
+
+Expose verified train-fitted numeric standardization and learned parameters. Broader custom transforms, pipeline composition, imputation, joins/aggregations/pivots and arbitrary Julia round trips remain proposed until scoped and verified; governed custom steps declare inputs/outputs.
+
+Acceptance: [AC-14](docs/acceptance-v0.5.0.md#ac-14) · M5–M6 · [AKS-64](https://linear.app/gravelaw/issue/AKS-64/m5-complete-nine-route-design-and-obtain-explicit-final-approval), [AKS-49](https://linear.app/gravelaw/issue/AKS-49/guided-no-code-workflow-and-accessibility-baseline), [AKS-42](https://linear.app/gravelaw/issue/AKS-42/validation-and-test-strategy-contracts-with-enforcement-gates).
+
+### JF-ML-001 — Lifecycle and drift validity
+
+Registry promotion, deployment/export, monitoring and retraining consume real versioned evaluation, split, model/source, metric-definition and rollback evidence. Show no/stale/incompatible drift baseline honestly.
+
+Acceptance: [AC-15](docs/acceptance-v0.5.0.md#ac-15) · M6 · [AKS-45](https://linear.app/gravelaw/issue/AKS-45/model-registry-lifecycle-gates-and-first-class-repository), [AKS-46](https://linear.app/gravelaw/issue/AKS-46/drift-monitoring-baseline-and-retraining-review-records).
+
+### JF-HW-001 — Discovery and usability probes
+
+After EXE/Docker installation discover CPU cores/threads, RAM/pressure, disk/working space, GPU vendor/device/VRAM and driver/runtime; distinguish installed, visible, initialized and successfully probed capabilities.
+
+Acceptance: [AC-16](docs/acceptance-v0.5.0.md#ac-16) · M2 · [AKS-58](https://linear.app/gravelaw/issue/AKS-58/m2-discover-real-hardware-and-bind-actual-gpu-execution).
+
+### JF-HW-002 — Preferences and actual device binding
+
+Offer CPU-only, supported auto/preferred GPU and required-GPU policy consistent with existing public names; confirm preference after discovery, apply caps and bind selected physical device before allocation.
+
+Acceptance: [AC-17](docs/acceptance-v0.5.0.md#ac-17) · M2 · [AKS-58](https://linear.app/gravelaw/issue/AKS-58/m2-discover-real-hardware-and-bind-actual-gpu-execution), [AKS-43](https://linear.app/gravelaw/issue/AKS-43/typed-local-jobs-for-data-science-and-ml-workflows).
+
+### JF-RT-001 — Supported operation planning
+
+Register operation/model/package/version, CPU/native/compiler implementations, compatible dtypes/shapes/layouts, memory needs and retry policy; plan supported regions and report explicit CPU reasons for unsupported regions.
+
+Acceptance: [AC-18](docs/acceptance-v0.5.0.md#ac-18) · M3 · [AKS-59](https://linear.app/gravelaw/issue/AKS-59/m3-shared-capability-planner-memory-safety-and-execution-contracts).
+
+### JF-RT-002 — Contract-first phase evidence
+
+Design inventory/plans/phase evidence across TS/OpenAPI/Julia/repository/frontend before producer changes. Record requested/planned/actual backend, actual device, version, timings, memory, fallback/error and provenance after synchronization; absent historical evidence remains unavailable.
+
+Acceptance: [AC-19](docs/acceptance-v0.5.0.md#ac-19) · M2–M3 · [AKS-43](https://linear.app/gravelaw/issue/AKS-43/typed-local-jobs-for-data-science-and-ml-workflows), [AKS-56](https://linear.app/gravelaw/issue/AKS-56/align-project-job-resource-evidence-contracts-and-validate-runtime), [AKS-59](https://linear.app/gravelaw/issue/AKS-59/m3-shared-capability-planner-memory-safety-and-execution-contracts), [AKS-58](https://linear.app/gravelaw/issue/AKS-58/m2-discover-real-hardware-and-bind-actual-gpu-execution).
+
+### JF-RT-003 — Memory, movement and safe retry
+
+Respect RAM/VRAM/disk headroom, bounded queues/chunks, buffer lifetimes and cancellation; minimize validated transfers while preserving Arrow boundaries. CPU retry is limited to pure/idempotent work after classified recoverable backend/resource failure.
+
+Acceptance: [AC-20](docs/acceptance-v0.5.0.md#ac-20) · M3 · [AKS-59](https://linear.app/gravelaw/issue/AKS-59/m3-shared-capability-planner-memory-safety-and-execution-contracts).
+
+### JF-RT-004 — Shared native runtime adapters
+
+Use CUDA.jl and KernelAbstractions for supported numerical execution on Windows and Linux; share operation planning and evidence across workers and data-science modules; keep gateway composition/routing focused.
+
+Acceptance: [AC-21](docs/acceptance-v0.5.0.md#ac-21) · M3 · [AKS-59](https://linear.app/gravelaw/issue/AKS-59/m3-shared-capability-planner-memory-safety-and-execution-contracts).
+
+### JF-RT-005 — Required compiler integration
+
+Integrate Reactant as initial compiler candidate on Linux/NVIDIA for meaningful compatible CPU-oriented numerical package/function regions beyond affine smoke. Publish coverage/incompatibilities; compiler capability is a first-release gate.
+
+Acceptance: [AC-22](docs/acceptance-v0.5.0.md#ac-22) · M3–M4 · [AKS-60](https://linear.app/gravelaw/issue/AKS-60/m3-m4-integrate-reactant-for-meaningful-cpu-numerical-code).
+
+### JF-ACC-001 — Preparation acceleration
+
+Accelerate supported numerical preparation beginning with train-fitted standardization and held-out application, retaining learned parameters and row identity; CPU-only I/O/control regions have explicit reasons.
+
+Acceptance: [AC-23](docs/acceptance-v0.5.0.md#ac-23) · M4 · [AKS-62](https://linear.app/gravelaw/issue/AKS-62/m4-accelerate-preparation-eda-and-chart-data-computation).
+
+### JF-ACC-002 — Analysis and EDA acceleration
+
+Accelerate supported reductions/statistical numerical regions, initially descriptive aggregates and covariance/correlation, with data scope, assumptions and unsupported-method reasons.
+
+Acceptance: [AC-24](docs/acceptance-v0.5.0.md#ac-24) · M4 · [AKS-62](https://linear.app/gravelaw/issue/AKS-62/m4-accelerate-preparation-eda-and-chart-data-computation), [AKS-44](https://linear.app/gravelaw/issue/AKS-44/statistical-eda-and-schema-diagnostics-foundation).
+
+### JF-ACC-003 — Chart-data acceleration
+
+Accelerate supported histogram/bin/aggregate/chart-data computations; distinguish them from browser chart rendering. Retain units, sample/full-data scope, checksum and accessible alternatives.
+
+Acceptance: [AC-25](docs/acceptance-v0.5.0.md#ac-25) · M4 · [AKS-62](https://linear.app/gravelaw/issue/AKS-62/m4-accelerate-preparation-eda-and-chart-data-computation).
+
+### JF-ACC-004 — Supported fitting acceleration
+
+Provide GPU fitting for at least one declared supported estimator family while preserving estimator identity/semantics; existing unsupported MLJ fits remain visibly CPU. Never silently swap a model.
+
+Acceptance: [AC-26](docs/acceptance-v0.5.0.md#ac-26) · M4 · [AKS-63](https://linear.app/gravelaw/issue/AKS-63/m4-verify-supported-gpu-fitting-inference-and-evaluation).
+
+### JF-ACC-005 — Inference and evaluation acceleration
+
+Provide supported GPU inference, scoring and evaluation with per-phase evidence separate from fitting; preserve final-test locks, metrics and result provenance.
+
+Acceptance: [AC-27](docs/acceptance-v0.5.0.md#ac-27) · M4 · [AKS-63](https://linear.app/gravelaw/issue/AKS-63/m4-verify-supported-gpu-fitting-inference-and-evaluation).
+
+### JF-PERF-001 — Measured benefit and resource envelopes
+
+Measure cold compilation, warm execution, host-device transfers, kernels/synchronization and end-to-end CPU/GPU cost plus peak memory. Publish tested shapes/dtypes/sizes/versions/hardware and limits; no universal speedup promise.
+
+Acceptance: [AC-28](docs/acceptance-v0.5.0.md#ac-28) · M4/M7 · [AKS-60](https://linear.app/gravelaw/issue/AKS-60/m3-m4-integrate-reactant-for-meaningful-cpu-numerical-code), [AKS-62](https://linear.app/gravelaw/issue/AKS-62/m4-accelerate-preparation-eda-and-chart-data-computation), [AKS-63](https://linear.app/gravelaw/issue/AKS-63/m4-verify-supported-gpu-fitting-inference-and-evaluation), [AKS-66](https://linear.app/gravelaw/issue/AKS-66/m7-certify-windows-exe-and-linux-docker-offline-release).
+
+### JF-PKG-001 — First-release platforms and offline install
+
+Ship Windows EXE plus Linux/Docker with local service/data/metadata startup, offline assets and diagnostics; native Windows GPU adapters and CPU operation are required. Probe hardware then ask preferences. macOS packaging is deferred.
+
+Acceptance: [AC-29](docs/acceptance-v0.5.0.md#ac-29) · M7 · [AKS-66](https://linear.app/gravelaw/issue/AKS-66/m7-certify-windows-exe-and-linux-docker-offline-release).
+
+### JF-PKG-002 — Opt-in local compiler worker
+
+Windows offers an explicitly enabled local Linux/Docker compiler worker, authenticated and confined to approved data roots. Explain WSL2/GPU/runtime prerequisites; no silent container provisioning, uploads or remote compute.
+
+Acceptance: [AC-30](docs/acceptance-v0.5.0.md#ac-30) · M7 · [AKS-65](https://linear.app/gravelaw/issue/AKS-65/m7-opt-in-confined-local-linux-compiler-worker-on-windows).
+
+### JF-COMP-001 — Honest deferred compatibility
+
+NVIDIA is the first release target. Detect other vendors but keep CPU operation until separately verified. Any later multi-GPU claim requires real work on each device, isolation and scheduling evidence.
+
+Acceptance: [AC-31](docs/acceptance-v0.5.0.md#ac-31) · Deferred · [AKS-67](https://linear.app/gravelaw/issue/AKS-67/deferred-verify-additional-gpu-vendors-and-multi-device-compatibility).
+
+### JF-REL-001 — Composite release acceptance
+
+Same-candidate Windows and hosted Debian full verify:release, selected hardware/compiler/packaging gates, required review/merge, criterion evidence and synchronized traceability/Linear are all required.
+
+Acceptance: [AC-32](docs/acceptance-v0.5.0.md#ac-32) · M1/M7 · [AKS-38](https://linear.app/gravelaw/issue/AKS-38/design-review-gate-for-p0-architecture-artifacts), [AKS-50](https://linear.app/gravelaw/issue/AKS-50/persona-flow-browser-and-release-verification-for-datascienceproject), [AKS-66](https://linear.app/gravelaw/issue/AKS-66/m7-certify-windows-exe-and-linux-docker-offline-release).
+
+## Runtime and interface boundaries
+
+Future inventory/capability/planning/phase-evidence interfaces are **contract-first**: TypeScript/OpenAPI/schema and version policy, Julia mappings/validation, repository compatibility, consumers/fixtures, then producers and approved frontend displays. This task changes no production schemas, dependencies or code. Missing/empty historical evidence stays unavailable and must not be backfilled from current hardware or policy.
+
+Preserve `apps`, `packages`, `services`, `extensions`, `infra`, `scripts` and `tests` boundaries. A shared runtime module is proposed under services; the gateway retains composition, routing, authorization, audit and error mapping. Preserve NASA/JPL Power of 10 for core logic, bounded queues, Arrow IPC and TOML. CPU parsing/I/O/control work is reported separately from numerical acceleration.
+
+CUDA.jl and KernelAbstractions form the native foundation. Reactant is the initial compiler candidate; upstream documents NVIDIA acceleration on Linux and supported numerical raising. Windows combines native GPU paths with an explicitly enabled local Linux/Docker compiler worker. Docker Desktop's Windows GPU path requires WSL2. These are source constraints, not JuliaFlow certification. [Reactant configuration](https://enzymead.github.io/Reactant.jl/stable/introduction/configuration), [raising](https://enzymead.github.io/Reactant.jl/stable/tutorials/raising), [CUDA workflow](https://cuda.juliagpu.org/stable/usage/workflow/), [Docker GPU prerequisites](https://docs.docker.com/desktop/features/gpu/).
+
+A compiler example must preserve the function/algorithm's meaning and perform useful numerical work. Initial validation target: batched covariance/correlation through Statistics-style CPU routines; AKS-60 must fix the actual compatible function/package/version. If incompatible, document the reason and choose an explicit meaningful alternative. An affine kernel, unexecuted research or renamed native implementation cannot close this milestone.
+
+## Local storage, trust and compatibility
+
+Keep managed `raw/`, `processed/`, `features/`, `models/`, `runs/`, `checkpoints/`, `dashboards/`, `logs/` and `extensions/` zones. Arrow/Parquet analytical artifacts and local DuckDB querying remain architectural direction; file/lightweight metadata serves single-user use and PostgreSQL serves lab/team concurrency. Current dataset connectors remain confined local-file/managed-local: watched-folder, USB, SQLite/DuckDB/PostgreSQL/MySQL dataset sources and cloud execution remain disabled with reasons until connector-specific authority, confinement, provenance and negative tests pass.
+
+Preserve local credentials, audit/redaction, identifier checks, checksums, offline Hub trust, data residency and owner-controlled backup/restore. Optional MinIO, Kubernetes/ArgoCD, provider stores, external registries, cloud IAM/enterprise SSO and remote deployment do not replace local acceptance.
+
+## Success measures and release decision
+
+Retain targets of first sample workflow within 30 minutes after installation media is available and sampled previews under 2 seconds **on a published reference resource envelope**. Record machine, data size, cold/warm state and measurement method. These are acceptance targets, not measured results or delivery dates. Persona studies record completion, wrong turns, recovery, time and correct interpretation of evidence.
+
+Release requires analysis-only and modeling journeys, acceleration across all six stage categories, meaningful compiler integration, real hardware/fallback/resource evidence, offline Windows EXE/Linux-Docker packaging and complete same-candidate Windows/Debian verification. Review, merge, acceptance and Linear/control reconciliation remain separate gates. No skipped required hardware test counts as success.
+
+The [roadmap](docs/product-roadmap.md) governs M1–M7. M5 design runs in parallel with backend work; explicit final approval gates M6 frontend implementation. No deadline, merge, release or frontend approval is invented by this revision.
