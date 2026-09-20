@@ -40,6 +40,7 @@
     "julia:test:presentation": "node scripts/time-julia-runtests.mjs --slice=presentation",
     "julia:test:helpers": "node scripts/time-julia-runtests.mjs --slice=helpers",
     "julia:test:tuning": "node scripts/time-julia-runtests.mjs --slice=tuning",
+    "julia:test:project-contracts": "node scripts/time-julia-runtests.mjs --slice=project-contracts",
     "julia:test:local-sources": "node scripts/time-julia-runtests.mjs --slice=local-sources",
     "julia:test:repository": "node scripts/time-julia-runtests.mjs --slice=repository",
     "julia:test:worker": "node scripts/time-julia-runtests.mjs --slice=worker",

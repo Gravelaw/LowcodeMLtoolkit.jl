@@ -34,10 +34,11 @@ const SLICES = {
     "Data science project job helpers"
   ],
   tuning: ["Data science project tuning helpers"],
+  "project-contracts": ["Data science project core helpers", "Data science project job helpers", "Project payload contract boundary"],
   "local-sources": ["Data science project local source helpers", "Gateway managed path boundary"],
   "node-sdk": ["Node SDK"],
   "execution-service": ["Execution Service"],
-  repository: ["Gateway Repository"],
+  repository: ["Gateway Repository", "Project payload contract boundary"],
   worker: ["Data science project job helpers", "Worker Service"],
   "api-gateway": ["API Gateway", "Gateway local browser boundary"],
   realtime: ["API Gateway Realtime", "Gateway realtime cleanup"],

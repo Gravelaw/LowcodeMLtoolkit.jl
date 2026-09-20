@@ -1,6 +1,10 @@
 # JuliaFlow Checkpoint Log
 
-## 2026-09-20 — AKS-41 managed path confinement under verification
+## 2026-09-20 â€” AKS-56 compatible project contracts locally verified
+
+Base `268561d` / draft PR #51. Runtime project children use the local OpenAPI reference closure; populated resource evidence is strict, historical missing/empty evidence remains unavailable, and new execution producers require evidence. Request and file/PostgreSQL write boundaries reject malformed records before mutation. A mixed native/JSON3 persistence round-trip failure was found and corrected without weakening validation. Julia dependency instantiation, TypeScript client/compiler tests and build pass. Final checks: gateway 1,069 plus 37 authority assertions; project boundary 275; repository 53 plus one explicit PostgreSQL integration skip; worker 221; jobs 51; core 13; contracts 30; frontend 27; live browser 3/3. Redacted prediction-contract response evidence is distinct from the private input URI. Control-document, BRD and diff checks pass. Hosted candidate checks and review remain open. No frontend edits or storage migration.
+
+## 2026-09-20 ï¿½ AKS-41 managed path confinement under verification
 
 Baseline `ea765a7` / draft PR #50. AKS-55 is In Review with local checks passing. The next issue-specific branch confines managed source/output paths, backup checks and appliance metadata bootstrap through one canonical boundary. Existing root aliases and missing ordinary outputs remain valid. Local sources pass 36 existing + 87 boundary checks with no skips; tuning passes 152 checks; appliance bootstrap passes. The single candidate review completed; both confirmed findings have passing regressions. Full gateway verification passes 1,069 API and 37 authority assertions; control-document sync, BRD traceability and diff checks pass; draft publication and hosted review remain open; see the [remediation report](blocker-remediation-2026-09-20.md). No merge or release.
 

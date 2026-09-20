@@ -4,6 +4,8 @@ Last reconciled: 2026-09-20, AKS-51. Linear owns acceptance, assignees, and stat
 
 ## Active decisions and acceptance risks
 
+AKS-56 preserves missing or empty historical v1 job resource evidence as unavailable. Populated evidence and all known project child fields now share OpenAPI validation at request and persistence boundaries; newly executed job producers require complete resource evidence. No storage backfill or frontend changes are included. JSONSchema is a Julia-only dependency; local gateway/repository/worker and live-browser verification pass; hosted candidate checks and delivery review remain open.
+
 AKS-55 remediation now covers launcher credentials, strict runtime fallback rejection, REST origin checks and the previously unguarded realtime upgrade/RPC path. Gateway, auth/realtime, contract, frontend and bootstrap checks pass; candidate review and all three live-browser scenarios pass; hosted checks and delivery review remain open in [the remediation report](blocker-remediation-2026-09-20.md). The shared realtime SDK now supports optional upgrade-protocol credentials, while REST uses its existing token interface. Neither path requires frontend application edits. The approved frontend freeze prevents design work from changing application behavior before final design confirmation.
 
 | Risk | Issue / decision | Current mitigation and remaining gate |

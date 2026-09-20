@@ -7,6 +7,8 @@ using Dates
 using JSON3
 using UUIDs
 
+include(joinpath(@__DIR__, "JuliaFlowProjectPayloadValidation.jl"))
+
 export GatewayCheckpoint,
     GatewayExecution,
     GatewayEvent,
@@ -927,6 +929,7 @@ function data_science_project_payload(project::DataScienceProjectRecord)
         "reproducibilityEvidence" => project.reproducibility_evidence,
     )
     project.description === nothing || (payload["description"] = project.description)
+    JuliaFlowProjectPayloadValidation.validate_project_children!(payload)
     return payload
 end
 
@@ -1337,6 +1340,7 @@ function dict_vector(value)
 end
 
 function gateway_data_science_project(item)
+    item = JuliaFlowProjectPayloadValidation.stored_project_payload(item)
     created_at = String(get(item, "createdAt", JuliaFlowExecutionService.iso8601_timestamp()))
     return DataScienceProjectRecord(
         project_id = String(item["projectId"]),
@@ -2020,6 +2024,7 @@ function save_model_registry_record!(
     producer::AbstractString = "api-gateway",
 )
     record = normalized_model_registry_record(model_record)
+    JuliaFlowProjectPayloadValidation.validate_project_children!(Dict("modelRegistryRecords" => [record]))
     project_id = model_registry_project_id(record)
     projects = load_data_science_projects(repo)
     project_index = findfirst(project -> project.project_id == project_id, projects)
@@ -2523,6 +2528,7 @@ function save_data_science_project!(
     project::DataScienceProjectRecord;
     producer::AbstractString = "api-gateway",
 )
+    payload = data_science_project_payload(project)
     ensure_repository!(repo)
     conn = connect(repo)
     try
@@ -2535,7 +2541,7 @@ function save_data_science_project!(
             SET project_payload = EXCLUDED.project_payload,
                 updated_at = NOW();
             """,
-            [project.project_id, JSON3.write(data_science_project_payload(project))],
+            [project.project_id, JSON3.write(payload)],
         )
     finally
         close_connection(conn)
@@ -2557,6 +2563,7 @@ function save_model_registry_record!(
     producer::AbstractString = "api-gateway",
 )
     record = normalized_model_registry_record(model_record)
+    JuliaFlowProjectPayloadValidation.validate_project_children!(Dict("modelRegistryRecords" => [record]))
     project_id = model_registry_project_id(record)
     projects = load_data_science_projects(repo)
     project_index = findfirst(project -> project.project_id == project_id, projects)

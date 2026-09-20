@@ -2466,7 +2466,7 @@ function schema_contract_from_profile(profile::AbstractDict)
                 "name" => name,
                 "inferredType" => String(get(column, "type", "String")),
                 "logicalType" => String(get(column, "type", "String")),
-                "role" => String(get(row, "role", "feature")),
+                "role" => JuliaFlowDataScienceProjectCatalog.schema_role_from_profile(String(get(row, "role", "feature"))),
                 "nullable" => Int(get(row, "missingCount", 0)) > 0,
             ),
         )
@@ -6350,7 +6350,8 @@ function classify_gateway_error(err)
         return 400, message
     elseif occursin("databaseSchema and databaseTable", message)
         return 400, message
-    elseif occursin("project child records must be arrays", message)
+    elseif occursin("project child records must be", message) ||
+           (startswith(message, "data science project ") && (occursin("invalid contract payload", message) || occursin("projectJobs projectId mismatch", message) || occursin("resourceEvidence required", message)))
         return 400, message
     elseif occursin("project id mismatch", message)
         return 400, message

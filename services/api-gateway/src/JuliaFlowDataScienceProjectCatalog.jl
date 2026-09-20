@@ -1,9 +1,17 @@
 module JuliaFlowDataScienceProjectCatalog
 
 export safe_local_dataset_id,
+    schema_role_from_profile,
     data_profile_fixture,
     data_source_options,
     data_lineage_artifacts
+
+function schema_role_from_profile(value::AbstractString)
+    role = value == "label" ? "target" : value == "timestamp" ? "time" : String(value)
+    role in ("feature", "target", "id", "group", "time", "depth", "sensitive", "ignore") ||
+        error("data science project schemaContracts invalid contract payload (profile role)")
+    return role
+end
 
 function safe_local_dataset_id(value::AbstractString)
     normalized = lowercase(strip(String(value)))

@@ -68,6 +68,9 @@ function project_job_record(
     started_at::Union{Nothing,AbstractString} = nothing,
     finished_at::Union{Nothing,AbstractString} = nothing,
 )
+    if resource_evidence !== nothing || execution_evidence !== nothing || status in ("running", "completed")
+        JuliaFlowGatewayRepository.JuliaFlowProjectPayloadValidation.validate_executed_resource_evidence!(resource_evidence)
+    end
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     job = Dict{String,Any}(
         "jobId" => "job-" * replace(string(uuid4()), "-" => ""),
@@ -75,15 +78,16 @@ function project_job_record(
         "jobType" => String(job_type),
         "status" => String(status),
         "outputRefs" => normalized_refs(output_refs),
-        "resourceEvidence" => resource_evidence === nothing ? Dict{String,Any}() : normalized_dict(resource_evidence),
         "startedAt" => started_at === nothing ? timestamp : String(started_at),
     )
+    resource_evidence === nothing || (job["resourceEvidence"] = normalized_dict(resource_evidence))
     dataset_id === nothing || (job["datasetId"] = String(dataset_id))
     split_plan_id === nothing || (job["splitPlanId"] = String(split_plan_id))
     source_record_id === nothing || (job["sourceRecordId"] = String(source_record_id))
     execution_evidence === nothing || (job["executionEvidence"] = normalized_dict(execution_evidence))
     finished_at === nothing || (job["finishedAt"] = String(finished_at))
     error_message === nothing || (job["errorMessage"] = String(error_message))
+    JuliaFlowGatewayRepository.JuliaFlowProjectPayloadValidation.validate_project_children!(Dict("projectId" => project.project_id, "projectJobs" => [job]))
     return job
 end
 
@@ -111,6 +115,7 @@ function project_job_execution_record(
     plan::AbstractVector = String[],
     worker_backed::Bool = false,
 )
+    JuliaFlowGatewayRepository.JuliaFlowProjectPayloadValidation.validate_executed_resource_evidence!(resource_evidence)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     started = started_at === nothing ? timestamp : String(started_at)
     finished = finished_at === nothing ? started : String(finished_at)

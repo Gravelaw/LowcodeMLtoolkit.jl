@@ -2222,6 +2222,33 @@
           },
           "createdAt": {
             "type": "string"
+          },
+          "trainFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "validationFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "testFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "groupColumn": {
+            "type": "string"
+          },
+          "timeColumn": {
+            "type": "string"
+          },
+          "depthColumn": {
+            "type": "string"
+          },
+          "seed": {
+            "type": "integer"
           }
         },
         "additionalProperties": true
@@ -2238,7 +2265,6 @@
           "jobType",
           "status",
           "outputRefs",
-          "resourceEvidence",
           "startedAt"
         ],
         "properties": {
@@ -2291,7 +2317,16 @@
             }
           },
           "resourceEvidence": {
-            "$ref": "#/components/schemas/DataScienceProjectJobResourceEvidence"
+            "description": "Missing or empty historical v1 evidence is unavailable. Populated evidence must be complete. Newly executed jobs must supply populated evidence.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataScienceProjectJobResourceEvidence"
+              },
+              {
+                "type": "object",
+                "maxProperties": 0
+              }
+            ]
           },
           "startedAt": {
             "type": "string"
@@ -2459,19 +2494,19 @@
           "splitAssignments": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/SplitAssignment"
             }
           },
           "validationFolds": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/ValidationFold"
             }
           },
           "finalTestLocks": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/FinalTestLock"
             }
           },
           "projectJobs": {
@@ -2483,37 +2518,37 @@
           "transformFitApplyRecords": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/TransformFitApplyRecord"
             }
           },
           "statisticalAnalysisRuns": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/StatisticalAnalysisRun"
             }
           },
           "trainingPlans": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/TrainingPlan"
             }
           },
           "tuningStudies": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/TuningStudy"
             }
           },
           "evaluationReports": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/EvaluationReport"
             }
           },
           "predictionExports": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/PredictionExport"
             }
           },
           "modelRegistryRecords": {
@@ -2531,13 +2566,13 @@
           "monitoringBaselines": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/MonitoringBaseline"
             }
           },
           "driftReports": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+              "$ref": "#/components/schemas/DriftReport"
             }
           },
           "reproducibilityEvidence": {
@@ -2550,14 +2585,6 @@
       },
       "StatisticalAnalysisRun": {
         "type": "object",
-        "required": [
-          "analysisRunId",
-          "datasetId",
-          "method",
-          "status",
-          "warnings",
-          "createdAt"
-        ],
         "properties": {
           "analysisRunId": {
             "type": "string"
@@ -2611,7 +2638,8 @@
           "createdAt": {
             "type": "string"
           }
-        }
+        },
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
       },
       "RunStatisticalAnalysisRequest": {
         "type": "object",
@@ -3150,19 +3178,19 @@
           "splitAssignments": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/SplitAssignment"
             }
           },
           "validationFolds": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/ValidationFold"
             }
           },
           "finalTestLocks": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/FinalTestLock"
             }
           },
           "projectJobs": {
@@ -3174,37 +3202,37 @@
           "transformFitApplyRecords": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/TransformFitApplyRecord"
             }
           },
           "statisticalAnalysisRuns": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/StatisticalAnalysisRun"
             }
           },
           "trainingPlans": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/TrainingPlan"
             }
           },
           "tuningStudies": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/TuningStudy"
             }
           },
           "evaluationReports": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/EvaluationReport"
             }
           },
           "predictionExports": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/PredictionExport"
             }
           },
           "modelRegistryRecords": {
@@ -3222,13 +3250,13 @@
           "monitoringBaselines": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/MonitoringBaseline"
             }
           },
           "driftReports": {
             "type": "array",
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/DriftReport"
             }
           },
           "reproducibilityEvidence": {
@@ -8809,6 +8837,790 @@
             "type": "string"
           }
         }
+      },
+      "SplitAssignment": {
+        "type": "object",
+        "properties": {
+          "splitAssignmentId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "split": {
+            "type": "string",
+            "enum": [
+              "train",
+              "validation",
+              "test",
+              "evaluation"
+            ]
+          },
+          "rowRef": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "ValidationFold": {
+        "type": "object",
+        "properties": {
+          "foldId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "random",
+              "stratified",
+              "grouped",
+              "time",
+              "depth",
+              "external",
+              "kfold"
+            ]
+          },
+          "index": {
+            "type": "number"
+          },
+          "trainRef": {
+            "type": "string"
+          },
+          "validationRef": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "FinalTestLock": {
+        "type": "object",
+        "properties": {
+          "lockId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "lockedAt": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "lockedBy": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "TransformFitApplyRecord": {
+        "type": "object",
+        "properties": {
+          "transformRunId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "fitSplit": {
+            "type": "string",
+            "enum": [
+              "train"
+            ]
+          },
+          "applySplits": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "validation",
+                "test",
+                "evaluation"
+              ]
+            }
+          },
+          "transformRef": {
+            "type": "string"
+          },
+          "leakageChecks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "checkId",
+                "status",
+                "detail"
+              ],
+              "properties": {
+                "checkId": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "passed",
+                    "warning",
+                    "failed"
+                  ]
+                },
+                "detail": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "TrainingPlan": {
+        "type": "object",
+        "properties": {
+          "trainingPlanId": {
+            "type": "string"
+          },
+          "targetColumn": {
+            "type": "string"
+          },
+          "taskType": {
+            "type": "string"
+          },
+          "metricNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "transformRef": {
+            "type": "string"
+          },
+          "seed": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "TuningStudy": {
+        "type": "object",
+        "properties": {
+          "tuningStudyId": {
+            "type": "string"
+          },
+          "trainingPlanId": {
+            "type": "string"
+          },
+          "validationOnly": {
+            "type": "boolean"
+          },
+          "trials": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TuningTrial"
+            }
+          },
+          "bestTrialId": {
+            "type": "string"
+          },
+          "validationEvidence": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "datasetId": {
+                "type": "string"
+              },
+              "splitPlanId": {
+                "type": "string"
+              },
+              "splitStrategy": {
+                "type": "string"
+              },
+              "validationFraction": {
+                "type": "number"
+              },
+              "testFraction": {
+                "type": "number"
+              },
+              "finalTestPolicy": {
+                "type": "string",
+                "enum": [
+                  "forbid_final_test",
+                  "use_final_test"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "EvaluationReport": {
+        "type": "object",
+        "properties": {
+          "evaluationReportId": {
+            "type": "string"
+          },
+          "trainingPlanId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "approved": {
+            "type": "boolean"
+          },
+          "finalTestOnly": {
+            "type": "boolean"
+          },
+          "validationEvidence": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "datasetId": {
+                "type": "string"
+              },
+              "splitPlanId": {
+                "type": "string"
+              },
+              "tuningStudyId": {
+                "type": "string"
+              },
+              "finalTestPolicy": {
+                "type": "string",
+                "enum": [
+                  "use_final_test"
+                ]
+              },
+              "validationOnlyTuning": {
+                "type": "boolean"
+              },
+              "testFraction": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": true
+          },
+          "generatedAt": {
+            "type": "string"
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "PredictionExport": {
+        "type": "object",
+        "properties": {
+          "predictionExportId": {
+            "type": "string"
+          },
+          "evaluationReportId": {
+            "type": "string"
+          },
+          "outputContractRef": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "type": "string"
+          },
+          "rowCount": {
+            "type": "number"
+          },
+          "format": {
+            "type": "string"
+          },
+          "outputColumns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputContract": {
+            "$ref": "#/components/schemas/PredictionOutputContract"
+          },
+          "outputContractImport": {
+            "$ref": "#/components/schemas/PredictionOutputContractImportEvidence"
+          },
+          "outputMappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PredictionOutputMapping"
+            }
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          },
+          "executionEvidence": {
+            "$ref": "#/components/schemas/DataScienceProjectJobExecutionEvidence"
+          },
+          "validationEvidence": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "datasetId": {
+                "type": "string"
+              },
+              "evaluationReportId": {
+                "type": "string"
+              },
+              "executionId": {
+                "type": "string"
+              },
+              "outputContractRef": {
+                "type": "string"
+              },
+              "outputContractImport": {
+                "$ref": "#/components/schemas/PredictionOutputContractImportEvidence"
+              },
+              "outputColumns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "outputContractColumns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "outputMappings": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PredictionOutputMapping"
+                }
+              },
+              "outputSchemaValidated": {
+                "type": "boolean"
+              },
+              "contractRequiredColumnsSatisfied": {
+                "type": "boolean"
+              },
+              "finalEvaluationApproved": {
+                "type": "boolean"
+              },
+              "finalTestOnly": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "MonitoringBaseline": {
+        "type": "object",
+        "properties": {
+          "baselineId": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "metricNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "predictionExportId": {
+            "type": "string"
+          },
+          "evaluationReportId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "DriftReport": {
+        "type": "object",
+        "properties": {
+          "driftReportId": {
+            "type": "string"
+          },
+          "baselineId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_available",
+              "low",
+              "moderate",
+              "high"
+            ]
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "validationEvidence": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "datasetId": {
+                "type": "string"
+              },
+              "predictionExportId": {
+                "type": "string"
+              },
+              "evaluationReportId": {
+                "type": "string"
+              },
+              "outputContractRef": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "generatedAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "TuningTrial": {
+        "type": "object",
+        "required": [
+          "trialId",
+          "parameters",
+          "metrics",
+          "artifactRefs"
+        ],
+        "properties": {
+          "trialId": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "GatewayInteractiveChartSpec": {
+        "type": "object",
+        "required": [
+          "chartId",
+          "title",
+          "renderer",
+          "kind",
+          "status",
+          "data",
+          "layout",
+          "source",
+          "summary"
+        ],
+        "properties": {
+          "chartId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "renderer": {
+            "type": "string",
+            "enum": [
+              "plotly"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "empty",
+              "stale",
+              "error"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "layout": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "source": {
+            "$ref": "#/components/schemas/GatewayInteractiveChartSource"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "emptyReason": {
+            "type": "string"
+          },
+          "staleReason": {
+            "type": "string"
+          },
+          "export": {
+            "$ref": "#/components/schemas/GatewayInteractiveChartExport"
+          }
+        },
+        "additionalProperties": true
+      },
+      "GatewayInteractiveChartSource": {
+        "type": "object",
+        "required": [
+          "label",
+          "localOnly"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "evidenceRef": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "GatewayInteractiveChartExport": {
+        "type": "object",
+        "required": [
+          "fileName"
+        ],
+        "properties": {
+          "fileName": {
+            "type": "string"
+          },
+          "png": {
+            "type": "boolean"
+          },
+          "html": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "InteractiveChartSpec": {
+        "$ref": "#/components/schemas/GatewayInteractiveChartSpec"
+      },
+      "GatewayModelRegistryRecord": {
+        "$ref": "#/components/schemas/ModelRegistryRecord"
+      },
+      "PredictionOutputContractImportEvidence": {
+        "type": "object",
+        "required": [
+          "sourceKind",
+          "connector",
+          "format",
+          "checksumSha256",
+          "sizeBytes",
+          "checksumMode"
+        ],
+        "properties": {
+          "sourceKind": {
+            "type": "string",
+            "enum": [
+              "managed",
+              "file"
+            ]
+          },
+          "sourceRef": {
+            "type": "string",
+            "pattern": "^local://"
+          },
+          "sourceBasename": {
+            "type": "string"
+          },
+          "sourceExtension": {
+            "type": "string"
+          },
+          "sourceBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "connector": {
+            "type": "string",
+            "enum": [
+              "managed_local",
+              "local_file"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "json"
+            ]
+          },
+          "checksumSha256": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "checksumMode": {
+            "type": "string",
+            "enum": [
+              "streaming_file_sha256"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "sourceKind": {
+                "const": "managed"
+              }
+            },
+            "required": [
+              "sourceRef"
+            ]
+          },
+          {
+            "properties": {
+              "sourceKind": {
+                "const": "file"
+              }
+            },
+            "required": [
+              "sourceBasename",
+              "sourceExtension",
+              "sourceBytes"
+            ]
+          }
+        ]
       }
     }
   }

@@ -70,6 +70,20 @@ function sample_data_science_project(project_id::String = "wellbore-geology-proj
     )
 end
 
+function sample_registry_record(model_id::String, status::String)
+    return Dict{String,Any}(
+        "registryId" => "registry-$(model_id)", "modelId" => model_id,
+        "workflowId" => "wf-foundation", "workflowVersion" => "0.1.0",
+        "checkpointTag" => "cp/01-contracts-frozen", "modelKind" => "classification",
+        "target" => "lithology", "status" => status, "tags" => String[], "owner" => "test-owner",
+        "primaryMetricName" => "accuracy", "primaryMetricValue" => 0.5,
+        "datasetId" => "wellbore-train", "datasetChecksumSha256" => repeat("0", 64),
+        "artifactEvidence" => Any[], "registeredAt" => "2026-06-21T00:00:00Z",
+        "updatedAt" => "2026-06-21T00:10:00Z", "deploymentStatus" => "not_deployed", "localOnly" => true,
+        "validationEvidence" => Dict{String,Any}("projectId" => "wellbore-geology-project"),
+    )
+end
+
 function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGatewayRepository.AbstractGatewayRepository; label::AbstractString)
     foundation_toml = read(FOUNDATION_PATH, String)
     parallel_toml = read(PARALLEL_PATH, String)
@@ -195,12 +209,7 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
             ),
         ]
         updated_project.model_registry_records = [
-            Dict{String,Any}(
-                "modelId" => "wellbore-legacy-model",
-                "workflowId" => "wf-foundation",
-                "status" => "legacy",
-                "validationEvidence" => Dict{String,Any}("projectId" => "wellbore-geology-project"),
-            ),
+            sample_registry_record("wellbore-legacy-model", "legacy"),
         ]
         JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_data_science_project!(repo, updated_project)
         persisted_projects = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_data_science_projects(repo)
@@ -214,13 +223,7 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
 
         registry_record = JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
             repo,
-            Dict{String,Any}(
-                "modelId" => "wellbore-model-v1",
-                "workflowId" => "wf-foundation",
-                "status" => "registered",
-                "updatedAt" => "2026-06-21T00:10:00Z",
-                "validationEvidence" => Dict{String,Any}("projectId" => "wellbore-geology-project"),
-            ),
+            sample_registry_record("wellbore-model-v1", "registered"),
         )
         @test registry_record["modelId"] == "wellbore-model-v1"
         registry_records = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-foundation")
@@ -232,13 +235,7 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
         end
         JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
             repo,
-            Dict{String,Any}(
-                "modelId" => "wellbore-model-v1",
-                "workflowId" => "wf-foundation",
-                "status" => "approved",
-                "updatedAt" => "2026-06-21T00:11:00Z",
-                "validationEvidence" => Dict{String,Any}("projectId" => "wellbore-geology-project"),
-            ),
+            merge(sample_registry_record("wellbore-model-v1", "approved"), Dict("updatedAt" => "2026-06-21T00:11:00Z")),
         )
         updated_registry_records = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-foundation")
         @test only(filter(record -> record["modelId"] == "wellbore-model-v1", updated_registry_records))["status"] == "approved"

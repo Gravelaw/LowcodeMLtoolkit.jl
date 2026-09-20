@@ -1,0 +1,2031 @@
+{
+  "base": {
+    "schemaVersion": "1.0",
+    "projectId": "contract-project",
+    "name": "Contract Project",
+    "localOnly": true,
+    "createdAt": "2026-09-20T00:00:00Z",
+    "updatedAt": "2026-09-20T00:00:00Z",
+    "datasets": [],
+    "schemaContracts": [],
+    "splitPlans": [],
+    "splitAssignments": [],
+    "validationFolds": [],
+    "finalTestLocks": [],
+    "projectJobs": [],
+    "transformFitApplyRecords": [],
+    "statisticalAnalysisRuns": [],
+    "trainingPlans": [],
+    "tuningStudies": [],
+    "evaluationReports": [],
+    "predictionExports": [],
+    "modelRegistryRecords": [],
+    "modelLifecycleRecords": [],
+    "monitoringBaselines": [],
+    "driftReports": [],
+    "reproducibilityEvidence": []
+  },
+  "valid": [
+    {
+      "name": "legacy missing evidence",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "legacy empty evidence",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "populated evidence",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "populated structured tuning parameters",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z"
+          }
+        ],
+        "tuningStudies": [
+          {
+            "tuningStudyId": "study-contract",
+            "trainingPlanId": "training-contract",
+            "validationOnly": true,
+            "trials": [
+              {
+                "trialId": "trial-contract",
+                "parameters": {
+                  "algorithm": "MLJ.RidgeRegressor",
+                  "featureColumns": [
+                    "amount",
+                    "tenure"
+                  ],
+                  "hyperparameters": {
+                    "regularizationStrength": 0.1,
+                    "fitIntercept": true
+                  }
+                },
+                "metrics": {
+                  "r2": 0.8
+                },
+                "artifactRefs": []
+              }
+            ],
+            "createdAt": "2026-09-20T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "redacted imported prediction contract evidence",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z"
+          }
+        ],
+        "predictionExports": [
+          {
+            "predictionExportId": "export-contract",
+            "evaluationReportId": "evaluation-contract",
+            "outputContractRef": "contract://outputs/contract",
+            "artifactRef": "local://predictions/export.csv",
+            "rowCount": 2,
+            "outputContractImport": {
+              "sourceKind": "file",
+              "sourceBasename": "submission.json",
+              "sourceExtension": ".json",
+              "sourceBytes": 80,
+              "connector": "local_file",
+              "format": "json",
+              "checksumSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "sizeBytes": 80,
+              "checksumMode": "streaming_file_sha256"
+            },
+            "validationEvidence": {
+              "outputContractImport": {
+                "sourceKind": "file",
+                "sourceBasename": "submission.json",
+                "sourceExtension": ".json",
+                "sourceBytes": 80,
+                "connector": "local_file",
+                "format": "json",
+                "checksumSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "sizeBytes": 80,
+                "checksumMode": "streaming_file_sha256"
+              }
+            },
+            "createdAt": "2026-09-20T00:00:00Z"
+          }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "datasets not an array",
+      "payload": {
+        "datasets": {},
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "datasets scalar child",
+      "payload": {
+        "datasets": [
+          "invalid"
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "schemaContracts not an array",
+      "payload": {
+        "schemaContracts": {},
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "schemaContracts scalar child",
+      "payload": {
+        "schemaContracts": [
+          "invalid"
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "splitPlans not an array",
+      "payload": {
+        "splitPlans": {},
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "splitPlans scalar child",
+      "payload": {
+        "splitPlans": [
+          "invalid"
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "splitAssignments not an array",
+      "payload": {
+        "splitAssignments": {},
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "splitAssignments scalar child",
+      "payload": {
+        "splitAssignments": [
+          "invalid"
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "validationFolds not an array",
+      "payload": {
+        "validationFolds": {},
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "validationFolds scalar child",
+      "payload": {
+        "validationFolds": [
+          "invalid"
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "finalTestLocks not an array",
+      "payload": {
+        "finalTestLocks": {},
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "finalTestLocks scalar child",
+      "payload": {
+        "finalTestLocks": [
+          "invalid"
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "projectJobs not an array",
+      "payload": {
+        "projectJobs": {}
+      }
+    },
+    {
+      "name": "projectJobs scalar child",
+      "payload": {
+        "projectJobs": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "transformFitApplyRecords not an array",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "transformFitApplyRecords": {}
+      }
+    },
+    {
+      "name": "transformFitApplyRecords scalar child",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "transformFitApplyRecords": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "statisticalAnalysisRuns not an array",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "statisticalAnalysisRuns": {}
+      }
+    },
+    {
+      "name": "statisticalAnalysisRuns scalar child",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "statisticalAnalysisRuns": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "trainingPlans not an array",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "trainingPlans": {}
+      }
+    },
+    {
+      "name": "trainingPlans scalar child",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "trainingPlans": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "tuningStudies not an array",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "tuningStudies": {}
+      }
+    },
+    {
+      "name": "tuningStudies scalar child",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "tuningStudies": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "evaluationReports not an array",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "evaluationReports": {}
+      }
+    },
+    {
+      "name": "evaluationReports scalar child",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "evaluationReports": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "predictionExports not an array",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "predictionExports": {}
+      }
+    },
+    {
+      "name": "predictionExports scalar child",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "predictionExports": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "modelRegistryRecords not an array",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "modelRegistryRecords": {}
+      }
+    },
+    {
+      "name": "modelRegistryRecords scalar child",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "modelRegistryRecords": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "modelLifecycleRecords not an array",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "modelLifecycleRecords": {}
+      }
+    },
+    {
+      "name": "modelLifecycleRecords scalar child",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "modelLifecycleRecords": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "monitoringBaselines not an array",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "monitoringBaselines": {}
+      }
+    },
+    {
+      "name": "monitoringBaselines scalar child",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "monitoringBaselines": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "driftReports not an array",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "driftReports": {}
+      }
+    },
+    {
+      "name": "driftReports scalar child",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "driftReports": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "reproducibilityEvidence not an array",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "reproducibilityEvidence": {}
+      }
+    },
+    {
+      "name": "reproducibilityEvidence scalar child",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "reproducibilityEvidence": [
+          "invalid"
+        ]
+      }
+    },
+    {
+      "name": "invalid cpuThreadCount",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": false,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid cpuMemoryLimitBytes",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": -1,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid selectedBackend",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "made_up",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid gpuHardwareDeviceCount",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": -1,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "partial populated resource evidence",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "job project mismatch",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "other-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "splitPlans invalid populated field",
+      "payload": {
+        "splitPlans": [
+          {
+            "strategy": "invented"
+          }
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "splitAssignments invalid populated field",
+      "payload": {
+        "splitAssignments": [
+          {
+            "split": "final",
+            "rowRef": 3
+          }
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "validationFolds invalid populated field",
+      "payload": {
+        "validationFolds": [
+          {
+            "index": "one"
+          }
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "finalTestLocks invalid populated field",
+      "payload": {
+        "finalTestLocks": [
+          {
+            "lockedBy": false
+          }
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "evaluationReports invalid populated field",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "evaluationReports": [
+          {
+            "metrics": {
+              "accuracy": "high"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "tuningStudies invalid populated field",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "tuningStudies": [
+          {
+            "trials": "not-an-array"
+          }
+        ]
+      }
+    },
+    {
+      "name": "statisticalAnalysisRuns invalid populated field",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "statisticalAnalysisRuns": [
+          {
+            "status": "invented"
+          }
+        ]
+      }
+    },
+    {
+      "name": "trainingPlans invalid populated field",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "trainingPlans": [
+          {
+            "metricNames": 42
+          }
+        ]
+      }
+    },
+    {
+      "name": "transformFitApplyRecords invalid populated field",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "transformFitApplyRecords": [
+          {
+            "fitSplit": "test"
+          }
+        ]
+      }
+    },
+    {
+      "name": "predictionExports invalid populated field",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "predictionExports": [
+          {
+            "rowCount": "many"
+          }
+        ]
+      }
+    },
+    {
+      "name": "driftReports invalid populated field",
+      "payload": {
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z",
+            "resourceEvidence": {
+              "executionMode": "contract_fixture",
+              "requestedBackend": "cpu",
+              "selectedBackend": "cpu",
+              "dispatchLane": "cpu",
+              "workerPool": "local-cpu",
+              "schedulerPolicy": "bounded_local",
+              "cpuThreadCount": 1,
+              "cpuWorkerConcurrency": 1,
+              "cpuMemoryLimitBytes": 1048576,
+              "gpuReadinessStatus": "cpu_fallback",
+              "gpuHardwareDeviceCount": 0,
+              "gpuSimulatedDeviceCount": 0,
+              "gpuFallbackReason": "cpu_selected"
+            }
+          }
+        ],
+        "driftReports": [
+          {
+            "metrics": {
+              "score": "high"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "split trainFraction \"0.6\"",
+      "payload": {
+        "splitPlans": [
+          {
+            "splitPlanId": "split-contract",
+            "datasetId": "dataset-contract",
+            "strategy": "random",
+            "locked": true,
+            "createdAt": "2026-09-20T00:00:00Z",
+            "trainFraction": "0.6"
+          }
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "split trainFraction 1.1",
+      "payload": {
+        "splitPlans": [
+          {
+            "splitPlanId": "split-contract",
+            "datasetId": "dataset-contract",
+            "strategy": "random",
+            "locked": true,
+            "createdAt": "2026-09-20T00:00:00Z",
+            "trainFraction": 1.1
+          }
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "split groupColumn 13",
+      "payload": {
+        "splitPlans": [
+          {
+            "splitPlanId": "split-contract",
+            "datasetId": "dataset-contract",
+            "strategy": "random",
+            "locked": true,
+            "createdAt": "2026-09-20T00:00:00Z",
+            "groupColumn": 13
+          }
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "split seed true",
+      "payload": {
+        "splitPlans": [
+          {
+            "splitPlanId": "split-contract",
+            "datasetId": "dataset-contract",
+            "strategy": "random",
+            "locked": true,
+            "createdAt": "2026-09-20T00:00:00Z",
+            "seed": true
+          }
+        ],
+        "projectJobs": [
+          {
+            "jobId": "job-legacy",
+            "projectId": "contract-project",
+            "jobType": "training",
+            "status": "completed",
+            "outputRefs": [],
+            "startedAt": "2026-09-20T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "malformed nested tuning parameter",
+      "payload": {
+        "tuningStudies": [
+          {
+            "tuningStudyId": "study-contract",
+            "trainingPlanId": "training-contract",
+            "validationOnly": true,
+            "trials": [
+              {
+                "trialId": "trial-contract",
+                "parameters": {
+                  "algorithm": "MLJ.RidgeRegressor",
+                  "featureColumns": [
+                    "amount",
+                    "tenure"
+                  ],
+                  "hyperparameters": {
+                    "regularizationStrength": [
+                      0.1
+                    ]
+                  }
+                },
+                "metrics": {
+                  "r2": 0.8
+                },
+                "artifactRefs": []
+              }
+            ],
+            "createdAt": "2026-09-20T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "response import evidence must not contain raw source URI",
+      "payload": {
+        "predictionExports": [
+          {
+            "predictionExportId": "export-contract",
+            "evaluationReportId": "evaluation-contract",
+            "outputContractRef": "contract://outputs/contract",
+            "artifactRef": "local://predictions/export.csv",
+            "rowCount": 2,
+            "outputContractImport": {
+              "sourceKind": "file",
+              "sourceBasename": "submission.json",
+              "sourceExtension": ".json",
+              "sourceBytes": 80,
+              "connector": "local_file",
+              "format": "json",
+              "checksumSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "sizeBytes": 80,
+              "checksumMode": "streaming_file_sha256",
+              "sourceUri": "private-absolute-source-path"
+            },
+            "validationEvidence": {
+              "outputContractImport": {
+                "sourceKind": "file",
+                "sourceBasename": "submission.json",
+                "sourceExtension": ".json",
+                "sourceBytes": 80,
+                "connector": "local_file",
+                "format": "json",
+                "checksumSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "sizeBytes": 80,
+                "checksumMode": "streaming_file_sha256",
+                "sourceUri": "private-absolute-source-path"
+              }
+            },
+            "createdAt": "2026-09-20T00:00:00Z"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -39,6 +39,7 @@ end
 
 function normalized_record_vector(value)
     value isa AbstractVector || error("project child records must be arrays")
+    all(entry -> entry isa AbstractDict, value) || error("project child records must be objects")
     return [Dict{String,Any}(String(key) => item for (key, item) in pairs(entry)) for entry in value]
 end
 
@@ -107,6 +108,7 @@ function materialize_project_record(
     existing::Union{Nothing,JuliaFlowGatewayRepository.DataScienceProjectRecord} = nothing,
     project_id_override::Union{Nothing,AbstractString} = nothing,
 )
+    JuliaFlowGatewayRepository.JuliaFlowProjectPayloadValidation.validate_project_children!(body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     name = haskey(body, "name") ? strip(String(body["name"])) : (existing === nothing ? validate_project_name(body) : existing.name)
     isempty(name) && error("data science project name cannot be empty")

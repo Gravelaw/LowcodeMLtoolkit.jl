@@ -2,17 +2,17 @@
 
 Last reconciled: 2026-09-20.
 
-Approved restart execution: AKS-55 is In Review in draft PR #50 (`ea765a7`); its local verification passes and hosted checks/review remain open. AKS-41 managed confinement passes 87 boundary, 36 existing local-source, 152 tuning, 1,069 gateway and 37 authority assertions plus bootstrap; draft publication and hosted review remain open. Remaining sequence: AKS-41 managed confinement, AKS-56 contracts, AKS-53 evidence, AKS-54 split membership. The isolated design task owns mockups only; no frontend implementation before explicit final design approval. See [remediation evidence](blocker-remediation-2026-09-20.md).
+Approved restart execution: AKS-55 and the managed-path AKS-41 patch are In Review in draft PRs #50 and #51. Both exact heads have passing hosted web/Julia checks; Debian release gates remain running. AKS-56 now validates project children from the shared OpenAPI contract at request and persistence boundaries; focused, full gateway and live-browser verification pass. Publication and review remain open. AKS-53 unavailable evidence and AKS-54 split isolation follow sequentially. The isolated design task owns mockups only; no frontend implementation before explicit final design approval. See [remediation evidence](blocker-remediation-2026-09-20.md).
 
 | Work | Verified delivery state | Next bounded action |
 | --- | --- | --- |
 | AKS-36 DataScienceProject | Linear In Progress; PR #40 draft at audited head `a70ea67`; web/Julia green, Debian release browser failure | Review the setup repair, then obtain same-head platform evidence and resolve acceptance/review/merge gates |
 | AKS-38 | Current five-concern agent review and acceptance matrix prepared against `f9e10f3` | Review documentation PR; resolve AKS-53–56 and existing acceptance gaps; no human approval claimed |
-| AKS-40–AKS-50 | In Progress; criterion matrix separates verified behavior, missing evidence and missing function | Follow the ordered restart backlog in the dated review |
+| AKS-40–AKS-50 | Mixed delivery: AKS-41 managed-path draft is In Review; the criterion matrix retains other function/evidence gaps | Follow the ordered restart backlog in the dated review |
 | AKS-37 / AKS-39 | Corrected to In Review after verifying Done relied on unmerged PR #40 | Complete criterion/review/check/merge gates; preserve historical evidence |
 | AKS-51 repository cleanup | Local implementation verified on an isolated branch based on PR #40 | Review the scoped stacked PR and report hosted results separately |
 | AKS-52 npm advisories | Compatible candidate implemented; clean audit and local verification pass | Review stacked draft PR, read hosted checks; leave #41–#46 open until approved integration |
-| AKS-53–AKS-56 | Todo; source-backed AKS-38 blockers recorded in Linear | Default trust and no-fallback first, then executable split isolation and contract consistency |
+| AKS-53–AKS-56 | AKS-55 In Review; AKS-56 In Progress; AKS-53 source analysis In Progress; AKS-54 Todo | Finish compatible contract validation, reject unavailable evidence, then enforce persisted split isolation |
 
 ## AKS-51 scope and evidence
 

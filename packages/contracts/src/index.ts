@@ -630,9 +630,9 @@ export type DataScienceProjectJobStatus = "queued" | "running" | "completed" | "
 
 export interface DataScienceProjectJobResourceEvidence {
   executionMode: string;
-  requestedBackend: GatewayComputeBackend | string;
-  selectedBackend: GatewayComputeBackend | string;
-  dispatchLane: WorkflowResourceClass | string;
+  requestedBackend: GatewayComputeBackend;
+  selectedBackend: GatewayComputeBackend;
+  dispatchLane: WorkflowResourceClass;
   workerPool: string;
   schedulerPolicy: string;
   cpuThreadCount: number;
@@ -668,7 +668,8 @@ export interface DataScienceProjectJobRecord {
   splitPlanId?: string;
   sourceRecordId?: string;
   outputRefs: DataScienceProjectEvidenceRef[];
-  resourceEvidence?: DataScienceProjectJobResourceEvidence;
+  /** Missing or empty historical v1 evidence means unavailable; execution never backfills it. */
+  resourceEvidence?: DataScienceProjectJobResourceEvidence | Record<string, never>;
   executionEvidence?: DataScienceProjectJobExecutionEvidence;
   startedAt: string;
   finishedAt?: string;
@@ -789,6 +790,18 @@ export interface PredictionOutputContractImport {
   checksumSha256?: string;
 }
 
+/** Response evidence retains managed references or a redacted file identity, never a raw file path. */
+export type PredictionOutputContractImportEvidence = {
+  connector: "managed_local" | "local_file";
+  format: "json";
+  checksumSha256: string;
+  sizeBytes: number;
+  checksumMode: "streaming_file_sha256";
+} & (
+  | { sourceKind: "managed"; sourceRef: string }
+  | { sourceKind: "file"; sourceBasename: string; sourceExtension: string; sourceBytes: number }
+);
+
 export interface PredictionOutputMapping {
   outputColumn: string;
   sourceColumn: string;
@@ -862,7 +875,7 @@ export interface TrainingPlan {
 
 export interface TuningTrial {
   trialId: string;
-  parameters: Record<string, string | number | boolean>;
+  parameters: Record<string, string | number | boolean | string[] | Record<string, string | number | boolean>>;
   metrics: Record<string, number>;
   artifactRefs: DataScienceProjectEvidenceRef[];
 }
@@ -914,7 +927,7 @@ export interface PredictionExport {
   format?: string;
   outputColumns?: string[];
   outputContract?: PredictionOutputContract;
-  outputContractImport?: PredictionOutputContractImport;
+  outputContractImport?: PredictionOutputContractImportEvidence;
   outputMappings?: PredictionOutputMapping[];
   artifactRefs?: DataScienceProjectEvidenceRef[];
   executionEvidence?: DataScienceProjectJobExecutionEvidence;
@@ -924,7 +937,7 @@ export interface PredictionExport {
     evaluationReportId?: string;
     executionId?: string;
     outputContractRef?: string;
-    outputContractImport?: PredictionOutputContractImport;
+    outputContractImport?: PredictionOutputContractImportEvidence;
     outputColumns?: string[];
     outputContractColumns?: string[];
     outputMappings?: PredictionOutputMapping[];

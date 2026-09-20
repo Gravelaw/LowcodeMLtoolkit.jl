@@ -98,6 +98,7 @@ end
         "datasets" => [
             Dict{String,Any}(
                 "datasetId" => "Train Logs",
+                "name" => "Train Logs",
                 "role" => "train",
                 "sourceUri" => "local://raw/wellbore/train.csv",
                 "artifactRef" => "local://processed/wellbore/train.arrow",
@@ -106,8 +107,10 @@ end
         ],
         "schemaContracts" => [
             Dict{String,Any}(
-                "schemaContractId" => "schema-wellbore",
-                "columns" => [Dict{String,Any}("name" => "depth", "logicalType" => "continuous")],
+                "schemaId" => "schema-wellbore",
+                "datasetId" => "Train Logs",
+                "updatedAt" => "2026-06-21T00:00:00Z",
+                "columns" => [Dict{String,Any}("name" => "depth", "inferredType" => "Float64", "logicalType" => "continuous", "role" => "depth", "nullable" => false)],
             ),
         ],
     )
@@ -116,13 +119,13 @@ end
     @test project.name == "Wellbore Geology"
     @test project.description == "Local workstation geology project"
     @test project.datasets[1]["sourceUri"] == "local://raw/wellbore/train.csv"
-    @test project.schema_contracts[1]["schemaContractId"] == "schema-wellbore"
+    @test project.schema_contracts[1]["schemaId"] == "schema-wellbore"
 
     updated = JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
         Dict{String,Any}(
             "name" => "Wellbore Geology Updated",
             "projectId" => "wellbore-geology",
-            "splitPlans" => [Dict{String,Any}("splitPlanId" => "split-depth", "strategy" => "depth")],
+            "splitPlans" => [Dict{String,Any}("splitPlanId" => "split-depth", "datasetId" => "Train Logs", "strategy" => "depth", "locked" => true, "createdAt" => "2026-06-21T00:00:00Z")],
         );
         existing = project,
         project_id_override = project.project_id,
@@ -136,10 +139,10 @@ end
         "Fallback",
     ) == "titanic-baseline"
     @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
-        Dict{String,Any}("name" => "Remote", "datasets" => [Dict{String,Any}("datasetId" => "remote", "sourceUri" => "https://example.com/data.csv")]),
+        Dict{String,Any}("name" => "Remote", "datasets" => [Dict{String,Any}("datasetId" => "remote", "name" => "Remote", "role" => "train", "localOnly" => true, "sourceUri" => "https://example.com/data.csv")]),
     )
     @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
-        Dict{String,Any}("name" => "Traversal", "datasets" => [Dict{String,Any}("datasetId" => "bad", "sourceUri" => "local://raw/../secret.csv")]),
+        Dict{String,Any}("name" => "Traversal", "datasets" => [Dict{String,Any}("datasetId" => "bad", "name" => "Traversal", "role" => "train", "localOnly" => true, "sourceUri" => "local://raw/../secret.csv")]),
     )
     @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
         Dict{String,Any}("name" => "Bad Shape", "datasets" => Dict{String,Any}("datasetId" => "bad")),
@@ -1892,11 +1895,13 @@ end
     ]
     execution_evidence = Dict{String,Any}(
         "executionId" => "dsjob-helper",
+        "workflowId" => "wf-helper",
+        "mode" => "local_project_job",
         "status" => "completed",
     )
     job = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.record_project_job!(
         helper_project,
-        "unit_test_job";
+        "training";
         dataset_id = "dataset-helper",
         split_plan_id = "split-helper",
         source_record_id = "source-helper",
@@ -5634,6 +5639,7 @@ end
             ),
         )
         local_backup_export_payload = JSON3.read(String(local_backup_export_response.body), Dict{String,Any})
+        haskey(local_backup_export_payload, "backup") || error("backup export failed: $(get(local_backup_export_payload, "error", "missing backup payload"))")
         imported_backup_home = mktempdir()
         imported_backup_state = withenv(
             "JULIAFLOW_HOME" => imported_backup_home,
@@ -7802,4 +7808,8 @@ end
 
 @testset "Gateway managed path boundary" begin
     include(joinpath(@__DIR__, "managed_path_boundary_tests.jl"))
+end
+
+@testset "Project payload contract boundary" begin
+    include(joinpath(@__DIR__, "project_payload_contract_tests.jl"))
 end
