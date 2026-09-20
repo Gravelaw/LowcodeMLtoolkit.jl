@@ -2,6 +2,7 @@ module JuliaFlowDataScienceProjectEvaluation
 
 using ..JuliaFlowGatewayRepository
 using ..JuliaFlowDataScienceProjectStatistics
+using ..JuliaFlowDataScienceProjectSplits
 using ..JuliaFlowDataScienceProjectMLJ
 
 export project_training_plan_for_request,
@@ -156,13 +157,13 @@ function final_evaluation_normalized_score(metric::AbstractString, raw_value::Re
     return round(score; digits = 6)
 end
 
-function final_evaluation_trend_predictions(train_values::Vector{Float64}, prediction_count::Integer)
+function final_evaluation_trend_predictions(train_values::Vector{Float64}, prediction_count::Integer; train_rows = collect(1:length(train_values)), prediction_rows = collect(length(train_values)+1:length(train_values)+prediction_count))
     prediction_count <= 0 && return Float64[], "none", 0.0, 0.0
     if length(train_values) <= 1
         baseline = JuliaFlowDataScienceProjectStatistics.sample_mean(train_values)
         return fill(baseline, prediction_count), "mean_baseline", 0.0, baseline
     end
-    x = collect(1.0:length(train_values))
+    x = Float64.(train_rows)
     x_mean = JuliaFlowDataScienceProjectStatistics.sample_mean(x)
     y_mean = JuliaFlowDataScienceProjectStatistics.sample_mean(train_values)
     ssx = sum((value - x_mean)^2 for value in x)
@@ -171,7 +172,7 @@ function final_evaluation_trend_predictions(train_values::Vector{Float64}, predi
     end
     slope = sum((x[index] - x_mean) * (train_values[index] - y_mean) for index in eachindex(train_values)) / ssx
     intercept = y_mean - slope * x_mean
-    predictions = [intercept + slope * Float64(length(train_values) + offset) for offset in 1:prediction_count]
+    predictions = [intercept + slope * Float64(row) for row in prediction_rows]
     return predictions, "row_index_linear_baseline", round(slope; digits = 6), round(intercept; digits = 6)
 end
 
@@ -181,23 +182,25 @@ function final_evaluation_metrics_from_csv(
     target_column::AbstractString,
     metric_names::AbstractVector,
     split_plan::AbstractDict,
-    model_artifact::Union{Nothing,AbstractDict} = nothing,
+    model_artifact::Union{Nothing,AbstractDict} = nothing;
+    membership = nothing,
 )
-    table = JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path)
-    table === nothing && return nothing
-    numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
+    table = JuliaFlowDataScienceProjectSplits.split_table(source_path)
+    rows = membership === nothing ? JuliaFlowDataScienceProjectSplits.split_rows(table, split_plan, target_column) : membership
+    train_rows, test_rows = rows["train"], rows["test"]
+    numeric_columns = JuliaFlowDataScienceProjectSplits.training_numeric_columns(table, train_rows)
     haskey(numeric_columns, String(target_column)) || return nothing
+    JuliaFlowDataScienceProjectSplits.require_numeric_rows(numeric_columns, [String(target_column)], [train_rows; test_rows])
     target_values = numeric_columns[String(target_column)]
-    total = length(target_values)
-    total <= 1 && return nothing
-    test_fraction = Float64(get(split_plan, "testFraction", 0.2))
-    test_count = max(1, min(total - 1, round(Int, total * test_fraction)))
-    train_count = total - test_count
-    train_values = target_values[1:train_count]
-    test_values = target_values[(train_count + 1):total]
+    total, train_count = length(target_values), length(train_rows)
+    train_values, test_values = target_values[train_rows], target_values[test_rows]
+    if model_artifact !== nothing
+        get(model_artifact, "trainingRowIndices", nothing) == train_rows || error("source evidence unavailable; model artifact lacks matching persisted training rows")
+        get(model_artifact, "trainRowCount", 0) == length(train_rows) || error("source evidence unavailable; model training row count mismatch")
+    end
     execution_mode = "local_csv_baseline"
     scoring_evidence = Dict{String,Any}()
-    predictions, baseline_model, baseline_slope, baseline_intercept = final_evaluation_trend_predictions(train_values, length(test_values))
+    predictions, baseline_model, baseline_slope, baseline_intercept = final_evaluation_trend_predictions(train_values, length(test_values); train_rows = train_rows, prediction_rows = test_rows)
     if model_artifact !== nothing && String(get(model_artifact, "nativeModelKind", String(get(model_artifact, "modelKind", "")))) in ("local_csv_single_feature_ols", "local_csv_multi_feature_ols", "local_csv_binary_centroid_classifier")
         artifact_target = String(get(model_artifact, "targetColumn", ""))
         model_kind = String(get(model_artifact, "modelKind", ""))
@@ -209,13 +212,14 @@ function final_evaluation_metrics_from_csv(
         feature_columns = [column for column in feature_columns if !isempty(strip(column))]
         if artifact_target == String(target_column) && !isempty(feature_columns) && all(column -> haskey(numeric_columns, column), feature_columns) &&
                 (haskey(coefficients, "intercept") || native_model_kind == "local_csv_binary_centroid_classifier")
+            JuliaFlowDataScienceProjectSplits.require_numeric_rows(numeric_columns, feature_columns, test_rows)
             if all(column -> length(numeric_columns[column]) >= total, feature_columns)
                 classifier_mode = native_model_kind == "local_csv_binary_centroid_classifier"
                 mlj_evidence = get(model_artifact, "mljEvidence", Dict{String,Any}())
                 mlj_scoring_result = nothing
                 if Bool(get(mlj_evidence, "mljPackageFitExecuted", false))
-                    train_feature_pairs = [column => numeric_columns[column][1:train_count] for column in feature_columns]
-                    test_feature_pairs = [column => numeric_columns[column][(train_count + 1):total] for column in feature_columns]
+                    train_feature_pairs = [column => numeric_columns[column][train_rows] for column in feature_columns]
+                    test_feature_pairs = [column => numeric_columns[column][test_rows] for column in feature_columns]
                     mlj_scoring_result = JuliaFlowDataScienceProjectMLJ.mlj_package_prediction_result(
                         String(get(model_artifact, "requestedAlgorithm", "")),
                         train_feature_pairs,
@@ -261,18 +265,18 @@ function final_evaluation_metrics_from_csv(
                     artifact_predictions = JuliaFlowDataScienceProjectStatistics.binary_centroid_probabilities(
                         centroid_model,
                         feature_pairs,
-                        (train_count + 1):total,
+                        test_rows,
                     )
                 elseif native_model_kind == "local_csv_multi_feature_ols" && haskey(coefficients, "slopes")
                     slopes = get(coefficients, "slopes", Dict{String,Any}())
                     artifact_predictions = [
                         intercept + sum(Float64(get(slopes, column, 0.0)) * numeric_columns[column][row] for column in feature_columns)
-                        for row in (train_count + 1):total
+                        for row in test_rows
                     ]
                 elseif haskey(coefficients, "slope")
                     slope = Float64(coefficients["slope"])
                     feature_column = first(feature_columns)
-                    artifact_predictions = [intercept + slope * numeric_columns[feature_column][row] for row in (train_count + 1):total]
+                    artifact_predictions = [intercept + slope * numeric_columns[feature_column][row] for row in test_rows]
                 end
                 if artifact_predictions !== nothing && mlj_scoring_result === nothing
                     predictions = artifact_predictions
@@ -300,6 +304,7 @@ function final_evaluation_metrics_from_csv(
             end
         end
     end
+    model_artifact !== nothing && execution_mode == "local_csv_baseline" && error("source evidence unavailable; trained model could not score the selected test rows")
     metrics = Dict{String,Any}()
     raw_metrics = Dict{String,Any}()
     metric_semantics = Dict{String,Any}()
@@ -307,7 +312,7 @@ function final_evaluation_metrics_from_csv(
         metric_key = String(metric)
         raw_value = final_evaluation_metric_from_errors(metric_key, test_values, predictions)
         raw_metrics[metric_key] = raw_value
-        metrics[metric_key] = final_evaluation_normalized_score(metric_key, raw_value, target_values)
+        metrics[metric_key] = final_evaluation_normalized_score(metric_key, raw_value, train_values)
         metric_semantics[metric_key] = final_evaluation_lower_is_better_metric(metric_key) ? "lower_is_better_normalized_quality_score" : "higher_is_better_score"
     end
     evidence = Dict{String,Any}(
@@ -317,6 +322,9 @@ function final_evaluation_metrics_from_csv(
         "targetColumn" => String(target_column),
         "rowCount" => total,
         "trainRowCount" => train_count,
+        "trainingRowIndices" => train_rows,
+        "validationRowIndices" => rows["validation"],
+        "testRowIndices" => test_rows,
         "testRowCount" => length(test_values),
         "baselineModel" => baseline_model,
         "baselineSlope" => baseline_slope,

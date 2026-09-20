@@ -1,5 +1,8 @@
 # JuliaFlow BRD Traceability
 
+
+Current AKS-54 remediation links `services/api-gateway/src/JuliaFlowDataScienceProjectSplits.jl`, project transform/tuning/evaluation modules and `tests/julia/split_membership_tests.jl` to concrete persisted split membership, final-test isolation and train-only fit state. `tests/browser/live-backend.spec.ts` exercises grouped selection through the existing Data controls. Verification is underway; this does not close broader AKS-42/45/46/48/49/50 acceptance or final design approval. See [remediation evidence](blocker-remediation-2026-09-20.md).
+
 AKS-53 maps strict-mode unavailable-evidence rejection to `JuliaFlowDataScienceProjectEvidence.jl`, gateway producer/consumer guards, native-classifier evaluation dispatch, `tests/julia/project_evidence_tests.jl` and the live-browser missing-source scenario. Focused evidence boundary (261), gateway (1,069 plus 37 authority), tuning, repository and four browser scenarios pass; hosted candidate checks and review remain open. No historical milestone is promoted to complete.
 
 

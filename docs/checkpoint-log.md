@@ -1,5 +1,12 @@
 # JuliaFlow Checkpoint Log
 
+
+## 2026-09-20 - AKS-54 persisted split membership under verification
+
+Base `142f3eb` / draft PR #53. New checksummed Arrow membership artifacts bind the source and locked plan to concrete train/validation/test rows. Training, tuning, evaluation and built-in numeric standardization reuse those rows; train-only feature eligibility and estimator decisions do not inspect final-test labels. Grouped, time and depth strategies preserve group/order boundaries. Incomplete locks/folds, altered membership, changed source bytes and unsupported strategies reject before successful result jobs. Historical unproven membership is not backfilled. Current work includes real route and existing-UI grouped-selection verification, repository round trips and fixed-membership counterfactual tests. Results will be recorded in the remediation report. Frontend application files remain frozen.
+
+AKS-53 is now In Review in draft PR #53. Hosted web/Julia checks pass for #50-#53. The exact-head Debian #52 release gate failed during local-bootstrap startup; logs/artifacts are retained and AKS-50 has the follow-up. No release claim or merge authorization.
+
 ## 2026-09-20 — AKS-53 real evidence guards locally verified
 
 Base `3308a87` / draft PR #52. Strict release/local-appliance actions reject missing, unsuitable and synthetic result evidence before saving completed jobs or result artifacts. Project changes are staged on copies. Stored fallback approvals cannot enable export, registration, lifecycle approval or deployment. Retraining uses measured local trials; training preflight rejects unavailable sources before execution acceptance and strict metrics contain measured values only. Browser verification exposed and corrected native-classifier dispatch that previously hid behind baseline evaluation and synthetic drift. Final verification passes: gateway 1,069, authority 37, real-evidence boundary 261 (including unreadable-file checks), tuning 152, repository 53 plus one explicit PostgreSQL integration skip, project contract boundary 275, Node contracts 30, frontend tests 27 and build. All four browser scenarios pass in 28.4 seconds. Control-document sync, BRD traceability and diff checks pass. CUDA cache/runtime and world-age warnings are retained; no GPU hardware-success claim. No frontend source edits. AKS-54 membership/fit-state design has started; implementation follows on a separate branch.

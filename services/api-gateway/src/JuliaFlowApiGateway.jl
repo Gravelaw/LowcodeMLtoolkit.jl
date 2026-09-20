@@ -1,6 +1,7 @@
 module JuliaFlowApiGateway
 
 include(joinpath(@__DIR__, "JuliaFlowGatewayRepository.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectSplits.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectCore.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectEvidence.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectRegistry.jl"))
@@ -2890,6 +2891,37 @@ function ml_experiment_artifact_refs(execution::GatewayExecution, evidence::Abst
     ]
 end
 
+function project_numeric_feature_columns(project, dataset_id, numeric_columns, target)
+    candidates = JuliaFlowDataScienceProjectStatistics.candidate_numeric_feature_columns(numeric_columns, target)
+    schemas = [schema for schema in project.schema_contracts if get(schema, "datasetId", "") == dataset_id]
+    isempty(schemas) && return candidates
+    length(schemas) == 1 || error("split membership requires one schema contract per dataset")
+    allowed = Set(String(get(column, "name", "")) for column in get(only(schemas), "columns", Any[]) if get(column, "role", "") == "feature")
+    return [column for column in candidates if column in allowed]
+end
+
+function project_execution_membership!(project::DataScienceProjectRecord, dataset::AbstractDict, split_plan::AbstractDict, target::AbstractString)
+    source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
+    source_path === nothing && return nothing
+    checksum = local_artifact_checksum(source_path)
+    table = JuliaFlowDataScienceProjectSplits.split_table(source_path)
+    local_artifact_checksum(source_path) == checksum || error("source evidence unavailable; dataset changed during membership validation")
+    membership = JuliaFlowDataScienceProjectSplits.prepare_membership!(project, split_plan, table, checksum, target, local_data_ref_path_for_write)
+    membership["table"] = table
+    numeric = JuliaFlowDataScienceProjectSplits.training_numeric_columns(table, membership["rows"]["train"])
+    membership["featureColumns"] = project_numeric_feature_columns(project, String(get(dataset, "datasetId", "")), numeric, target)
+    return membership
+end
+
+function split_membership_evidence(membership)
+    membership === nothing && return Dict{String,Any}()
+    return Dict{String,Any}("sourceChecksumSha256" => membership["sourceChecksumSha256"],
+        "splitPlanChecksumSha256" => membership["splitPlanChecksumSha256"],
+        "membershipChecksumSha256" => membership["membershipChecksumSha256"],
+        "trainingRowIndices" => membership["rows"]["train"], "validationRowIndices" => membership["rows"]["validation"],
+        "testRowIndices" => membership["rows"]["test"])
+end
+
 function local_csv_training_artifact!(
     state::GatewayState,
     validation_context::AbstractDict,
@@ -2899,31 +2931,24 @@ function local_csv_training_artifact!(
 )
     project = project_for_model_lifecycle(state, validation_context, "ml experiment training")
     project === nothing && return nothing
+    project = deepcopy(project)
     dataset_id = String(experiment["datasetId"])
     dataset_index = findfirst(dataset -> String(get(dataset, "datasetId", "")) == dataset_id, project.datasets)
     dataset_index === nothing && return nothing
     dataset = project.datasets[dataset_index]
-    source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
-    source_path === nothing && return nothing
-    table = JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path)
-    table === nothing && return nothing
-    numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
     target_column = String(experiment["target"])
+    split_plan = project_split_plan_for_request(project, validation_context, dataset_id, "ml experiment")
+    membership = project_execution_membership!(project, dataset, split_plan, target_column)
+    membership === nothing && return nothing
+    rows = membership["rows"]
+    numeric_columns = JuliaFlowDataScienceProjectSplits.training_numeric_columns(membership["table"], rows["train"])
     haskey(numeric_columns, target_column) || return nothing
-    feature_columns = JuliaFlowDataScienceProjectStatistics.candidate_numeric_feature_columns(numeric_columns, target_column)
+    feature_columns = membership["featureColumns"]
     isempty(feature_columns) && return nothing
     target_values = numeric_columns[target_column]
-    row_count = length(target_values)
-    for column in feature_columns
-        row_count = min(row_count, length(numeric_columns[column]))
-    end
-    row_count > 1 || return nothing
-    validation_count = max(0, round(Int, row_count * Float64(get(validation_context, "validationFraction", 0.0))))
-    test_count = max(0, round(Int, row_count * Float64(get(validation_context, "testFraction", 0.0))))
-    train_count = max(2, row_count - validation_count - test_count)
-    train_count = min(train_count, row_count)
-    train_target = target_values[1:train_count]
-    feature_pairs = [column => numeric_columns[column][1:train_count] for column in feature_columns]
+    train_count, validation_count, test_count = length(rows["train"]), length(rows["validation"]), length(rows["test"])
+    train_target = target_values[rows["train"]]
+    feature_pairs = [column => numeric_columns[column][rows["train"]] for column in feature_columns]
     requested_algorithm = lowercase(String(get(experiment, "modelKind", "")))
     target_labels = sort(unique(train_target))
     classification_requested = occursin("class", requested_algorithm) || occursin("logistic", requested_algorithm) || occursin("xgboost", requested_algorithm)
@@ -3027,6 +3052,7 @@ function local_csv_training_artifact!(
         "createdAt" => String(timestamp),
         "localOnly" => true,
     )
+    merge!(artifact_payload, split_membership_evidence(membership))
     JuliaFlowDataScienceProjectEvidence.require_result(artifact_payload, juliaflow_runtime_mode(), "ml experiment training")
     persist || return artifact_payload
     artifact_path = local_data_ref_path_for_write(artifact_ref)
@@ -3056,6 +3082,9 @@ function local_csv_training_artifact!(
         training_artifact["mljMachinePredictionMode"] = String(mlj_evidence["mljMachinePredictionMode"])
         training_artifact["mljMachinePositiveLabel"] = String(get(mlj_evidence, "mljMachinePositiveLabel", ""))
     end
+    merge!(training_artifact, split_membership_evidence(membership))
+    JuliaFlowDataScienceProjectSplits.persist_membership!(membership, local_data_ref_path_for_write)
+    state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
     return training_artifact
 end
 
@@ -3354,9 +3383,11 @@ function retraining_tuning_payload!(
     study_id = "retraining-tuning-" * replace(string(uuid4()), "-" => "")
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "retraining")
     dataset = data_science_project_dataset(project, dataset_id)
+    membership = JuliaFlowDataScienceProjectEvidence.read_result(() -> project_execution_membership!(project, dataset, split_plan, target_column), juliaflow_runtime_mode(), "model lifecycle retraining")
+    merge!(validation_context, split_membership_evidence(membership))
     trials = local_csv_validation_tuning_trials(dataset, split_plan, project.project_id, study_id,
         String(tuning_body["algorithm"]), tuning_body["metricNames"], Int(tuning_body["maxTrials"]),
-        timestamp, target_column, String(get(resource_evidence, "selectedBackend", "cpu")))
+        timestamp, target_column, String(get(resource_evidence, "selectedBackend", "cpu")); membership = membership)
     JuliaFlowDataScienceProjectEvidence.require_result(trials, juliaflow_runtime_mode(), "model lifecycle retraining")
     if trials === nothing
         trials = JuliaFlowDataScienceProjectTuning.tuning_trials(project.project_id, study_id, String(tuning_body["algorithm"]), tuning_body["metricNames"], Int(tuning_body["maxTrials"]), timestamp)
@@ -3364,6 +3395,7 @@ function retraining_tuning_payload!(
     else
         validation_context["tuningExecutionMode"] = "local_csv_validation_tuning"
     end
+    membership === nothing || JuliaFlowDataScienceProjectSplits.persist_membership!(membership, local_data_ref_path_for_write)
     annotate_tuning_trial_resource_evidence!(trials, resource_evidence)
     persist_tuning_trial_artifacts!(trials)
     tuning_study = JuliaFlowDataScienceProjectTuning.tuning_study_record(study_id, training_plan_id, trials, validation_context, timestamp)
@@ -5123,7 +5155,7 @@ end
 
 function run_transform_fit_apply_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
-    project = state.data_science_projects[project_id]
+    project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     split_plan = project_split_plan_for_request(project, body, dataset_id, "transform fit/apply")
     Bool(get(split_plan, "locked", false)) || error("transform fit/apply locked split required")
@@ -5131,6 +5163,12 @@ function run_transform_fit_apply_response!(state::GatewayState, project_id::Abst
     fit_split == "train" || error("transform fit/apply fitSplit must be train")
     apply_splits = transform_apply_splits(body, split_plan)
     transform_ref = JuliaFlowDataScienceProjectTransforms.transform_ref_for_request(body, project.project_id)
+    dataset = data_science_project_dataset(project, dataset_id)
+    target_columns = [String(get(column, "name", "")) for schema in project.schema_contracts
+        if get(schema, "datasetId", "") == dataset_id for column in get(schema, "columns", Any[]) if get(column, "role", "") == "target"]
+    target = length(target_columns) == 1 ? only(target_columns) : ""
+    membership = JuliaFlowDataScienceProjectEvidence.read_result(() -> project_execution_membership!(project, dataset, split_plan, target), juliaflow_runtime_mode(), "transform fit/apply")
+    prepared = membership === nothing ? nothing : JuliaFlowDataScienceProjectTransforms.prepare_numeric_fit_apply(project, dataset_id, membership, apply_splits, transform_ref)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     run_id = "transform-fit-apply-" * replace(string(uuid4()), "-" => "")
     artifact_refs = JuliaFlowDataScienceProjectTransforms.transform_fit_apply_artifact_refs(project.project_id, run_id, apply_splits, timestamp)
@@ -5143,6 +5181,13 @@ function run_transform_fit_apply_response!(state::GatewayState, project_id::Abst
         artifact_refs,
         timestamp,
     )
+    if prepared !== nothing
+        JuliaFlowDataScienceProjectSplits.persist_membership!(membership, local_data_ref_path_for_write)
+        JuliaFlowDataScienceProjectTransforms.persist_numeric_fit_apply!(prepared, transform_run["artifactRefs"], transform_ref, local_data_ref_path_for_write)
+        artifact_refs = transform_run["artifactRefs"]
+        transform_run["membershipEvidence"] = split_membership_evidence(membership)
+        transform_run["transformKind"] = "numeric_standardize"
+    end
     project.transform_fit_apply_records = [transform_run, project.transform_fit_apply_records...]
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "transform_fit_apply")
     execution_evidence = data_science_project_execution_evidence!(
@@ -5431,7 +5476,8 @@ function local_csv_validation_tuning_trials(
     max_trials::Integer,
     timestamp::AbstractString,
     target_column::AbstractString,
-    selected_backend::AbstractString = "cpu",
+    selected_backend::AbstractString = "cpu";
+    membership = nothing,
 )
     source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
     source_path === nothing && return nothing
@@ -5446,7 +5492,9 @@ function local_csv_validation_tuning_trials(
         source_path,
         target_column,
         split_plan,
-        selected_backend,
+        selected_backend;
+        membership = membership === nothing ? nothing : membership["rows"],
+        allowed_features = membership === nothing ? nothing : membership["featureColumns"],
     )
 end
 
@@ -5525,6 +5573,8 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
     JuliaFlowDataScienceProjectTuning.upsert_training_plan!(project, training_plan)
     study_id = "tuning-" * replace(string(uuid4()), "-" => "")
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "validation_only_tuning")
+    membership = JuliaFlowDataScienceProjectEvidence.read_result(() -> project_execution_membership!(project, dataset, split_plan, target_column), juliaflow_runtime_mode(), "tuning study")
+    merge!(validation_context, split_membership_evidence(membership))
     trials = JuliaFlowDataScienceProjectEvidence.read_result(() -> local_csv_validation_tuning_trials(
         dataset,
         split_plan,
@@ -5535,7 +5585,8 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
         max_trials,
         timestamp,
         target_column,
-        String(get(resource_evidence, "selectedBackend", "cpu")),
+        String(get(resource_evidence, "selectedBackend", "cpu"));
+        membership = membership,
     ), juliaflow_runtime_mode(), "tuning study")
     if trials === nothing
         trials = JuliaFlowDataScienceProjectTuning.tuning_trials(project.project_id, study_id, algorithm, metric_names, max_trials, timestamp)
@@ -5544,6 +5595,7 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
     else
         validation_context["tuningExecutionMode"] = "local_csv_validation_tuning"
     end
+    membership === nothing || JuliaFlowDataScienceProjectSplits.persist_membership!(membership, local_data_ref_path_for_write)
     annotate_tuning_trial_resource_evidence!(trials, resource_evidence)
     persist_tuning_trial_artifacts!(trials)
     tuning_study = JuliaFlowDataScienceProjectTuning.tuning_study_record(study_id, training_plan_id, trials, validation_context, timestamp)
@@ -5638,7 +5690,8 @@ function local_csv_final_evaluation_result(
     training_plan::AbstractDict,
     metric_names::AbstractVector,
     split_plan::AbstractDict,
-    model_artifact = nothing,
+    model_artifact = nothing;
+    membership = nothing,
 )
     source_uri = String(get(dataset, "sourceUri", ""))
     source_path = resolve_local_data_ref_path(source_uri)
@@ -5651,7 +5704,8 @@ function local_csv_final_evaluation_result(
         target_column,
         metric_names,
         split_plan,
-        model_artifact,
+        model_artifact;
+        membership = membership === nothing ? nothing : membership["rows"],
     )
 end
 
@@ -5669,17 +5723,21 @@ function local_csv_prediction_values_from_report(dataset::AbstractDict, report::
     isempty(feature_columns) && return nothing, nothing
     source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
     source_path === nothing && return nothing, nothing
-    table = JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path)
-    table === nothing && return nothing, nothing
-    numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
+    table = JuliaFlowDataScienceProjectSplits.split_table(source_path)
+    train_rows = Int.(get(evidence, "trainingRowIndices", Int[]))
+    isempty(train_rows) && return nothing, nothing
+    maximum(train_rows) <= length(table["rows"]) && row_count <= length(table["rows"]) || return nothing, nothing
+    numeric_columns = JuliaFlowDataScienceProjectSplits.training_numeric_columns(table, train_rows)
+    JuliaFlowDataScienceProjectSplits.require_numeric_rows(numeric_columns, feature_columns, collect(1:Int(row_count)))
     all(column -> haskey(numeric_columns, column), feature_columns) || return nothing, nothing
     if execution_mode == "mlj_package_backed_final_evaluation"
         target_column = String(get(evidence, "targetColumn", ""))
         if haskey(numeric_columns, target_column)
-            train_count = Int(get(evidence, "trainRowCount", 0))
+            get(validation, "sourceChecksumSha256", "") == local_artifact_checksum(source_path) || error("source evidence unavailable; package refitting requires the frozen training source")
+            train_count = length(train_rows)
             if train_count > 0 && all(length(numeric_columns[column]) >= max(train_count, Int(row_count)) for column in feature_columns) && length(numeric_columns[target_column]) >= train_count
-                train_feature_pairs = [column => numeric_columns[column][1:train_count] for column in feature_columns]
-                train_target = numeric_columns[target_column][1:train_count]
+                train_feature_pairs = [column => numeric_columns[column][train_rows] for column in feature_columns]
+                train_target = numeric_columns[target_column][train_rows]
                 prediction_feature_pairs = [column => numeric_columns[column][1:Int(row_count)] for column in feature_columns]
                 mlj_result = JuliaFlowDataScienceProjectMLJ.mlj_package_prediction_result(
                     String(get(evidence, "requestedAlgorithm", "")),
@@ -5793,9 +5851,15 @@ function run_final_evaluation_response!(state::GatewayState, project_id::Abstrac
     approval_threshold = final_evaluation_approval_threshold(body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     report_id = "eval-" * replace(string(uuid4()), "-" => "")
+    membership = JuliaFlowDataScienceProjectEvidence.read_result(() -> project_execution_membership!(project, dataset, split_plan, String(get(training_plan, "targetColumn", ""))), juliaflow_runtime_mode(), "final evaluation")
+    merge!(validation_context, split_membership_evidence(membership))
     training_model_artifact = local_csv_training_model_artifact(project, dataset_id, split_plan_id, training_plan)
+    if membership !== nothing
+        JuliaFlowDataScienceProjectSplits.require_membership_evidence(get(tuning_study, "validationEvidence", Dict{String,Any}()), membership)
+        training_model_artifact === nothing || JuliaFlowDataScienceProjectSplits.require_membership_evidence(training_model_artifact, membership)
+    end
     evaluation_result = JuliaFlowDataScienceProjectEvidence.read_result(
-        () -> local_csv_final_evaluation_result(dataset, training_plan, metric_names, split_plan, training_model_artifact), juliaflow_runtime_mode(), "final evaluation")
+        () -> local_csv_final_evaluation_result(dataset, training_plan, metric_names, split_plan, training_model_artifact; membership = membership), juliaflow_runtime_mode(), "final evaluation")
     metrics = evaluation_result === nothing ? JuliaFlowDataScienceProjectEvaluation.final_evaluation_metrics(metric_names) : evaluation_result["metrics"]
     approved = all(value -> Float64(value) >= approval_threshold, values(metrics))
     evaluation_report = JuliaFlowDataScienceProjectEvaluation.final_evaluation_report_record(
@@ -5815,6 +5879,7 @@ function run_final_evaluation_response!(state::GatewayState, project_id::Abstrac
         evaluation_report["validationEvidence"]["evaluationExecutionMode"] = evaluation_result["evidence"]["executionMode"]
         evaluation_report["validationEvidence"]["evaluationDataEvidence"] = evaluation_result["evidence"]
     end
+    membership === nothing || JuliaFlowDataScienceProjectSplits.persist_membership!(membership, local_data_ref_path_for_write)
     output_refs = persist_final_evaluation_report_artifact!(evaluation_report)
     project.evaluation_reports = [evaluation_report, project.evaluation_reports...]
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "final_evaluation")
@@ -6235,9 +6300,12 @@ function local_csv_feature_drift_result(dataset::AbstractDict, report::AbstractD
     evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
     source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
     source_path === nothing && return nothing
-    table = JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path)
-    table === nothing && return nothing
-    numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
+    table = JuliaFlowDataScienceProjectSplits.split_table(source_path)
+    train_rows = Int.(get(evidence, "trainingRowIndices", Int[]))
+    test_rows = Int.(get(evidence, "testRowIndices", Int[]))
+    (isempty(train_rows) || isempty(test_rows)) && return nothing
+    maximum([train_rows; test_rows]) <= length(table["rows"]) || return nothing
+    numeric_columns = JuliaFlowDataScienceProjectSplits.training_numeric_columns(table, train_rows)
     isempty(numeric_columns) && return nothing
     target_column = String(get(evidence, "targetColumn", ""))
     feature_columns = [String(column) for column in get(evidence, "featureColumns", Any[]) if haskey(numeric_columns, String(column))]
@@ -6247,16 +6315,15 @@ function local_csv_feature_drift_result(dataset::AbstractDict, report::AbstractD
     feature_columns = [column for column in feature_columns if column != target_column && haskey(numeric_columns, column)]
     isempty(feature_columns) && return nothing
     row_count = minimum(length(numeric_columns[column]) for column in feature_columns)
-    train_count = Int(get(evidence, "trainRowCount", max(1, row_count - Int(get(evidence, "testRowCount", 1)))))
-    train_count = max(1, min(train_count, row_count - 1))
-    current_count = row_count - train_count
+    train_count = length(train_rows)
+    current_count = length(test_rows)
     current_count > 0 || return nothing
     baseline_columns = Dict{String,Vector{Float64}}(
-        column => numeric_columns[column][1:train_count]
+        column => numeric_columns[column][train_rows]
         for column in feature_columns
     )
     current_columns = Dict{String,Vector{Float64}}(
-        column => numeric_columns[column][(train_count + 1):row_count]
+        column => numeric_columns[column][test_rows]
         for column in feature_columns
     )
     feature_drift = JuliaFlowDataScienceProjectMonitoring.drift_metric_values_from_feature_columns(metric_names, baseline_columns, current_columns)
@@ -6269,7 +6336,7 @@ function local_csv_feature_drift_result(dataset::AbstractDict, report::AbstractD
         "sourceKind" => "managed_local_csv",
         "sourceRef" => String(get(dataset, "sourceUri", "")),
         "baselineSplit" => "train",
-        "currentSplit" => "validation_test_tail",
+        "currentSplit" => "test",
         "baselineRowCount" => train_count,
         "currentRowCount" => current_count,
         "splitPlanId" => String(get(report, "splitPlanId", String(get(validation, "splitPlanId", "")))),
@@ -6416,6 +6483,8 @@ function classify_gateway_error(err)
 
     if occursin("source evidence unavailable", message)
         return 409, message
+    elseif occursin("split membership ", message)
+        return 400, message
     elseif occursin("published dashboard not found", message)
         return 404, message
     elseif occursin("data science project not found", message)

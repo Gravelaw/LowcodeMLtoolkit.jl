@@ -1,6 +1,7 @@
 module JuliaFlowDataScienceProjectCore
 
 using ..JuliaFlowGatewayRepository
+using ..JuliaFlowDataScienceProjectSplits
 
 export project_id_from_body,
     materialize_project_record,
@@ -109,6 +110,7 @@ function materialize_project_record(
     project_id_override::Union{Nothing,AbstractString} = nothing,
 )
     JuliaFlowGatewayRepository.JuliaFlowProjectPayloadValidation.validate_project_children!(body)
+    JuliaFlowDataScienceProjectSplits.protect_membership!(existing, body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     name = haskey(body, "name") ? strip(String(body["name"])) : (existing === nothing ? validate_project_name(body) : existing.name)
     isempty(name) && error("data science project name cannot be empty")

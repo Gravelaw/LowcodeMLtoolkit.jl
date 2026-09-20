@@ -2,6 +2,7 @@ module JuliaFlowDataScienceProjectTuning
 
 using ..JuliaFlowGatewayRepository
 using ..JuliaFlowDataScienceProjectStatistics
+using ..JuliaFlowDataScienceProjectSplits
 using ..JuliaFlowDataScienceProjectMLJ
 
 export project_split_plan_for_request,
@@ -411,30 +412,26 @@ function local_csv_validation_tuning_trials(
     source_path::AbstractString,
     target_column::AbstractString,
     split_plan::AbstractDict,
-    selected_backend::AbstractString = "cpu",
+    selected_backend::AbstractString = "cpu";
+    membership = nothing,
+    allowed_features = nothing,
 )
-    table = JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path)
-    table === nothing && return nothing
-    numeric_columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
+    table = JuliaFlowDataScienceProjectSplits.split_table(source_path)
+    rows = membership === nothing ? JuliaFlowDataScienceProjectSplits.split_rows(table, split_plan, target_column) : membership
+    numeric_columns = JuliaFlowDataScienceProjectSplits.training_numeric_columns(table, rows["train"])
     haskey(numeric_columns, String(target_column)) || return nothing
     feature_columns = JuliaFlowDataScienceProjectStatistics.candidate_numeric_feature_columns(numeric_columns, target_column)
+    allowed_features === nothing || (feature_columns = [column for column in feature_columns if column in allowed_features])
     isempty(feature_columns) && return nothing
     target_values = numeric_columns[String(target_column)]
-    row_count = length(target_values)
-    for column in feature_columns
-        row_count = min(row_count, length(numeric_columns[column]))
-    end
-    validation_count = max(1, round(Int, row_count * Float64(get(split_plan, "validationFraction", 0.0))))
-    test_count = max(0, round(Int, row_count * Float64(get(split_plan, "testFraction", 0.0))))
-    train_count = row_count - validation_count - test_count
-    train_count >= 2 || return nothing
-    train_count + validation_count <= row_count || return nothing
-    validation_range = (train_count + 1):(train_count + validation_count)
-    train_target = target_values[1:train_count]
+    train_rows, validation_range = rows["train"], rows["validation"]
+    train_count, validation_count, test_count = length(train_rows), length(validation_range), length(rows["test"])
+    JuliaFlowDataScienceProjectSplits.require_numeric_rows(numeric_columns, [String(target_column), feature_columns...], [train_rows; validation_range])
+    train_target = target_values[train_rows]
     validation_target = target_values[validation_range]
     primary_metric = String(first(metric_names))
     lower_is_better = tuning_lower_is_better(primary_metric)
-    classifier_mode = tuning_classifier_requested(algorithm, target_values[1:row_count])
+    classifier_mode = tuning_classifier_requested(algorithm, train_target)
     gpu_capability = tuning_gpu_trial_capability(selected_backend)
     candidate_specs = tuning_candidate_specs(String.(feature_columns), max_trials; classifier_mode = classifier_mode)
     isempty(candidate_specs) && return nothing
@@ -447,7 +444,7 @@ function local_csv_validation_tuning_trials(
         regularization_strength = Float64(get(hyperparameters, "regularizationStrength", 0.0))
         classification_threshold = Float64(get(hyperparameters, "classificationThreshold", 0.5))
         feature_pairs = [column => numeric_columns[column] for column in candidate]
-        train_pairs = [column => numeric_columns[column][1:train_count] for column in candidate]
+        train_pairs = [column => numeric_columns[column][train_rows] for column in candidate]
         classifier = classifier_mode ? JuliaFlowDataScienceProjectStatistics.simple_binary_centroid_classifier(train_target, train_pairs) : nothing
         ols = classifier === nothing ? (
             length(candidate) == 1 ?
@@ -562,6 +559,9 @@ function local_csv_validation_tuning_trials(
                     "selectionDirection" => lower_is_better ? "lower_is_better" : "higher_is_better",
                     "selectionValue" => selection_value,
                     "trainRowCount" => train_count,
+                    "trainingRowIndices" => train_rows,
+                    "validationRowIndices" => validation_range,
+                    "testRowIndices" => rows["test"],
                     "validationRowCount" => validation_count,
                     "testRowCount" => test_count,
                     "coefficients" => coefficients,

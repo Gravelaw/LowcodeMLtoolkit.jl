@@ -8895,6 +8895,26 @@
           },
           "validationRef": {
             "type": "string"
+          },
+          "sourceChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "splitPlanChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "membershipChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "trainChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "validationChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
           }
         },
         "additionalProperties": true,
@@ -8917,6 +8937,26 @@
           },
           "lockedBy": {
             "type": "string"
+          },
+          "sourceChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "splitPlanChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "membershipChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "testChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "testRef": {
+            "type": "string",
+            "pattern": "^local://splits/"
           }
         },
         "additionalProperties": true,
@@ -8990,6 +9030,16 @@
           },
           "createdAt": {
             "type": "string"
+          },
+          "transformKind": {
+            "type": "string",
+            "enum": [
+              "numeric_standardize"
+            ]
+          },
+          "membershipEvidence": {
+            "type": "object",
+            "additionalProperties": true
           }
         },
         "additionalProperties": true,

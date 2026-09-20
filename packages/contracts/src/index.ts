@@ -602,6 +602,11 @@ export interface ValidationFold {
   index: number;
   trainRef: string;
   validationRef: string;
+  sourceChecksumSha256?: string;
+  splitPlanChecksumSha256?: string;
+  membershipChecksumSha256?: string;
+  trainChecksumSha256?: string;
+  validationChecksumSha256?: string;
 }
 
 export interface FinalTestLock {
@@ -610,6 +615,11 @@ export interface FinalTestLock {
   lockedAt: string;
   reason: string;
   lockedBy: string;
+  sourceChecksumSha256?: string;
+  splitPlanChecksumSha256?: string;
+  membershipChecksumSha256?: string;
+  testRef?: string;
+  testChecksumSha256?: string;
 }
 
 export type DataScienceProjectJobType =
@@ -677,6 +687,8 @@ export interface DataScienceProjectJobRecord {
 }
 
 export interface TransformFitApplyRecord {
+  transformKind?: "numeric_standardize";
+  membershipEvidence?: Record<string, unknown>;
   transformRunId: string;
   datasetId: string;
   splitPlanId: string;

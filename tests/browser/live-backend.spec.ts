@@ -24,6 +24,12 @@ test.describe("live-backend release smoke", () => {
     });
   });
 
+  test.afterEach(async ({ page }) => {
+    // Let in-flight health polling finish before Playwright closes the page.
+    // The harness still rejects every server connection error and credential leak.
+    await page.waitForLoadState("networkidle");
+  });
+
   test("rejects unauthenticated and cross-origin mutations including realtime upgrades", async ({ request }) => {
     const before = await request.get(`${gatewayUrl}/api/v1/data-science-projects`);
     const beforePayload = await before.json();
@@ -163,7 +169,8 @@ test.describe("live-backend release smoke", () => {
             lockId: "final-lock-live-browser-customer-churn",
             splitPlanId,
             lockedAt: new Date().toISOString(),
-            reason: "Live browser smoke protects final test evidence."
+            reason: "Live browser smoke protects final test evidence.",
+            lockedBy: "live-browser"
           }
         ]
       }
@@ -385,5 +392,65 @@ test.describe("live-backend release smoke", () => {
     expect(bundle.ok()).toBeTruthy();
     const bundlePayload = await bundle.json();
     expect(bundlePayload.bundle.bundleChecksumSha256).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  test("persists the grouped split selected in the existing Data UI", async ({ page, request }) => {
+    const projectId = "live-browser-data-project";
+    const datasetId = "customer-churn-local";
+    const splitPlanId = "grouped-ui-proof";
+    const endpoint = `${gatewayUrl}/api/v1/data-science-projects/${projectId}`;
+    const project = await (await request.get(endpoint)).json();
+    const added = await request.put(endpoint, { data: {
+      splitPlans: [{ splitPlanId, datasetId, strategy: "random", trainFraction: 0.6,
+        validationFraction: 0.2, testFraction: 0.2, seed: 42, locked: false, createdAt: new Date().toISOString() }, ...project.splitPlans]
+    } });
+    await expectOk(added, "add unmaterialized split plan");
+    await page.goto("/");
+    await page.getByRole("button", { name: "Data", exact: true }).click();
+    // Wait for real project hydration before operating the existing controls.
+    await expect(page.getByText(/^dsjob-[a-f0-9]+$/).first()).toBeVisible();
+    await expect(page.getByLabel("Validation strategy", { exact: true })).toHaveValue("random");
+    async function updateFromUi(action: () => Promise<unknown>) {
+      const response = page.waitForResponse((item) => item.url() === endpoint && item.request().method() === "PUT");
+      await action();
+      await expectOk(await response, "persist UI split choice");
+    }
+    await updateFromUi(() => page.getByLabel("Validation strategy", { exact: true }).selectOption("grouped"));
+    await expect(page.getByLabel("Validation strategy", { exact: true })).toHaveValue("grouped");
+    await updateFromUi(() => page.getByLabel("Validation group column", { exact: true }).selectOption("contract_type"));
+    await updateFromUi(() => page.getByRole("button", { name: "Lock Final Test Split", exact: true }).click());
+    const lockedButtons = page.getByRole("button", { name: "Final Test Locked", exact: true });
+    await expect(lockedButtons).toHaveCount(2);
+    await expect(lockedButtons.nth(0)).toBeDisabled();
+    await expect(lockedButtons.nth(1)).toBeDisabled();
+    const fitted = await request.post(`${endpoint}/transforms/fit-apply`, { data: {
+      datasetId, splitPlanId, fitSplit: "train", applySplits: ["validation", "test"]
+    } });
+    await expectOk(fitted, "materialize grouped fit/apply");
+    const persisted = await (await request.get(endpoint)).json();
+    const plan = persisted.splitPlans.find((item: { splitPlanId: string }) => item.splitPlanId === splitPlanId);
+    expect(plan).toMatchObject({ strategy: "grouped", groupColumn: "contract_type", locked: true });
+    const assignments = persisted.splitAssignments.filter((item: { splitPlanId: string }) => item.splitPlanId === splitPlanId);
+    expect(assignments).toHaveLength(30);
+    const groupSplits = new Map<string, Set<string>>();
+    for (const assignment of assignments) {
+      const rowIndex = Number(assignment.rowRef.split("#row:")[1]) - 1;
+      const group = rowIndex % 3 === 0 ? "monthly" : rowIndex % 2 === 0 ? "annual" : "two_year";
+      const partitions = groupSplits.get(group) ?? new Set<string>();
+      partitions.add(assignment.split);
+      groupSplits.set(group, partitions);
+    }
+    expect(groupSplits.size).toBe(3);
+    expect([...groupSplits.values()].every((partitions) => partitions.size === 1)).toBe(true);
+    expect(new Set(assignments.map((item: { split: string }) => item.split))).toEqual(new Set(["train", "validation", "test"]));
+    const transform = persisted.transformFitApplyRecords.find((item: { splitPlanId: string }) => item.splitPlanId === splitPlanId);
+    expect(transform.transformKind).toBe("numeric_standardize");
+    expect(transform.artifactRefs).toHaveLength(3);
+    expect(transform.artifactRefs.every((item: { checksumSha256: string }) => /^[a-f0-9]{64}$/.test(item.checksumSha256))).toBe(true);
+    const rejected = await request.put(endpoint, { data: {
+      splitPlans: persisted.splitPlans.map((item: { splitPlanId: string }) => item.splitPlanId === splitPlanId ? { ...item, strategy: "random" } : item)
+    } });
+    expect(rejected.status()).toBe(400);
+    expect(await (await request.get(endpoint)).json()).toEqual(persisted);
   });
 });

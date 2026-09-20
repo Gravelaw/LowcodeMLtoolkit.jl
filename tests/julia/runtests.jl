@@ -915,15 +915,19 @@ end
             source_ref = "local://data/raw/mlj-route-training.csv"
             source_path = joinpath(appliance_root, "raw", "mlj-route-training.csv")
             mkpath(dirname(source_path))
-            write(source_path, "margin,units,amount\n1,1,3\n2,4,7\n3,2,8\n4,5,13\n")
+            write(source_path, "margin,units,amount\n1,1,3\n2,4,7\n3,2,8\n4,5,13\n5,3,14\n6,7,19\n7,8,22\n")
             state = JuliaFlowApiGateway.load_state(mktempdir())
             project = DataScienceProjectRecord(project_id = "mlj-route-project", name = "MLJ Route Project")
             project.datasets = [
                 Dict{String,Any}(
                     "datasetId" => "mlj-route-dataset",
+                    "name" => "MLJ route dataset", "role" => "train", "localOnly" => true,
                     "sourceUri" => source_ref,
                 ),
             ]
+            project.split_plans = [Dict("splitPlanId" => "split-mlj-route", "datasetId" => "mlj-route-dataset",
+                "strategy" => "random", "trainFraction" => 0.6, "validationFraction" => 0.2, "testFraction" => 0.2,
+                "seed" => 42, "locked" => true, "createdAt" => "2026-09-20T00:00:00Z")]
             state.data_science_projects[project.project_id] = project
             training_artifact = JuliaFlowApiGateway.local_csv_training_artifact!(
                 state,
@@ -976,7 +980,9 @@ end
         Dict{String,Any}(
             "splitPlanId" => "split-helper",
             "datasetId" => "dataset-helper",
-            "strategy" => "stratified",
+            "strategy" => "random",
+            "trainFraction" => 0.6,
+            "locked" => true,
             "validationFraction" => 0.2,
             "testFraction" => 0.2,
             "seed" => 99,
@@ -1114,7 +1120,7 @@ end
             Dict{String,Any}("datasetId" => "dataset-classifier", "sourceUri" => "local://data/classification-tuning.csv"),
             classifier_csv_path,
             "survived",
-            Dict{String,Any}("validationFraction" => 0.34, "testFraction" => 0.0),
+            merge(split_plan, Dict("strategy" => "stratified", "trainFraction" => 0.34, "validationFraction" => 0.33, "testFraction" => 0.33)),
         )
         @test classifier_trials !== nothing
         @test classifier_trials[1]["parameters"]["modelFamily"] == "mlj_binary_classification"
@@ -1204,13 +1210,15 @@ end
     @test metrics["mae"] == 0.9
     mktempdir() do temp_dir
         csv_path = joinpath(temp_dir, "evaluation.csv")
-        write(csv_path, "row_id,amount,margin,units\n1,10,2,1\n2,20,4,2\n3,30,9,3\n4,40,11,4\n")
+        write(csv_path, "row_id,amount,margin,units\n1,10,2,1\n2,20,4,2\n3,30,9,3\n4,40,11,4\n5,50,13,5\n")
+        # Independent validation row 5; seed 6 assigns train 1:3 and final test row 4.
+        eval_plan = Dict{String,Any}("strategy" => "random", "locked" => true, "trainFraction" => 0.6, "validationFraction" => 0.2, "testFraction" => 0.2, "seed" => 6)
         csv_result = evaluation.final_evaluation_metrics_from_csv(
             Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
             csv_path,
             "amount",
             ["rmse", "mae"],
-            Dict{String,Any}("testFraction" => 0.25),
+            eval_plan,
         )
         @test csv_result !== nothing
         @test csv_result["metrics"]["rmse"] == 1.0
@@ -1225,7 +1233,7 @@ end
             csv_path,
             "amount",
             ["rmse", "mae"],
-            Dict{String,Any}("testFraction" => 0.25),
+            eval_plan,
             Dict{String,Any}(
                 "modelKind" => "local_csv_single_feature_ols",
                 "artifactRef" => "local://models/model-helper/model.json",
@@ -1233,6 +1241,7 @@ end
                 "targetColumn" => "amount",
                 "featureColumn" => "margin",
                 "trainRowCount" => 3,
+                "trainingRowIndices" => [1, 2, 3],
                 "coefficients" => Dict("intercept" => 6.538462, "slope" => 2.692308),
             ),
         )
@@ -1246,7 +1255,7 @@ end
             csv_path,
             "amount",
             ["rmse", "mae"],
-            Dict{String,Any}("testFraction" => 0.25),
+            eval_plan,
             Dict{String,Any}(
                 "modelKind" => "local_csv_multi_feature_ols",
                 "artifactRef" => "local://models/model-helper/multi-model.json",
@@ -1255,6 +1264,7 @@ end
                 "featureColumn" => "margin",
                 "featureColumns" => ["margin", "units"],
                 "trainRowCount" => 3,
+                "trainingRowIndices" => [1, 2, 3],
                 "coefficients" => Dict("intercept" => 0.0, "slopes" => Dict("margin" => 0.0, "units" => 10.0)),
             ),
         )
@@ -1267,7 +1277,7 @@ end
             csv_path,
             "amount",
             ["rmse", "mae"],
-            Dict{String,Any}("testFraction" => 0.25),
+            eval_plan,
             Dict{String,Any}(
                 "modelKind" => "mlj_compatible_linear_regressor",
                 "nativeModelKind" => "local_csv_multi_feature_ols",
@@ -1279,6 +1289,7 @@ end
                 "featureColumn" => "margin",
                 "featureColumns" => ["margin", "units"],
                 "trainRowCount" => 3,
+                "trainingRowIndices" => [1, 2, 3],
                 "coefficients" => Dict("intercept" => 0.0, "slopes" => Dict("margin" => 0.0, "units" => 10.0)),
                 "mljEvidence" => Dict("mljRequested" => true, "mljExecutionMode" => "mlj_unavailable_local_csv_fallback"),
             ),
@@ -1312,7 +1323,7 @@ end
                 csv_path,
                 "amount",
                 ["rmse", "mae"],
-                Dict{String,Any}("testFraction" => 0.25),
+                eval_plan,
                 Dict{String,Any}(
                     "modelKind" => "mlj_compatible_linear_regressor",
                     "nativeModelKind" => "local_csv_multi_feature_ols",
@@ -1324,6 +1335,7 @@ end
                     "featureColumn" => "margin",
                     "featureColumns" => ["margin", "units"],
                     "trainRowCount" => 3,
+                    "trainingRowIndices" => [1, 2, 3],
                     "coefficients" => Dict("intercept" => 0.0, "slopes" => Dict("margin" => 0.0, "units" => 10.0)),
                     "mljEvidence" => Dict(
                         "mljRequested" => true,
@@ -1360,6 +1372,7 @@ end
             package_report = Dict{String,Any}(
                 "evaluationReportId" => "package-eval-helper",
                 "validationEvidence" => Dict{String,Any}(
+                    "sourceChecksumSha256" => bytes2hex(sha256(read(csv_path))),
                     "evaluationDataEvidence" => package_mlj_model_result["evidence"],
                 ),
             )
@@ -1397,13 +1410,13 @@ end
             @test drift_result["evidence"]["predictionScoringMode"] == "mlj_package_backed_prediction_export"
         end
         classifier_csv_path = joinpath(temp_dir, "classification.csv")
-        write(classifier_csv_path, "row_id,survived,age,fare\n1,0,20,8\n2,0,25,9\n3,1,60,80\n4,1,65,90\n")
+        write(classifier_csv_path, "row_id,survived,age,fare\n1,0,20,8\n2,0,25,9\n3,1,60,80\n4,1,65,90\n5,0,35,11\n")
         classifier_result = evaluation.final_evaluation_metrics_from_csv(
             Dict{String,Any}("datasetId" => "classification-helper", "sourceUri" => "local://data/classification.csv"),
             classifier_csv_path,
             "survived",
             ["accuracy", "f1"],
-            Dict{String,Any}("testFraction" => 0.25),
+            eval_plan,
             Dict{String,Any}(
                 "modelKind" => "local_csv_binary_centroid_classifier",
                 "artifactRef" => "local://models/model-helper/classifier.json",
@@ -1411,6 +1424,7 @@ end
                 "targetColumn" => "survived",
                 "featureColumns" => ["age", "fare"],
                 "trainRowCount" => 3,
+                "trainingRowIndices" => [1, 2, 3],
                 "coefficients" => Dict(
                     "positiveLabel" => 1.0,
                     "negativeLabel" => 0.0,
@@ -4041,14 +4055,17 @@ end
                                 "columns" => [
                                     Dict("name" => "amount", "inferredType" => "Float64", "logicalType" => "continuous", "role" => "target", "nullable" => false),
                                     Dict("name" => "region", "inferredType" => "String", "logicalType" => "categorical", "role" => "group", "nullable" => false),
+                                    Dict("name" => "margin", "inferredType" => "Float64", "logicalType" => "continuous", "role" => "feature", "nullable" => false),
                                 ],
                             ),
                         ],
                         "splitPlans" => [
                             Dict(
-                                "splitPlanId" => "split-foundation-stratified",
+                                "splitPlanId" => "split-foundation-random",
                                 "datasetId" => "foundation-sales-sample",
-                                "strategy" => "stratified",
+                                "strategy" => "random",
+                                # Train rows 1/4, validation row 2, final-test row 3.
+                                "seed" => 3,
                                 "trainFraction" => 0.7,
                                 "validationFraction" => 0.15,
                                 "testFraction" => 0.15,
@@ -4089,8 +4106,8 @@ end
                 JSON3.write(
                     Dict(
                         "datasetId" => "foundation-sales-sample",
-                        "splitPlanId" => "split-foundation-stratified",
-                        "transformRef" => "local://transforms/foundation/fit-apply.jl",
+                        "splitPlanId" => "split-foundation-random",
+                        "transformRef" => "local://transforms/foundation-ml-project/default-fit-apply.jl",
                         "fitSplit" => "train",
                         "applySplits" => ["validation", "test"],
                     ),
@@ -4106,7 +4123,7 @@ end
                 JSON3.write(
                     Dict(
                         "datasetId" => "foundation-sales-sample",
-                        "splitPlanId" => "split-foundation-stratified",
+                        "splitPlanId" => "split-foundation-random",
                         "fitSplit" => "validation",
                         "applySplits" => ["test"],
                     ),
@@ -4122,7 +4139,7 @@ end
                 JSON3.write(
                     Dict(
                         "datasetId" => "foundation-sales-sample",
-                        "splitPlanId" => "split-foundation-stratified",
+                        "splitPlanId" => "split-foundation-random",
                         "applySplits" => ["train", "validation"],
                     ),
                 ),
@@ -4182,7 +4199,7 @@ end
                         "executionMode" => "cpu_only",
                         "projectId" => "foundation-ml-project",
                         "datasetId" => "foundation-sales-sample",
-                        "splitPlanId" => "split-foundation-stratified",
+                        "splitPlanId" => "split-foundation-random",
                         "finalTestPolicy" => "forbid_final_test",
                         "target" => "amount",
                         "algorithm" => "deterministic_linear_baseline",
@@ -4199,7 +4216,7 @@ end
                 JSON3.write(
                     Dict(
                         "datasetId" => "foundation-sales-sample",
-                        "splitPlanId" => "split-foundation-stratified",
+                        "splitPlanId" => "split-foundation-random",
                         "trainingPlanId" => "training-foundation-eval",
                         "targetColumn" => "amount",
                         "taskType" => "regression",
@@ -4220,7 +4237,7 @@ end
                 JSON3.write(
                     Dict(
                         "datasetId" => "foundation-sales-sample",
-                        "splitPlanId" => "split-foundation-stratified",
+                        "splitPlanId" => "split-foundation-random",
                         "trainingPlanId" => "training-foundation-eval",
                         "metricNames" => ["rmse", "mae"],
                         "approvalThreshold" => 0.4,
@@ -4238,7 +4255,7 @@ end
                 JSON3.write(
                     Dict(
                         "datasetId" => "foundation-sales-sample",
-                        "splitPlanId" => "split-foundation-stratified",
+                        "splitPlanId" => "split-foundation-random",
                         "trainingPlanId" => "training-foundation-eval",
                         "finalTestPolicy" => "forbid_final_test",
                     ),
@@ -4254,7 +4271,7 @@ end
                 JSON3.write(
                     Dict(
                         "datasetId" => "foundation-sales-sample",
-                        "splitPlanId" => "split-foundation-stratified",
+                        "splitPlanId" => "split-foundation-random",
                         "targetColumn" => "amount",
                         "finalTestPolicy" => "use_final_test",
                     ),
@@ -4270,7 +4287,7 @@ end
                 JSON3.write(
                     Dict(
                         "datasetId" => "foundation-sales-sample",
-                        "splitPlanId" => "split-foundation-stratified",
+                        "splitPlanId" => "split-foundation-random",
                         "trainingPlanId" => "missing-training-plan",
                         "finalTestPolicy" => "use_final_test",
                     ),
@@ -4523,7 +4540,7 @@ end
                         "executionMode" => "cpu_only",
                         "projectId" => "foundation-ml-project",
                         "datasetId" => "foundation-sales-sample",
-                        "splitPlanId" => "split-foundation-stratified",
+                        "splitPlanId" => "split-foundation-random",
                         "finalTestPolicy" => "use_final_test",
                         "target" => "amount",
                     ),
@@ -6281,6 +6298,9 @@ end
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["baselineModel"] == "trained_single_feature_ols"
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["modelKind"] == "local_csv_single_feature_ols"
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["featureColumn"] == "margin"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["trainingRowIndices"] == [1, 4]
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["validationRowIndices"] == [2]
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["testRowIndices"] == [3]
         @test startswith(String(final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["modelArtifactRef"]), "local://models/foundation-ml-project/foundation-linear-baseline/model.json")
         @test haskey(final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"], "modelArtifactChecksumSha256")
         @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["metricSemantics"]["rmse"] == "lower_is_better_normalized_quality_score"
@@ -6334,8 +6354,9 @@ end
         @test isfile(prediction_artifact_path)
         prediction_artifact_content = read(prediction_artifact_path, String)
         @test startswith(prediction_artifact_content, "prediction_id,dataset_id,evaluation_report_id,output_contract_ref,prediction")
-        @test occursin(",10.0\n", prediction_artifact_content)
-        @test occursin(",55.0\n", prediction_artifact_content)
+        # Persisted OLS intercept/slope are rounded to six decimals: 3.333333 each.
+        @test occursin(",9.999999\n", prediction_artifact_content)
+        @test occursin(",39.999996\n", prediction_artifact_content)
         @test occursin("contract://outputs/foundation-predictions", prediction_artifact_content)
         @test occursin(String(prediction_export_payload["predictionExport"]["evaluationReportId"]), prediction_artifact_content)
         prediction_export_execution_id = String(prediction_export_payload["predictionExport"]["executionEvidence"]["executionId"])
@@ -6503,7 +6524,7 @@ end
         @test ml_experiment_payload["experiment"]["modelId"] == "foundation-linear-baseline"
         @test ml_experiment_payload["experiment"]["target"] == "amount"
         @test ml_experiment_payload["experiment"]["validationEvidence"]["projectId"] == "foundation-ml-project"
-        @test ml_experiment_payload["experiment"]["validationEvidence"]["splitPlanId"] == "split-foundation-stratified"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["splitPlanId"] == "split-foundation-random"
         @test ml_experiment_payload["experiment"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
         @test ml_experiment_payload["experiment"]["validationEvidence"]["trainingExecutionId"] == ml_experiment_payload["experiment"]["executionEvidence"]["executionId"]
         @test ml_experiment_payload["experiment"]["validationEvidence"]["trainingExecutionMode"] == "local_csv_single_feature_ols"
@@ -6539,7 +6560,7 @@ end
         ml_experiment_project_payload = JSON3.read(String(ml_experiment_project_response.body), Dict{String,Any})
         training_job = first(filter(job -> job["jobType"] == "training", ml_experiment_project_payload["projectJobs"]))
         @test training_job["datasetId"] == "foundation-sales-sample"
-        @test training_job["splitPlanId"] == "split-foundation-stratified"
+        @test training_job["splitPlanId"] == "split-foundation-random"
         @test training_job["sourceRecordId"] == ml_experiment_payload["experiment"]["experimentId"]
         @test any(ref -> String(get(ref, "kind", "")) == "training_trained_model", training_job["outputRefs"])
         @test training_job["resourceEvidence"]["executionMode"] == "training"
@@ -6737,7 +6758,7 @@ end
             retraining_payload["project"]["trainingPlans"],
         ))
         @test retraining_training_plan["targetColumn"] == "amount"
-        @test retraining_training_plan["splitPlanId"] == "split-foundation-stratified"
+        @test retraining_training_plan["splitPlanId"] == "split-foundation-random"
         @test retraining_training_plan["sourceModelId"] == "foundation-linear-baseline"
         retraining_tuning_study = first(filter(
             study -> String(get(study, "tuningStudyId", "")) == retraining_payload["lifecycleRecord"]["retrainingTuningStudyId"],
@@ -6752,7 +6773,7 @@ end
         retraining_job = first(filter(job -> job["jobType"] == "retraining", retraining_payload["project"]["projectJobs"]))
         @test retraining_job["jobId"] == retraining_payload["lifecycleRecord"]["retrainingJobId"]
         @test retraining_job["datasetId"] == "foundation-sales-sample"
-        @test retraining_job["splitPlanId"] == "split-foundation-stratified"
+        @test retraining_job["splitPlanId"] == "split-foundation-random"
         @test retraining_job["sourceRecordId"] == "foundation-linear-baseline"
         @test retraining_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
         @test retraining_job["executionEvidence"]["dispatchStatus"] == "completed"
@@ -7816,4 +7837,8 @@ end
 
 @testset "Project real evidence boundary" begin
     include(joinpath(@__DIR__, "project_evidence_tests.jl"))
+end
+
+@testset "Project split membership boundary" begin
+    include(joinpath(@__DIR__, "split_membership_tests.jl"))
 end
