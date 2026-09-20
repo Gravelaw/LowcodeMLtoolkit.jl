@@ -61,7 +61,8 @@ Dependency checks at `f9e10f3` are in the [AKS-52 report](dependency-remediation
 - `npm run julia:instantiate`: passed with explicit Julia 1.12.6 binary; no tracked Julia dependency changes.
 - `npm run julia:test:local-sources`: 36 passed; actual symlink test ran on this host.
 - `npm run julia:test:tuning`: 152 passed. CUDA initialization reports runtime 13.4 versus precompiled 13.2 mismatch; no GPU hardware success is claimed. CPU tests remain valid for their asserted scenarios.
-- Repository and API gateway slices: final results recorded in the checkpoint; PostgreSQL integration requires `JULIAFLOW_TEST_POSTGRES_URL` and is not supplied by this task.
+- `npm run julia:test:repository`: 53 passed, one explicit skip for PostgreSQL integration because `JULIAFLOW_TEST_POSTGRES_URL` is not supplied. File-backed CRUD evidence is current; live PostgreSQL is unverified.
+- `npm run julia:test:api-gateway`: 1,069 passed, zero skips, 420.29 seconds including load. These tests preserve positive/failure/rejection coverage; they do not assert every invariant identified by this review.
 - `npm run smoke:live-backend-browser`: passed one real-backend Chromium scenario, 25.8 seconds; frontend `127.0.0.1:33401`, gateway `127.0.0.1:33400`; summary timestamp 2026-09-20T10:47:43.801Z. Covers prepared managed CSV and existing workflow, not arbitrary user onboarding or all failure branches.
 - Initial Juliaup launch selected 1.13.0 because the wrapper creates a worktree-local release channel. That unpinned probe was terminated; its output is not acceptance evidence. Subsequent commands use the explicit installed 1.12.6 binary. No shared runtime/plugin bytes were edited.
 - Full Windows/Debian release closeout, Docker/runtime matrix, PostgreSQL service integration, full backup migration, GPU hardware and independent human/security approval are not claimed.
