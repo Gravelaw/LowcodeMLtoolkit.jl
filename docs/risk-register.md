@@ -6,7 +6,8 @@ Last reconciled: 2026-09-20, AKS-51. Linear owns acceptance, assignees, and stat
 
 | Risk | Issue / decision | Current mitigation and remaining gate |
 | --- | --- | --- |
-| R-DEPENDENCY-001 | AKS-52 | Clean installation reports eight npm audit package entries (four high, four moderate). Reconcile existing dependency PRs before remediation; advisory severity alone is not proof of an application exploit. |
+| R-DEPENDENCY-001 | AKS-52 | Targeted candidate clean install/audit reports zero findings, versus eight baseline package entries / ten GitHub default-branch alerts. Review/merge and hosted evidence remain open; see dependency remediation report. |
+| R-RESTART-001 | AKS-53 / AKS-54 | Current source retains synthetic project-analysis fallback and fraction-only tuning row selection. Resolve or explicitly accept these architecture blockers before deeper feature work; successful positive-path checks do not close them. |
 | R-CI-RELEASE-001 | AKS-36 / AKS-50 | At audited head `a70ea67`, Debian release failed at browser launch after web/Julia passed. AKS-51 installs locked dependencies before browser binaries in both workflows; exact-head hosted and Windows no-skip proof remains required. |
 | R-DOC-001 / R-DOC-002 | AKS-51 | Long repeated histories and a working-tree-only validator obscured committed gaps. Current summaries link hash-verified snapshots; baseline-aware tests enforce committed changes. Review/merge and hosted readback remain open. |
 | R-AGENT-001 | AKS-51 | Dated staging pointers and five absent skills are replaced by installed-skill discovery. Preserve the signed nine-skill runtime and external trust policy; signature integrity is not task authorization. |

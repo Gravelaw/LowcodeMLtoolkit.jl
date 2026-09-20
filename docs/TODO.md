@@ -6,7 +6,8 @@ Linear owns acceptance and delivery status. Checked items below preserve histori
 
 ## Active acceptance gaps
 
-- [ ] **AKS-52 dependency advisory triage:** reconcile the eight npm audit package findings with open dependency PRs #41–#46, validate compatible fixes separately, and record residual risk. No automatic dependency upgrade is included in AKS-51.
+- [ ] **AKS-52 dependency remediation:** compatible targets from PRs #41–#46 and aligned Vitest/coverage pass clean audit and local gates; review/merge and exact-head hosted readback remain open. See [evidence](dependency-remediation-2026-09-20.md).
+- [ ] **AKS-53 / AKS-54 review blockers:** reject synthetic analysis success in release/local-appliance mode; enforce declared split membership and final-test isolation before deeper feature development. Product repairs are separate follow-ups.
 
 - [ ] **AKS-51 housekeeping:** review/merge the cleanup and control-validator changes; report hosted checks and local retention exceptions. Preserve user edits, tooling evidence, runtime environments, and unmerged work.
 - [ ] **AKS-36 / AKS-50 RC closeout:** obtain clean no-skip Windows and hosted Debian release summaries bound to the same candidate head, resolve required reviews under AKS-38, and reconcile child criteria, blockers, merge, and evidence before Done. The last observed PR #40 head was `a70ea67`; web/Julia passed and the Debian browser phase failed. No new readiness claim.

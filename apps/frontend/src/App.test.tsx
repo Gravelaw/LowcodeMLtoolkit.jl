@@ -41,6 +41,73 @@ const backendWorkflow = {
 };
 
 describe("sample workflow helpers", () => {
+  it("preserves Published dashboard bindings supplied with backend workflow metadata", () => {
+    const metadata = { ...backendWorkflow, dashboards: [publishedDashboard] };
+    const workflow = buildWorkflowFromGateway(workflowSummary, metadata);
+    expect(workflow.dashboards).toHaveLength(1);
+    expect(workflow.dashboards?.[0].dashboardId).toBe(publishedDashboard.dashboardId);
+    expect(workflow.dashboards?.[0].binding).toEqual(publishedDashboard.binding);
+    expect(workflow.dashboards?.[0].charts).toEqual(publishedDashboard.charts);
+  });
+
+  it("retains control-flow recovery evidence when mapping executions to the rail", () => {
+    const recovery = { controlId: "try-import", failedNodeId: "import", catchNodeIds: ["report"], status: "recovered" as const, bounded: true };
+    const plan = [{ controlId: "try-import", kind: "try_catch" as const, tryNodeIds: ["import"], catchNodeIds: ["report"], bounded: true }];
+    const item = buildExecutionRailItems([{ ...executionRecords[0], controlFlowPlan: plan, controlFlowRecovery: recovery }])[0];
+    expect(item.controlFlowPlan).toEqual(plan);
+    expect(item.controlFlowRecovery).toEqual(recovery);
+    expect(item.controlFlowRecovery?.failedNodeId).toBe("import");
+  });
+
+  it("preserves backend graph and runtime metadata rather than generating replacement nodes", () => {
+    const workflow = buildWorkflowFromGateway(workflowSummary, backendWorkflow);
+    expect(workflow.nodes).toEqual(backendWorkflow.nodes);
+    expect(workflow.connections).toEqual(backendWorkflow.connections);
+    expect(workflow.graph).toEqual(backendWorkflow.graph);
+    expect(workflow.runtime).toEqual(backendWorkflow.runtime);
+    const layouts = buildCanvasNodeLayouts(workflow);
+    expect(layouts[workflow.nodes[0].id].x).toBe(36);
+    expect(layouts[workflow.nodes[0].id].width).toBe(176);
+  });
+
+  it("shows execution failures, queue states, and stream state with backend reasons", () => {
+    const base = executionRecords[0];
+    const records = ["accepted", "queued", "running", "completed", "failed"].map((status) => ({
+      ...base,
+      status: status as typeof base.status,
+      streamLifecycleStatus: undefined,
+      dispatchLane: undefined,
+      startedAt: undefined,
+      finishedAt: undefined,
+      updatedAt: base.createdAt,
+      statusHistory: []
+    }));
+    const items = buildExecutionRailItems(records);
+    expect(items.map((item) => item.status)).toEqual(["configured", "configured", "running", "executed", "error"]);
+    expect(items[4].trigger).toBe("Gateway execution failed");
+    expect(items[0].duration).toBe("in-flight");
+    const stream = buildExecutionRailItems([{ ...records[2], streamLifecycleStatus: "active" }])[0];
+    expect(stream.status).toBe("streaming_active");
+    expect(stream.trigger).toBe("Stream lifecycle active");
+    const dispatched = buildExecutionRailItems([{ ...records[1], dispatchLane: "cpu", dispatchWorkerPool: undefined }])[0];
+    expect(dispatched.trigger).toBe("Dispatched to cpu lane");
+    expect(dispatched.planner).toContain("cpu/default");
+    const reason = buildExecutionRailItems([{ ...base, status: "failed", streamLifecycleStatus: undefined,
+      statusHistory: [{ status: "failed", at: base.updatedAt, message: "Input artifact missing" }] }])[0];
+    expect(reason.trigger).toBe("Input artifact missing");
+  });
+
+  it("keeps checkpoint tags and supplies distinct tags only for unnamed checkpoints", () => {
+    const records = ["cp/saved", "", ""].map((tag) => ({
+      tag, summary: "Saved execution evidence", createdAt: "2026-09-20T00:00:00Z",
+      workflowId: "workflow-checkpoints", executionId: "execution-checkpoints"
+    }));
+    const items = buildCheckpointRailItems(records);
+    expect(items.map((item) => item.tag)).toEqual(["cp/saved", "cp/live-02", "cp/live-03"]);
+    expect(items.map((item) => item.state)).toEqual(["ready", "validating", "blocked"]);
+    expect(items[0].scope).toBe("Saved execution evidence");
+  });
+
   it("maps workflow metadata and helper outputs", () => {
     const workflow = buildWorkflowFromGateway({
       workflowId: "wf-helper",

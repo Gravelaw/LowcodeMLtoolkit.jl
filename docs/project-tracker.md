@@ -7,7 +7,8 @@ Last reconciled: 2026-09-20.
 | AKS-36 DataScienceProject | Linear In Progress; PR #40 draft at audited head `a70ea67`; web/Julia green, Debian release browser failure | Review the setup repair, then obtain same-head platform evidence and resolve acceptance/review/merge gates |
 | AKS-38, AKS-40–AKS-50 | In Progress in the 2026-09-20 Linear readback | Reconcile each criterion and domain/browser review without treating historical slices as current readiness |
 | AKS-51 repository cleanup | Local implementation verified on an isolated branch based on PR #40 | Review the scoped stacked PR and report hosted results separately |
-| AKS-52 npm advisories | Todo; eight affected package entries reported by npm audit | Triage against existing dependency PRs #41–#46 in a separate reviewed change |
+| AKS-52 npm advisories | Compatible candidate implemented; clean audit and local verification pass | Review stacked draft PR, read hosted checks; leave #41–#46 open until approved integration |
+| AKS-53 / AKS-54 | Todo; source-backed AKS-38 blockers recorded in Linear | Separate product repairs for synthetic fallback and split/final-test isolation |
 
 ## AKS-51 scope and evidence
 

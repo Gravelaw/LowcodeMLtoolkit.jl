@@ -1,6 +1,8 @@
 # JuliaFlow Current Development Plan
 
-Last reconciled: 2026-09-20, AKS-51.
+Last reconciled: 2026-09-20, AKS-52 preparation.
+
+Dependency preparation now stacks on AKS-51: [AKS-52 evidence](docs/dependency-remediation-2026-09-20.md) records compatible advisory fixes, a clean audit, and verification repairs. Review/merge remains required. Current-code AKS-38 review has identified AKS-53 (synthetic analysis fallback) and AKS-54 (split membership/final-test isolation) as product follow-ups before deeper feature development; no product repair or release claim is included here.
 
 ## Current phase and evidence
 
