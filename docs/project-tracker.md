@@ -5,10 +5,12 @@ Last reconciled: 2026-09-20.
 | Work | Verified delivery state | Next bounded action |
 | --- | --- | --- |
 | AKS-36 DataScienceProject | Linear In Progress; PR #40 draft at audited head `a70ea67`; web/Julia green, Debian release browser failure | Review the setup repair, then obtain same-head platform evidence and resolve acceptance/review/merge gates |
-| AKS-38, AKS-40–AKS-50 | In Progress in the 2026-09-20 Linear readback | Reconcile each criterion and domain/browser review without treating historical slices as current readiness |
+| AKS-38 | Current five-concern agent review and acceptance matrix prepared against `f9e10f3` | Review documentation PR; resolve AKS-53–56 and existing acceptance gaps; no human approval claimed |
+| AKS-40–AKS-50 | In Progress; criterion matrix separates verified behavior, missing evidence and missing function | Follow the ordered restart backlog in the dated review |
+| AKS-37 / AKS-39 | Corrected to In Review after verifying Done relied on unmerged PR #40 | Complete criterion/review/check/merge gates; preserve historical evidence |
 | AKS-51 repository cleanup | Local implementation verified on an isolated branch based on PR #40 | Review the scoped stacked PR and report hosted results separately |
 | AKS-52 npm advisories | Compatible candidate implemented; clean audit and local verification pass | Review stacked draft PR, read hosted checks; leave #41–#46 open until approved integration |
-| AKS-53 / AKS-54 | Todo; source-backed AKS-38 blockers recorded in Linear | Separate product repairs for synthetic fallback and split/final-test isolation |
+| AKS-53–AKS-56 | Todo; source-backed AKS-38 blockers recorded in Linear | Default trust and no-fallback first, then executable split isolation and contract consistency |
 
 ## AKS-51 scope and evidence
 

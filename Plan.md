@@ -1,8 +1,10 @@
 # JuliaFlow Current Development Plan
 
-Last reconciled: 2026-09-20, AKS-52 preparation.
+Last reconciled: 2026-09-20, AKS-38 restart review.
 
 Dependency preparation now stacks on AKS-51: [AKS-52 evidence](docs/dependency-remediation-2026-09-20.md) records compatible advisory fixes, a clean audit, and verification repairs. Review/merge remains required. Current-code AKS-38 review has identified AKS-53 (synthetic analysis fallback) and AKS-54 (split membership/final-test isolation) as product follow-ups before deeper feature development; no product repair or release claim is included here.
+
+The [current-code review and acceptance matrix](docs/restart-review-2026-09-20.md) supersedes June 21 current-state conclusions and adds AKS-55 (default local browser authority) and AKS-56 (job contract consistency). Decision: restart bounded remediation; keep deeper persona development and readiness claims gated by these findings and remaining AKS-41/45/46/48/49/50 evidence. Review is agent-authored, not human approval.
 
 ## Current phase and evidence
 
@@ -19,13 +21,13 @@ Implemented boundaries include the project contracts, repository/routes, validat
 3. **Child-ticket reconciliation:** verify AKS-40 through AKS-49 criteria against code, negative-path tests, domain review, and browser/persona evidence. Linear currently lists these as In Progress; cleanup must not promote them to Done.
 4. **Subsequent feature depth:** richer preprocessing/tuning/model families, broader drift semantics, and new connectors require a separately prioritized issue and explicit product evidence. Do not infer them from bounded RC results.
 
-PR #39 remains an unmerged fallback until PR #40 merges, consistent with the prior delivery plan. AKS-37 and AKS-39 are reported Done in Linear; this maintenance pass does not independently re-certify their delivery history.
+PR #39 remains an unmerged fallback until PR #40 merges. AKS-37 and AKS-39 were corrected to In Review after their Done comments were verified to rely on unmerged PR #40. Implementation evidence is retained; merge and complete acceptance remain open.
 
 ## Constraints and next action
 
 Preserve Arrow IPC and TOML boundaries, contract-first changes, explicit CPU fallback, current auth/import controls, and no fixture substitution in release/local-appliance mode. Database, watched-folder, USB, and cloud dataset source execution are not enabled by the current bounded proof. Compatible CUDA/multi-GPU success is conditional and unclaimed. Core logic retains the NASA/JPL Power of 10 requirement.
 
-The next bounded action is review of AKS-51 with local checks and hosted results reported separately. No merge, tag, version bump, prerelease, deployment, or branch-protection change is part of housekeeping. Use [AGENTS.md](AGENTS.md) for skill routing and proportional verification; [tooling guidance](docs/agent-tooling.md) explains baseline-aware checks.
+The next bounded actions are review of AKS-51/52 and the current AKS-38 report, then AKS-55/53, AKS-54/56, lifecycle and real-file persona acceptance, and finally AKS-50 same-head platform closeout. Logical authorized integration order is #40 → #47 → #48 → the AKS-38 review PR, with blockers resolved in the chosen candidate before #40 can merge. No merge or release is authorized here. Use [AGENTS.md](AGENTS.md) and [tooling guidance](docs/agent-tooling.md) for verification.
 
 ## Historical evidence
 

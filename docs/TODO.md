@@ -1,6 +1,6 @@
 # JuliaFlow TODO
 
-Last reconciled: 2026-09-20 (AKS-51).
+Last reconciled: 2026-09-20 (AKS-38).
 
 Linear owns acceptance and delivery status. Checked items below preserve historical bounded-slice claims and their 46 existing traceability checks; they do not certify the current PR head. Full descriptions remain in [the immutable snapshot](archive/2026-09-20/TODO.md).
 
@@ -8,10 +8,12 @@ Linear owns acceptance and delivery status. Checked items below preserve histori
 
 - [ ] **AKS-52 dependency remediation:** compatible targets from PRs #41–#46 and aligned Vitest/coverage pass clean audit and local gates; review/merge and exact-head hosted readback remain open. See [evidence](dependency-remediation-2026-09-20.md).
 - [ ] **AKS-53 / AKS-54 review blockers:** reject synthetic analysis success in release/local-appliance mode; enforce declared split membership and final-test isolation before deeper feature development. Product repairs are separate follow-ups.
+- [ ] **AKS-55 / AKS-56 review blockers:** constrain default browser mutation authority and align resource-evidence contracts with runtime payload validation. See [current review and criterion matrix](restart-review-2026-09-20.md) and [threat model](restart-threat-model-2026-09-20.md).
+- [ ] **AKS-37 / AKS-39 delivery:** corrected from Done to In Review; their substrate is in unmerged PR #40. Preserve implementation evidence and close only after composite Done requirements.
 
 - [ ] **AKS-51 housekeeping:** review/merge the cleanup and control-validator changes; report hosted checks and local retention exceptions. Preserve user edits, tooling evidence, runtime environments, and unmerged work.
 - [ ] **AKS-36 / AKS-50 RC closeout:** obtain clean no-skip Windows and hosted Debian release summaries bound to the same candidate head, resolve required reviews under AKS-38, and reconcile child criteria, blockers, merge, and evidence before Done. The last observed PR #40 head was `a70ea67`; web/Julia passed and the Debian browser phase failed. No new readiness claim.
-- [ ] **AKS-38 reviews:** complete the required design/domain reviews and resolve findings. Do not infer acceptance from green CI.
+- [ ] **AKS-38 reviews:** current sequential agent review is recorded for contracts, security, ML validity, MLOps and frontend/personas. Review the report and resolve/explicitly accept blockers; human approval is not claimed.
 - [ ] **AKS-40 / AKS-41 boundaries:** reconcile the verified module extraction and managed-file validation with remaining security acceptance, folder-grant/redaction requirements, and review evidence. Database, watched-folder, USB, and cloud source execution remain out of scope unless separately prioritized.
 - [ ] **AKS-42 / AKS-43 / AKS-44 validity and jobs:** reconcile schema/split locks, train-only fit/apply, validation-only tuning, typed execution evidence, statistical EDA, and final-test negative paths against their acceptance criteria.
 - [ ] **AKS-45 / AKS-46 lifecycle:** reconcile registry, drift, rollback/retraining, final evaluation, prediction export, and local deploy evidence. Broader model families/preprocessing/tuning/drift require separately scoped proof.

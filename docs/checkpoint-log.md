@@ -1,5 +1,17 @@
 # JuliaFlow Checkpoint Log
 
+## 2026-09-20 — AKS-38 current-code review and restart backlog
+
+Reviewed dependency candidate `f9e10f3a3e5fd3c48e601e9252047de49c8bf2df` (draft PR #48), stacked on #47/#40. [Current review](restart-review-2026-09-20.md) supersedes June 21 current-state conclusions without editing historical documents; [threat model](restart-threat-model-2026-09-20.md) distinguishes configured controls from default startup and managed-reference gaps. This is a sequential agent review, not independent human approval.
+
+Recorded blockers AKS-53 (synthetic evidence), AKS-54 (split execution/final-test isolation), AKS-55 (default browser authority), AKS-56 (resource-evidence contract consistency). Existing AKS-41/45/46/48/49/50 criteria retain managed-path, provenance, baseline-identity, real-file onboarding, accessibility and release gaps. No product repairs are included. AKS-37/39 corrected from Done to In Review after reading their July 4 completion comments and confirming PR #40 is unmerged and substrate commit `dd80817` is not in main.
+
+Windows Julia 1.12.6 (explicit binary), Node 26.3.0/npm 12.0.0: instantiate passes; local-sources 36/36; tuning 152/152 (CUDA 13.4/13.2 runtime/precompile mismatch warning, no GPU success claim); repository 53 pass plus one explicit PostgreSQL integration skip because no test database URL was supplied. API gateway slice remains running at this checkpoint. Live-backend browser smoke passes one scenario (25.8s, summary 2026-09-20T10:47:43.801Z). Its prepared managed-data positive path does not cover the new negative-path findings. Raw logs and summary remain in external task evidence. An initial worktree-local Juliaup 1.13 probe was stopped; its results are excluded.
+
+Review control checks pass against explicit base `f9e10f3`; BRD validator passes with historical 46-item inventory; whitespace passes. No archive bytes changed. Dependency PR #48 web check passed in run 35505962100; Julia/Debian remain pending. Parent run 35501646027 has web/Julia passed and Debian still running, with no final artifact yet. No check was rerun or interrupted. Full Windows/Debian release closeout remains outside scope.
+
+Decision: restart only bounded remediation and review; deeper persona features await blocker resolution/explicit acceptance. Review order and eventual authorized integration order are recorded in the review. Retain PR #39, PRs #41–#46, user edits, all worktrees and signed tooling. No storage cleanup or blocked deletion retry. Rollback is a scoped documentation revert; no migration.
+
 ## 2026-09-20 — AKS-52 dependency remediation and verification repairs
 
 Baseline `ebeebfeb26357414e8243d216885cfb577001730`; isolated AKS-52 branch. [Dependency report](dependency-remediation-2026-09-20.md) maps all ten GitHub alerts/eight npm package entries and PRs #41–#46 to compatible fixed versions. Audit after clean locked install is zero. Vitest and coverage are aligned at 4.1.11; npm executable resolution repairs the reproduced hard-coded launcher failure. Five meaningful tests repair baseline coverage gaps without lowering any gate.

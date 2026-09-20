@@ -1,6 +1,8 @@
 # JuliaFlow BRD Traceability
 
-Last updated: 2026-07-17
+Last updated: 2026-09-20 (current acceptance qualification; historical rows retained).
+
+The [AKS-38 current-code review](restart-review-2026-09-20.md) maps AKS-40–50 criteria to code/tests and explicitly distinguishes bounded proof from remaining function/evidence. AKS-53–56 block deeper readiness claims: missing-input synthetic evidence, split/final-test isolation, default browser authority, and job contract consistency. AKS-37/39 are In Review, not Done, because their PR #40 delivery is unmerged. The older rows and 46 checked milestones below remain historical slice evidence; no P0/P1/P2 completion is newly asserted by dependency maintenance or structural validators.
 
 | BRD Area | Current Status | Evidence | Next Gap |
 | --- | --- | --- | --- |
