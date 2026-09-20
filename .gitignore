@@ -24,3 +24,15 @@ artifacts/
 .codex-archive/github-ci-webhook-monitor-20260622/
 .codex/config.toml
 *.tsbuildinfo
+
+# Local agent/tooling outputs, not product source or verification claims.
+.omo/
+review-tmp-semantic-aggregate/
+unsloth_compiled_cache/
+.pytest_cache/
+.hypothesis/
+.uv-cache/
+__pycache__/
+*.py[cod]
+test-results/
+playwright-report/

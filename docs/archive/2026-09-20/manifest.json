@@ -1,0 +1,53 @@
+{
+  "sourceCommit": "a70ea67eda343655f70fe336c294f8ec9e638889",
+  "files": [
+    {
+      "originalPath": "Plan.md",
+      "archivePath": "Plan.md",
+      "sha256": "60466ece6c1cfdb91a692acf494b72321b43e75f3e83ed60ad9363d30dafc143",
+      "bytes": 111187
+    },
+    {
+      "originalPath": "docs/TODO.md",
+      "archivePath": "TODO.md",
+      "sha256": "aa1876223be881dd1178ebfffab71cf84d81942a5ffaa194248bc359e7d54f37",
+      "bytes": 65643
+    },
+    {
+      "originalPath": "docs/risk-register.md",
+      "archivePath": "risk-register.md",
+      "sha256": "761fcd75e5b13d0a0e80e74f96bfe8c7c65c754159b27dcb5be95fae31e988c9",
+      "bytes": 62064
+    },
+    {
+      "originalPath": "docs/brd-traceability.md",
+      "archivePath": "brd-traceability.md",
+      "sha256": "7eeadacbd3880d83c623fd8225f29e9d7e534342475ce8d4aea1457b7b9ac668",
+      "bytes": 118930
+    },
+    {
+      "originalPath": "docs/project-tracker.md",
+      "archivePath": "project-tracker.md",
+      "sha256": "1d978f9746a55f0deae14b485e1062c1890a39dacf48fad2f5640f1db230d521",
+      "bytes": 339066
+    },
+    {
+      "originalPath": "docs/checkpoint-log.md",
+      "archivePath": "checkpoint-log.md",
+      "sha256": "5af60051ef4c0ba9627e58ee72bc207a89d3ced153bd89acf85d04403a560218",
+      "bytes": 328776
+    },
+    {
+      "originalPath": "BRD_Julia_EDA_Toolkit-Claudev0.md",
+      "archivePath": "BRD_Julia_EDA_Toolkit-Claudev0.md",
+      "sha256": "02c054907599f731703a1f719b0be23b6e1bf25cc22ae963cd87fe105651d902",
+      "bytes": 12367
+    },
+    {
+      "originalPath": "JuliaFlow_BRD_v1.0.docx",
+      "archivePath": "JuliaFlow_BRD_v1.0.docx",
+      "sha256": "8fb7a7e67b1abbf8b4f3c01099689c06fed42e1db19229bbd6b8691f74dfd41f",
+      "bytes": 51414
+    }
+  ]
+}

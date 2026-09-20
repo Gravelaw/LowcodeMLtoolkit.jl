@@ -1,206 +1,137 @@
 # JuliaFlow Agent Rules
 
-## Scope And Authority
+## Authority and scope
 
-This file contains durable repository-specific execution rules. Current scope,
-priority, and delivery status live in `Plan.md`, `docs/TODO.md`, and
-`docs/risk-register.md`. Read those files before substantive implementation or
-readiness claims.
+Read `Plan.md`, `docs/TODO.md`, and `docs/risk-register.md` before implementation
+or readiness claims. They describe current scope; archived snapshots are historical.
 
-Use one source of truth for each kind of state:
-
-- Linear owns project scope, issues, bugs, features, priority, ownership,
-  dependencies, acceptance criteria, and delivery status.
-- GitHub owns branches, commits, pull requests, reviews, GitHub Actions checks,
-  merges, releases, and deployment evidence.
-- Repository control documents own requirements traceability, architecture
-  decisions, accepted risks, and local verification evidence.
-- Code and executable tests remain authoritative for implemented behavior.
-
-No system independently proves completion. A Linear issue is Done only when its
-acceptance criteria, GitHub delivery state, and required repository evidence agree.
-
-## Architecture Invariants
-
-- Preserve product boundaries under `apps`, `packages`, `services`, `extensions`,
-  `infra`, `scripts`, and `tests`. Prefer feature-oriented paths inside them over
-  new root-level files.
-- Shared payload changes are contract-first. Align TypeScript contracts, OpenAPI,
-  applicable schemas, Julia route and repository mappings, frontend consumers,
-  fixtures, and tests.
-- Preserve TOML workflow round trips and Arrow IPC as the inter-node payload
-  boundary.
-- Keep `JuliaFlowApiGateway.jl` focused on composition, routing, authorization,
-  auditing, error mapping, and module dispatch. Put product logic in focused
-  modules.
-- Preserve the route shell, runtime `juliaflow-config.js`, accessible selectors,
-  and coverage gates unless intentionally replacing them with verified equivalents.
-- Release and `local-appliance` modes must never substitute demo, fixture, or
-  presentation-only evidence for missing backend state.
-- Provider and cloud integrations remain optional compatibility work unless the
-  current control documents explicitly prioritize them.
-
-## Change Safety
-
-- Preserve pre-existing working-tree changes. Never revert unrelated edits. Read
-  overlapping changes and integrate with them.
-- Do not commit secrets, machine-specific paths, generated artifacts, or
-  `Manifest.toml`. `Project.toml` owns checked-in Julia dependencies.
-- Validate local file access through configured roots, real-path confinement,
-  symlink and junction policy, redaction, connector policy, identifier validation,
-  and checksum controls.
-- Preserve designed success, failure, rejection, and error-path test coverage.
-  Isolate mutable fixtures instead of weakening or deleting assertions.
-- Keep CPU fallback behavior explicit and tested. Hardware-dependent GPU checks may
-  skip only when the reason is recorded and no GPU capability is claimed.
-
-## Work Tracking And Delivery
-
-### Before Implementation
-
-- Resolve the Linear issue or explicitly state that the work is untracked. Read its
-  acceptance criteria, dependencies, blockers, priority, parent project, and linked
-  risks.
-- Reconcile the issue with `Plan.md`, `docs/TODO.md`, and `docs/risk-register.md`.
-- Do not silently expand scope. Record newly discovered bugs, risks, or follow-up
-  features in Linear before treating them as committed work.
-- For tracked implementation, use a branch containing the issue identifier, such as
-  `codex/aks-36-datascienceproject-substrate`.
-- Do not create or modify branches, Linear issues, GitHub comments, commits, pushes,
-  pull requests, merges, or releases during read-only work or without authorization.
-
-### During Implementation
-
-- Keep commits scoped to one coherent concern where practical.
-- Reference the Linear identifier in the branch and pull request, and in relevant
-  control-document evidence.
-- Move Linear work to In Progress only when design, implementation, or verification
-  has actually started.
-- Record blockers when they affect scope, acceptance, ownership, or schedule.
-- Fix newly discovered defects in scope or record them as linked Linear issues with
-  severity, reproduction evidence, and affected acceptance criteria.
-- Do not close acceptance gaps by weakening tests or by substituting fixture evidence
-  in release or `local-appliance` mode.
-
-### Pull Requests And CI
-
-- A pull request must link its Linear issue and state implemented scope, acceptance
-  criteria covered, verification run, known gaps and skips, control-document
-  changes, and rollback or migration considerations where applicable.
-- GitHub Actions success proves only the checks that ran. It does not prove release
-  readiness when browser, local smoke, hardware, security, extension, or
-  control-document gates were absent or skipped.
-- Failing required checks block merge. Review findings remain open until implemented,
-  rejected with evidence, or explicitly accepted by an authorized reviewer.
-- Do not merge, force-push, dismiss reviews, rerun deployments, or modify branch
-  protection without explicit authorization.
-
-### Status Reconciliation
-
-- `Todo`: accepted work exists, but implementation has not started.
-- `In Progress`: design, implementation, or verification work has started.
-- `In Review`: a reviewable pull request exists and required local checks are
-  reported.
-- `Blocked`: an external dependency or accepted decision prevents meaningful
-  progress; link the blocker and required resolution.
-- `Done`: acceptance criteria are satisfied, required checks pass, the pull request
-  is merged, blockers and required reviews are resolved, evidence is linked, and
-  required control documents agree.
-- `Canceled` or `Duplicate`: record the decision and replacement or superseding issue.
-
-A draft pull request, green CI run, merged pull request, document checkbox, or commit
-message does not independently make a Linear issue Done.
-
-Before moving a Linear issue to Done:
-
-1. Confirm every acceptance criterion against code or executable evidence.
-2. Confirm required GitHub checks passed and the pull request was merged.
-3. Confirm unresolved review findings and blockers are cleared or explicitly accepted.
-4. Update required control documents and BRD traceability.
-5. Run proportional verification and report every skipped check.
-6. Link the pull request, verification evidence, and accepted follow-up issues in
-   Linear.
-
-Read external status before writing to Linear or GitHub. After an external update,
-read it back and report the resulting state. Never infer completion from titles,
-commit messages, document checkboxes, or CI status alone.
-
-## Commands
-
-Prefer repository scripts over direct platform-specific commands.
-
-- Install JavaScript dependencies: `npm install`
-- Check the host toolchain: `npm run doctor:windows` or `npm run doctor:debian`
-- Instantiate Julia dependencies: `npm run julia:instantiate`
-- Validate contracts: `npm run validate:contracts`
-- Run JavaScript workspace and contract tests: `npm run test`
-- Run the authoritative Julia suite: `npm run julia:test`
-- Time the Julia suite: `npm run julia:test:timed`
-- Run focused Julia suites: `npm run julia:test:helpers`, `npm run julia:test:tuning`,
-  `npm run julia:test:local-sources`,
-  `npm run julia:test:repository`, `npm run julia:test:worker`, or
-  `npm run julia:test:api-gateway`
-- Build the frontend and workspaces: `npm run build`
-- Run browser tests: `npm run test:browser`
-- Run the live-backend browser smoke: `npm run smoke:live-backend-browser`
-- Run the full release gate: `npm run verify:release`
-- Check patch formatting: `git diff --check`
-
-`npm run test` does not include the Julia, browser, extension, local smoke, or full
-release gates. Do not describe it as the complete repository test suite.
-
-## Proportional Verification
-
-Run at least the gates required by the changed surface:
-
-| Changed surface | Required minimum evidence |
+| Source | Owns |
 | --- | --- |
-| Contracts or OpenAPI | `npm run validate:contracts` plus affected Julia and frontend tests |
-| Julia helper logic | Corresponding focused `julia:test:*` slice |
-| Gateway routes | `npm run julia:test:api-gateway` |
-| Repository persistence | `npm run julia:test:repository` |
-| Worker behavior | `npm run julia:test:worker` |
-| Frontend component or state | Focused frontend test plus `npm run build` |
-| Cross-route user workflow | Relevant Playwright or live-backend smoke |
-| Julia dependency | `npm run julia:instantiate` plus affected Julia tests |
-| TODO or traceability status | Both control-document validators |
-| Release or readiness claim | `npm run verify:release` with no skipped product or runtime phases |
-| Every implementation | `git diff --check` and exact reporting of skipped gates |
+| Linear, project LowCodeML (`AKS-`) | Scope, priority, ownership, dependencies, acceptance, delivery status |
+| GitHub | Branches, commits, PRs, reviews, checks, merges, releases, deployment evidence |
+| Repository control documents | Requirements traceability, architecture, risks, local verification |
+| Code and executable tests | Implemented behavior |
 
-Report exactly what passed, failed, and was skipped. CI success alone is not
-release-readiness evidence.
+No single source proves completion. Read external state before writing and read it
+back afterward. Report the resulting state; never infer completion from titles,
+checkboxes, commit messages, a merged PR, or CI success alone.
 
-## Governance And Control Documents
+## Skills and tools
 
-The governed control set is:
+Discover currently installed skills; load only those needed for the task.
+Project rules and the user's authorization take precedence over skill procedures.
 
-- `business-requirements-v0.3.0.md`
-- `Plan.md`
-- `docs/TODO.md`
-- `docs/risk-register.md`
-- `docs/brd-traceability.md`
-- `docs/project-tracker.md`
-- `docs/checkpoint-log.md`
+| Work | Routing |
+| --- | --- |
+| Julia work | `julia-route-engineering-work` first; verify its signed runtime against the external trust policy |
+| Planning / environments / CI | Router selects `julia-plan-project-work` or `julia-manage-project-workflow` |
+| Julia implementation / failures | Router selects `julia-write-maintain-code` or `julia-debug-code` |
+| Concurrency / performance / native / macros | Load the matching Julia domain skill only when relevant |
+| GitHub | `github` skill and authenticated `gh`; MCP only for capabilities unavailable through `gh` |
+| Linear | `linear` skill and discovered Linear MCP tools |
+| Frontend | Relevant React guidance; rendered-flow testing/debugging for UI behavior |
+| Security-sensitive changes | A scoped installed security skill matched to the changed boundary |
 
-- Do not mark P0, P1, or P2 work complete without code and verification evidence in
-  `docs/brd-traceability.md`.
-- Update control documents for completed slices, changed risks, milestone decisions,
-  or status changes. Read-only reviews do not require control-document churn.
-- Tracker and checkpoint updates must identify work completed, gaps remaining, and
-  the next bounded action.
-- Run `npm run validate:control-doc-sync` when closing governed implementation work.
-- Run `npm run validate:brd-traceability` after TODO or traceability changes.
-- These validators check document structure and synchronization, not the truth of an
-  implementation claim. Verify every cited artifact and test result.
+Use installed-plugin discovery, not dated `.staging` paths. Keep the nine-skill
+Julia runtime intact; do not trim signed files. The router loads the shared
+engineering contract once; direct leaf invocation follows that leaf's integrity
+and contract instructions. See [tooling guidance](docs/agent-tooling.md).
+For a missing skill, check the open ecosystem with `find-skills` before authoring.
+A connector failure does not authorize bypassing external state or inventing it.
 
-## External Automation Boundaries
+## Architecture and change safety
 
-- Linear-to-GitHub automation may suggest or apply `In Review` when a pull request is
-  ready, but it must not mark work Done solely because a pull request merged.
-- CI failure may add delivery-risk evidence, but it must not automatically classify
-  an issue as Blocked without a real external dependency.
-- A closed, unmerged pull request must return to an explicitly chosen Linear state.
-- Deployment failures should create or reopen linked bug work rather than rewriting
-  completed issue history.
+- Preserve `apps`, `packages`, `services`, `extensions`, `infra`, `scripts`, and
+  `tests` boundaries; prefer feature-oriented modules over new root files.
+- Shared payload changes are contract-first: align TypeScript, OpenAPI/schemas,
+  Julia mappings, frontend consumers, fixtures, and tests.
+- Preserve TOML round trips and Arrow IPC between nodes. NASA/JPL Power of 10
+  remains mandatory for core logic under the current plan.
+- Keep `JuliaFlowApiGateway.jl` focused on composition, routing, authorization,
+  auditing, error mapping, and module dispatch; put product logic in modules.
+- Preserve route shell, runtime `juliaflow-config.js`, accessible selectors, and
+  coverage gates unless deliberately replacing them with verified equivalents.
+- Release/local-appliance modes must not replace missing backend state with demo,
+  fixture, or presentation-only evidence. Provider/cloud work stays optional
+  unless current control documents explicitly prioritize it.
+- Preserve user edits, worktrees, and retained evidence. Read overlapping changes
+  and integrate them; never revert unrelated work or broadly clean unknown files.
+- Do not commit secrets, machine-specific paths, generated outputs, or
+  `Manifest.toml`; `Project.toml` owns checked-in Julia dependencies.
+- Enforce configured roots, real-path confinement, symlink/junction policy,
+  redaction, connector policy, identifier validation, and checksums for local I/O.
+- Preserve success, failure, rejection, and error-path coverage. Isolate mutable
+  fixtures rather than weakening assertions. Keep CPU fallback explicit/tested;
+  GPU checks may skip only with a recorded reason and no hardware-success claim.
+
+## Tracking and delivery
+
+1. Resolve the Linear issue and read its criteria, blockers, dependencies,
+   priority, project, and risks; otherwise explicitly label work untracked.
+2. Reconcile it with the current plan, TODO, and risk register. Record newly
+   discovered defects or follow-ups in Linear before committing to their scope.
+3. Use `codex/<issue-key>-<scope>` branches and coherent commits for tracked work.
+   Read-only tasks must not mutate branches, trackers, comments, or delivery state.
+4. Start In Progress when design, implementation, or verification begins. Record
+   real blockers affecting scope, ownership, acceptance, or schedule.
+5. PRs link `Fixes AKS-xx` and state scope, acceptance covered, verification,
+   skips/gaps, control-document changes, and relevant migration/rollback notes.
+6. Failing required checks block merge. Resolve findings by implementation,
+   evidence-backed rejection, or authorized acceptance. Never weaken tests or
+   substitute fixtures to close release gaps.
+7. Do not merge, force-push, dismiss reviews, rerun deployments, modify branch
+   protection, tag, or release without explicit authorization for that action.
+
+| Linear state | Required meaning |
+| --- | --- |
+| Todo | Accepted work, not started |
+| In Progress | Design, implementation, or verification underway |
+| In Review | Reviewable PR exists and required local results are reported |
+| Blocked | Real external dependency/decision prevents progress; link resolution |
+| Done | Every condition in the checklist below is satisfied |
+| Canceled / Duplicate | Record the decision and replacement/superseding issue |
+
+Before Done: verify every criterion against code/executable evidence; confirm
+required checks and merge; resolve reviews/blockers; synchronize control documents
+and BRD traceability; report proportional checks and every skip; link PR, evidence,
+and accepted follow-ups in Linear. A closed unmerged PR needs an explicitly chosen
+Linear state. Automated merge events must not mark work Done by themselves.
+
+## Verification and control documents
+
+Prefer scripts in `package.json` over platform-specific commands. `npm run test`
+excludes Julia, browser, extension, local smoke, and full release gates.
+
+| Changed surface | Minimum verification |
+| --- | --- |
+| Contracts/OpenAPI | `validate:contracts` plus affected Julia/frontend tests |
+| Julia helpers | Corresponding focused `julia:test:*` slice |
+| Gateway / persistence / worker | `julia:test:api-gateway` / `julia:test:repository` / `julia:test:worker` |
+| Frontend component/state | Focused frontend test and `build` |
+| Cross-route workflow | Relevant Playwright or live-backend smoke |
+| Julia dependency | `julia:instantiate` and affected Julia tests |
+| TODO/traceability | `validate:control-doc-sync` and `validate:brd-traceability` |
+| Release/readiness claim | Full `verify:release`, no skipped product/runtime phases |
+| Every implementation | `git diff --check`; exact pass/fail/skip reporting |
+
+Run table entries through `npm run`. The governed set is the root
+`business-requirements-v0.3.0.md`, `Plan.md`, and `docs/{TODO,risk-register,
+brd-traceability,project-tracker,checkpoint-log}.md`.
+
+- Product/dependency changes update plan, TODO, risks, tracker, and checkpoint.
+  BRD changes also update traceability. Maintenance-only scripts/tests/CI/ignore
+  changes require tracker/checkpoint evidence; update scope/risks when affected.
+- Documentation-only corrections need no fabricated product-status changes.
+  Read-only reviews require no control-document churn.
+- P0/P1/P2 completion requires code and verification in BRD traceability.
+  Structural validators do not prove the truth of cited implementation evidence.
+- For committed work, run `npm run validate:control-doc-sync -- --base <base-ref>`.
+  CI reads the event baseline and must fetch history; missing baselines fail.
+  Without a baseline, the command explicitly checks working-tree changes only.
+- Keep current summaries concise. Preserve historical evidence in indexed,
+  hash-verified archives; do not edit snapshots or erase acceptance gaps.
+- Tracker/checkpoint records identify completed work, remaining gaps, and the next
+  bounded action. CI failures alone do not imply Blocked; deployment failures
+  create/reopen linked bug work rather than rewriting completed issue history.
 - Do not revive inbound workstation webhooks or custom-node GitHub CI monitors.
-  Prefer GitHub-native checks, summaries, and bounded local polling with backoff.
+  Use GitHub-native checks/summaries or bounded local polling with backoff.
