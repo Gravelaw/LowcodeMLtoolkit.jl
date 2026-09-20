@@ -2,7 +2,7 @@
 
 Last reconciled: 2026-09-20.
 
-Approved restart execution: AKS-55, the managed-path AKS-41 patch, AKS-56 and AKS-53 are In Review in draft PRs #50 through #53. Their exact heads have passing hosted web/Julia checks. The Debian gates failed at local-bootstrap startup on #52 and an incomplete migration-smoke registry fixture on #53; the fixture correction is a separate AKS-56 follow-up, and full release proof remains open. AKS-54 now persists and verifies split membership across preparation, training, tuning and final evaluation; focused and integration verification is underway on its own branch. The isolated design task owns mockups only; no frontend implementation before explicit final design approval. See [remediation evidence](blocker-remediation-2026-09-20.md).
+Approved restart execution: AKS-55, the managed-path AKS-41 patch, AKS-56, AKS-53 and AKS-54 are locally verified and In Review in draft PRs #50 through #54. Hosted web/Julia checks pass on #50-#53; #54 web passes while Julia/Debian verification remains open. Debian failed at local-bootstrap startup on #52 and an incomplete migration-smoke registry fixture on #53. The separate AKS-56 fixture correction passes local migration smoke; fresh hosted platform proof and human review remain open. AKS-54 reuses persisted membership across preparation, training, tuning and final evaluation, with 1,492 final gateway/boundary assertions and five live-browser scenarios passing. The isolated design task owns mockups only; no frontend implementation before explicit final design approval. See [remediation evidence](blocker-remediation-2026-09-20.md).
 
 | Work | Verified delivery state | Next bounded action |
 | --- | --- | --- |
@@ -12,7 +12,8 @@ Approved restart execution: AKS-55, the managed-path AKS-41 patch, AKS-56 and AK
 | AKS-37 / AKS-39 | Corrected to In Review after verifying Done relied on unmerged PR #40 | Complete criterion/review/check/merge gates; preserve historical evidence |
 | AKS-51 repository cleanup | Local implementation verified on an isolated branch based on PR #40 | Review the scoped stacked PR and report hosted results separately |
 | AKS-52 npm advisories | Compatible candidate implemented; clean audit and local verification pass | Review stacked draft PR, read hosted checks; leave #41–#46 open until approved integration |
-| AKS-53–AKS-56 | AKS-53/55/56 In Review; AKS-54 implementation under verification | Verify split isolation, publish its separate draft, then reassess review and release blockers |
+| AKS-53–AKS-56 | All four are locally verified and In Review; AKS-54 is draft PR #54 at `7e89658` | Complete human review and exact-head hosted checks; retain broader lifecycle and release gaps |
+| AKS-56 migration smoke follow-up | Existing required registry fields added to the storage fixture; local migration smoke passes | Publish the separate maintenance draft after #54; obtain fresh exact-head Debian evidence |
 
 ## AKS-51 scope and evidence
 

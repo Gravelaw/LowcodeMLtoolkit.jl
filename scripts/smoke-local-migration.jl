@@ -62,10 +62,26 @@ state.data_science_projects[model_project.project_id] = model_project
 JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
     state.repository,
     Dict{String,Any}(
+        # Storage migration fixture only; no trained model or runtime metric is claimed.
+        "registryId" => "registry-migration-model-v1",
         "modelId" => "migration-model-v1",
         "workflowId" => "wf-foundation",
+        "workflowVersion" => "0.1.0",
+        "checkpointTag" => "cp/migration-smoke",
+        "modelKind" => "migration_fixture",
+        "target" => "fixture_target",
         "status" => "approved",
+        "tags" => ["migration-fixture"],
+        "owner" => "migration-smoke",
+        "primaryMetricName" => "fixture_only",
+        "primaryMetricValue" => 0.0,
+        "datasetId" => "migration-train",
+        "datasetChecksumSha256" => "",
+        "artifactEvidence" => Any[],
+        "registeredAt" => "2026-06-26T00:00:00Z",
         "updatedAt" => "2026-06-26T00:00:00Z",
+        "deploymentStatus" => "not_deployed",
+        "localOnly" => true,
         "validationEvidence" => Dict{String,Any}(
             "projectId" => model_project.project_id,
             "splitPlanId" => "split-migration",
