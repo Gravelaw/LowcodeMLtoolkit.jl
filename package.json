@@ -41,6 +41,7 @@
     "julia:test:helpers": "node scripts/time-julia-runtests.mjs --slice=helpers",
     "julia:test:tuning": "node scripts/time-julia-runtests.mjs --slice=tuning",
     "julia:test:project-contracts": "node scripts/time-julia-runtests.mjs --slice=project-contracts",
+    "julia:test:project-evidence": "node scripts/time-julia-runtests.mjs --slice=project-evidence",
     "julia:test:local-sources": "node scripts/time-julia-runtests.mjs --slice=local-sources",
     "julia:test:repository": "node scripts/time-julia-runtests.mjs --slice=repository",
     "julia:test:worker": "node scripts/time-julia-runtests.mjs --slice=worker",

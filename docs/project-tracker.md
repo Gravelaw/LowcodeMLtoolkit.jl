@@ -2,7 +2,7 @@
 
 Last reconciled: 2026-09-20.
 
-Approved restart execution: AKS-55 and the managed-path AKS-41 patch are In Review in draft PRs #50 and #51. Both exact heads have passing hosted web/Julia checks; Debian release gates remain running. AKS-56 now validates project children from the shared OpenAPI contract at request and persistence boundaries; focused, full gateway and live-browser verification pass. Publication and review remain open. AKS-53 unavailable evidence and AKS-54 split isolation follow sequentially. The isolated design task owns mockups only; no frontend implementation before explicit final design approval. See [remediation evidence](blocker-remediation-2026-09-20.md).
+Approved restart execution: AKS-55 and the managed-path AKS-41 patch are In Review in draft PRs #50 and #51. Both exact heads have passing hosted web/Julia checks; Debian release gates remain running. AKS-56 is In Review in draft PR #52 at `3308a87`, with focused, full gateway and live-browser verification passing. AKS-53 rejects unavailable/synthetic evidence in strict modes and passes local focused, gateway and browser verification; publication/review remain open; AKS-54 split-isolation design is In Progress and implementation follows on its own branch. The isolated design task owns mockups only; no frontend implementation before explicit final design approval. See [remediation evidence](blocker-remediation-2026-09-20.md).
 
 | Work | Verified delivery state | Next bounded action |
 | --- | --- | --- |
@@ -12,7 +12,7 @@ Approved restart execution: AKS-55 and the managed-path AKS-41 patch are In Revi
 | AKS-37 / AKS-39 | Corrected to In Review after verifying Done relied on unmerged PR #40 | Complete criterion/review/check/merge gates; preserve historical evidence |
 | AKS-51 repository cleanup | Local implementation verified on an isolated branch based on PR #40 | Review the scoped stacked PR and report hosted results separately |
 | AKS-52 npm advisories | Compatible candidate implemented; clean audit and local verification pass | Review stacked draft PR, read hosted checks; leave #41–#46 open until approved integration |
-| AKS-53–AKS-56 | AKS-55 In Review; AKS-56 In Progress; AKS-53 source analysis In Progress; AKS-54 Todo | Finish compatible contract validation, reject unavailable evidence, then enforce persisted split isolation |
+| AKS-53–AKS-56 | AKS-55/56 In Review; AKS-53 locally verified, In Progress; AKS-54 design In Progress | Finish unavailable-evidence verification, then enforce persisted split isolation |
 
 ## AKS-51 scope and evidence
 

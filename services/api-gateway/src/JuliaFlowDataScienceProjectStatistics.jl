@@ -82,7 +82,7 @@ function simple_numeric_columns(table::AbstractDict)
             end
             nonmissing_count += 1
             parsed = tryparse(Float64, value)
-            if parsed === nothing
+            if parsed === nothing || !isfinite(parsed)
                 numeric = false
                 break
             end

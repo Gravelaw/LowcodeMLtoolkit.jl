@@ -208,7 +208,7 @@ function final_evaluation_metrics_from_csv(
         coefficients = get(model_artifact, "coefficients", Dict{String,Any}())
         feature_columns = [column for column in feature_columns if !isempty(strip(column))]
         if artifact_target == String(target_column) && !isempty(feature_columns) && all(column -> haskey(numeric_columns, column), feature_columns) &&
-                (haskey(coefficients, "intercept") || model_kind == "local_csv_binary_centroid_classifier")
+                (haskey(coefficients, "intercept") || native_model_kind == "local_csv_binary_centroid_classifier")
             if all(column -> length(numeric_columns[column]) >= total, feature_columns)
                 classifier_mode = native_model_kind == "local_csv_binary_centroid_classifier"
                 mlj_evidence = get(model_artifact, "mljEvidence", Dict{String,Any}())

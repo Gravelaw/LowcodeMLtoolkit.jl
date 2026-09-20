@@ -1,5 +1,8 @@
 # JuliaFlow BRD Traceability
 
+AKS-53 maps strict-mode unavailable-evidence rejection to `JuliaFlowDataScienceProjectEvidence.jl`, gateway producer/consumer guards, native-classifier evaluation dispatch, `tests/julia/project_evidence_tests.jl` and the live-browser missing-source scenario. Focused evidence boundary (261), gateway (1,069 plus 37 authority), tuning, repository and four browser scenarios pass; hosted candidate checks and review remain open. No historical milestone is promoted to complete.
+
+
 Last updated: 2026-09-20 (current acceptance qualification; historical rows retained).
 
 Current local-trust remediation is traced in [AKS-55 evidence](blocker-remediation-2026-09-20.md): `scripts/lib/local-auth.mjs`, gateway REST/realtime authorization, `tests/julia/local_browser_boundary_tests.jl`, `tests/contracts/local-auth.test.mjs`, and live-browser rejection scenarios. Local gateway/auth/realtime, contracts, frontend/build, bootstrap and live-browser checks pass; hosted checks and delivery review remain pending. Managed filesystem follow-up maps `confined_data_estate_path` and gateway backup/bootstrap callers to `tests/julia/managed_path_boundary_tests.jl`; AKS-41 passes local-source, gateway, tuning and bootstrap verification; delivery gates remain open. This does not close a historical milestone or the remaining AKS-41/53/54/56 criteria. Frontend persona/design acceptance awaits the separate design review and explicit final design approval.

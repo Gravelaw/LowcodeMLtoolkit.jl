@@ -7813,3 +7813,7 @@ end
 @testset "Project payload contract boundary" begin
     include(joinpath(@__DIR__, "project_payload_contract_tests.jl"))
 end
+
+@testset "Project real evidence boundary" begin
+    include(joinpath(@__DIR__, "project_evidence_tests.jl"))
+end

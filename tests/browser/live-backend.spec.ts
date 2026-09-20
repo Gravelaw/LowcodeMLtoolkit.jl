@@ -66,6 +66,48 @@ test.describe("live-backend release smoke", () => {
     expect(result.subscriptionId).toMatch(/^canvas-/);
   });
 
+  test("rejects missing evidence from a real browser without creating successful results", async ({ page, request }) => {
+    const projectId = "unavailable-browser-project";
+    const datasetId = "unavailable-browser-data";
+    const splitPlanId = "unavailable-browser-split";
+    const create = await request.post(`${gatewayUrl}/api/v1/data-science-projects`, {
+      data: {
+        projectId, name: "Unavailable evidence browser proof",
+        datasets: [{ datasetId, name: "Missing source", role: "train", sourceUri: "local://data/raw/does-not-exist.csv", localOnly: true }],
+        splitPlans: [{ splitPlanId, datasetId, strategy: "random", trainFraction: 0.6, validationFraction: 0.2, testFraction: 0.2, locked: true, seed: 42, createdAt: new Date().toISOString() }]
+      }
+    });
+    await expectOk(create, "create missing-evidence project");
+    const before = await (await request.get(`${gatewayUrl}/api/v1/data-science-projects/${projectId}`)).json();
+    await page.goto("/juliaflow-config.js");
+    const results = await page.evaluate(async ({ url, token, project, dataset, split }) => {
+      const calls = [
+        [`/data-science-projects/${project}/statistical-analysis/run`, { datasetId: dataset, methods: ["summary"] }],
+        [`/data-science-projects/${project}/tuning/run`, { datasetId: dataset, splitPlanId: split, targetColumn: "y", algorithm: "LinearRegressor", metricNames: ["rmse"], maxTrials: 2, finalTestPolicy: "forbid_final_test" }],
+        ["/workflows/wf-foundation/ml/experiments/run", { projectId: project, datasetId: dataset, splitPlanId: split, target: "y", algorithm: "LinearRegressor", finalTestPolicy: "forbid_final_test" }]
+      ] as const;
+      const outcomes = [];
+      for (const [path, body] of calls) {
+        const response = await fetch(`${url}/api/v1${path}`, {
+          method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(body)
+        });
+        outcomes.push({ status: response.status, body: await response.json() });
+      }
+      return outcomes;
+    }, { url: gatewayUrl, token: gatewayAuthToken, project: projectId, dataset: datasetId, split: splitPlanId });
+    for (const result of results) {
+      expect(result.status).toBe(409);
+      expect(result.body.error).toContain("source evidence unavailable");
+      expect(result.body.metrics).toBeUndefined();
+      expect(result.body.artifactRefs).toBeUndefined();
+    }
+    const after = await (await request.get(`${gatewayUrl}/api/v1/data-science-projects/${projectId}`)).json();
+    expect(after).toEqual(before);
+    expect(after.projectJobs).toEqual([]);
+    expect(after.evaluationReports).toEqual([]);
+    expect(after.modelLifecycleRecords).toEqual([]);
+  });
+
   test("uses local gateway data through the release UI without demo substitution", async ({ page, request }) => {
     const projectId = "live-browser-data-project";
     const datasetId = "customer-churn-local";
@@ -167,6 +209,7 @@ test.describe("live-backend release smoke", () => {
     });
     await expectOk(evaluation, "final evaluation");
     const evaluationPayload = await evaluation.json();
+    expect(["local_csv_trained_artifact", "mlj_package_backed_final_evaluation"]).toContain(evaluationPayload.evaluationReport.validationEvidence.evaluationExecutionMode);
     const evaluationReportId = evaluationPayload.evaluationReport.evaluationReportId;
     const prediction = await request.post(`${gatewayUrl}/api/v1/data-science-projects/${projectId}/predictions/export`, {
       data: {
@@ -202,6 +245,8 @@ test.describe("live-backend release smoke", () => {
       }
     });
     await expectOk(drift, "drift report");
+    const driftPayload = await drift.json();
+    expect(["local_csv_prediction_distribution", "mlj_package_backed_prediction_distribution"]).toContain(driftPayload.driftReport.validationEvidence.driftExecutionMode);
     const registerModel = await request.post(`${gatewayUrl}/api/v1/workflows/wf-foundation/models/register`, {
       data: { modelId: "Churn Prediction", owner: "julia_user", tags: ["churn", "local"] }
     });

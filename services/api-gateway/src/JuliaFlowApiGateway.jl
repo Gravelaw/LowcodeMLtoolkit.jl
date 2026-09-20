@@ -2,6 +2,7 @@ module JuliaFlowApiGateway
 
 include(joinpath(@__DIR__, "JuliaFlowGatewayRepository.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectCore.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectEvidence.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectRegistry.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectRegistryPayloads.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectJobs.jl"))
@@ -2893,7 +2894,8 @@ function local_csv_training_artifact!(
     state::GatewayState,
     validation_context::AbstractDict,
     experiment::Dict{String,Any},
-    timestamp::AbstractString,
+    timestamp::AbstractString;
+    persist::Bool = true,
 )
     project = project_for_model_lifecycle(state, validation_context, "ml experiment training")
     project === nothing && return nothing
@@ -2946,7 +2948,7 @@ function local_csv_training_artifact!(
         train_target = train_target,
     )
     machine_artifact_ref = ""
-    if Bool(get(mlj_evidence, "mljRequested", false))
+    if persist && Bool(get(mlj_evidence, "mljRequested", false))
         if Bool(get(mlj_evidence, "mljPackageFitExecuted", false))
             machine_artifact_ref = "local://models/$(project.project_id)/$(String(experiment["modelId"]))/machine.jls"
             machine_artifact_path = local_data_ref_path_for_write(machine_artifact_ref)
@@ -2995,7 +2997,6 @@ function local_csv_training_artifact!(
     end
     model_id = String(experiment["modelId"])
     artifact_ref = "local://models/$(project.project_id)/$(model_id)/model.json"
-    artifact_path = local_data_ref_path_for_write(artifact_ref)
     artifact_payload = Dict{String,Any}(
         "modelId" => model_id,
         "modelKind" => model_kind,
@@ -3026,6 +3027,9 @@ function local_csv_training_artifact!(
         "createdAt" => String(timestamp),
         "localOnly" => true,
     )
+    JuliaFlowDataScienceProjectEvidence.require_result(artifact_payload, juliaflow_runtime_mode(), "ml experiment training")
+    persist || return artifact_payload
+    artifact_path = local_data_ref_path_for_write(artifact_ref)
     content = JSON3.write(artifact_payload) * "\n"
     artifact = write_local_artifact!(artifact_path, content)
     training_artifact = Dict{String,Any}(
@@ -3348,12 +3352,24 @@ function retraining_tuning_payload!(
     JuliaFlowDataScienceProjectTuning.upsert_training_plan!(project, training_plan)
 
     study_id = "retraining-tuning-" * replace(string(uuid4()), "-" => "")
-    trials = JuliaFlowDataScienceProjectTuning.tuning_trials(project.project_id, study_id, String(tuning_body["algorithm"]), tuning_body["metricNames"], Int(tuning_body["maxTrials"]), timestamp)
+    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "retraining")
+    dataset = data_science_project_dataset(project, dataset_id)
+    trials = local_csv_validation_tuning_trials(dataset, split_plan, project.project_id, study_id,
+        String(tuning_body["algorithm"]), tuning_body["metricNames"], Int(tuning_body["maxTrials"]),
+        timestamp, target_column, String(get(resource_evidence, "selectedBackend", "cpu")))
+    JuliaFlowDataScienceProjectEvidence.require_result(trials, juliaflow_runtime_mode(), "model lifecycle retraining")
+    if trials === nothing
+        trials = JuliaFlowDataScienceProjectTuning.tuning_trials(project.project_id, study_id, String(tuning_body["algorithm"]), tuning_body["metricNames"], Int(tuning_body["maxTrials"]), timestamp)
+        validation_context["tuningExecutionMode"] = "deterministic_fallback"
+    else
+        validation_context["tuningExecutionMode"] = "local_csv_validation_tuning"
+    end
+    annotate_tuning_trial_resource_evidence!(trials, resource_evidence)
+    persist_tuning_trial_artifacts!(trials)
     tuning_study = JuliaFlowDataScienceProjectTuning.tuning_study_record(study_id, training_plan_id, trials, validation_context, timestamp)
     tuning_study["sourceModelId"] = model_id
     tuning_study["lifecycleAction"] = "request_retraining"
     tuning_output_refs = JuliaFlowDataScienceProjectTuning.tuning_output_refs(trials)
-    resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "retraining")
     execution_evidence = data_science_project_execution_evidence!(
         state,
         project,
@@ -3392,7 +3408,7 @@ end
 
 function model_lifecycle_action_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
-    project = state.data_science_projects[project_id]
+    project = deepcopy(state.data_science_projects[project_id])
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     record, index = JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
         project,
@@ -3400,6 +3416,19 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
         timestamp,
     )
     model_id = String(record["modelId"])
+    if String(get(record, "lifecycleAction", "")) in ("approve_model", "mark_rollback_ready", "mark_rolled_back", "request_retraining")
+        JuliaFlowDataScienceProjectEvidence.context_evaluation(project, record, juliaflow_runtime_mode(), "model lifecycle"; required = true)
+        if !fixture_substitution_allowed(juliaflow_runtime_mode())
+            target_model_id = String(get(record, "lifecycleAction", "")) == "mark_rolled_back" ? String(get(record, "rollbackModelId", "")) : model_id
+            registry = project_model_registry_record_by_model_id(project, target_model_id)
+            model_artifact = JuliaFlowDataScienceProjectDeploy.deploy_model_artifact(registry)
+            JuliaFlowDataScienceProjectEvidence.require_model_artifact(model_artifact, juliaflow_runtime_mode(), "model lifecycle", local_data_ref_path_for_write)
+            registry_report = JuliaFlowDataScienceProjectEvidence.context_evaluation(project, get(registry, "validationEvidence", Dict{String,Any}()), juliaflow_runtime_mode(), "model lifecycle"; required = true)
+            if String(get(record, "lifecycleAction", "")) != "mark_rolled_back"
+                get(registry_report, "evaluationReportId", "") == get(record, "evaluationReportId", "") || JuliaFlowDataScienceProjectEvidence.unavailable("model lifecycle")
+            end
+        end
+    end
     rollback_package_record = nothing
     retraining_payload = nothing
     if String(get(record, "lifecycleAction", "")) == "mark_rolled_back"
@@ -3513,10 +3542,9 @@ function ml_experiment_payload(state::GatewayState, execution::GatewayExecution;
         payload["executionEvidence"] = execution.metadata["ml_training_execution_evidence"]
     end
     if haskey(execution.metadata, "ml_training_metrics")
-        payload["metrics"] = merge(
-            Dict{String,Any}(String(key) => value for (key, value) in pairs(payload["metrics"])),
-            normalized_string_dict(execution.metadata["ml_training_metrics"]),
-        )
+        measured = normalized_string_dict(execution.metadata["ml_training_metrics"])
+        payload["metrics"] = fixture_substitution_allowed(juliaflow_runtime_mode()) ?
+            merge(Dict{String,Any}(String(key) => value for (key, value) in pairs(payload["metrics"])), measured) : measured
     end
     if haskey(execution.metadata, "ml_training_artifact_evidence")
         artifact = json_compatible_value(execution.metadata["ml_training_artifact_evidence"])
@@ -3540,6 +3568,13 @@ function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractS
     dataset_card = evidence["datasetCard"]
     dataset_id = haskey(body, "datasetId") ? String(body["datasetId"]) : String(dataset_card["datasetId"])
     validation_context = validate_ml_experiment_project_context(state, body, dataset_id)
+    if !fixture_substitution_allowed(juliaflow_runtime_mode())
+        model_card = evidence["modelCard"]
+        preview = Dict{String,Any}("datasetId" => dataset_id, "modelId" => String(model_card["modelId"]),
+            "target" => String(get(body, "target", model_card["target"])), "modelKind" => String(get(body, "algorithm", model_card["kind"])))
+        JuliaFlowDataScienceProjectEvidence.read_result(() -> local_csv_training_artifact!(state, validation_context, preview,
+            JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(); persist = false), juliaflow_runtime_mode(), "ml experiment training")
+    end
     execution = JSON3.read(
         execution_accept_response(
             state,
@@ -3561,14 +3596,14 @@ function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractS
             experiment,
             JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
         )
+        JuliaFlowDataScienceProjectEvidence.require_result(training_artifact, juliaflow_runtime_mode(), "ml experiment training")
         if training_artifact !== nothing
             state.executions[matched].metadata["ml_training_artifact_evidence"] = training_artifact
             state.executions[matched].metadata["ml_training_metrics"] = get(training_artifact, "metrics", Dict{String,Any}())
             push!(experiment["artifactEvidence"], training_artifact)
-            experiment["metrics"] = merge(
-                Dict{String,Any}(String(key) => value for (key, value) in pairs(experiment["metrics"])),
-                normalized_string_dict(get(training_artifact, "metrics", Dict{String,Any}())),
-            )
+            measured = normalized_string_dict(get(training_artifact, "metrics", Dict{String,Any}()))
+            experiment["metrics"] = fixture_substitution_allowed(juliaflow_runtime_mode()) ?
+                merge(Dict{String,Any}(String(key) => value for (key, value) in pairs(experiment["metrics"])), measured) : measured
             experiment["validationEvidence"]["trainingArtifactRef"] = String(get(training_artifact, "artifactRef", ""))
             experiment["validationEvidence"]["trainingArtifactChecksumSha256"] = String(get(training_artifact, "checksumSha256", ""))
             experiment["validationEvidence"]["trainingExecutionMode"] = String(get(training_artifact, "modelKind", ""))
@@ -3693,10 +3728,48 @@ function latest_model_execution(state::GatewayState, workflow_id::AbstractString
     return isempty(matching) ? nothing : matching[1]
 end
 
+function strict_model_execution_evidence(state::GatewayState, execution::GatewayExecution, action::AbstractString; evaluation_required::Bool = false)
+    mode = juliaflow_runtime_mode()
+    fixture_substitution_allowed(mode) && return nothing, nothing
+    context = model_validation_context(execution, action)
+    project = project_for_model_lifecycle(state, context, action)
+    artifact = JuliaFlowDataScienceProjectEvidence.require_model_artifact(
+        get(execution.metadata, "ml_training_artifact_evidence", nothing), mode, action, local_data_ref_path_for_write)
+    project === nothing && JuliaFlowDataScienceProjectEvidence.unavailable(action)
+    get(artifact, "projectId", "") == project.project_id || JuliaFlowDataScienceProjectEvidence.unavailable(action)
+    get(artifact, "splitPlanId", "") == get(context, "splitPlanId", "") || JuliaFlowDataScienceProjectEvidence.unavailable(action)
+    report = JuliaFlowDataScienceProjectEvidence.context_evaluation(project, context, mode, action; required = evaluation_required)
+    if report !== nothing
+        validation = get(report, "validationEvidence", Dict{String,Any}())
+        get(validation, "datasetId", "") == get(artifact, "datasetId", "") || JuliaFlowDataScienceProjectEvidence.unavailable(action)
+        evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
+        get(evidence, "targetColumn", "") == get(artifact, "targetColumn", "") || JuliaFlowDataScienceProjectEvidence.unavailable(action)
+    end
+    return artifact, report
+end
+
 function model_register_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
     execution = latest_model_execution(state, workflow_id)
     execution === nothing && error("model evidence not found for workflow: $(workflow_id)")
+    artifact, report = strict_model_execution_evidence(state, execution, "model registration")
+    if !fixture_substitution_allowed(juliaflow_runtime_mode())
+        String(get(body, "status", "registered")) == "registered" || error("model registration source evidence unavailable for direct status promotion; use lifecycle review")
+    end
     record = model_registry_payload(state, execution; request_body = body)
+    if artifact !== nothing
+        record["datasetId"] = artifact["datasetId"]
+        record["target"] = artifact["targetColumn"]
+        source_path = resolve_local_data_ref_path(String(get(artifact, "sourceRef", "")))
+        source_path === nothing && JuliaFlowDataScienceProjectEvidence.unavailable("model registration")
+        record["datasetChecksumSha256"] = local_artifact_checksum(source_path)
+        metrics = report === nothing ? artifact["metrics"] : report["metrics"]
+        metric_name = first(sort(String.(collect(keys(metrics)))))
+        record["primaryMetricName"] = metric_name
+        record["primaryMetricValue"] = metrics[metric_name]
+        record["artifactEvidence"] = [item for item in record["artifactEvidence"] if get(item, "kind", "") == "model"]
+        record["validationEvidence"]["datasetId"] = artifact["datasetId"]
+        report === nothing || (record["validationEvidence"]["evaluationReportId"] = report["evaluationReportId"])
+    end
     execution.metadata["model_registry_record"] = record
     upsert_project_model_registry!(state, record)
     upsert_project_model_lifecycle!(
@@ -3814,6 +3887,7 @@ end
 function deploy_package_payload!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
     execution = latest_model_execution(state, workflow_id)
     execution === nothing && error("model evidence not found for workflow: $(workflow_id)")
+    strict_model_execution_evidence(state, execution, "deploy package"; evaluation_required = true)
     validation_context = model_validation_context(execution, "deploy package")
     model_record = haskey(execution.metadata, "model_registry_record") ?
         Dict{String,Any}(String(key) => value for (key, value) in pairs(execution.metadata["model_registry_record"])) :
@@ -5274,13 +5348,14 @@ end
 
 function run_statistical_analysis_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
-    project = state.data_science_projects[project_id]
+    project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     dataset = data_science_project_dataset(project, dataset_id)
     methods = statistical_analysis_methods(body)
     run_id = "stats-" * replace(string(uuid4()), "-" => "")
     fixture = data_profile_fixture(dataset_id, "local://data/$(dataset_id)")
-    evidence = local_csv_statistical_evidence(dataset, body, methods)
+    evidence = JuliaFlowDataScienceProjectEvidence.read_result(
+        () -> local_csv_statistical_evidence(dataset, body, methods), juliaflow_runtime_mode(), "statistical analysis")
     warnings = String[]
     haskey(body, "targetColumn") || push!(warnings, "No targetColumn supplied; inferential tests are recorded as exploratory evidence.")
     evidence === nothing && push!(warnings, "Managed local CSV source was not available; fixture profile evidence was used for this statistical EDA run.")
@@ -5427,7 +5502,7 @@ end
 
 function run_tuning_study_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
-    project = state.data_science_projects[project_id]
+    project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     dataset = data_science_project_dataset(project, dataset_id)
     split_plan, validation_context = validate_tuning_split_context(project, body, dataset_id)
@@ -5450,7 +5525,7 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
     JuliaFlowDataScienceProjectTuning.upsert_training_plan!(project, training_plan)
     study_id = "tuning-" * replace(string(uuid4()), "-" => "")
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "validation_only_tuning")
-    trials = local_csv_validation_tuning_trials(
+    trials = JuliaFlowDataScienceProjectEvidence.read_result(() -> local_csv_validation_tuning_trials(
         dataset,
         split_plan,
         project.project_id,
@@ -5461,7 +5536,7 @@ function run_tuning_study_response!(state::GatewayState, project_id::AbstractStr
         timestamp,
         target_column,
         String(get(resource_evidence, "selectedBackend", "cpu")),
-    )
+    ), juliaflow_runtime_mode(), "tuning study")
     if trials === nothing
         trials = JuliaFlowDataScienceProjectTuning.tuning_trials(project.project_id, study_id, algorithm, metric_names, max_trials, timestamp)
         validation_context["tuningExecutionMode"] = "deterministic_fallback"
@@ -5698,7 +5773,7 @@ end
 
 function run_final_evaluation_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
-    project = state.data_science_projects[project_id]
+    project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     dataset = data_science_project_dataset(project, dataset_id)
     split_plan = project_split_plan_for_request(project, body, dataset_id, "final evaluation")
@@ -5713,12 +5788,14 @@ function run_final_evaluation_response!(state::GatewayState, project_id::Abstrac
         training_plan,
         tuning_study,
     )
+    JuliaFlowDataScienceProjectEvidence.require_tuning(tuning_study, juliaflow_runtime_mode(), "final evaluation")
     metric_names = final_evaluation_metric_names(body, training_plan)
     approval_threshold = final_evaluation_approval_threshold(body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     report_id = "eval-" * replace(string(uuid4()), "-" => "")
     training_model_artifact = local_csv_training_model_artifact(project, dataset_id, split_plan_id, training_plan)
-    evaluation_result = local_csv_final_evaluation_result(dataset, training_plan, metric_names, split_plan, training_model_artifact)
+    evaluation_result = JuliaFlowDataScienceProjectEvidence.read_result(
+        () -> local_csv_final_evaluation_result(dataset, training_plan, metric_names, split_plan, training_model_artifact), juliaflow_runtime_mode(), "final evaluation")
     metrics = evaluation_result === nothing ? JuliaFlowDataScienceProjectEvaluation.final_evaluation_metrics(metric_names) : evaluation_result["metrics"]
     approved = all(value -> Float64(value) >= approval_threshold, values(metrics))
     evaluation_report = JuliaFlowDataScienceProjectEvaluation.final_evaluation_report_record(
@@ -5946,12 +6023,13 @@ end
 
 function run_prediction_export_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
-    project = state.data_science_projects[project_id]
+    project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     dataset_index = findfirst(dataset -> String(get(dataset, "datasetId", "")) == String(dataset_id), project.datasets)
     dataset_index === nothing && error("prediction export dataset not registered: $(dataset_id)")
     dataset = project.datasets[dataset_index]
     report = project_evaluation_report_for_prediction_export(project, body)
+    JuliaFlowDataScienceProjectEvidence.require_evaluation(report, juliaflow_runtime_mode(), "prediction export")
     Bool(get(report, "approved", false)) || error("prediction export prerequisite approved final evaluation required")
     Bool(get(report, "finalTestOnly", false)) || error("prediction export prerequisite final evaluation evidence required")
     validation = get(report, "validationEvidence", Dict{String,Any}())
@@ -5966,7 +6044,17 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
     output_contract_columns = prediction_export_contract_column_names(output_contract)
     prediction_values, prediction_scoring_mode = local_csv_prediction_values_from_report(dataset, report, row_count)
     if prediction_values === nothing
-        _, prediction_scoring_mode = JuliaFlowDataScienceProjectPredictionExport.prediction_export_prediction_values(report, row_count)
+        prediction_values, prediction_scoring_mode = JuliaFlowDataScienceProjectPredictionExport.prediction_export_prediction_values(report, row_count)
+    end
+    if !fixture_substitution_allowed(juliaflow_runtime_mode())
+        prediction_scoring_mode == "metric_average_fallback" && JuliaFlowDataScienceProjectEvidence.unavailable("prediction export")
+        source_path = resolve_local_data_ref_path(String(get(dataset, "sourceUri", "")))
+        source_path === nothing && JuliaFlowDataScienceProjectEvidence.unavailable("prediction export")
+        table = JuliaFlowDataScienceProjectEvidence.read_result(() -> JuliaFlowDataScienceProjectStatistics.parse_simple_csv(source_path), juliaflow_runtime_mode(), "prediction export")
+        columns, _ = JuliaFlowDataScienceProjectStatistics.simple_numeric_columns(table)
+        target_column = String(get(get(validation, "evaluationDataEvidence", Dict{String,Any}()), "targetColumn", ""))
+        JuliaFlowDataScienceProjectEvidence.require_result(get(columns, target_column, nothing), juliaflow_runtime_mode(), "prediction export")
+        JuliaFlowDataScienceProjectEvidence.require_result(prediction_values, juliaflow_runtime_mode(), "prediction export")
     end
     model_runtime_evidence = evaluation_model_runtime_evidence(report)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
@@ -6192,7 +6280,7 @@ end
 
 function run_drift_report_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
-    project = state.data_science_projects[project_id]
+    project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     dataset = data_science_project_dataset(project, dataset_id)
     prediction_export = project_prediction_export_for_drift(project, body)
@@ -6200,11 +6288,13 @@ function run_drift_report_response!(state::GatewayState, project_id::AbstractStr
     Bool(get(validation, "finalEvaluationApproved", false)) || error("drift report prerequisite approved final evaluation required")
     String(get(validation, "datasetId", dataset_id)) == String(dataset_id) || error("drift report dataset must match prediction export")
     report = project_evaluation_report_for_prediction_export(project, Dict{String,Any}("evaluationReportId" => String(get(prediction_export, "evaluationReportId", ""))))
+    JuliaFlowDataScienceProjectEvidence.require_evaluation(report, juliaflow_runtime_mode(), "drift report")
     metric_names = drift_metric_names(body)
     threshold = drift_threshold(body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     baseline = monitoring_baseline_for_drift!(project, body, dataset_id, prediction_export, metric_names, timestamp)
-    drift_result = local_csv_drift_metric_result(dataset, prediction_export, report, metric_names)
+    drift_result = JuliaFlowDataScienceProjectEvidence.read_result(
+        () -> local_csv_drift_metric_result(dataset, prediction_export, report, metric_names), juliaflow_runtime_mode(), "drift report")
     feature_drift = local_csv_feature_drift_result(dataset, report, metric_names, threshold)
     metrics = drift_result === nothing ? JuliaFlowDataScienceProjectMonitoring.drift_metric_values(metric_names) : drift_result["metrics"]
     status = JuliaFlowDataScienceProjectMonitoring.drift_status(metrics, threshold)
@@ -6324,7 +6414,9 @@ end
 function classify_gateway_error(err)
     message = sprint(showerror, err)
 
-    if occursin("published dashboard not found", message)
+    if occursin("source evidence unavailable", message)
+        return 409, message
+    elseif occursin("published dashboard not found", message)
         return 404, message
     elseif occursin("data science project not found", message)
         return 404, message
