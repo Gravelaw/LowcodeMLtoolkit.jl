@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 const gatewayUrl = process.env.JULIAFLOW_LIVE_GATEWAY_URL ?? "http://127.0.0.1:18088";
+const gatewayAuthToken = process.env.JULIAFLOW_LIVE_AUTH_TOKEN ?? "";
+test.use({ extraHTTPHeaders: { Authorization: `Bearer ${gatewayAuthToken}` } });
 const hubArtifactHash = process.env.JULIAFLOW_LIVE_HUB_ARTIFACT_HASH ?? "";
 const hubPackageRef = process.env.JULIAFLOW_LIVE_HUB_PACKAGE_REF ?? "hub://offline/live-browser-proof";
 const hubMirrorRef = process.env.JULIAFLOW_LIVE_HUB_MIRROR_REF ?? "mirror://offline/live-browser-proof";
@@ -17,8 +19,51 @@ test.describe("live-backend release smoke", () => {
       window.__JULIAFLOW_CONFIG__ = config;
     }, {
       gatewayBaseUrl: gatewayUrl,
+      gatewayAuthToken,
       runtimeMode: "local-appliance"
     });
+  });
+
+  test("rejects unauthenticated and cross-origin mutations including realtime upgrades", async ({ request }) => {
+    const before = await request.get(`${gatewayUrl}/api/v1/data-science-projects`);
+    const beforePayload = await before.json();
+    for (const headers of [{ Authorization: "" }, { Origin: "https://untrusted.example" }, { Origin: "null" }]) {
+      const response = await request.post(`${gatewayUrl}/api/v1/data-science-projects`, {
+        headers, data: { projectId: "unauthorized-browser-probe", name: "Unauthorized" }
+      });
+      expect(response.status()).toBe(headers.Authorization === "" ? 401 : 403);
+    }
+    for (const headers of [{ Authorization: "" }, { Origin: "https://untrusted.example" }]) {
+      const upgrade = await request.get(`${gatewayUrl}/api/v1/realtime`, {
+        headers: { Connection: "Upgrade", Upgrade: "websocket", "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==", ...headers }
+      });
+      expect(upgrade.status()).toBe(headers.Authorization === "" ? 401 : 403);
+    }
+    const after = await request.get(`${gatewayUrl}/api/v1/data-science-projects`);
+    expect(await after.json()).toEqual(beforePayload);
+  });
+
+  test("authenticates a browser realtime subscription without credentials in the URL", async ({ page }) => {
+    await page.context().setExtraHTTPHeaders({});
+    // Use a real HTTP document so browser local-network protection sees its actual address space.
+    await page.goto("/juliaflow-config.js");
+    const result = await page.evaluate(({ url, token }) => new Promise<{ protocol: string; subscriptionId: string }>((resolve, reject) => {
+      const encoded = btoa(token).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+      const ws = new WebSocket(url.replace(/^http/, "ws") + "/api/v1/realtime", ["juliaflow", `juliaflow.bearer.${encoded}`]);
+      const timeout = setTimeout(() => { ws.close(); reject(new Error("Realtime subscription timed out")); }, 10000);
+      ws.onerror = () => { clearTimeout(timeout); reject(new Error("Realtime authentication failed")); };
+      ws.onopen = () => ws.send(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "canvas.subscribe", params: { workflowId: "wf-foundation" } }));
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        if (message.id !== 1) return;
+        clearTimeout(timeout);
+        if (message.error) reject(new Error(message.error.message));
+        else ws.onclose = () => resolve({ protocol: ws.protocol, subscriptionId: message.result.subscriptionId });
+        ws.close();
+      };
+    }), { url: gatewayUrl, token: gatewayAuthToken });
+    expect(result.protocol).toBe("juliaflow");
+    expect(result.subscriptionId).toMatch(/^canvas-/);
   });
 
   test("uses local gateway data through the release UI without demo substitution", async ({ page, request }) => {

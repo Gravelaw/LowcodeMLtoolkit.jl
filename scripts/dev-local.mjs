@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
+import { localAuthEnv } from "./lib/local-auth.mjs";
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PROFILES = new Set(["single-user", "lab-team", "s3-compatible-local", "developer"]);
@@ -15,14 +16,6 @@ function juliaCommand() {
     return process.env.JULIAFLOW_JULIA_CMD;
   }
   return existsSync(LOCAL_JULIA) ? LOCAL_JULIA : "julia";
-}
-
-function npmCommand() {
-  return process.platform === "win32" ? "cmd.exe" : "npm";
-}
-
-function npmArgs(args) {
-  return process.platform === "win32" ? ["/d", "/s", "/c", "npm", ...args] : args;
 }
 
 function withJuliaEnv(env) {
@@ -219,7 +212,7 @@ function baseEnv(config, options) {
     JULIAFLOW_EVENT_BACKBONE_MODE: process.env.JULIAFLOW_EVENT_BACKBONE_MODE ?? "dual_write",
     JULIAFLOW_STREAM_WORKER_MODE: process.env.JULIAFLOW_STREAM_WORKER_MODE ?? "process",
     JULIAFLOW_GPU_WORKER_MODE: process.env.JULIAFLOW_GPU_WORKER_MODE ?? "process",
-    JULIAFLOW_AUTH_MODE: process.env.JULIAFLOW_AUTH_MODE ?? "disabled",
+    ...localAuthEnv(process.env, config.serviceUrls.frontend),
     VITE_JULIAFLOW_GATEWAY_BASE_URL: config.serviceUrls.gateway
   };
 
@@ -309,12 +302,12 @@ async function waitForPostgres(timeoutMs = 30000) {
   throw new Error(`Timed out waiting for Postgres readiness: ${lastError?.message ?? "pg_isready did not succeed"}`);
 }
 
-async function waitForJson(url, timeoutMs) {
+async function waitForJson(url, timeoutMs, headers = {}) {
   const started = Date.now();
   let lastError = null;
   while (Date.now() - started < timeoutMs) {
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { headers });
       if (response.ok) {
         return await response.json();
       }
@@ -339,7 +332,9 @@ async function runSmoke(config, env) {
   try {
     const startupTimeoutMs = config.profile === "lab-team" ? 90000 : 60000;
     const health = await waitForJson(`${config.serviceUrls.gateway}/health`, startupTimeoutMs);
-    const workflows = await waitForJson(`${config.serviceUrls.gateway}/api/v1/workflows`, 30000);
+    const token = env.JULIAFLOW_AUTH_MODE === "oidc" ? env.VITE_JULIAFLOW_OIDC_ACCESS_TOKEN : env.JULIAFLOW_DEV_AUTH_TOKEN;
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const workflows = await waitForJson(`${config.serviceUrls.gateway}/api/v1/workflows`, 30000, headers);
     if (health.localProfile !== config.profile) {
       throw new Error(`Expected localProfile ${config.profile}, got ${health.localProfile}`);
     }
@@ -458,10 +453,11 @@ async function main() {
     spawnProcess("execution-service", juliaCommand(), ["--project=.", "scripts/run-execution-service.jl"], withJuliaEnv(env)),
     spawnProcess("stream-worker", juliaCommand(), ["--project=.", "scripts/run-stream-worker.jl"], withJuliaEnv(env)),
     spawnProcess("gpu-worker", juliaCommand(), ["--project=.", "scripts/run-gpu-worker.jl"], withJuliaEnv(env)),
-    spawnProcess("frontend", npmCommand(), npmArgs(["--workspace", "@juliaflow/frontend", "run", "dev", "--", "--host", options.host, "--port", numberOption(options.frontendPort, "frontend port")]), env)
+    spawnProcess("frontend", process.execPath, ["scripts/run-local-frontend.mjs"], env)
   ];
 
   console.log(`[dev:local] profile=${config.profile}`);
+  console.log(`[dev:local] runtime=${env.JULIAFLOW_RUNTIME_MODE} auth=${env.JULIAFLOW_AUTH_MODE}`);
   console.log(`[dev:local] home=${config.home}`);
   console.log(`[dev:local] gateway=${config.serviceUrls.gateway}`);
   console.log(`[dev:local] frontend=${config.serviceUrls.frontend}`);

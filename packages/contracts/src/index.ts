@@ -2273,6 +2273,8 @@ export interface GatewayClientOptions {
 export interface GatewayRealtimeClientOptions {
   baseUrl: string;
   WebSocket?: typeof WebSocket;
+  /** Bearer credential carried in an upgrade subprotocol, never in the URL. */
+  authToken?: string;
 }
 
 export interface GatewayRealtimeRequest {
@@ -3112,7 +3114,12 @@ export function createGatewayRealtimeClient(
     throw new Error("WebSocket implementation required to create Gateway realtime client");
   }
 
-  const socket = new RealtimeSocket(buildRealtimeUrl(options.baseUrl));
+  const token = options.authToken?.trim();
+  const encodedToken = token ? btoa(Array.from(new TextEncoder().encode(token), (byte) => String.fromCharCode(byte)).join(""))
+    .replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "") : undefined;
+  const socket = encodedToken
+    ? new RealtimeSocket(buildRealtimeUrl(options.baseUrl), ["juliaflow", `juliaflow.bearer.${encodedToken}`])
+    : new RealtimeSocket(buildRealtimeUrl(options.baseUrl));
   let nextRequestId = 1;
   const pendingRequests = new Map<
     number,

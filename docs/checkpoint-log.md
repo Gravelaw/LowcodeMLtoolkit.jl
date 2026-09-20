@@ -1,5 +1,11 @@
 # JuliaFlow Checkpoint Log
 
+## 2026-09-20 — AKS-55 browser authority locally verified
+
+Started from `87aa8166` on a new issue-specific branch. Baseline local-appliance probe accepted an untrusted-origin, unauthenticated project creation (201). Launcher token/bootstrap and gateway REST/realtime boundaries are patched without frontend application edits. API gateway: 1,069 pass; boundary: 37 pass; realtime: 73 pass; audit/OIDC: 46 pass; cleanup: 5 pass; contracts: 26 pass; frontend: 27 pass. Bootstrap and runtime-config checks pass. The independent candidate review completed and its confirmed findings were fixed; all three final live-browser scenarios pass, including log checks for connection errors and leaked credentials. Control-document sync against `87aa8166`, BRD traceability and diff checks pass. Draft PR publication and hosted review remain open. [Remediation report](blocker-remediation-2026-09-20.md) records compatibility and remaining gates. No merge, release, dependency change or destructive migration.
+
+Separate Astra Extra High task created for editable Figma concepts from the same snapshot; current development uses Astra Medium. Direction selection permits only further design work; frontend implementation requires explicit final design approval.
+
 ## 2026-09-20 — AKS-38 current-code review and restart backlog
 
 Reviewed dependency candidate `f9e10f3a3e5fd3c48e601e9252047de49c8bf2df` (draft PR #48), stacked on #47/#40. [Current review](restart-review-2026-09-20.md) supersedes June 21 current-state conclusions without editing historical documents; [threat model](restart-threat-model-2026-09-20.md) distinguishes configured controls from default startup and managed-reference gaps. This is a sequential agent review, not independent human approval.

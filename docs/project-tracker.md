@@ -2,6 +2,8 @@
 
 Last reconciled: 2026-09-20.
 
+Approved restart execution: AKS-55 is In Progress on a separate implementation branch from `87aa8166`; local gateway/auth/realtime, contracts, frontend/build, bootstrap and live-browser checks pass; draft PR publication and hosted review remain open. Remaining sequence: AKS-41 managed confinement, AKS-56 contracts, AKS-53 evidence, AKS-54 split membership. The isolated Figma task owns mockups only; no frontend implementation before explicit final design approval. See [remediation evidence](blocker-remediation-2026-09-20.md).
+
 | Work | Verified delivery state | Next bounded action |
 | --- | --- | --- |
 | AKS-36 DataScienceProject | Linear In Progress; PR #40 draft at audited head `a70ea67`; web/Julia green, Debian release browser failure | Review the setup repair, then obtain same-head platform evidence and resolve acceptance/review/merge gates |

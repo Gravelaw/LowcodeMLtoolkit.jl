@@ -1635,6 +1635,7 @@ function auth_context_payload(request::HTTP.Request; state::Union{Nothing,Gatewa
     mode = gateway_auth_mode()
     role = auth_role_from_request(request)
     if mode == "disabled"
+        fixture_substitution_allowed(juliaflow_runtime_mode()) || error("auth token is required in release/local-appliance mode")
         return auth_context_from_role("system:auth-disabled", "local-dev", "owner", mode)
     elseif mode == "oidc"
         token = bearer_token_from_request(request)
@@ -1653,7 +1654,7 @@ function auth_context_payload(request::HTTP.Request; state::Union{Nothing,Gatewa
 
     expected_token = dev_auth_token()
     if expected_token === nothing
-        mode == "required" && error("auth token is required but JULIAFLOW_DEV_AUTH_TOKEN is not configured")
+        (mode == "required" || !fixture_substitution_allowed(juliaflow_runtime_mode())) && error("auth token is required but JULIAFLOW_DEV_AUTH_TOKEN is not configured")
         return auth_context_from_role("dev:local-user", "local-dev", "owner", "dev_fallback")
     end
 
@@ -6259,7 +6260,7 @@ function run_drift_report_response!(state::GatewayState, project_id::AbstractStr
 end
 
 function cors_origin()
-    return get(ENV, "JULIAFLOW_CORS_ALLOW_ORIGIN", "*")
+    return get(ENV, "JULIAFLOW_CORS_ALLOW_ORIGIN", get(ENV, "JULIAFLOW_LOCAL_FRONTEND_URL", "http://127.0.0.1:5173"))
 end
 
 function cors_allowed_origins()
@@ -6277,18 +6278,33 @@ function validate_cors_origin!(request::HTTP.Request)
     origin = request_header(request, "Origin")
     origin === nothing && return nothing
     allowed = cors_allowed_origins()
-    "*" in allowed && return nothing
+    if "*" in allowed
+        fixture_substitution_allowed(juliaflow_runtime_mode()) || error("CORS origin not allowed: wildcard requires demo/development mode")
+        return nothing
+    end
     String(origin) in allowed || error("CORS origin not allowed")
     return nothing
 end
 
 function base_headers()
     return [
-        "Access-Control-Allow-Origin" => cors_origin(),
         "Access-Control-Allow-Headers" => "Content-Type, Authorization, X-JuliaFlow-Workspace, X-JuliaFlow-Workspace-Role, X-JuliaFlow-Principal",
         "Access-Control-Allow-Methods" => "GET, POST, PUT, OPTIONS",
         "Access-Control-Max-Age" => "86400",
     ]
+end
+
+function apply_cors_headers!(response::HTTP.Response, request::HTTP.Request)
+    origin = request_header(request, "Origin")
+    origin === nothing && return response
+    allowed = cors_allowed_origins()
+    if String(origin) in allowed
+        HTTP.setheader(response, "Access-Control-Allow-Origin" => String(origin))
+        HTTP.setheader(response, "Vary" => "Origin")
+    elseif "*" in allowed && fixture_substitution_allowed(juliaflow_runtime_mode())
+        HTTP.setheader(response, "Access-Control-Allow-Origin" => "*")
+    end
+    return response
 end
 
 function json_response(status::Integer, body::AbstractString)
@@ -7067,8 +7083,8 @@ function register_dashboard_subscription!(state::GatewayState, subscription_id::
 end
 
 function drop_socket_subscriptions!(state::GatewayState, ws)
-    filter!((_, subscription) -> subscription.socket !== ws, state.canvas_subscriptions)
-    filter!((_, subscription) -> subscription.socket !== ws, state.dashboard_subscriptions)
+    filter!(entry -> last(entry).socket !== ws, state.canvas_subscriptions)
+    filter!(entry -> last(entry).socket !== ws, state.dashboard_subscriptions)
     return nothing
 end
 
@@ -7206,7 +7222,7 @@ function realtime_method_result!(state::GatewayState, method::AbstractString, pa
     error("method not found: $(method)")
 end
 
-function handle_realtime_request!(state::GatewayState, raw_message, ws = nothing)
+function handle_realtime_request!(state::GatewayState, raw_message, ws = nothing; auth_request::HTTP.Request = HTTP.Request("GET", "/api/v1/realtime"))
     request_id = nothing
     try
         request = copy(JSON3.read(String(raw_message), Dict{String,Any}))
@@ -7216,6 +7232,13 @@ function handle_realtime_request!(state::GatewayState, raw_message, ws = nothing
         method = String(request["method"])
         params = haskey(request, "params") ? Dict{String,Any}(String(key) => value for (key, value) in pairs(request["params"])) : Dict{String,Any}()
         request_id = get(request, "id", nothing)
+        validate_cors_origin!(auth_request)
+        is_dashboard = method == "dashboard.subscribe"
+        is_mutation = method in ("workflow.execute", "workflow.pause", "workflow.resume", "workflow.stop")
+        permission = is_dashboard ? "dashboard:read" : is_mutation ? "workflow:execute" : "workflow:read"
+        resource_id = get(params, is_dashboard ? "dashboardId" : "workflowId", nothing)
+        resource_type = resource_id === nothing ? nothing : is_dashboard ? "dashboard" : "workflow"
+        require_permission!(state, auth_request, permission; resource_type, resource_id = resource_id === nothing ? nothing : String(resource_id))
         result, notifications = realtime_method_result!(state, method, params, ws)
         return jsonrpc_success(request_id, result), notifications
     catch err
@@ -7229,10 +7252,10 @@ function handle_realtime_request!(state::GatewayState, raw_message, ws = nothing
     end
 end
 
-function handle_realtime_socket!(state::GatewayState, ws)
+function handle_realtime_socket!(state::GatewayState, ws, auth_request::HTTP.Request)
     try
         for message in ws
-            response, notifications = handle_realtime_request!(state, message, ws)
+            response, notifications = handle_realtime_request!(state, message, ws; auth_request = auth_request)
             HTTP.WebSockets.send(ws, response)
             for notification in notifications
                 HTTP.WebSockets.send(ws, notification)
@@ -7265,6 +7288,26 @@ function start_gateway_event_consumer_task!(state::GatewayState)
     return nothing
 end
 
+function realtime_auth_request(request::HTTP.Request)
+    protocols = strip.(split(something(request_header(request, "Sec-WebSocket-Protocol"), ""), ','))
+    credentials = filter(protocol -> startswith(protocol, "juliaflow.bearer."), protocols)
+    isempty(credentials) && return HTTP.Request(String(request.method), String(request.target), copy(request.headers))
+    length(credentials) == 1 || error("invalid auth token")
+    encoded = String(only(credentials))[18:end]
+    (0 < ncodeunits(encoded) <= 16384 && occursin(r"^[A-Za-z0-9_-]+$", encoded)) || error("invalid auth token")
+    token = try
+        base64url_decode_string(encoded)
+    catch
+        error("invalid auth token")
+    end
+    (isempty(strip(token)) || occursin('\r', token) || occursin('\n', token)) && error("invalid auth token")
+    bearer = bearer_token_from_request(request)
+    (bearer === nothing || bearer == token) || error("invalid auth token")
+    headers = filter(header -> !(lowercase(String(first(header))) in ("authorization", "sec-websocket-protocol")), request.headers)
+    push!(headers, "Authorization" => "Bearer $(token)")
+    return HTTP.Request(String(request.method), String(request.target), headers)
+end
+
 function gateway_stream_handler(state::GatewayState)
     rest_handler = HTTP.Handlers.streamhandler(request -> route_request(state, request))
 
@@ -7272,8 +7315,29 @@ function gateway_stream_handler(state::GatewayState)
         request = http.message
         path = HTTP.URI(String(request.target)).path
         if path == "/api/v1/realtime" && HTTP.WebSockets.isupgrade(request)
+            auth_request = request
+            try
+                validate_cors_origin!(request)
+                auth_request = realtime_auth_request(request)
+                require_permission!(state, auth_request, "workflow:read")
+            catch err
+                status, message = classify_gateway_error(err)
+                response = apply_cors_headers!(error_response(status, message), request)
+                filter!(header -> !(lowercase(String(first(header))) in ("authorization", "sec-websocket-protocol")), request.headers)
+                HTTP.setstatus(http, response.status)
+                for header in response.headers
+                    HTTP.setheader(http, header)
+                end
+                HTTP.startwrite(http)
+                write(http, response.body)
+                return nothing
+            end
+            protocols = strip.(split(something(request_header(request, "Sec-WebSocket-Protocol"), ""), ','))
+            "juliaflow" in protocols && HTTP.setheader(http, "Sec-WebSocket-Protocol" => "juliaflow")
+            # HTTP.jl keeps/logs the handshake request on protocol errors: remove credentials first.
+            filter!(header -> !(lowercase(String(first(header))) in ("authorization", "sec-websocket-protocol")), request.headers)
             return HTTP.WebSockets.upgrade(http) do ws
-                handle_realtime_socket!(state, ws)
+                handle_realtime_socket!(state, ws, auth_request)
             end
         end
         return rest_handler(http)
@@ -7297,6 +7361,7 @@ function route_request(state::GatewayState, request::HTTP.Request)
     status = 500
     try
         response = route_request_inner(state, request)
+        apply_cors_headers!(response, request)
         status = Int(response.status)
         return response
     finally

@@ -1,6 +1,13 @@
 {
   "version": "2.0",
   "channel": "workflow-realtime",
+  "authentication": {
+    "requiredIn": ["release", "local-appliance"],
+    "httpHeader": "Authorization: Bearer <token>",
+    "browserSubprotocols": ["juliaflow", "juliaflow.bearer.<base64url-utf8-token>"],
+    "negotiatedSubprotocol": "juliaflow",
+    "notes": "Expected Origin is checked before upgrade. Credentials are never placed in URLs or echoed in negotiated protocols. Each RPC rechecks permission and resource policy."
+  },
   "methods": [
     {
       "name": "canvas.subscribe",

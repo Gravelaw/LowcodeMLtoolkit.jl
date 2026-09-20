@@ -2,6 +2,8 @@
 
 Last updated: 2026-09-20 (current acceptance qualification; historical rows retained).
 
+Current local-trust remediation is traced in [AKS-55 evidence](blocker-remediation-2026-09-20.md): `scripts/lib/local-auth.mjs`, gateway REST/realtime authorization, `tests/julia/local_browser_boundary_tests.jl`, `tests/contracts/local-auth.test.mjs`, and live-browser rejection scenarios. Local gateway/auth/realtime, contracts, frontend/build, bootstrap and live-browser checks pass; hosted checks and delivery review remain pending. This does not close a historical milestone or the remaining AKS-41/53/54/56 criteria. Frontend persona/design acceptance awaits the separate Figma review and explicit final design approval.
+
 The [AKS-38 current-code review](restart-review-2026-09-20.md) maps AKS-40–50 criteria to code/tests and explicitly distinguishes bounded proof from remaining function/evidence. AKS-53–56 block deeper readiness claims: missing-input synthetic evidence, split/final-test isolation, default browser authority, and job contract consistency. AKS-37/39 are In Review, not Done, because their PR #40 delivery is unmerged. The older rows and 46 checked milestones below remain historical slice evidence; no P0/P1/P2 completion is newly asserted by dependency maintenance or structural validators.
 
 | BRD Area | Current Status | Evidence | Next Gap |

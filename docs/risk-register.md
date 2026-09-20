@@ -4,6 +4,8 @@ Last reconciled: 2026-09-20, AKS-51. Linear owns acceptance, assignees, and stat
 
 ## Active decisions and acceptance risks
 
+AKS-55 remediation now covers launcher credentials, strict runtime fallback rejection, REST origin checks and the previously unguarded realtime upgrade/RPC path. Gateway, auth/realtime, contract, frontend and bootstrap checks pass; candidate review and all three live-browser scenarios pass; hosted checks and delivery review remain open in [the remediation report](blocker-remediation-2026-09-20.md). The shared realtime SDK now supports optional upgrade-protocol credentials, while REST uses its existing token interface. Neither path requires frontend application edits. The approved frontend freeze prevents design work from changing application behavior before final design confirmation.
+
 | Risk | Issue / decision | Current mitigation and remaining gate |
 | --- | --- | --- |
 | R-DEPENDENCY-001 | AKS-52 | Targeted candidate clean install/audit reports zero findings, versus eight baseline package entries / ten GitHub default-branch alerts. Review/merge and hosted evidence remain open; see dependency remediation report. |

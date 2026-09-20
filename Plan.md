@@ -2,6 +2,8 @@
 
 Last reconciled: 2026-09-20, AKS-38 restart review.
 
+Approved execution now proceeds through AKS-55/41 local trust, AKS-56 compatible runtime contracts, AKS-53 unavailable evidence, then AKS-54 split isolation. [Remediation evidence](docs/blocker-remediation-2026-09-20.md) records each bounded change. Development stays in the current task at Astra Medium; a separate Astra Extra High task owns Figma concepts/mockups only. All frontend implementation is frozen until explicit final design approval. No merge or release is authorized.
+
 Dependency preparation now stacks on AKS-51: [AKS-52 evidence](docs/dependency-remediation-2026-09-20.md) records compatible advisory fixes, a clean audit, and verification repairs. Review/merge remains required. Current-code AKS-38 review has identified AKS-53 (synthetic analysis fallback) and AKS-54 (split membership/final-test isolation) as product follow-ups before deeper feature development; no product repair or release claim is included here.
 
 The [current-code review and acceptance matrix](docs/restart-review-2026-09-20.md) supersedes June 21 current-state conclusions and adds AKS-55 (default local browser authority) and AKS-56 (job contract consistency). Decision: restart bounded remediation; keep deeper persona development and readiness claims gated by these findings and remaining AKS-41/45/46/48/49/50 evidence. Review is agent-authored, not human approval.
@@ -27,7 +29,7 @@ PR #39 remains an unmerged fallback until PR #40 merges. AKS-37 and AKS-39 were 
 
 Preserve Arrow IPC and TOML boundaries, contract-first changes, explicit CPU fallback, current auth/import controls, and no fixture substitution in release/local-appliance mode. Database, watched-folder, USB, and cloud dataset source execution are not enabled by the current bounded proof. Compatible CUDA/multi-GPU success is conditional and unclaimed. Core logic retains the NASA/JPL Power of 10 requirement.
 
-The next bounded actions are review of AKS-51/52 and the current AKS-38 report, then AKS-55/53, AKS-54/56, lifecycle and real-file persona acceptance, and finally AKS-50 same-head platform closeout. Logical authorized integration order is #40 → #47 → #48 → the AKS-38 review PR, with blockers resolved in the chosen candidate before #40 can merge. No merge or release is authorized here. Use [AGENTS.md](AGENTS.md) and [tooling guidance](docs/agent-tooling.md) for verification.
+The next bounded actions are review of AKS-51/52 and the current AKS-38 report, then the approved AKS-55/41, AKS-56, AKS-53, AKS-54 sequence, lifecycle and real-file persona acceptance, and finally AKS-50 same-head platform closeout. Logical authorized integration order is #40 → #47 → #48 → the AKS-38 review PR, with blockers resolved in the chosen candidate before #40 can merge. No merge or release is authorized here. Use [AGENTS.md](AGENTS.md) and [tooling guidance](docs/agent-tooling.md) for verification.
 
 ## Historical evidence
 

@@ -39,8 +39,8 @@ const SLICES = {
   "execution-service": ["Execution Service"],
   repository: ["Gateway Repository"],
   worker: ["Data science project job helpers", "Worker Service"],
-  "api-gateway": ["API Gateway"],
-  realtime: ["API Gateway Realtime"],
+  "api-gateway": ["API Gateway", "Gateway local browser boundary"],
+  realtime: ["API Gateway Realtime", "Gateway realtime cleanup"],
   "base-extension": ["Base Extension"],
   auth: [
     "Gateway Audit Events",

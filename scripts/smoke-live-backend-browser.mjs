@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createHash, randomBytes } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -12,6 +12,7 @@ const gatewayPort = process.env.JULIAFLOW_LIVE_GATEWAY_PORT ?? String(portBase);
 const frontendPort = process.env.JULIAFLOW_LIVE_FRONTEND_PORT ?? String(portBase + 1);
 const gatewayUrl = `http://127.0.0.1:${gatewayPort}`;
 const frontendUrl = `http://127.0.0.1:${frontendPort}`;
+const authToken = randomBytes(32).toString("hex");
 const npmBin = process.platform === "win32" ? "npm.cmd" : "npm";
 const juliaBin = process.env.JULIA_EXE ?? "julia";
 const juliaArgs = ["--compiled-modules=no", "--pkgimages=no"];
@@ -141,7 +142,7 @@ async function waitFor(url, label, timeoutMs = 180000) {
 async function postJson(url, body) {
   return fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", Authorization: `Bearer ${authToken}` },
     body: JSON.stringify(body)
   });
 }
@@ -167,7 +168,9 @@ try {
     JULIAFLOW_GATEWAY_HOST: "127.0.0.1",
     JULIAFLOW_GATEWAY_PORT: gatewayPort,
     JULIAFLOW_RUNTIME_MODE: "local-appliance",
-    JULIAFLOW_AUTH_MODE: "disabled",
+    JULIAFLOW_AUTH_MODE: "required",
+    JULIAFLOW_DEV_AUTH_TOKEN: authToken,
+    JULIAFLOW_CORS_ALLOW_ORIGIN: frontendUrl,
     JULIAFLOW_LOCAL_PROFILE: "single-user",
     JULIAFLOW_APPLIANCE_BOOTSTRAP: "1",
     JULIAFLOW_HOME: liveHome,
@@ -198,6 +201,7 @@ try {
     const child = spawnLogged("playwright", npmBin, ["exec", "--", "playwright", "test", "--config", "playwright.live.config.ts"], {
       JULIAFLOW_LIVE_FRONTEND_URL: frontendUrl,
       JULIAFLOW_LIVE_GATEWAY_URL: gatewayUrl,
+      JULIAFLOW_LIVE_AUTH_TOKEN: authToken,
       JULIAFLOW_LIVE_HUB_ARTIFACT_HASH: hubArtifactHash,
       JULIAFLOW_LIVE_HUB_PACKAGE_REF: hubPackageRef,
       JULIAFLOW_LIVE_HUB_MIRROR_REF: hubMirrorRef,
@@ -207,6 +211,13 @@ try {
   });
   if (result !== 0) {
     throw new Error(`live-backend Playwright smoke failed with exit code ${result}`);
+  }
+  const gatewayLog = readFileSync(join(logRoot, "gateway.log"), "utf8");
+  if (/Unexpected websocket server error|handle_connection handler error/.test(gatewayLog)) {
+    throw new Error("Gateway reported a realtime connection lifecycle error");
+  }
+  if (gatewayLog.includes(authToken) || gatewayLog.includes(Buffer.from(authToken).toString("base64url"))) {
+    throw new Error("Gateway log exposed an ephemeral authentication credential");
   }
 
   writeFileSync(join(artifactRoot, "summary.json"), `${JSON.stringify({

@@ -18,6 +18,13 @@ using .JuliaFlowApiGateway
 using .JuliaFlowBaseExtension
 
 include(joinpath(@__DIR__, "repository_contract_tests.jl"))
+include(joinpath(@__DIR__, "shared_test_helpers.jl"))
+
+mutable struct FakeRealtimeSocket
+    messages::Vector{String}
+end
+
+HTTP.WebSockets.send(socket::FakeRealtimeSocket, message) = push!(socket.messages, String(message))
 
 @testset "Gateway presentation helpers" begin
     presentation = JuliaFlowApiGateway.JuliaFlowGatewayPresentation
@@ -1994,119 +2001,6 @@ end
     @test worker_backed_evidence["status"] == "completed"
     @test worker_backed_evidence["orchestrationMode"] == "worker_service_tick"
     @test worker_backed_evidence["dispatchStatus"] == "completed"
-end
-
-mutable struct FakeRealtimeSocket
-    messages::Vector{String}
-end
-
-HTTP.WebSockets.send(socket::FakeRealtimeSocket, message) = push!(socket.messages, String(message))
-
-function test_base64url(bytes::Vector{UInt8})
-    encoded = base64encode(bytes)
-    encoded = replace(replace(encoded, '+' => '-'), '/' => '_')
-    return replace(encoded, "=" => "")
-end
-
-function test_base64url_json(payload)
-    return test_base64url(Vector{UInt8}(codeunits(JSON3.write(payload))))
-end
-
-function test_hs256_jwt(claims::Dict{String,Any}; secret::AbstractString = "oidc-secret", kid::Union{Nothing,AbstractString} = nothing)
-    header = Dict{String,Any}("alg" => "HS256", "typ" => "JWT")
-    kid === nothing || (header["kid"] = String(kid))
-    signing_input = string(test_base64url_json(header), ".", test_base64url_json(claims))
-    signature = test_base64url(hmac_sha256(Vector{UInt8}(codeunits(secret)), signing_input))
-    return string(signing_input, ".", signature)
-end
-
-function test_oct_jwk(kid::AbstractString, secret::AbstractString)
-    return Dict("kty" => "oct", "kid" => String(kid), "alg" => "HS256", "k" => test_base64url(Vector{UInt8}(codeunits(secret))))
-end
-
-function runtime_branch_workflow_text()
-    return """
-    version = "0.1.0"
-
-    [workflow]
-    id = "wf-catch-branch-dag"
-    name = "Catch Branch DAG"
-
-    [[workflow.bi_outlets]]
-    node_id = "catch-bi"
-    name = "Catch BI Outlet"
-    rows = [
-      { status = "recovered", count = 2 },
-      { status = "audited", count = 1 }
-    ]
-
-    [[workflow.control_flow]]
-    id = "try-catch-dag"
-    kind = "try_catch"
-    name = "Catch DAG Guard"
-    try_node_ids = ["node-transform"]
-    catch_node_ids = ["catch-log", "catch-clean", "catch-bi"]
-
-    [runtime]
-    run_mode = "batch"
-
-    [[nodes]]
-    id = "node-source"
-    name = "Source"
-    type = "JuliaFlow.Base.CSVReader"
-    execution_hint = "cpu_only"
-    ports = [{ id = "out", direction = "output", type = "data_table" }]
-    config = { path = "assets/sample.csv" }
-
-    [[nodes]]
-    id = "node-transform"
-    name = "Transform"
-    type = "JuliaFlow.Base.ColumnSelect"
-    execution_hint = "cpu_only"
-    ports = [
-      { id = "in", direction = "input", type = "data_table" },
-      { id = "out", direction = "output", type = "data_table" }
-    ]
-    config = { columns = ["amount"] }
-
-    [[nodes]]
-    id = "catch-log"
-    name = "Catch Log"
-    type = "JuliaFlow.Base.AuditLog"
-    execution_hint = "cpu_only"
-    ports = []
-    config = { event = "recover" }
-
-    [[nodes]]
-    id = "catch-clean"
-    name = "Catch Clean"
-    type = "JuliaFlow.Base.CleanRows"
-    execution_hint = "cpu_only"
-    ports = [{ id = "out", direction = "output", type = "data_table" }]
-    config = { strategy = "safe" }
-
-    [[nodes]]
-    id = "catch-bi"
-    name = "Catch BI"
-    type = "JuliaFlow.BI.DataOutlet"
-    execution_hint = "cpu_only"
-    ports = [{ id = "in", direction = "input", type = "data_table" }]
-    config = { outlet = "catch-bi" }
-
-    [[connections]]
-    source_node_id = "node-source"
-    source_port_id = "out"
-    target_node_id = "node-transform"
-    target_port_id = "in"
-    data_type = "data_table"
-
-    [[connections]]
-    source_node_id = "catch-clean"
-    source_port_id = "out"
-    target_node_id = "catch-bi"
-    target_port_id = "in"
-    data_type = "data_table"
-    """
 end
 
 @testset "Node SDK" begin
@@ -7017,7 +6911,7 @@ end
         @test import_post.status == 201
         @test occursin("wf-parallel", String(import_post.body))
         @test preflight.status == 204
-        @test any(header -> header.first == "Access-Control-Allow-Origin" && header.second == "*", preflight.headers)
+        @test any(header -> header.first == "Access-Control-Allow-Origin" && header.second == "http://127.0.0.1:5173", preflight.headers)
         @test any(header -> header.first == "Access-Control-Allow-Methods" && occursin("OPTIONS", header.second), preflight.headers)
         @test any(header -> header.first == "Access-Control-Allow-Headers" && occursin("X-JuliaFlow-Workspace-Role", header.second), preflight.headers)
         @test cors_allowed_preflight.status == 204
@@ -7029,7 +6923,7 @@ end
         @test cors_rejected_mutation_response.status == 403
         @test occursin("CORS origin not allowed", String(cors_rejected_mutation_response.body))
         @test missing_route.status == 404
-        @test any(header -> header.first == "Access-Control-Allow-Origin" && header.second == "*", health_response.headers)
+        @test !any(header -> header.first == "Access-Control-Allow-Origin", health_response.headers)
     end
 end
 
@@ -7882,4 +7776,26 @@ end
     @test occursin("wf-foundation", String(valid_response.body))
     @test tampered_response.status == 401
     @test occursin("invalid OIDC token signature", String(tampered_response.body))
+end
+
+@testset "Gateway local browser boundary" begin
+    include(joinpath(@__DIR__, "local_browser_boundary_tests.jl"))
+end
+
+@testset "Gateway realtime cleanup" begin
+    state = load_state(mktempdir())
+    closed_socket = FakeRealtimeSocket(String[])
+    active_socket = FakeRealtimeSocket(String[])
+    for (id, socket) in [("closed", closed_socket), ("active", active_socket)]
+        JuliaFlowApiGateway.register_canvas_subscription!(state, id, "wf-foundation", socket)
+        JuliaFlowApiGateway.register_dashboard_subscription!(state, id, "dashboard-foundation", String[], socket)
+    end
+    JuliaFlowApiGateway.drop_socket_subscriptions!(state, closed_socket)
+    @test Set(keys(state.canvas_subscriptions)) == Set(["active"])
+    @test Set(keys(state.dashboard_subscriptions)) == Set(["active"])
+    JuliaFlowApiGateway.drop_socket_subscriptions!(state, closed_socket)
+    @test haskey(state.canvas_subscriptions, "active")
+    JuliaFlowApiGateway.drop_socket_subscriptions!(state, active_socket)
+    @test isempty(state.canvas_subscriptions)
+    @test isempty(state.dashboard_subscriptions)
 end
