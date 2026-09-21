@@ -6,13 +6,15 @@ Reconciled 2026-09-20 for [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-ju
 
 The approved product is a **local hardware-aware data-science workstation**, delivered first as Windows EXE and Linux/Docker. Supported GPU numerical preparation, EDA, chart-data computation, fitting, inference and evaluation, plus meaningful compiler integration, are first-release requirements. NVIDIA is first; CPU-only operation and explicit unsupported/fallback reasons remain required. Windows compiler execution uses an explicitly enabled local authenticated/confined Linux/Docker worker.
 
-The separate AKS-57 documentation commit `f3be33e` is preserved. Authorized M1 integration now proceeds in PR #56 with startup diagnostics and a bounded compilation-policy repair. Frontend implementation is frozen until the user explicitly approves the final design.
+The separate AKS-57 documentation commit `f3be33e` is preserved. Authorized M1 integration now proceeds in PR #56 with startup diagnostics and a bounded compilation-policy repair. Revision 3 design approval is recorded; frontend implementation remains frozen under the approved integration scope.
 
 Live GitHub readback: PR #40 and #47–55 are open drafts, without submitted reviews. Web/Julia pass; Debian #47–51 cancelled and #40/#52–55 failed. PR #55's retained bootstrap failure is reproduced locally: disabled compiled modules make module loading exceed the 60-second deadline. Normal dependency precompilation and gateway compilation restore the local smoke without changing deadlines/assertions. Hosted diagnostic run 35526799388 confirms module loading at deadline; full repaired-candidate gates remain open. Earlier 1,492 gateway/boundary assertions and five browser scenarios retain their original revision attribution and PostgreSQL skip. They do not certify this release. [Evidence and decisions](docs/source-reconciliation-2026-09-20.md).
 
 Current execution is <=1,000 unquoted CSV rows with unique headers; split plans/membership/folds/locks are immutable and changed sources/splits need new plans. Numeric train-fitted standardization exists; broader transforms/composition remain proposed. Worker source retains mock GPU evidence and missing actual device binding. The older single-device KA smoke does not prove training/compiler/multi-GPU readiness.
 
 Latest gate: clean Windows f113e90 stopped at PostgreSQL test cleanup after 100 passing repository checks; AKS-68 repairs the dynamic LibPQ invocation boundary. Full verification must restart on the next candidate. [Revision 3 design](docs/verification-design-r3.md) is reviewable with final design approval recorded and participant testing pending.
+
+Current AKS-50 follow-up (2026-09-21): hosted f113e909 reached listener startup but exceeded readiness while compiling the first health request. Loading the existing package and precompiling its dispatcher passes local bootstrap at 11.346 s; matching hosted evidence and required reviews remain open. [Detailed evidence](docs/verification-m1-integration.md).
 
 ## Ordered implementation and parallel design
 

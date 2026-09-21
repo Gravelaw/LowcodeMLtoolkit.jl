@@ -6,9 +6,8 @@ function startup_stage(stage::AbstractString)
 end
 
 startup_stage("module-loading")
-include(joinpath(@__DIR__, "..", "services", "api-gateway", "src", "JuliaFlowApiGateway.jl"))
-
-using .JuliaFlowApiGateway
+using JuliaFlowMonorepo
+using JuliaFlowMonorepo.JuliaFlowApiGateway
 startup_stage("module-loaded")
 
 workflow_path = get(ENV, "JULIAFLOW_WORKFLOW_PATH", joinpath(@__DIR__, "..", "tests", "contracts", "fixtures", "foundation.workflow.toml"))
