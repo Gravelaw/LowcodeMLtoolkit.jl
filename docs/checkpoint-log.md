@@ -1,5 +1,7 @@
 # JuliaFlow checkpoint log
 
+AKS-69 follow-up: bounded pipe draining and creation-time-scoped Windows descendant cleanup pass focused Windows and WSL tests. Docker cold/warm attempts stop at preflight with all jobs not_run; these are retained infrastructure failures, not release verification.
+
 ## 2026-09-22 — AKS-69 local-first CI; hosted Debian paused
 
 The user approved complete local CI execution while keeping hosted Debian diagnosis paused. AKS-69 owns isolated Docker PR/push/release-candidate profiles, workflow parity, streaming logs and durable evidence. GitHub workflows/check/review requirements remain unchanged; PR #56 at e436a7c is unmerged. Its latest hosted Debian result is cancelled, not passed. See [local CI](local-ci.md).

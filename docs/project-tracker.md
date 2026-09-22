@@ -1,6 +1,6 @@
 # JuliaFlow project tracker
 
-AKS-69 focused verification: Windows runner 12 pass / 1 POSIX skip; WSL Node 25.9.0 runner 13 pass / 0 skips. Existing npm test passed (workspace tests plus contracts: 58 pass / 2 POSIX skips), build passed, workflow parity and control/BRD/whitespace gates passed. Container image, service isolation, cold/warm product suites and native Windows full release are not verified while Docker is unavailable.
+AKS-69 focused verification: Windows runner 13 pass / 1 POSIX skip; WSL Node 25.9.0 runner 13 pass / 1 Windows-only skip. New Windows descendant cleanup is directly verified. Existing npm test passed (workspace tests plus contracts: 58 pass / 2 POSIX skips), build passed, workflow parity and control/BRD/whitespace gates passed. Container image, service isolation, cold/warm product suites and native Windows full release are not verified while Docker is unavailable.
 
 ## 2026-09-22 — AKS-69 local-first CI; hosted Debian paused
 

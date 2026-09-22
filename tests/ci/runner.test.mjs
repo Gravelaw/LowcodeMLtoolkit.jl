@@ -83,3 +83,11 @@ test('cleanup cannot delete another concurrent run or an unowned volume',async()
  const own=args=>{calls.push(args);return 'this-run'};removeOwnedResource(own,{kind:'volume',name:'owned-cache'},'this-run');assert.deepEqual(calls.at(-1),['volume','rm','owned-cache']);
  assert.throws(()=>removeOwnedResource(own,{kind:'system',name:'anything'},'this-run'),/Unknown/);
 });
+
+test('Windows descendants are removed after their parent exits', {skip:process.platform!=='win32'}, async()=>{
+ const pidFile=join(temp(),'child.pid');
+ const code=`const c=require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});require('fs').writeFileSync(${JSON.stringify(pidFile)},String(c.pid));setTimeout(()=>process.exit(0),200)`;
+ try {
+  const r=await runProcess(process.execPath,['-e',code],{graceMs:50,echo:false});assert.equal(r.status,'passed');assert.equal(r.cleanupIncomplete,false); assert.throws(()=>process.kill(Number(readFileSync(pidFile,'utf8')),0));
+ } finally {if(existsSync(pidFile)) {try{process.kill(Number(readFileSync(pidFile,'utf8')))}catch{}}}
+});
