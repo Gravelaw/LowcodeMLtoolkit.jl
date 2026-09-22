@@ -1,5 +1,14 @@
 # JuliaFlow product roadmap — v0.5.0
 
+## 2026-09-22 — AKS-69 local-first CI; hosted Debian paused
+
+The user approved complete local CI execution while keeping hosted Debian diagnosis paused. AKS-69 owns isolated Docker PR/push/release-candidate profiles, workflow parity, streaming logs and durable evidence. GitHub workflows/check/review requirements remain unchanged; PR #56 at e436a7c is unmerged. Its latest hosted Debian result is cancelled, not passed. See [local CI](local-ci.md).
+
+Docker Desktop currently cannot start its Windows inference socket. Non-destructive runtime-directory preservation did not resolve it; no volumes were deleted or factory reset performed. The user subsequently uninstalled Docker; reinstall currently reports MSI detection, with only a reboot-required Docker registry marker found in inspected registrations. Local runner unit/process checks can proceed, but container cold/warm and PostgreSQL-backed platform gates remain unverified. Failures stay visible; no Done or release claim.
+
+After local infrastructure, obtain scoped AKS-41/56 backend review clearance and reconcile AKS-68 evidence, then implement AKS-58. Full AKS-38 persona/release completion is not a prerequisite for bounded hardware work. Continue AKS-59/61, then AKS-60/62/63 in dependency order. Revision 3 design approval is already recorded; participant/accessibility acceptance remains open and frontend implementation frozen.
+
+
 Date: 2026-09-20 · Owner: Akshay · [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-juliaflow-brd-v050-and-first-release-roadmap-coordination) · [BRD](../business-requirements-v0.3.0.md) · [next steps](next-steps.md).
 
 The first release is a local hardware-aware data-science workstation on **Windows EXE and Linux/Docker**, with supported GPU preparation, EDA, chart-data computation, fitting, inference and evaluation, plus meaningful CPU-oriented numerical compiler integration. Native NVIDIA adapters and a local opt-in Linux compiler worker on Windows form the initial platform path. CPU-only operation remains supported; other vendors remain honestly detected and unqualified until separately verified.

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { arch, platform, release } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { runProcess } from "./ci/process.mjs";
 
 const root = process.cwd();
 const artifactRoot = join(root, "artifacts", "release-verification", "latest");
@@ -94,6 +95,8 @@ rmSync(artifactRoot, { recursive: true, force: true });
 mkdirSync(logRoot, { recursive: true });
 
 const results = [];
+const cancellation = new AbortController();
+for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => cancellation.abort());
 
 function writeSummary(status, extra = {}) {
   const worktreeStatusAtFinish = readWorktreeStatus();
@@ -113,7 +116,7 @@ function writeSummary(status, extra = {}) {
       worktreeStatusAtFinish
     },
     skipped,
-    results,
+    results: [...results, ...commands.filter(c => !results.some(r => r.name === c.name)).map(c => ({ name: c.name, phase: c.phase, status: c.skip ? "skipped" : "not_run" }))],
     ...extra
   };
   writeFileSync(join(artifactRoot, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
@@ -137,6 +140,7 @@ if (enforceCleanCandidate && !candidate.cleanWorktreeAtStart) {
   process.exit(1);
 }
 
+writeSummary("running");
 for (const item of commands) {
   if (item.skip) {
     results.push({ name: item.name, phase: item.phase, status: "skipped" });
@@ -144,57 +148,41 @@ for (const item of commands) {
   }
 
   console.log(`[${item.phase}] ${item.name}: ${item.command} ${item.args.join(" ")}`);
-  const started = Date.now();
-  const shell = process.platform === "win32" && (item.command === "npm" || item.command.endsWith(".cmd"));
-  const result = spawnSync(item.command, item.args, {
+  writeSummary("running", { activePhase: item.name });
+  const logPath = join(logRoot, `${item.name}.log`);
+  writeFileSync(logPath, `$ ${item.command} ${item.args.join(" ")}\n`);
+  const result = await runProcess(item.command, item.args, {
     cwd: root,
     env: item.command === juliaBin ? { ...process.env, ...juliaEnv } : process.env,
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-    shell
+    logPath,
+    signal: cancellation.signal
   });
-  const durationMs = Date.now() - started;
-  const log = [
-    `$ ${item.command} ${item.args.join(" ")}`,
-    `exitCode=${result.status}`,
-    "",
-    "----- stdout -----",
-    result.stdout ?? "",
-    "",
-    "----- stderr -----",
-    result.stderr ?? "",
-    "",
-    "----- spawn error -----",
-    result.error ? result.error.stack ?? result.error.message : "",
-    ""
-  ].join("\n");
-  writeFileSync(join(logRoot, `${item.name}.log`), log);
+  const durationMs = result.durationMs;
 
   const entry = {
     name: item.name,
     phase: item.phase,
     failureKind: item.kind,
-    status: result.status === 0 ? "passed" : "failed",
-    exitCode: result.status,
+    status: result.status,
+    exitCode: result.exitCode,
     durationMs,
     log: join("logs", `${item.name}.log`)
   };
   results.push(entry);
-  if (result.stdout) process.stdout.write(result.stdout);
-  if (result.stderr) process.stderr.write(result.stderr);
+  writeSummary("running");
 
-  if (result.status !== 0) {
-    writeSummary("failed", {
+  if (result.status !== "passed") {
+    writeSummary(result.status, {
       failedPhase: item.phase,
       failedCommand: item.name,
       failureKind: item.kind
     });
-    process.exit(result.status ?? 1);
+    process.exit(result.exitCode || 1);
   }
 }
 
 const worktreeStatusAtFinish = readWorktreeStatus();
-if (enforceCleanCandidate && worktreeStatusAtFinish.length > 0) {
+if (enforceCleanCandidate && (worktreeStatusAtFinish.length > 0 || gitOutput(["rev-parse", "HEAD"]) !== candidate.commitSha || gitOutput(["rev-parse", "HEAD^{tree}"]) !== candidate.treeSha)) {
   results.push({
     name: "git-clean-worktree-final",
     phase: "candidate",

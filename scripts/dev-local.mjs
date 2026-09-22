@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { postgresReadiness } from "./ci/postgres.mjs";
 import { existsSync, mkdirSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -286,12 +287,13 @@ function startDeps(profile, startDeps) {
 }
 
 async function waitForPostgres(timeoutMs = 30000) {
+  const probe = postgresReadiness();
   const started = Date.now();
   let lastError = null;
   while (Date.now() - started < timeoutMs) {
     const result = spawnSync(
-      "docker",
-      ["compose", "-f", "infra/docker/compose.dev.yml", "exec", "-T", "postgres", "pg_isready", "-U", "juliaflow", "-d", "juliaflow"],
+      probe.command,
+      probe.args,
       { cwd: ROOT_DIR, env: process.env, stdio: "pipe", shell: false }
     );
     if (result.status === 0) {

@@ -52,7 +52,10 @@
     "smoke:local-explainability": "node scripts/dev-local.mjs --profile single-user --smoke --no-deps",
     "smoke:local-offline-hub": "node scripts/smoke-local-offline-hub.mjs",
     "smoke:local-reproducibility": "node scripts/smoke-local-reproducibility.mjs",
-    "smoke:local-migration": "node scripts/smoke-local-migration.mjs"
+    "smoke:local-migration": "node scripts/smoke-local-migration.mjs",
+    "ci:local": "node scripts/ci/local.mjs",
+    "ci:local:parity": "node scripts/ci/parity.mjs",
+    "test:local-ci": "node --test tests/ci/*.test.mjs"
   },
   "dependencies": {
     "smol-toml": "^1.7.1"

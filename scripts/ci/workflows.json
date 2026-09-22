@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "workflows": {
+    ".github/workflows/ci.yml": "a6c8939fcc864bc3fd0f16fab7184bc78d85144ea53d90de8f97342ee6eb2fe8",
+    ".github/workflows/release-candidate.yml": "14f30400eb45e9c43ed6ad41f5c991f64aa68023d47510c1306eb397b38295a8"
+  },
+  "profiles": {
+    "pr": [
+      "web",
+      "julia",
+      "debian-release-gate"
+    ],
+    "push": [
+      "web",
+      "julia"
+    ],
+    "release-candidate": [
+      "release-candidate"
+    ]
+  },
+  "jobs": {
+    "web": {
+      "workflow": ".github/workflows/ci.yml",
+      "job": "web",
+      "timeoutMinutes": 360,
+      "commands": [
+        "npm install",
+        "npm run validate:contracts",
+        "npm run build",
+        "npm run test",
+        "npm run validate:control-doc-sync",
+        "npm run validate:brd-traceability",
+        "git diff --check"
+      ]
+    },
+    "julia": {
+      "workflow": ".github/workflows/ci.yml",
+      "job": "julia",
+      "timeoutMinutes": 360,
+      "commands": [
+        "julia --project=. -e 'using Pkg; Pkg.instantiate()'",
+        "julia --project=. tests/julia/runtests.jl"
+      ]
+    },
+    "debian-release-gate": {
+      "workflow": ".github/workflows/ci.yml",
+      "job": "debian-release-gate",
+      "timeoutMinutes": 180,
+      "commands": [
+        "npm ci",
+        "npx playwright install --with-deps chromium",
+        "npm run verify:release"
+      ]
+    },
+    "release-candidate": {
+      "workflow": ".github/workflows/release-candidate.yml",
+      "job": "debian-release-gate",
+      "timeoutMinutes": 90,
+      "commands": [
+        "npm ci",
+        "npx playwright install --with-deps chromium",
+        "npm run verify:release"
+      ]
+    }
+  },
+  "images": {
+    "ubuntu": "ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3",
+    "node": "node:25.9.0-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370",
+    "julia": "julia:1.12.7-bookworm@sha256:709daad7eccdb0363b080df203601988cff8c6a9581162668b76804cca407888",
+    "postgres": "postgres:16-bookworm@sha256:efedf3595f1d6f415c08568ba171029bf54052e754cc9f030e3f2412b21f3d67"
+  }
+}
