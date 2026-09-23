@@ -11,22 +11,36 @@ fi
 run_root="/ci-run/$run_id/$job"
 
 cleanup() {
-  if [[ -f $run_root/owner ]] && [[ $(cat "$run_root/owner") == "$run_id:$job" ]]; then
-    if [[ -d $run_root/pg ]] && [[ -f $run_root/pg/postmaster.pid ]]; then
-      runuser -u postgres -- /usr/lib/postgresql/16/bin/pg_ctl -D "$run_root/pg" -m immediate stop >/dev/null 2>&1 || true
-    fi
-    if [[ -n ${evidence:-} && -f $run_root/postgres.log ]]; then
-      cp "$run_root/postgres.log" "$evidence/postgres.log"
-    fi
-    rm -rf -- "$run_root"
+  [[ -e $run_root ]] || return 0
+  if [[ ! -f $run_root/owner || $(cat "$run_root/owner") != "$run_id:$job" ]]; then
+    echo 'WSL cleanup refused: ownership mismatch' >&2
+    return 1
   fi
+  local stopped=1
+  if [[ -d $run_root/pg && -f $run_root/pg/postmaster.pid ]]; then
+    if ! runuser -u postgres -- /usr/lib/postgresql/16/bin/pg_ctl -D "$run_root/pg" -m immediate -w -t 30 stop >/dev/null 2>&1; then
+      stopped=0
+    fi
+    if runuser -u postgres -- /usr/lib/postgresql/16/bin/pg_ctl -D "$run_root/pg" status >/dev/null 2>&1; then
+      stopped=0
+    fi
+  fi
+  if [[ -n ${evidence:-} && -f $run_root/postgres.log ]]; then
+    cp "$run_root/postgres.log" "$evidence/postgres.log" || return 1
+  fi
+  if [[ $stopped != 1 ]]; then
+    echo 'WSL cleanup refused: PostgreSQL shutdown unverified' >&2
+    return 1
+  fi
+  rm -rf -- "$run_root"
 }
 on_exit() {
   local result=$?
+  if ! cleanup; then result=1; fi
   if [[ -n ${evidence:-} && -d $evidence ]]; then
     printf '{"exitCode":%s,"endedAt":"%s"}\n' "$result" "$(date -u +%FT%TZ)" > "$evidence/wsl-exit.json"
   fi
-  cleanup
+  exit "$result"
 }
 if [[ $mode == cleanup ]]; then
   evidence=${4:-}

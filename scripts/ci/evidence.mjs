@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync, lstatSync, copyFileSync, realpathSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync, lstatSync, copyFileSync, realpathSync, rmSync, rmdirSync } from 'node:fs';
 import { join, relative, dirname, isAbsolute } from 'node:path';
 import { redactStartup } from '../lib/startup-diagnostics.mjs';
 
@@ -35,7 +35,22 @@ export function retainTree(source, target, env = {}) {
 
 // Retain the three latest completed local runs across both backends. Never
 // remove an unverified directory or a run whose summary still says running.
-export function pruneCompletedRuns(evidenceRoot, currentId, keep = 3) {
+const pause = new Int32Array(new SharedArrayBuffer(4));
+function withRetentionLock(evidenceRoot, action) {
+  const root = realpathSync(evidenceRoot), lock = join(root, '.retention.lock');
+  const deadline = Date.now() + 30000;
+  while (true) {
+    try { mkdirSync(lock); break; }
+    catch (error) {
+      if (error.code !== 'EEXIST' || Date.now() >= deadline) throw new Error(`Evidence retention lock unavailable: ${error.message}`);
+      Atomics.wait(pause, 0, 0, 50);
+    }
+  }
+  try { return action(root); }
+  finally { rmdirSync(lock); }
+}
+
+function pruneUnlocked(evidenceRoot, currentId, keep = 3) {
   if (!Number.isSafeInteger(keep) || keep < 1 || !/^jfci-[0-9]+-[a-f0-9]{8}$/.test(currentId)) throw new Error('Invalid evidence retention request');
   const root = realpathSync(evidenceRoot);
   const completed = [], unverified = [];
@@ -70,15 +85,26 @@ export function pruneCompletedRuns(evidenceRoot, currentId, keep = 3) {
   return { keep, retained: keepIds, recent: completed.slice(0, keep).map(({ id, status, head, finishedAt }) =>
     ({ id, status, head, finishedAt: new Date(finishedAt).toISOString() })), purged, unverified };
 }
+export function pruneCompletedRuns(evidenceRoot, currentId, keep = 3) {
+  return withRetentionLock(evidenceRoot, root => pruneUnlocked(root, currentId, keep));
+}
 
 export function finishRunEvidence(out, report) {
-  report.finishedAt = new Date().toISOString();
-  writeJson(join(out, 'summary.json'), report);
-  try { report.retention = pruneCompletedRuns(dirname(out), report.id); }
-  catch (error) {
-    report.retention = { status: 'failed', error: error.message };
-    report.status = 'failed';
+  try {
+    withRetentionLock(dirname(out), root => {
+      report.finishedAt = new Date().toISOString();
+      // Until this lock is held, the on-disk summary remains running. Other
+      // finalizers therefore cannot select this directory for removal.
+      writeJson(join(out, 'summary.json'), report);
+      try { report.retention = pruneUnlocked(root, report.id); }
+      catch (error) { report.retention = { status: 'failed', error: error.message }; }
+      report.evidenceFinalization = report.retention.status === 'failed' ? 'failed' : 'passed';
+      writeJson(join(out, 'summary.json'), report);
+      writeJson(join(out, 'sha256.json'), inventory(out));
+    });
+  } catch (error) {
+    report.evidenceFinalization = 'failed';
+    // Leave the running summary protected if locking or manifest writing fails.
+    writeJson(join(out, 'finalization-error.json'), { error: error.message, at: new Date().toISOString() });
   }
-  writeJson(join(out, 'summary.json'), report);
-  writeJson(join(out, 'sha256.json'), inventory(out));
 }

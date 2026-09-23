@@ -45,7 +45,7 @@ No dates are invented. AKS-67 is deferred Medium-priority compatibility; AKS-64 
 
 ## Next bounded action
 
-Under existing AKS-50, finish exact-head PR #56 Windows/hosted Debian `verify:release`, review combined contracts/security/splits/lifecycle evidence, resolve blocking findings, and merge with a merge commit only after required checks/reviews. Preserve all source branches and evidence. [Diagnosis and exact results](docs/verification-m1-integration.md).
+Finish AKS-69 WSL runner reliability and same-candidate local profiles first. Then perform bounded AKS-41/56 backend review with AKS-68 evidence and relevant AKS-38 findings before AKS-58 begins. Native Windows, Docker-specific and hosted GitHub gates remain separately open; hosted Debian diagnosis is paused. Preserve all source branches and evidence. [Diagnosis and exact results](docs/verification-m1-integration.md).
 
 In parallel, AKS-64 can refine design only: remaining lifecycle/settings routes, compute preference/coverage, real-file onboarding, <=1,000-row current sample, new-plan split semantics and project-loading guards. The existing 404 hydration race remains unfixed; controls must ultimately wait for real identity on initial load and project switch.
 

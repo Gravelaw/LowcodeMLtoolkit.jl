@@ -11,9 +11,9 @@ After local infrastructure, obtain scoped AKS-41/56 backend review clearance and
 
 Date: 2026-09-20 · Owner: Akshay · [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-juliaflow-brd-v050-and-first-release-roadmap-coordination) · [roadmap](product-roadmap.md).
 
-## Immediate lane: verify and review integration PR #56
+## Historical M1 handoff (superseded by the AKS-69 WSL-first lane above)
 
-AKS-50 owns [PR #56](https://github.com/Gravelaw/LowcodeMLtoolkit.jl/pull/56), preserving PR #40/#47–55 and separate AKS-57 documentation commit `f3be33e`. Publication and merge commit are authorized after the gates below. The original c363e008 Debian artifact and all local failing probes remain retained. [Diagnosis and results](verification-m1-integration.md).
+AKS-50 owns [PR #56](https://github.com/Gravelaw/LowcodeMLtoolkit.jl/pull/56), preserving PR #40/#47–55 and separate AKS-57 documentation commit `f3be33e`. The steps below record the earlier handoff; they are not the current execution order. The original c363e008 Debian artifact and all local failing probes remain retained. [Diagnosis and results](verification-m1-integration.md).
 
 1. Confirm the corrected startup under hosted Node 25/Julia 1.12. Local reproduction shows disabled compiled modules bypass dependency precompilation and exceed the unchanged 60-second deadline. The normal compilation policy passes the Windows smoke with original MLJ code, authentication and assertions.
 2. Run full `verify:release` on clean Windows and hosted Debian at the same candidate, retaining every failure/skip and artifact. Docker/PostgreSQL is restored; required metadata checks must actually run.

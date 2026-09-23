@@ -1,5 +1,9 @@
 # JuliaFlow risk register
 
+## 2026-09-23 — AKS-69 finalization risk
+
+Simultaneous finalizers could remove a completed run while its checksum manifest was still being written. A cross-process lock now covers completion and retention, with a six-process regression. PostgreSQL stop must be verified before WSL job storage removal; cleanup and evidence failures remain visible separately from test outcomes. Full profile, Docker and Windows evidence is still required.
+
 ## 2026-09-23 — WSL execution boundary
 
 AKS-69 now has a dedicated Ubuntu 24.04 WSL execution path because Docker Desktop cannot reinstall. Its source image and tool versions are pinned or recorded; every run needs clean-source, database, browser and evidence checks. WSL shares the Windows host kernel/network and mounts Windows drives, so this path cannot replace Docker isolation or platform packaging evidence. Keep release/review/required-check gaps open; hosted Debian diagnosis stays paused.

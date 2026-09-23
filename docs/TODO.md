@@ -1,5 +1,9 @@
 # JuliaFlow TODO
 
+## 2026-09-23 — AKS-69 reliability candidate
+
+Cross-process retention and verified WSL PostgreSQL cleanup are implemented. Diagnose the Julia precompile stall with isolated fresh/reused depots and process evidence, then run cold/warm full PR, push and validation-only release-candidate profiles at one committed head. Retain all failures and not_run phases. Hosted Debian stays paused.
+
 ## 2026-09-23 — AKS-69 WSL execution
 
 Run the full mapped local profiles in the dedicated Ubuntu 24.04 WSL distro, record each phase and skip against the selected commit, and fix only runner infrastructure failures in AKS-69. Preserve product failures under their existing issues. WSL results do not close Docker image/network/mount, native Windows or GitHub required-check gates. Hosted Debian remains paused.

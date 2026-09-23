@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawn } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { parseArgs } from '../../scripts/ci/local.mjs';
 import { ownsWslProcess } from '../../scripts/ci/wsl.mjs';
 import { verifyParity } from '../../scripts/ci/parity.mjs';
@@ -111,6 +113,27 @@ test('finalization records pruning and checksums the retained summary',()=>{
  const saved=JSON.parse(readFileSync(join(out,'summary.json'),'utf8'));
  assert.equal(saved.status,'failed');assert.deepEqual(saved.retention.retained,[id]);
  assert.equal(inventory(out)['summary.json'],JSON.parse(readFileSync(join(out,'sha256.json'),'utf8'))['summary.json']);
+});
+test('simultaneous finalizers preserve three complete manifests', async()=>{
+ const root=temp(), ids=Array.from({length:6},(_,i)=>`jfci-${5000+i}-abcdef12`);
+ const moduleUrl=pathToFileURL(join(process.cwd(),'scripts/ci/evidence.mjs')).href;
+ for (const id of ids) {
+  const out=join(root,id);mkdirSync(out);
+  writeJson(join(out,'summary.json'),{id,status:'running'});
+  writeFileSync(join(out,'step.log'),id);
+ }
+ const results=await Promise.all(ids.map(id=>new Promise(resolve=>{
+  const child=spawn(process.execPath,['--input-type=module','-e',`import {finishRunEvidence} from ${JSON.stringify(moduleUrl)}; finishRunEvidence(${JSON.stringify(join(root,id))},{id:${JSON.stringify(id)},status:'passed'});`],{stdio:['ignore','pipe','pipe']});
+  let error='';child.stderr.on('data',chunk=>error+=chunk);child.on('close',code=>resolve({code,error}));
+ })));
+ assert.deepEqual(results.map(result=>result.code),Array(6).fill(0),JSON.stringify(results));
+ const retained=ids.filter(id=>existsSync(join(root,id)));
+ assert.equal(retained.length,3);
+ for (const id of retained) {
+  const out=join(root,id), summary=JSON.parse(readFileSync(join(out,'summary.json')));
+  assert.equal(summary.evidenceFinalization,'passed');
+  assert.equal(inventory(out)['summary.json'],JSON.parse(readFileSync(join(out,'sha256.json')))['summary.json']);
+ }
 });
 test('retention never traverses a link to evidence outside its root', {skip:process.platform==='win32'},()=>{
  const root=temp(), outside=temp(), old='jfci-4000-abcdef12', current='jfci-4001-abcdef12';
