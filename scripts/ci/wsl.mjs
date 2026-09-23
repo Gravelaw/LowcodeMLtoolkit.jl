@@ -67,7 +67,7 @@ export async function main(argv) {
       const cacheKey = createHash('sha256').update(`${dependencyKey}:${entry.name}:${report.packagesSha256}`).digest('hex').slice(0, 16);
       entry.startedAt = new Date().toISOString(); entry.status = 'running'; report.phase = entry.name; save();
       const args = ['-d', distro, '-u', 'root', '--exec', 'env', `JULIAFLOW_CI_DEADLINE=${deadline}`,
-        'setsid', 'bash', scriptPath, 'run', id, entry.name, head, tree, base, bundlePath, evidence, options.cache, cacheKey, String(port)];
+        'setsid', '--wait', 'bash', scriptPath, 'run', id, entry.name, head, tree, base, bundlePath, evidence, options.cache, cacheKey, String(port)];
       const result = await runProcess('wsl', args, { cwd: root, logPath: join(jobOut, 'wsl.log'),
         timeoutMs: Math.max(1, deadline - Date.now()), signal: abort.signal, onEvent: events });
       if (result.status !== 'passed') {
