@@ -1,6 +1,20 @@
 # Local CI (AKS-69)
 
-The local runner executes the repository CI commands in Docker. It does not publish GitHub checks, waive reviews, or certify a release. Hosted Debian investigation remains paused. Both GitHub workflow files are unchanged.
+The local runner executes the repository CI commands through Docker or a dedicated WSL2 Ubuntu 24.04 distro. It does not publish GitHub checks, waive reviews, or certify a release. Hosted Debian investigation remains paused. Both GitHub workflow files are unchanged.
+
+## Dedicated WSL backend while Docker is unavailable
+
+The Windows Docker installer currently reports an unregistered MSI installation. A separate `juliaflow-ci-ubuntu24` WSL2 distro provides native Linux execution without Docker Desktop. Its source image is Canonical `ubuntu-24.04.5-wsl-amd64.wsl`, SHA-256 `bb415d824822c4b878125729af451a5d18fb13d1cf5cbed9a7393ad64ac6039e`. The setup script verifies Node 25.9.0 and Julia 1.12.7 downloads against published hashes and installs PostgreSQL 16 inside that distro. The package inventory hash is recorded per run. The existing `ubn` distro is untouched.
+
+Run `scripts/ci/wsl-prepare.sh` once as root in that dedicated distro, then commit the WSL runner before selecting it:
+
+```sh
+npm run ci:local:wsl -- --ref HEAD --base e436a7cce186735524af4eac04cc9125c04bcb55 --profile pr --cache cold
+npm run ci:local:wsl -- --ref HEAD --base e436a7cce186735524af4eac04cc9125c04bcb55 --profile pr --cache warm
+npm run ci:local:wsl -- --ref HEAD --base e436a7cce186735524af4eac04cc9125c04bcb55 --profile release-candidate
+```
+
+The same workflow mapping and command order apply. Every job uses a clean clone, its own PostgreSQL cluster, a fresh random credential, a unique run directory and a bounded deadline. Cold dependency/browser caches are run-local; warm caches are keyed and locked. Logs and release artifacts stream to `artifacts/local-ci/<run-id>` on the Windows host before cleanup. The runner removes only its marked job directory. WSL distros share a host kernel and network, and Windows drives are mounted in the distro; this backend is an execution environment, not a security sandbox. A WSL pass cannot establish Docker image build, Docker network/mount, Windows-native, or GitHub-check success. Keep those gates open.
 
 ## Prerequisites and commands
 

@@ -9,7 +9,7 @@ const [jobName, expectedHead, expectedTree] = process.argv.slice(2);
 const manifest = verifyParity();
 const job = manifest.jobs[jobName];
 if (!job || !/^[a-f0-9]{40}$/.test(expectedHead ?? '') || !/^[a-f0-9]{40}$/.test(expectedTree ?? '')) throw new Error('Invalid job identity');
-const out = '/evidence';
+const out = process.env.JULIAFLOW_CI_EVIDENCE_DIR ?? '/evidence';
 mkdirSync(out, { recursive: true });
 // Write directly to the host-mounted evidence directory, including while a phase
 // is hung. A container kill must not destroy browser or release diagnostics.

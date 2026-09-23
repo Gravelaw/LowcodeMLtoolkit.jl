@@ -1,5 +1,9 @@
 # JuliaFlow TODO
 
+## 2026-09-23 — AKS-69 WSL execution
+
+Run the full mapped local profiles in the dedicated Ubuntu 24.04 WSL distro, record each phase and skip against the selected commit, and fix only runner infrastructure failures in AKS-69. Preserve product failures under their existing issues. WSL results do not close Docker image/network/mount, native Windows or GitHub required-check gates. Hosted Debian remains paused.
+
 ## 2026-09-22 — AKS-69 local-first CI; hosted Debian paused
 
 The user approved complete local CI execution while keeping hosted Debian diagnosis paused. AKS-69 owns isolated Docker PR/push/release-candidate profiles, workflow parity, streaming logs and durable evidence. GitHub workflows/check/review requirements remain unchanged; PR #56 at e436a7c is unmerged. Its latest hosted Debian result is cancelled, not passed. See [local CI](local-ci.md).

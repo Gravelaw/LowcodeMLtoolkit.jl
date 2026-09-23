@@ -1,5 +1,9 @@
 # JuliaFlow risk register
 
+## 2026-09-23 — WSL execution boundary
+
+AKS-69 now has a dedicated Ubuntu 24.04 WSL execution path because Docker Desktop cannot reinstall. Its source image and tool versions are pinned or recorded; every run needs clean-source, database, browser and evidence checks. WSL shares the Windows host kernel/network and mounts Windows drives, so this path cannot replace Docker isolation or platform packaging evidence. Keep release/review/required-check gaps open; hosted Debian diagnosis stays paused.
+
 ## 2026-09-22 — AKS-69 local-first CI; hosted Debian paused
 
 The user approved complete local CI execution while keeping hosted Debian diagnosis paused. AKS-69 owns isolated Docker PR/push/release-candidate profiles, workflow parity, streaming logs and durable evidence. GitHub workflows/check/review requirements remain unchanged; PR #56 at e436a7c is unmerged. Its latest hosted Debian result is cancelled, not passed. See [local CI](local-ci.md).

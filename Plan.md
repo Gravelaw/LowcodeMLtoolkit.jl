@@ -1,5 +1,9 @@
 # JuliaFlow current development plan
 
+## 2026-09-23 — dedicated WSL execution for AKS-69
+
+Docker Desktop reinstall remains blocked by an MSI-detection message. The user directed a dedicated WSL instance as the immediate local CI backend. Ubuntu 24.04.5, Node 25.9.0, Julia 1.12.7 and PostgreSQL 16 are isolated from the existing `ubn` distro. Run the existing mapped workflow commands and retain exact results; WSL cannot close Docker-specific, native Windows, hosted GitHub or review gates. Hosted Debian diagnosis remains paused. [WSL runner and limitations](docs/local-ci.md).
+
 ## 2026-09-22 — AKS-69 local-first CI; hosted Debian paused
 
 The user approved complete local CI execution while keeping hosted Debian diagnosis paused. AKS-69 owns isolated Docker PR/push/release-candidate profiles, workflow parity, streaming logs and durable evidence. GitHub workflows/check/review requirements remain unchanged; PR #56 at e436a7c is unmerged. Its latest hosted Debian result is cancelled, not passed. See [local CI](docs/local-ci.md).
