@@ -77,6 +77,7 @@ function spawnLogged(name, command, args, env = {}) {
     env: { ...process.env, ...env },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
+    detached: process.platform !== "win32",
     shell
   });
   child.stdout.on("data", (chunk) => {
@@ -149,11 +150,14 @@ async function postJson(url, body) {
 
 function stopChildren() {
   for (const child of children.reverse()) {
-    if (child.killed || child.pid === undefined) continue;
+    if (child.pid === undefined) continue;
     if (process.platform === "win32") {
-      spawnSync("taskkill.exe", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+      if (child.exitCode === null) spawnSync("taskkill.exe", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
     } else {
-      child.kill("SIGTERM");
+      // npm may exit before its Vite child. Signal the owned process group even
+      // when the direct child has already exited, so inherited pipes can close.
+      try { process.kill(-child.pid, "SIGTERM"); }
+      catch (error) { if (error.code !== "ESRCH") throw error; }
     }
   }
 }

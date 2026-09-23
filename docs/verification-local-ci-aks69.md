@@ -1,0 +1,15 @@
+# AKS-69 local CI diagnosis and candidate record
+
+## 2026-09-23 WSL cold PR diagnosis
+
+Candidate `f912cc75c269ab40a9e143dc206cdc7363a013a7` ran the full cold PR profile in dedicated Ubuntu 24.04.5 WSL with Node 25.9.0, Julia 1.12.7 and PostgreSQL 16.15. Run `jfci-1790185465769-088b455a` passed web, Julia and release jobs, including real PostgreSQL repository/metadata checks, all local smokes, five live-backend Playwright tests, control validators and `git diff --check`. Its top-level summary SHA-256 is `7478c2b372e24d5248457624385b60a3789e8ab155f0a1f8f9855d6f5eff40aa`. This run required a scoped manual cleanup described below, so it is diagnostic evidence rather than an unattended runner pass.
+
+The earlier cold run `jfci-1790180924900-2f46c765` was interrupted in `smoke-local-bootstrap` after more than eight minutes without output; its bootstrap log SHA-256 is `1f60fead7a884e47802d1bb6e2161b6067c50646855d67b0794e3db8122729d7`. On the new cold run, process and I/O snapshots `diagnostic-smoke-1.txt` through `diagnostic-smoke-3.txt` show active `Pkg` compilation, CUDA artifact selection/download and package precompilation. `REPL` compiled in 36.9 seconds, 282 dependencies precompiled in 136 seconds, and `smoke-local-bootstrap` passed in 318.692 seconds. The gateway health endpoint became ready in 6.282 seconds under the unchanged readiness deadline. No local precompile deadlock was reproduced; inactivity alone did not justify a runtime or timeout change. The new bootstrap log SHA-256 is `546b22e3817d2b37f1cef109605d9a7fbf7ff080befe622f08c5bac02f30641d`.
+
+After all five browser tests passed, `smoke-live-backend-browser.mjs` stopped its npm preview parent but left an owned Vite preview descendant alive, holding an output pipe open. Its PID, command and working directory were verified under this run's release job before targeted `SIGTERM`; the script then exited and the release validators finished. The smoke script now starts POSIX children in separate process groups and signals each entire owned group during cleanup. This repair still needs an unattended full-profile rerun at the final commit.
+
+The WSL runner's failed PostgreSQL-stop probe returned nonzero, copied the log and preserved owned storage. An occupied-port probe rejected startup and removed only its verified temporary job directory. Both probes were scoped to synthetic run IDs in the dedicated distro. The current source also serializes cross-process evidence finalization and protects failed manifests; six simultaneous finalizers retained three complete manifests in focused tests.
+
+## Remaining acceptance
+
+Run full cold and reused-depot warm PR profiles, push, and validation-only release-candidate at the same final commit/base. Report every failed, skipped and not-run phase. Native Windows, Docker image/network/mount, hosted GitHub checks, required reviews and AKS-69 Done remain separate. Hosted Debian diagnosis remains paused. The legacy unfinalized directory `jfci-1790179839124-396f187d` in the prior worktree remains protected after an automatic review rejected its direct removal.
