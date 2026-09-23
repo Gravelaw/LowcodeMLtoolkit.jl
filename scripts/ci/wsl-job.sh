@@ -94,6 +94,7 @@ export NPM_CONFIG_CACHE="$cache/npm" JULIA_DEPOT_PATH="$cache/julia" PLAYWRIGHT_
 export JULIAFLOW_CONTROL_DOC_BASE="$base" JULIAFLOW_CI_EXTERNAL_POSTGRES=1 JULIAFLOW_JULIA_CMD=julia
 export JULIAFLOW_DATABASE_URL="postgresql://juliaflow:$password@127.0.0.1:$port/juliaflow"
 export JULIAFLOW_TEST_POSTGRES_URL="$JULIAFLOW_DATABASE_URL"
+export JULIAFLOW_TEST_POSTGRES_SCHEMA="juliaflow_ci_${run_id##*-}_${job//-/_}"
 export JULIAFLOW_CI_EVIDENCE_DIR="$evidence"
 export JULIAFLOW_CI_DEADLINE=${JULIAFLOW_CI_DEADLINE:?deadline required}
 cd "$run_root/repo"

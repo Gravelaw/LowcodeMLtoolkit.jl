@@ -103,6 +103,7 @@ export async function main(argv) {
         '--mount', `type=bind,source=${bundle},target=/input/source.bundle,readonly`, '--mount', `type=bind,source=${jobOut},target=/evidence`, ...mounts,
         '-e', `JULIAFLOW_CONTROL_DOC_BASE=${base}`, '-e', 'JULIAFLOW_CI_EXTERNAL_POSTGRES=1', '-e', `JULIAFLOW_DATABASE_URL=${url}`,
         '-e', `JULIAFLOW_TEST_POSTGRES_URL=${url}`, '-e', 'JULIAFLOW_JULIA_CMD=julia',
+        '-e', `JULIAFLOW_TEST_POSTGRES_SCHEMA=juliaflow_ci_${id.slice(-8)}_${entry.name.replaceAll('-', '_')}`,
         '-e', `JULIAFLOW_CI_DEADLINE=${deadline}`,
         image, 'bash', '-euc', `git clone /input/source.bundle /workspace/repo; cd /workspace/repo; git checkout --detach ${head}; node scripts/ci/job.mjs ${entry.name} ${head} ${tree}`];
       docker(args);
