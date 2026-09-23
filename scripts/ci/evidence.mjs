@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync, lstatSync, copyFileSync, realpathSync, rmSync, rmdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync, lstatSync, copyFileSync, realpathSync, rmSync, rmdirSync, existsSync } from 'node:fs';
 import { join, relative, dirname, isAbsolute } from 'node:path';
 import { redactStartup } from '../lib/startup-diagnostics.mjs';
 
@@ -60,6 +60,7 @@ function pruneUnlocked(evidenceRoot, currentId, keep = 3) {
     const target = join(root, entry.name), summaryPath = join(target, 'summary.json');
     const targetReal = realpathSync(target);
     if (dirname(targetReal) !== root || isAbsolute(relative(root, targetReal))) { unverified.push(entry.name); continue; }
+    if (existsSync(join(target, 'finalization-error.json'))) { unverified.push(entry.name); continue; }
     const summaryStat = lstatSync(summaryPath, { throwIfNoEntry: false });
     if (!summaryStat?.isFile() || summaryStat.size > 1024 * 1024) { unverified.push(entry.name); continue; }
     let summary;
@@ -92,19 +93,25 @@ export function pruneCompletedRuns(evidenceRoot, currentId, keep = 3) {
 export function finishRunEvidence(out, report) {
   try {
     withRetentionLock(dirname(out), root => {
-      report.finishedAt = new Date().toISOString();
-      // Until this lock is held, the on-disk summary remains running. Other
-      // finalizers therefore cannot select this directory for removal.
-      writeJson(join(out, 'summary.json'), report);
-      try { report.retention = pruneUnlocked(root, report.id); }
-      catch (error) { report.retention = { status: 'failed', error: error.message }; }
-      report.evidenceFinalization = report.retention.status === 'failed' ? 'failed' : 'passed';
-      writeJson(join(out, 'summary.json'), report);
-      writeJson(join(out, 'sha256.json'), inventory(out));
+      try {
+        report.finishedAt = new Date().toISOString();
+        // Until this lock is held, the on-disk summary remains running. Other
+        // finalizers therefore cannot select this directory for removal.
+        writeJson(join(out, 'summary.json'), report);
+        try { report.retention = pruneUnlocked(root, report.id); }
+        catch (error) { report.retention = { status: 'failed', error: error.message }; }
+        report.evidenceFinalization = report.retention.status === 'failed' ? 'failed' : 'passed';
+        writeJson(join(out, 'summary.json'), report);
+        writeJson(join(out, 'sha256.json'), inventory(out));
+      } catch (error) {
+        writeJson(join(out, 'finalization-error.json'), { error: error.message, at: new Date().toISOString() });
+        throw error;
+      }
     });
   } catch (error) {
     report.evidenceFinalization = 'failed';
-    // Leave the running summary protected if locking or manifest writing fails.
-    writeJson(join(out, 'finalization-error.json'), { error: error.message, at: new Date().toISOString() });
+    // If locking failed, the last summary is still running and remains protected.
+    if (!existsSync(join(out, 'finalization-error.json')))
+      writeJson(join(out, 'finalization-error.json'), { error: error.message, at: new Date().toISOString() });
   }
 }

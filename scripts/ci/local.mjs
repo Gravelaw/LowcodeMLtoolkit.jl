@@ -126,12 +126,13 @@ export async function main(argv) {
         report.cleanup.push({ ...resource, status: 'passed' });
       } catch (error) { report.cleanup.push({ ...resource, status: 'failed', error: error.message }); }
     }
+    report.cleanupStatus = report.cleanup.some(resource => resource.status === 'failed') ? 'failed' : 'passed';
     finishRunEvidence(out, report);
     process.removeListener('SIGINT', cancel); process.removeListener('SIGTERM', cancel);
-    console.log(`Local CI ${report.status}. Evidence: ${out}`);
+    console.log(`Local CI tests ${report.status}; cleanup ${report.cleanupStatus}; evidence ${report.evidenceFinalization}. Evidence: ${out}`);
   }
   return (report.status === 'passed' || report.status === 'partial') && report.evidenceFinalization === 'passed' &&
-    report.cleanup.every(resource => resource.status === 'passed') ? 0 : 1;
+    report.cleanupStatus === 'passed' ? 0 : 1;
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).then(code => { process.exitCode = code; }).catch(error => { console.error(error.message); process.exitCode = 1; });

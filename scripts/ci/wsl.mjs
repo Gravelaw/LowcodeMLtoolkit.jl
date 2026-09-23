@@ -103,12 +103,13 @@ export async function main(argv) {
     if (report.status === 'running') report.status = report.jobs.some(j => ['failed', 'timed_out', 'cancelled', 'not_run', 'running'].includes(j.status)) ? 'failed' : options.job ? 'partial' : 'passed';
   } catch (error) { report.status = abort.signal.aborted ? 'cancelled' : 'failed'; report.error = error.message; }
   finally {
+    report.cleanupStatus = report.jobs.some(job => job.cleanup?.status === 'failed') ? 'failed' : 'passed';
     finishRunEvidence(out, report);
     process.removeListener('SIGINT', cancel); process.removeListener('SIGTERM', cancel);
-    console.log(`Local WSL CI ${report.status}. Evidence: ${out}`);
+    console.log(`Local WSL CI tests ${report.status}; cleanup ${report.cleanupStatus}; evidence ${report.evidenceFinalization}. Evidence: ${out}`);
   }
   return (report.status === 'passed' || report.status === 'partial') && report.evidenceFinalization === 'passed' &&
-    report.jobs.every(job => job.cleanup?.status !== 'failed') ? 0 : 1;
+    report.cleanupStatus === 'passed' ? 0 : 1;
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).then(code => { process.exitCode = code; }).catch(error => { console.error(error.message); process.exitCode = 1; });

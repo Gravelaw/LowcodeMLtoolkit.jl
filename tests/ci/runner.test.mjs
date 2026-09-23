@@ -97,13 +97,16 @@ test('three-run retention keeps the latest completed pass, failure and partial r
  writeJson(join(orphan,'summary.json'),{id:running,status:'running'});
  const other='jfci-2001-abcdef12', unowned=join(root,other);mkdirSync(unowned);
  writeJson(join(unowned,'summary.json'),{id:'not-owned',status:'failed',finishedAt:new Date().toISOString()});
+ const incomplete='jfci-2002-abcdef12', incompleteDir=join(root,incomplete);mkdirSync(incompleteDir);
+ writeJson(join(incompleteDir,'summary.json'),{id:incomplete,status:'failed',finishedAt:new Date().toISOString()});
+ writeJson(join(incompleteDir,'finalization-error.json'),{error:'manifest failed'});
  const result=pruneCompletedRuns(root,ids[4]);
  assert.deepEqual(result.retained,[ids[4],ids[3],ids[2]]);
  assert.deepEqual(result.recent.map(run=>run.status),['partial','failed','passed']);
  assert.deepEqual(result.purged,[ids[1],ids[0]]);
- assert.deepEqual(result.unverified.sort(),[running,other].sort());
+ assert.deepEqual(result.unverified.sort(),[running,other,incomplete].sort());
  for(const id of ids.slice(0,2)) assert.equal(existsSync(join(root,id)),false);
- for(const id of [...ids.slice(2),running,other]) assert.equal(existsSync(join(root,id)),true);
+ for(const id of [...ids.slice(2),running,other,incomplete]) assert.equal(existsSync(join(root,id)),true);
  assert.throws(()=>pruneCompletedRuns(root,running),/no completed/);
 });
 test('finalization records pruning and checksums the retained summary',()=>{
