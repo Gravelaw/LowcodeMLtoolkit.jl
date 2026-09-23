@@ -21,6 +21,13 @@ cleanup() {
     rm -rf -- "$run_root"
   fi
 }
+on_exit() {
+  local result=$?
+  if [[ -n ${evidence:-} && -d $evidence ]]; then
+    printf '{"exitCode":%s,"endedAt":"%s"}\n' "$result" "$(date -u +%FT%TZ)" > "$evidence/wsl-exit.json"
+  fi
+  cleanup
+}
 if [[ $mode == cleanup ]]; then
   evidence=${4:-}
   cleanup
@@ -46,7 +53,7 @@ if [[ -e $run_root ]]; then echo 'WSL job directory already exists' >&2; exit 1;
 mkdir -p "$run_root" "$evidence"
 printf '%s' "$run_id:$job" > "$run_root/owner"
 printf '%s' "$$" > "$evidence/wsl-pid"
-trap cleanup EXIT
+trap on_exit EXIT
 
 export PATH=/opt/juliaflow-ci/node/bin:/opt/juliaflow-ci/julia/bin:/usr/lib/postgresql/16/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 for tool in node npm julia pg_ctl git runuser; do command -v "$tool" >/dev/null; done

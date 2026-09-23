@@ -1,6 +1,6 @@
 # JuliaFlow checkpoint log
 
-AKS-69 WSL pivot, 2026-09-23: imported a separate verified Ubuntu 24.04.5 WSL distro and installed Node 25.9.0, Julia 1.12.7 and PostgreSQL 16; existing `ubn` was left intact. Added a WSL backend that uses the same mapped commands with per-job clean checkout, PostgreSQL state and evidence. Full WSL run and review still required. Docker and hosted checks are unchanged and open.
+AKS-69 WSL pivot, 2026-09-23: imported a separate verified Ubuntu 24.04.5 WSL distro and installed Node 25.9.0, Julia 1.12.7 and PostgreSQL 16; existing `ubn` was left intact. Added a WSL backend that uses the same mapped commands with per-job clean checkout, PostgreSQL state and evidence. At candidate `af1f87b`, cold PR run `jfci-1790180924900-2f46c765` passed web and Julia, including PostgreSQL-backed tests. Its release job reached `smoke-local-bootstrap` but Julia dependency precompilation ceased making progress and the run was manually terminated after more than eight idle minutes. Later smoke/browser phases were not run. The retained artifact shows no established bootstrap readiness defect. Full WSL release, Windows, Docker and hosted checks remain open.
 
 AKS-69 follow-up: bounded pipe draining and creation-time-scoped Windows descendant cleanup pass focused Windows and WSL tests. Docker cold/warm attempts stop at preflight with all jobs not_run; these are retained infrastructure failures, not release verification.
 

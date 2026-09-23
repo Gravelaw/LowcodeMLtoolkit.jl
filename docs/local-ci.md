@@ -14,7 +14,7 @@ npm run ci:local:wsl -- --ref HEAD --base e436a7cce186735524af4eac04cc9125c04bcb
 npm run ci:local:wsl -- --ref HEAD --base e436a7cce186735524af4eac04cc9125c04bcb55 --profile release-candidate
 ```
 
-The same workflow mapping and command order apply. Every job uses a clean clone, its own PostgreSQL cluster, a fresh random credential, a unique run directory and a bounded deadline. Cold dependency/browser caches are run-local; warm caches are keyed and locked. Logs and release artifacts stream to `artifacts/local-ci/<run-id>` on the Windows host before cleanup. The runner removes only its marked job directory. WSL distros share a host kernel and network, and Windows drives are mounted in the distro; this backend is an execution environment, not a security sandbox. A WSL pass cannot establish Docker image build, Docker network/mount, Windows-native, or GitHub-check success. Keep those gates open.
+The same workflow mapping and command order apply. Every job uses a clean clone, its own PostgreSQL cluster, a fresh random credential, a unique run directory and a bounded deadline. Cold dependency/browser caches are run-local; warm caches are keyed and locked. Logs and release artifacts stream to `artifacts/local-ci/<run-id>` on the Windows host before cleanup. The runner removes only its marked job directory. WSL distros share a host kernel and network, and Windows drives are mounted in the distro; this backend is an execution environment, not a security sandbox. Run only trusted candidate commits. A WSL pass cannot establish Docker image build, Docker network/mount, Windows-native, or GitHub-check success. Keep those gates open.
 
 ## Prerequisites and commands
 
@@ -44,6 +44,8 @@ Evidence lives at artifacts/local-ci/<run-id>. Summary and JSONL events are upda
 SIGINT/SIGTERM and job deadlines trigger bounded process/container cleanup after evidence retention. Failed cleanup is reported; ownership labels prevent deleting resources belonging to another run. Defaults preserve the workflow limits: web/Julia 360 minutes, PR release 180 minutes, release-candidate 90 minutes. No readiness deadline or assertion is relaxed.
 
 ## Current verification boundary
+
+At candidate `af1f87b`, cold WSL PR run `jfci-1790180924900-2f46c765` passed web and Julia with PostgreSQL-backed assertions. Its release job passed installation, contracts, build, tests, repository tests and base extension tests, then stalled in Julia package precompilation during `smoke-local-bootstrap`. After more than eight idle minutes, only that run's verified process group was terminated. The bootstrap readiness checks had not started; later smoke and browser phases are `not_run`. The retained artifact is an interrupted local infrastructure run, not a demonstrated product or hosted Debian diagnosis. Full release coverage remains open.
 
 Focused Node runner tests cover argument validation, workflow drift, streaming redaction, spawn failure, timeout/cancellation, Linux descendant pipes, artifact retention and external-database preflight. Docker integration, cold/warm full suites, PostgreSQL service failure/isolation and matching Windows release validation require a functioning engine. An engine-preflight failure is retained and all unexecuted jobs remain not_run; it is not a product pass.
 

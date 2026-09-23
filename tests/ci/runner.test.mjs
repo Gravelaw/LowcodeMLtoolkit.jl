@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, cpSync, existsSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseArgs } from '../../scripts/ci/local.mjs';
+import { ownsWslProcess } from '../../scripts/ci/wsl.mjs';
 import { verifyParity } from '../../scripts/ci/parity.mjs';
 import { runProcess } from '../../scripts/ci/process.mjs';
 import { inventory, retainTree, writeJson } from '../../scripts/ci/evidence.mjs';
@@ -82,6 +83,14 @@ test('cleanup cannot delete another concurrent run or an unowned volume',async()
  assert.throws(()=>removeOwnedResource(other,{kind:'container',name:'shared-cache-lock'},'this-run'),/Ownership/);assert.equal(calls.length,1);
  const own=args=>{calls.push(args);return 'this-run'};removeOwnedResource(own,{kind:'volume',name:'owned-cache'},'this-run');assert.deepEqual(calls.at(-1),['volume','rm','owned-cache']);
  assert.throws(()=>removeOwnedResource(own,{kind:'system',name:'anything'},'this-run'),/Unknown/);
+});
+
+test('WSL cancellation refuses a reused PID from another run',()=>{
+ const script='/mnt/c/CI/wsl-job.sh', id='jfci-12345678-abcdef12';
+ const own=['bash',script,'run',id,'web'].join('\n');
+ assert.equal(ownsWslProcess(own,script,id,'web'),true);
+ assert.equal(ownsWslProcess(own,script,'jfci-12345678-deadbeef','web'),false);
+ assert.equal(ownsWslProcess(['bash','/mnt/c/other/wsl-job.sh','run',id,'web'].join('\n'),script,id,'web'),false);
 });
 
 test('Windows descendants are removed after their parent exits', {skip:process.platform!=='win32'}, async()=>{

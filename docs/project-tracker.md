@@ -1,6 +1,6 @@
 # JuliaFlow project tracker
 
-AKS-69 WSL pivot, 2026-09-23: the user selected a dedicated Ubuntu 24.04 WSL instance to run local CI while Docker reinstall reports MSI detection. The distro uses verified Canonical image bytes and Node 25.9.0 / Julia 1.12.7 / PostgreSQL 16. The WSL runner retains the same workflow mapping and reports jobs individually. Full execution results are pending; Docker-specific, Windows-native and GitHub gates remain open.
+AKS-69 WSL pivot, 2026-09-23: the user selected a dedicated Ubuntu 24.04 WSL instance to run local CI while Docker reinstall reports MSI detection. The distro uses verified Canonical image bytes and Node 25.9.0 / Julia 1.12.7 / PostgreSQL 16. Cold PR run `jfci-1790180924900-2f46c765` at `af1f87b` passed web and Julia; the release job was manually stopped at Julia precompilation within `smoke-local-bootstrap`, before readiness assertions, with later phases not_run. Exact logs and summaries are retained under `artifacts/local-ci/` in the AKS-69 worktree. Full WSL, Docker-specific, Windows-native and GitHub gates remain open.
 
 AKS-69 focused verification: Windows runner 13 pass / 1 POSIX skip; WSL Node 25.9.0 runner 13 pass / 1 Windows-only skip. New Windows descendant cleanup is directly verified. Existing npm test passed (workspace tests plus contracts: 58 pass / 2 POSIX skips), build passed, workflow parity and control/BRD/whitespace gates passed. Container image, service isolation, cold/warm product suites and native Windows full release are not verified while Docker is unavailable.
 

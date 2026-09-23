@@ -20,6 +20,10 @@ function wslPath(path, cwd) {
   if (!/^\/mnt\/[a-z]\//.test(converted)) throw new Error('Evidence and source bundle must be on a WSL-mounted Windows drive');
   return converted;
 }
+export function ownsWslProcess(commandLine, scriptPath, id, job) {
+  const args = commandLine.split('\n').filter(Boolean);
+  return args.includes(scriptPath) && args.includes('run') && args.includes(id) && args.includes(job);
+}
 export async function main(argv) {
   const options = parseArgs(argv), root = process.cwd(), mapping = verifyParity(root);
   const names = mapping.profiles[options.profile];
@@ -76,7 +80,12 @@ export async function main(argv) {
         if (existsSync(pidFile)) {
           const pid = readFileSync(pidFile, 'utf8').trim();
           if (/^[1-9][0-9]*$/.test(pid)) {
-            try { wsl(['bash', '-c', 'kill -TERM -- -"$1" 2>/dev/null || true; sleep 2; kill -KILL -- -"$1" 2>/dev/null || true', '_', pid], root, 10000); }
+            try {
+              const commandLine = wsl(['bash', '-c', 'tr "\\0" "\\n" < "/proc/$1/cmdline" 2>/dev/null || true', '_', pid], root);
+              if (ownsWslProcess(commandLine, scriptPath, id, entry.name)) {
+                wsl(['bash', '-c', 'kill -TERM -- -"$1" 2>/dev/null || true; sleep 2; kill -KILL -- -"$1" 2>/dev/null || true', '_', pid], root, 10000);
+              } else if (commandLine) entry.cleanupError = 'WSL PID no longer belongs to this run';
+            }
             catch (error) { entry.cleanupError = error.message; }
           }
         }
