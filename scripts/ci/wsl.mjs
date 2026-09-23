@@ -64,11 +64,12 @@ export async function main(argv) {
       const evidence = wslPath(jobOut, root);
       const deadline = Date.now() + mapping.jobs[entry.name].timeoutMinutes * 60000;
       const port = 30000 + (randomBytes(2).readUInt16BE() % 20000);
+      const password = randomBytes(24).toString('hex');
       const cacheKey = createHash('sha256').update(`${dependencyKey}:${entry.name}:${report.packagesSha256}`).digest('hex').slice(0, 16);
       entry.startedAt = new Date().toISOString(); entry.status = 'running'; report.phase = entry.name; save();
-      const args = ['-d', distro, '-u', 'root', '--exec', 'env', `JULIAFLOW_CI_DEADLINE=${deadline}`,
+      const args = ['-d', distro, '-u', 'root', '--exec', 'env', `JULIAFLOW_CI_DEADLINE=${deadline}`, `JULIAFLOW_CI_PG_PASSWORD=${password}`,
         'setsid', '--wait', 'bash', scriptPath, 'run', id, entry.name, head, tree, base, bundlePath, evidence, options.cache, cacheKey, String(port)];
-      const result = await runProcess('wsl', args, { cwd: root, logPath: join(jobOut, 'wsl.log'),
+      const result = await runProcess('wsl', args, { cwd: root, env: { ...process.env, JULIAFLOW_CI_PG_PASSWORD: password }, logPath: join(jobOut, 'wsl.log'),
         timeoutMs: Math.max(1, deadline - Date.now()), signal: abort.signal, onEvent: events });
       if (result.status !== 'passed') {
         const pidFile = join(jobOut, 'wsl-pid');

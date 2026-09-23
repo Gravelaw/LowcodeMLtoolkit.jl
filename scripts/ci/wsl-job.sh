@@ -58,7 +58,8 @@ chown postgres:postgres "$run_root/pg" "$run_root/socket"
 chmod 755 "$run_root" "$(dirname "$run_root")"
 touch "$run_root/postgres.log"
 chown postgres:postgres "$run_root/postgres.log"
-password=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')
+password=${JULIAFLOW_CI_PG_PASSWORD:?runner password required}
+if [[ ! $password =~ ^[a-f0-9]{48}$ ]]; then echo 'Invalid runner password' >&2; exit 1; fi
 printf '%s\n' "$password" > "$run_root/pg-password"
 chown postgres:postgres "$run_root/pg-password"
 chmod 600 "$run_root/pg-password"
