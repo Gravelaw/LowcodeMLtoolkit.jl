@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from './local.mjs';
 import { verifyParity } from './parity.mjs';
 import { runProcess } from './process.mjs';
-import { writeJson, inventory } from './evidence.mjs';
+import { writeJson, finishRunEvidence } from './evidence.mjs';
 
 const distro = 'juliaflow-ci-ubuntu24';
 function command(name, args, cwd, timeout = 30000) {
@@ -43,7 +43,7 @@ export async function main(argv) {
   process.on('SIGINT', cancel); process.on('SIGTERM', cancel);
   save();
   try {
-    for (const path of ['scripts/ci/workflows.json', 'scripts/ci/wsl.mjs', 'scripts/ci/wsl-job.sh', 'scripts/ci/job.mjs']) {
+    for (const path of ['scripts/ci/workflows.json', 'scripts/ci/wsl.mjs', 'scripts/ci/wsl-job.sh', 'scripts/ci/job.mjs', 'scripts/ci/evidence.mjs']) {
       const selected = command('git', ['show', `${head}:${path}`], root).replaceAll('\r\n', '\n');
       if (selected !== readFileSync(join(root, path), 'utf8').replaceAll('\r\n', '\n').trim()) throw new Error(`Runner differs from selected candidate: ${path}; commit changes and select that commit`);
     }
@@ -101,7 +101,7 @@ export async function main(argv) {
     if (report.status === 'running') report.status = report.jobs.some(j => ['failed', 'timed_out', 'cancelled', 'not_run', 'running'].includes(j.status)) ? 'failed' : options.job ? 'partial' : 'passed';
   } catch (error) { report.status = abort.signal.aborted ? 'cancelled' : 'failed'; report.error = error.message; }
   finally {
-    report.finishedAt = new Date().toISOString(); save(); writeJson(join(out, 'sha256.json'), inventory(out));
+    finishRunEvidence(out, report);
     process.removeListener('SIGINT', cancel); process.removeListener('SIGTERM', cancel);
     console.log(`Local WSL CI ${report.status}. Evidence: ${out}`);
   }

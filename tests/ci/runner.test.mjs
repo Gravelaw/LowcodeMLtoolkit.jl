@@ -7,7 +7,7 @@ import { parseArgs } from '../../scripts/ci/local.mjs';
 import { ownsWslProcess } from '../../scripts/ci/wsl.mjs';
 import { verifyParity } from '../../scripts/ci/parity.mjs';
 import { runProcess } from '../../scripts/ci/process.mjs';
-import { inventory, retainTree, writeJson } from '../../scripts/ci/evidence.mjs';
+import { inventory, retainTree, writeJson, pruneCompletedRuns, finishRunEvidence } from '../../scripts/ci/evidence.mjs';
 const temp = () => mkdtempSync(join(tmpdir(), 'juliaflow-ci-test-'));
 
 test('profiles require explicit candidate/base and reject unknown jobs/options', () => {
@@ -83,6 +83,45 @@ test('cleanup cannot delete another concurrent run or an unowned volume',async()
  assert.throws(()=>removeOwnedResource(other,{kind:'container',name:'shared-cache-lock'},'this-run'),/Ownership/);assert.equal(calls.length,1);
  const own=args=>{calls.push(args);return 'this-run'};removeOwnedResource(own,{kind:'volume',name:'owned-cache'},'this-run');assert.deepEqual(calls.at(-1),['volume','rm','owned-cache']);
  assert.throws(()=>removeOwnedResource(own,{kind:'system',name:'anything'},'this-run'),/Unknown/);
+});
+test('three-run retention keeps the latest completed pass, failure and partial run',()=>{
+ const root=temp(), ids=Array.from({length:5},(_,i)=>`jfci-${1000+i}-abcdef12`);
+ ids.forEach((id,i)=>{
+  const dir=join(root,id);mkdirSync(dir);
+  writeJson(join(dir,'summary.json'),{id,status:['passed','failed','passed','failed','partial'][i],finishedAt:new Date(100000+i*1000).toISOString()});
+  writeFileSync(join(dir,'step.log'),`run ${i}`);
+ });
+ const running='jfci-2000-abcdef12', orphan=join(root,running);mkdirSync(orphan);
+ writeJson(join(orphan,'summary.json'),{id:running,status:'running'});
+ const other='jfci-2001-abcdef12', unowned=join(root,other);mkdirSync(unowned);
+ writeJson(join(unowned,'summary.json'),{id:'not-owned',status:'failed',finishedAt:new Date().toISOString()});
+ const result=pruneCompletedRuns(root,ids[4]);
+ assert.deepEqual(result.retained,[ids[4],ids[3],ids[2]]);
+ assert.deepEqual(result.recent.map(run=>run.status),['partial','failed','passed']);
+ assert.deepEqual(result.purged,[ids[1],ids[0]]);
+ assert.deepEqual(result.unverified.sort(),[running,other].sort());
+ for(const id of ids.slice(0,2)) assert.equal(existsSync(join(root,id)),false);
+ for(const id of [...ids.slice(2),running,other]) assert.equal(existsSync(join(root,id)),true);
+ assert.throws(()=>pruneCompletedRuns(root,running),/no completed/);
+});
+test('finalization records pruning and checksums the retained summary',()=>{
+ const root=temp(), id='jfci-3000-abcdef12', out=join(root,id);mkdirSync(out);
+ const report={id,status:'failed',jobs:[{name:'web',status:'failed'}]};
+ finishRunEvidence(out,report);
+ const saved=JSON.parse(readFileSync(join(out,'summary.json'),'utf8'));
+ assert.equal(saved.status,'failed');assert.deepEqual(saved.retention.retained,[id]);
+ assert.equal(inventory(out)['summary.json'],JSON.parse(readFileSync(join(out,'sha256.json'),'utf8'))['summary.json']);
+});
+test('retention never traverses a link to evidence outside its root', {skip:process.platform==='win32'},()=>{
+ const root=temp(), outside=temp(), old='jfci-4000-abcdef12', current='jfci-4001-abcdef12';
+ writeFileSync(join(outside,'keep.txt'),'outside');
+ for(const [id,time] of [[old,100000],[current,200000]]){
+  const dir=join(root,id);mkdirSync(dir);
+  writeJson(join(dir,'summary.json'),{id,status:'failed',finishedAt:new Date(time).toISOString()});
+ }
+ symlinkSync(outside,join(root,old,'external'),'dir');
+ const result=pruneCompletedRuns(root,current,1);
+ assert.deepEqual(result.purged,[old]);assert.equal(readFileSync(join(outside,'keep.txt'),'utf8'),'outside');
 });
 
 test('WSL cancellation refuses a reused PID from another run',()=>{

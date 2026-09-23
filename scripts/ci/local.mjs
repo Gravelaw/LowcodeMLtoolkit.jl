@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyParity } from './parity.mjs';
 import { runProcess } from './process.mjs';
-import { writeJson, inventory } from './evidence.mjs';
+import { writeJson, finishRunEvidence } from './evidence.mjs';
 import { waitForService, removeOwnedResource } from './resources.mjs';
 
 export function parseArgs(argv) {
@@ -50,7 +50,7 @@ export async function main(argv) {
   save();
   try {
     // The selected candidate supplies both the tests and the runner/image mapping.
-    for (const path of ['infra/docker/ci/Dockerfile', 'scripts/ci/workflows.json', 'scripts/ci/local.mjs']) {
+    for (const path of ['infra/docker/ci/Dockerfile', 'scripts/ci/workflows.json', 'scripts/ci/local.mjs', 'scripts/ci/evidence.mjs']) {
       const selected = command('git', ['show', `${head}:${path}`], root).replaceAll('\r\n', '\n');
       if (selected !== readFileSync(join(root, path), 'utf8').replaceAll('\r\n', '\n').trim()) throw new Error(`Runner differs from selected candidate: ${path}; commit changes and select that commit`);
     }
@@ -127,7 +127,7 @@ export async function main(argv) {
       } catch (error) { report.cleanup.push({ ...resource, status: 'failed', error: error.message }); }
     }
     if (report.cleanup.some(r => r.status === 'failed') && report.status === 'passed') report.status = 'failed';
-    report.finishedAt = new Date().toISOString(); save(); writeJson(join(out, 'sha256.json'), inventory(out));
+    finishRunEvidence(out, report);
     process.removeListener('SIGINT', cancel); process.removeListener('SIGTERM', cancel);
     console.log(`Local CI ${report.status}. Evidence: ${out}`);
   }
