@@ -48,8 +48,8 @@ printf '%s' "$run_id:$job" > "$run_root/owner"
 printf '%s' "$$" > "$evidence/wsl-pid"
 trap cleanup EXIT
 
-export PATH=/opt/juliaflow-ci/node/bin:/opt/juliaflow-ci/julia/bin:/usr/lib/postgresql/16/bin:/usr/local/bin:/usr/bin:/bin
-for tool in node npm julia pg_ctl git; do command -v "$tool" >/dev/null; done
+export PATH=/opt/juliaflow-ci/node/bin:/opt/juliaflow-ci/julia/bin:/usr/lib/postgresql/16/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+for tool in node npm julia pg_ctl git runuser; do command -v "$tool" >/dev/null; done
 git clone --quiet "$bundle" "$run_root/repo"
 git -C "$run_root/repo" checkout --quiet --detach "$head"
 
@@ -62,10 +62,16 @@ password=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')
 printf '%s\n' "$password" > "$run_root/pg-password"
 chown postgres:postgres "$run_root/pg-password"
 chmod 600 "$run_root/pg-password"
-runuser -u postgres -- initdb -D "$run_root/pg" -U juliaflow --pwfile="$run_root/pg-password" \
-  --auth-host=scram-sha-256 --auth-local=trust --no-instructions > "$evidence/postgres-init.log" 2>&1
-runuser -u postgres -- pg_ctl -D "$run_root/pg" -l "$run_root/postgres.log" \
-  -o "-p $port -h 127.0.0.1 -k $run_root/socket" start > "$evidence/postgres-start.log" 2>&1
+if ! runuser -u postgres -- initdb -D "$run_root/pg" -U juliaflow --pwfile="$run_root/pg-password" \
+  --auth-host=scram-sha-256 --auth-local=trust --no-instructions > "$evidence/postgres-init.log" 2>&1; then
+  cat "$evidence/postgres-init.log" >&2
+  exit 1
+fi
+if ! runuser -u postgres -- pg_ctl -D "$run_root/pg" -l "$run_root/postgres.log" \
+  -o "-p $port -h 127.0.0.1 -k $run_root/socket" start > "$evidence/postgres-start.log" 2>&1; then
+  cat "$evidence/postgres-start.log" >&2
+  exit 1
+fi
 ready=0
 for _ in {1..60}; do
   if pg_isready -h 127.0.0.1 -p "$port" -U juliaflow -d postgres >/dev/null 2>&1; then ready=1; break; fi
