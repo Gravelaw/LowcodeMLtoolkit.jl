@@ -1,5 +1,9 @@
 # JuliaFlow next steps — bounded execution handoff
 
+## 2026-09-24 — plan through the next two milestones
+
+Use the [M1 and M2 execution plan](next-two-milestones.md) for the current order, live source readback, bounded backend clearance, acceptance scenarios, verification commands and rollback. It incorporates the interrupted AKS-69 runs recorded at `11856e4`. Full M1 closure remains open while hosted/platform/review gates are unresolved; bounded M2 starts only after the documented AKS-41/56 clearance. This planning update changes no product delivery status.
+
 ## 2026-09-22 — AKS-69 local-first CI; hosted Debian paused
 
 The user approved complete local CI execution while keeping hosted Debian diagnosis paused. AKS-69 owns isolated Docker PR/push/release-candidate profiles, workflow parity, streaming logs and durable evidence. GitHub workflows/check/review requirements remain unchanged; PR #56 at e436a7c is unmerged. Its latest hosted Debian result is cancelled, not passed. See [local CI](local-ci.md).
