@@ -17,6 +17,12 @@ function normalized_refs(items::AbstractVector)
     return [normalized_dict(item) for item in items]
 end
 
+function require_cpu_project_job_allowed(compute_settings::AbstractDict)
+    String(get(compute_settings, "gpuPreference", "cpu_fallback")) == "cuda_required" &&
+        error("cuda_required cannot run a CPU-only project job")
+    return nothing
+end
+
 function project_job_resource_evidence(
     compute_settings::AbstractDict,
     gpu_registry::AbstractDict;
@@ -25,18 +31,14 @@ function project_job_resource_evidence(
 )
     requested_backend = String(compute_settings["selectedBackend"])
     devices = get(gpu_registry, "devices", Any[])
-    hardware_count = count(device -> String(get(device, "mode", "hardware")) == "hardware", devices)
-    simulated_count = count(device -> String(get(device, "mode", "hardware")) == "simulated", devices)
-    selected_backend =
-        requested_backend == "cuda" && hardware_count == 0 ? "cpu" :
-        requested_backend == "simulated_cuda" && simulated_count == 0 ? "cpu" :
-        requested_backend
-    dispatch_lane = selected_backend == "cpu" ? "cpu" : "gpu"
-    fallback_reason =
-        dispatch_lane == "gpu" ? "none" :
-        requested_backend == "cuda" && hardware_count == 0 ? "no_cuda_device_available" :
-        requested_backend == "simulated_cuda" && simulated_count == 0 ? "no_simulated_cuda_device_available" :
-        "cpu_selected"
+    hardware_count = count(device -> String(get(device, "mode", "")) == "hardware", devices)
+    simulated_count = count(device -> String(get(device, "mode", "")) == "simulated", devices)
+    require_cpu_project_job_allowed(compute_settings)
+    # These project routes execute on the CPU. A visible device or a registry
+    # entry is not evidence that fitting, profiling, or evaluation used CUDA.
+    selected_backend = "cpu"
+    dispatch_lane = "cpu"
+    fallback_reason = requested_backend == "cpu" ? "cpu_selected" : "gpu_operation_not_implemented"
     return Dict{String,Any}(
         "executionMode" => String(execution_mode),
         "requestedBackend" => requested_backend,
@@ -47,10 +49,14 @@ function project_job_resource_evidence(
         "cpuThreadCount" => Int(cpu_thread_count),
         "cpuWorkerConcurrency" => Int(compute_settings["cpuWorkerConcurrency"]),
         "cpuMemoryLimitBytes" => Int(compute_settings["cpuMemoryLimitBytes"]),
-        "gpuReadinessStatus" => Int(get(gpu_registry, "device_count", 0)) > 0 ? "available" : "cpu_fallback",
+        "gpuReadinessStatus" => String(get(gpu_registry, "probe_status", "unprobed")),
         "gpuHardwareDeviceCount" => hardware_count,
         "gpuSimulatedDeviceCount" => simulated_count,
         "gpuFallbackReason" => fallback_reason,
+        "evidenceVersion" => 2,
+        "gpuProbeStatus" => String(get(gpu_registry, "probe_status", "unprobed")),
+        "actualDeviceId" => "cpu",
+        "actualExecutionBackend" => "cpu",
     )
 end
 

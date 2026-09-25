@@ -675,7 +675,7 @@ function commit_external_stream_sink(events, transaction_state::AbstractDict)
 end
 
 function gpu_registry()
-    raw = strip(get(ENV, "JULIAFLOW_GPU_REGISTRY", "mock:nvidia0"))
+    raw = strip(get(ENV, "JULIAFLOW_GPU_REGISTRY", ""))
     isempty(raw) && return Dict{String,Any}[]
     devices = Dict{String,Any}[]
     for (index, token) in enumerate(split(raw, ','))
@@ -689,17 +689,149 @@ function gpu_registry()
             "accelerator" => accelerator == "mock" ? "cuda" : accelerator,
             "device_id" => device_id,
             "vendor" => vendor,
-            "mode" => accelerator == "mock" ? "simulated" : "hardware",
+            # This environment value is a fixture/compatibility hint. It is
+            # never proof that a physical device or driver is usable.
+            "mode" => "simulated",
+            "usable" => false,
             "memory_gb" => 16,
         ))
     end
     return devices
 end
 
-function gpu_registry_health()
-    devices = gpu_registry()
+function cuda_failure_reason(error)
+    description = lowercase(sprint(showerror, error))
+    occursin("precompiled for cuda", description) && return "runtime_mismatch"
+    occursin("insufficient driver", description) && return "driver_mismatch"
+    occursin("out of memory", description) && return "insufficient_vram"
+    occursin("permission", description) && return "device_inaccessible"
+    return "cuda_driver_or_runtime_error"
+end
+
+const GPU_DISCOVERY_LOCK = ReentrantLock()
+const GPU_DISCOVERY_CACHE = Ref{Any}(nothing)
+
+function visible_nvidia_devices()
+    lock(GPU_DISCOVERY_LOCK) do
+        cached = GPU_DISCOVERY_CACHE[]
+        cached !== nothing && time() - cached[1] < 10 && return deepcopy(cached[2])
+        executable = Sys.which("nvidia-smi")
+        devices = Dict{String,Any}[]
+        if executable !== nothing
+            try
+                output = mktemp() do path, io
+                    close(io)
+                    open(path, "w") do stream
+                        command = Cmd([executable, "--query-gpu=index,uuid,memory.total,driver_version", "--format=csv,noheader,nounits"])
+                        process = run(pipeline(command, stdout = stream, stderr = devnull); wait = false)
+                        if timedwait(() -> process_exited(process), 5.0) == :timed_out
+                            kill(process)
+                            wait(process)
+                            return ""
+                        end
+                        success(process) || return ""
+                    end
+                    read(path, String)
+                end
+                for line in split(output, '\n')
+                    parts = split(strip(line), ',')
+                    length(parts) == 4 || continue
+                    index = tryparse(Int, strip(parts[1]))
+                    memory_mib = tryparse(Int, strip(parts[3]))
+                    device_id = strip(parts[2])
+                    index === nothing && continue
+                    memory_mib === nothing && continue
+                    occursin(r"^GPU-[a-fA-F0-9-]{36}$", device_id) || continue
+                    push!(devices, Dict{String,Any}(
+                        "accelerator" => "cuda", "device_id" => device_id,
+                        "index" => index, "vendor" => "nvidia", "mode" => "hardware",
+                        "name" => "NVIDIA device", "memory_bytes" => memory_mib * 1024 * 1024,
+                        "memory_gb" => memory_mib * 1024 * 1024 ÷ 1_000_000_000,
+                        "driver_version" => strip(parts[4]), "usable" => false,
+                        "probe_status" => "unprobed", "probe_reason" => "not_requested",
+                    ))
+                end
+            catch
+                # An inventory command is not an operational CUDA probe.
+            end
+        end
+        GPU_DISCOVERY_CACHE[] = (time(), deepcopy(devices))
+        return devices
+    end
+end
+
+function physical_gpu_devices()
+    if get(ENV, "JULIAFLOW_DISABLE_HARDWARE_PROBE", "0") == "1"
+        return Dict{String,Any}[], "skipped", "probe_disabled"
+    end
+    CUDA = try
+        Base.require(Base.PkgId(Base.UUID("052768ef-5323-5732-b1bb-66c8b64840ba"), "CUDA"))
+    catch error
+        return Dict{String,Any}[], "failed", cuda_failure_reason(error) == "cuda_driver_or_runtime_error" ?
+            "cuda_package_unavailable" : cuda_failure_reason(error)
+    end
+    try
+        CUDA.functional() || return Dict{String,Any}[], "failed", "cuda_runtime_unavailable"
+        devices = Dict{String,Any}[]
+        for device in CUDA.devices()
+            device_id = "GPU-" * string(CUDA.uuid(device))
+            probe = try
+                CUDA.device!(device) do
+                    input = CUDA.CuArray([1.0, 2.0])
+                    output = input .* 2.0 .+ 1.0
+                    CUDA.synchronize()
+                    values = Array(output)
+                    values == [3.0, 5.0] || error("CUDA probe output mismatch")
+                    CUDA.device(output) == device || error("CUDA operation used another device")
+                    Dict("status" => "passed", "reason" => "none", "free_memory_bytes" => Int(CUDA.free_memory()))
+                end
+            catch error
+                reason = cuda_failure_reason(error)
+                Dict("status" => "failed", "reason" => reason == "cuda_driver_or_runtime_error" ?
+                    "allocation_or_operation_failed" : reason, "free_memory_bytes" => 0)
+            end
+            push!(devices, Dict{String,Any}(
+                "accelerator" => "cuda", "device_id" => device_id, "index" => Int(CUDA.deviceid(device)),
+                "vendor" => "nvidia", "mode" => "hardware", "name" => String(CUDA.name(device)),
+                "memory_bytes" => Int(CUDA.totalmem(device)),
+                "memory_gb" => Int(CUDA.totalmem(device)) ÷ 1_000_000_000,
+                "free_memory_bytes" => probe["free_memory_bytes"], "usable" => probe["status"] == "passed",
+                "probe_status" => probe["status"], "probe_reason" => probe["reason"],
+                "runtime_version" => string(CUDA.runtime_version()), "driver_version" => string(CUDA.driver_version()),
+            ))
+        end
+        isempty(devices) && return devices, "failed", "no_cuda_device_visible"
+        any(device -> device["usable"], devices) || return devices, "failed", "no_usable_cuda_device"
+        return devices, "passed", "none"
+    catch error
+        return Dict{String,Any}[], "failed", cuda_failure_reason(error)
+    end
+end
+
+function gpu_registry_health(; probe::Bool = false)
+    simulated = gpu_registry()
+    visible = visible_nvidia_devices()
+    tested, status, reason = probe ? physical_gpu_devices() : (Dict{String,Any}[], "unprobed", "not_requested")
+    physical = Dict{String,Any}[]
+    for device in visible
+        match = findfirst(tested_device -> tested_device["device_id"] == device["device_id"], tested)
+        if match === nothing
+            push!(physical, probe ? merge(device, Dict("probe_status" => status, "probe_reason" => reason)) : device)
+        else
+            push!(physical, merge(device, tested[match]))
+        end
+    end
+    for device in tested
+        any(visible_device -> visible_device["device_id"] == device["device_id"], visible) || push!(physical, device)
+    end
+    devices = [physical; simulated]
     return Dict(
-        "device_count" => length(devices),
+        "device_count" => count(device -> get(device, "usable", false), physical),
+        "visible_device_count" => length(physical),
+        "simulated_device_count" => length(simulated),
+        "probe_status" => status,
+        "probe_reason" => reason,
+        "cuda_installed" => Base.find_package("CUDA") !== nothing,
         "devices" => devices,
         "fallback_available" => true,
     )
@@ -728,8 +860,8 @@ function gpu_requested_device(workflow, execution)
     return nothing
 end
 
-function sorted_gpu_devices()
-    devices = gpu_registry()
+function sorted_gpu_devices(registry = gpu_registry_health(; probe = true))
+    devices = [device for device in registry["devices"] if get(device, "mode", "") == "hardware" && get(device, "usable", false)]
     sort!(devices, by = device -> (String(device["device_id"]), String(device["accelerator"])))
     return devices
 end
@@ -748,6 +880,10 @@ function gpu_device_matches(device, requested::AbstractString)
         "$(accelerator_value):$(device_id_value)",
         "$(vendor_value):$(device_id_value)",
     ])
+    if haskey(device, "index")
+        index = Int(device["index"])
+        union!(aliases, ["$(index)", "cuda:$(index)", "nvidia:$(index)", "nvidia$(index)"])
+    end
     isempty(numeric_suffix) || push!(aliases, "$(accelerator_value):$(numeric_suffix)")
     isempty(numeric_suffix) || push!(aliases, "$(vendor_value):$(numeric_suffix)")
     requested_value in aliases && return true
@@ -763,15 +899,15 @@ function gpu_device_capacity(devices)
     )
 end
 
-function gpu_placement_decision(workflow, execution)
-    devices = sorted_gpu_devices()
+function gpu_placement_decision(workflow, execution; registry = gpu_registry_health(; probe = true))
+    devices = sorted_gpu_devices(registry)
     requested = gpu_requested_device(workflow, execution)
     if isempty(devices)
         return Dict{String,Any}(
             "device" => nothing,
             "requested_device" => requested,
             "selected_device" => "cpu-fallback",
-            "fallback_reason" => "registry_empty",
+            "fallback_reason" => String(get(registry, "probe_reason", "no_usable_cuda_device")),
             "placement_reason" => "no_matching_gpu_device",
             "scheduler_policy" => "deterministic_device_id",
             "worker_capacity" => gpu_device_capacity(devices),
@@ -792,13 +928,12 @@ function gpu_placement_decision(workflow, execution)
                 )
             end
         end
-        device = devices[1]
         return Dict{String,Any}(
-            "device" => device,
+            "device" => nothing,
             "requested_device" => requested,
-            "selected_device" => String(device["device_id"]),
+            "selected_device" => "cpu-fallback",
             "fallback_reason" => "requested_device_unavailable",
-            "placement_reason" => "deterministic_default_after_request_miss",
+            "placement_reason" => "no_matching_gpu_device",
             "scheduler_policy" => "deterministic_device_id",
             "worker_capacity" => gpu_device_capacity(devices),
         )
@@ -828,7 +963,18 @@ function gpu_workload_config(workflow)
     return Dict{String,Any}("kind" => kind, "input_values" => values, "node_id" => node.id)
 end
 
-function execute_gpu_workload(workflow, execution)
+struct GpuUnavailableError <: Exception
+    reason::String
+end
+
+function gpu_required(workflow, execution)
+    requested = String(get(execution.metadata, "requested_execution_mode", ""))
+    requested in ("gpu_required", "cuda_required", "batch_gpu_required") && return true
+    node = gpu_workflow_node(workflow)
+    return node !== nothing && node.execution_hint == :gpu_required
+end
+
+function execute_gpu_workload(workflow, execution; device = nothing)
     config = gpu_workload_config(workflow)
     values = [Float64(value) for value in get(config, "input_values", [1.0, 2.0, 3.0, 4.0])]
     kind = String(get(config, "kind", "mock_vector_sum"))
@@ -848,59 +994,87 @@ function execute_gpu_workload(workflow, execution)
             "max" => isempty(values) ? 0.0 : maximum(values),
         )
     elseif kind == "cuda_ka_vector_affine"
-        return execute_cuda_ka_vector_affine(values)
+        if device === nothing
+            output = values .* 2.0 .+ 1.0
+            return Dict("kind" => "cpu_vector_affine", "input_size" => length(values),
+                "sum" => sum(output), "first" => isempty(output) ? 0.0 : output[1],
+                "last" => isempty(output) ? 0.0 : output[end])
+        end
+        return execute_cuda_ka_vector_affine(values, device)
     end
     error("unsupported gpu workload: $(kind)")
 end
 
-function execute_cuda_ka_vector_affine(values::Vector{Float64})
+function execute_cuda_ka_vector_affine(values::Vector{Float64}, selected::AbstractDict)
     CUDA = Base.require(Base.PkgId(Base.UUID("052768ef-5323-5732-b1bb-66c8b64840ba"), "CUDA"))
     KA = Base.require(Base.PkgId(Base.UUID("63c18a36-062a-441e-b654-da1e3ab1ce7c"), "KernelAbstractions"))
     CUDA.functional() || error("CUDA runtime is not functional")
+    selected_id = String(selected["device_id"])
     devices = collect(CUDA.devices())
-    isempty(devices) && error("no CUDA devices visible")
-    input = CUDA.CuArray(values)
-    output = input .* 2.0 .+ 1.0
-    CUDA.synchronize()
-    host_output = Array(output)
-    backend = string(KA.get_backend(output))
-    return Dict(
-        "kind" => "cuda_ka_vector_affine",
-        "backend" => backend,
-        "device_count" => length(devices),
-        "input_size" => length(values),
-        "sum" => sum(host_output),
-        "first" => isempty(host_output) ? 0.0 : host_output[1],
-        "last" => isempty(host_output) ? 0.0 : host_output[end],
-    )
+    chosen = findfirst(device -> "GPU-" * string(CUDA.uuid(device)) == selected_id, devices)
+    chosen === nothing && throw(GpuUnavailableError("selected_device_disappeared"))
+    return CUDA.device!(devices[chosen]) do
+        Int(CUDA.free_memory()) >= max(1024 * 1024, length(values) * 24) ||
+            throw(GpuUnavailableError("insufficient_vram"))
+        input = CUDA.CuArray(values)
+        output = input .* 2.0 .+ 1.0
+        CUDA.synchronize()
+        actual = CUDA.device(output)
+        actual_id = "GPU-" * string(CUDA.uuid(actual))
+        actual_id == selected_id || error("CUDA output device differs from selected device")
+        host_output = Array(output)
+        Dict(
+            "kind" => "cuda_ka_vector_affine", "backend" => string(KA.get_backend(output)),
+            "device_count" => length(devices), "selected_device_id" => selected_id,
+            "actual_device_id" => actual_id, "runtime_version" => string(CUDA.runtime_version()),
+            "driver_version" => string(CUDA.driver_version()),
+            "device_memory_limit_bytes" => Int(CUDA.totalmem(actual)),
+            "input_size" => length(values), "sum" => sum(host_output),
+            "first" => isempty(host_output) ? 0.0 : host_output[1],
+            "last" => isempty(host_output) ? 0.0 : host_output[end],
+        )
+    end
 end
 
 function gpu_runtime_metadata(workflow, execution)
-    registry = gpu_registry_health()
-    placement = gpu_placement_decision(workflow, execution)
+    kind = String(gpu_workload_config(workflow)["kind"])
+    actual_gpu_workload = kind == "cuda_ka_vector_affine"
+    gpu_required(workflow, execution) && !actual_gpu_workload &&
+        throw(GpuUnavailableError("no_supported_gpu_workload"))
+    registry = gpu_registry_health(; probe = actual_gpu_workload)
+    placement = gpu_placement_decision(workflow, execution; registry)
     device = placement["device"]
-    result = execute_gpu_workload(workflow, execution)
-    path = device === nothing ? "cpu_fallback" : "gpu"
-    request_satisfied = placement["requested_device"] === nothing || String(placement["fallback_reason"]) == "none"
+    if gpu_required(workflow, execution) && device === nothing
+        throw(GpuUnavailableError(String(placement["fallback_reason"])))
+    end
+    result = execute_gpu_workload(workflow, execution; device = actual_gpu_workload ? device : nothing)
+    path = actual_gpu_workload && device !== nothing ? "gpu" : "cpu_fallback"
+    request_satisfied = path == "gpu" &&
+        (placement["requested_device"] === nothing || String(placement["fallback_reason"]) == "none")
     placement_fallback_used = placement["requested_device"] !== nothing && !request_satisfied
     metadata = Dict{String,Any}(
         "gpu_registry" => registry,
         "gpu_execution_path" => path,
         "gpu_workload" => String(result["kind"]),
         "gpu_workload_result" => result,
-        "gpu_fallback_used" => device === nothing,
-        "gpu_cpu_fallback_used" => device === nothing,
+        "gpu_fallback_used" => path != "gpu",
+        "gpu_cpu_fallback_used" => path != "gpu",
         "gpu_placement_fallback_used" => placement_fallback_used,
         "gpu_request_satisfied" => request_satisfied,
-        "gpu_selected_device" => String(placement["selected_device"]),
-        "gpu_fallback_reason" => String(placement["fallback_reason"]),
+        "gpu_selected_device" => path == "gpu" ? String(placement["selected_device"]) : "cpu-fallback",
+        "gpu_fallback_reason" => path == "gpu" ? "none" :
+            actual_gpu_workload ? String(placement["fallback_reason"]) : "mock_workload_cpu_only",
         "gpu_placement_reason" => String(placement["placement_reason"]),
         "gpu_scheduler_policy" => String(placement["scheduler_policy"]),
         "gpu_worker_isolation_mode" => "isolated",
         "gpu_worker_capacity" => placement["worker_capacity"],
+        "gpu_evidence_version" => 2,
+        "gpu_probe_status" => String(registry["probe_status"]),
+        "gpu_planned_device" => String(placement["selected_device"]),
+        "gpu_actual_device" => path == "gpu" ? String(result["actual_device_id"]) : "cpu",
     )
     placement["requested_device"] === nothing || (metadata["gpu_requested_device"] = String(placement["requested_device"]))
-    if device === nothing
+    if path != "gpu"
         metadata["gpu_device_id"] = "cpu-fallback"
         metadata["gpu_accelerator"] = "cpu"
     else
@@ -1507,14 +1681,34 @@ function process_gpu_compute_tick!(
         has_gpu_dispatch(execution) || continue
         get(execution.metadata, "gpu_workload_result", nothing) === nothing || continue
         workflow = workflows[execution.workflow_id]
-        metadata = gpu_runtime_metadata(workflow, execution)
-        completed = transition_execution_record(
-            execution_record(execution),
-            "completed";
-            message = metadata["gpu_execution_path"] == "gpu" ? "GPU worker completed workload" : "GPU worker completed workload via CPU fallback",
-            metadata = metadata,
-        )
-        updated_execution = materialize_execution(completed)
+        updated = try
+            metadata = gpu_runtime_metadata(workflow, execution)
+            transition_execution_record(
+                execution_record(execution),
+                "completed";
+                message = metadata["gpu_execution_path"] == "gpu" ? "GPU worker completed workload" : "GPU worker completed workload via CPU fallback",
+                metadata = metadata,
+            )
+        catch error
+            reason = error isa GpuUnavailableError ? error.reason : "gpu_execution_error"
+            requested = gpu_requested_device(workflow, execution)
+            failure_evidence = Dict{String,Any}(
+                "gpu_evidence_version" => 2, "gpu_execution_path" => "unavailable",
+                "gpu_probe_status" => reason == "no_supported_gpu_workload" ? "unprobed" :
+                    reason == "probe_disabled" ? "skipped" : "failed",
+                "gpu_planned_device" => "unavailable", "gpu_actual_device" => "none",
+                "gpu_fallback_used" => false, "gpu_cpu_fallback_used" => false,
+                "gpu_fallback_reason" => reason,
+            )
+            requested === nothing || (failure_evidence["gpu_requested_device"] = String(requested))
+            transition_execution_record(
+                execution_record(execution),
+                "failed";
+                message = "GPU worker could not execute the requested workload",
+                metadata = failure_evidence,
+            )
+        end
+        updated_execution = materialize_execution(updated)
         index = find_execution_index(executions, execution.execution_id)
         executions[index] = updated_execution
         push!(service.gpu_execution_ids, updated_execution.execution_id)

@@ -884,18 +884,19 @@ function gpu_device_summaries(gpu_registry)
     hardware_count = 0
     simulated_count = 0
     for device in get(gpu_registry, "devices", Any[])
-        memory_gb = Int(get(device, "memory_gb", 0))
-        memory_bytes = memory_gb * 1_000_000_000
-        mode = String(get(device, "mode", "hardware"))
-        mode == "hardware" && (hardware_count += 1)
+        memory_bytes = Int(get(device, "memory_bytes", 0))
+        mode = String(get(device, "mode", "unverified"))
+        mode == "hardware" && get(device, "usable", false) && (hardware_count += 1)
         mode == "simulated" && (simulated_count += 1)
-        total_vram_bytes += memory_bytes
+        mode == "hardware" && (total_vram_bytes += memory_bytes)
         push!(summaries, Dict(
             "deviceId" => String(get(device, "device_id", "unknown")),
             "vendor" => String(get(device, "vendor", "unknown")),
             "accelerator" => String(get(device, "accelerator", "unknown")),
             "mode" => mode,
             "memoryBytes" => memory_bytes,
+            "usable" => Bool(get(device, "usable", false)),
+            "probeStatus" => String(get(device, "probe_status", "unprobed")),
         ))
     end
     return summaries, total_vram_bytes, hardware_count, simulated_count
@@ -912,9 +913,7 @@ function local_hardware_runtime_profile(disk_status, gpu_registry, compute_setti
     cuda_required = get(ENV, "JULIAFLOW_CUDA_SMOKE", "0") == "1"
     cuda_status = cuda_required ? "requested" : "not_requested"
     requested_backend = String(compute_settings["selectedBackend"])
-    selected_backend = requested_backend == "cuda" && hardware_count == 0 ? "cpu" :
-                       requested_backend == "simulated_cuda" && simulated_count == 0 ? "cpu" :
-                       requested_backend
+    selected_backend = "cpu"
     hardware_ready = cpu_threads > 0 &&
                      total_memory > 0 &&
                      free_memory >= 0 &&
@@ -923,10 +922,11 @@ function local_hardware_runtime_profile(disk_status, gpu_registry, compute_setti
     return Dict(
         "hardwareProfileStatus" => hardware_ready ? "ready" : "degraded",
         "hardwareSelectedBackend" => selected_backend,
+        "hardwareRequestedBackend" => requested_backend,
         "cpuSchedulerPolicy" => String(compute_settings["schedulerPolicy"]),
         "cpuWorkerConcurrency" => cpu_concurrency,
         "cpuMemoryLimitBytes" => memory_limit,
-        "gpuCudaStatus" => requested_backend == "cuda" && hardware_count == 0 ? "unavailable" : cuda_status,
+        "gpuCudaStatus" => requested_backend == "cuda" ? String(get(gpu_registry, "probe_status", "unprobed")) : cuda_status,
         "gpuHardwareDeviceCount" => hardware_count,
         "gpuSimulatedDeviceCount" => simulated_count,
         "gpuTotalVramBytes" => total_vram_bytes,
@@ -1053,11 +1053,14 @@ function healthcheck(state::GatewayState)
             "freeMemoryBytes" => Sys.free_memory(),
             "hardwareProfileStatus" => hardware["hardwareProfileStatus"],
             "hardwareSelectedBackend" => hardware["hardwareSelectedBackend"],
+            "hardwareRequestedBackend" => hardware["hardwareRequestedBackend"],
             "cpuSchedulerPolicy" => hardware["cpuSchedulerPolicy"],
             "cpuWorkerConcurrency" => hardware["cpuWorkerConcurrency"],
             "cpuMemoryLimitBytes" => hardware["cpuMemoryLimitBytes"],
-            "gpuReadinessStatus" => gpu_registry["device_count"] > 0 ? "available" : "cpu_fallback",
-            "gpuFallbackReason" => gpu_registry["fallback_available"] ? "no_supported_gpu_required_for_local_bootstrap" : "gpu_fallback_unavailable",
+            "gpuReadinessStatus" => String(gpu_registry["probe_status"]),
+            "gpuCudaInstalled" => Bool(gpu_registry["cuda_installed"]),
+            "gpuVisibleDeviceCount" => Int(gpu_registry["visible_device_count"]),
+            "gpuFallbackReason" => gpu_registry["fallback_available"] ? "no_gpu_operation_in_local_bootstrap" : "gpu_fallback_unavailable",
             "gpuCudaStatus" => hardware["gpuCudaStatus"],
             "gpuHardwareDeviceCount" => hardware["gpuHardwareDeviceCount"],
             "gpuSimulatedDeviceCount" => hardware["gpuSimulatedDeviceCount"],
@@ -2655,6 +2658,7 @@ function local_data_import_audit_details(body::AbstractDict; outcome::AbstractSt
 end
 
 function data_import_profile_response!(state::GatewayState, body::AbstractDict)
+    ensure_cpu_project_job_allowed(state)
     health = JSON3.read(healthcheck(state), Dict{String,Any})
     evidence = gateway_explainability_evidence(state)
     dataset_card = Dict{String,Any}(String(key) => value for (key, value) in pairs(evidence["datasetCard"]))
@@ -3440,6 +3444,7 @@ end
 
 function model_lifecycle_action_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    ensure_cpu_project_job_allowed(state)
     project = deepcopy(state.data_science_projects[project_id])
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     record, index = JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
@@ -3594,6 +3599,7 @@ function ml_experiment_payload(state::GatewayState, execution::GatewayExecution;
 end
 
 function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
+    ensure_cpu_project_job_allowed(state)
     flow_variable_values = haskey(body, "flowVariables") ? normalized_string_dict(body["flowVariables"]) : Dict{String,Any}()
     execution_mode_override = haskey(body, "executionMode") ? String(body["executionMode"]) : nothing
     evidence = gateway_explainability_evidence(state)
@@ -3917,6 +3923,7 @@ function record_deploy_package_project_job!(
 end
 
 function deploy_package_payload!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
+    ensure_cpu_project_job_allowed(state)
     execution = latest_model_execution(state, workflow_id)
     execution === nothing && error("model evidence not found for workflow: $(workflow_id)")
     strict_model_execution_evidence(state, execution, "deploy package"; evaluation_required = true)
@@ -5041,6 +5048,11 @@ function data_science_project_job_resource_evidence(state::GatewayState; executi
     )
 end
 
+function ensure_cpu_project_job_allowed(state::GatewayState)
+    JuliaFlowDataScienceProjectJobs.require_cpu_project_job_allowed(load_compute_settings(state))
+    return nothing
+end
+
 function materialize_data_science_project(
     body::AbstractDict;
     existing::Union{Nothing,DataScienceProjectRecord} = nothing,
@@ -5155,6 +5167,7 @@ end
 
 function run_transform_fit_apply_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    ensure_cpu_project_job_allowed(state)
     project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     split_plan = project_split_plan_for_request(project, body, dataset_id, "transform fit/apply")
@@ -5393,6 +5406,7 @@ end
 
 function run_statistical_analysis_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    ensure_cpu_project_job_allowed(state)
     project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     dataset = data_science_project_dataset(project, dataset_id)
@@ -5550,6 +5564,7 @@ end
 
 function run_tuning_study_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    ensure_cpu_project_job_allowed(state)
     project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     dataset = data_science_project_dataset(project, dataset_id)
@@ -5831,6 +5846,7 @@ end
 
 function run_final_evaluation_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    ensure_cpu_project_job_allowed(state)
     project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     dataset = data_science_project_dataset(project, dataset_id)
@@ -6088,6 +6104,7 @@ end
 
 function run_prediction_export_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    ensure_cpu_project_job_allowed(state)
     project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     dataset_index = findfirst(dataset -> String(get(dataset, "datasetId", "")) == String(dataset_id), project.datasets)
@@ -6347,6 +6364,7 @@ end
 
 function run_drift_report_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+    ensure_cpu_project_job_allowed(state)
     project = deepcopy(state.data_science_projects[project_id])
     dataset_id = statistical_analysis_dataset(project, body)
     dataset = data_science_project_dataset(project, dataset_id)

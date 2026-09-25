@@ -2360,6 +2360,10 @@
           "gpuFallbackReason"
         ],
         "properties": {
+          "evidenceVersion": {
+            "type": "integer",
+            "enum": [2]
+          },
           "executionMode": {
             "type": "string"
           },
@@ -2417,6 +2421,23 @@
           },
           "gpuFallbackReason": {
             "type": "string"
+          },
+          "gpuProbeStatus": {
+            "type": "string",
+            "enum": ["unprobed", "passed", "failed", "skipped"]
+          },
+          "requestedDeviceId": {
+            "type": "string"
+          },
+          "plannedDeviceId": {
+            "type": "string"
+          },
+          "actualDeviceId": {
+            "type": "string"
+          },
+          "actualExecutionBackend": {
+            "type": "string",
+            "enum": ["cpu", "cuda", "unavailable"]
           }
         }
       },
@@ -3791,7 +3812,11 @@
             "type": "string",
             "enum": [
               "available",
-              "cpu_fallback"
+              "cpu_fallback",
+              "unprobed",
+              "passed",
+              "failed",
+              "skipped"
             ]
           },
           "gpuFallbackReason": {
@@ -3923,6 +3948,13 @@
           "gpuRegistryDeviceCount": {
             "type": "integer"
           },
+          "gpuCudaInstalled": {
+            "type": "boolean"
+          },
+          "gpuVisibleDeviceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
           "gpuFallbackAvailable": {
             "type": "boolean"
           },
@@ -4026,6 +4058,10 @@
               "simulated_cuda"
             ]
           },
+          "hardwareRequestedBackend": {
+            "type": "string",
+            "enum": ["cpu", "cuda", "simulated_cuda"]
+          },
           "cpuSchedulerPolicy": {
             "type": "string",
             "enum": [
@@ -4044,7 +4080,11 @@
               "not_requested",
               "requested",
               "ready",
-              "unavailable"
+              "unavailable",
+              "unprobed",
+              "passed",
+              "failed",
+              "skipped"
             ]
           },
           "gpuHardwareDeviceCount": {
@@ -4828,8 +4868,23 @@
             "type": "string",
             "enum": [
               "gpu",
-              "cpu_fallback"
+              "cpu_fallback",
+              "unavailable"
             ]
+          },
+          "gpuEvidenceVersion": {
+            "type": "integer",
+            "enum": [2]
+          },
+          "gpuProbeStatus": {
+            "type": "string",
+            "enum": ["unprobed", "passed", "failed", "skipped"]
+          },
+          "gpuPlannedDevice": {
+            "type": "string"
+          },
+          "gpuActualDevice": {
+            "type": "string"
           },
           "gpuDeviceId": {
             "type": "string"
@@ -7527,6 +7582,13 @@
           },
           "memoryBytes": {
             "type": "integer"
+          },
+          "usable": {
+            "type": "boolean"
+          },
+          "probeStatus": {
+            "type": "string",
+            "enum": ["unprobed", "passed", "failed", "skipped"]
           }
         }
       },

@@ -49,6 +49,12 @@ legacy = core.materialize_project_record(cases["valid"][1]["payload"])
 @test !haskey(jobs.project_job_record(legacy, "training"; status = "queued"), "resourceEvidence")
 resource = jobs.project_job_resource_evidence(Dict("selectedBackend" => "cpu", "schedulerPolicy" => "bounded_local", "cpuWorkerConcurrency" => 1, "cpuMemoryLimitBytes" => 1048576), Dict("devices" => Any[], "device_count" => 0))
 @test jobs.project_job_record(legacy, "training"; resource_evidence = resource)["resourceEvidence"] == resource
+@test resource["evidenceVersion"] == 2
+@test resource["actualExecutionBackend"] == "cpu"
+@test_throws "invalid contract payload" jobs.project_job_record(
+    legacy, "training"; resource_evidence = merge(resource, Dict("evidenceVersion" => 3)))
+@test_throws "invalid contract payload" jobs.project_job_record(
+    legacy, "training"; resource_evidence = merge(resource, Dict("actualExecutionBackend" => "imaginary")))
 
 # Reject mutated runtime objects before file replacement or PostgreSQL connection work.
 repo_module.save_data_science_project!(repo, legacy)

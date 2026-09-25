@@ -790,6 +790,14 @@ function execution_payload(execution::GatewayExecution)
                 payload["workerId"] = String(value)
             elseif string_key == "gpu_execution_path"
                 payload["gpuExecutionPath"] = String(value)
+            elseif string_key == "gpu_evidence_version"
+                payload["gpuEvidenceVersion"] = Int(value)
+            elseif string_key == "gpu_probe_status"
+                payload["gpuProbeStatus"] = String(value)
+            elseif string_key == "gpu_planned_device"
+                payload["gpuPlannedDevice"] = String(value)
+            elseif string_key == "gpu_actual_device"
+                payload["gpuActualDevice"] = String(value)
             elseif string_key == "gpu_device_id"
                 payload["gpuDeviceId"] = String(value)
             elseif string_key == "gpu_accelerator"
@@ -1198,6 +1206,14 @@ function gateway_execution(item)
             metadata["worker_id"] = value
         elseif string_key == "gpuExecutionPath"
             metadata["gpu_execution_path"] = value
+        elseif string_key == "gpuEvidenceVersion"
+            metadata["gpu_evidence_version"] = value
+        elseif string_key == "gpuProbeStatus"
+            metadata["gpu_probe_status"] = value
+        elseif string_key == "gpuPlannedDevice"
+            metadata["gpu_planned_device"] = value
+        elseif string_key == "gpuActualDevice"
+            metadata["gpu_actual_device"] = value
         elseif string_key == "gpuDeviceId"
             metadata["gpu_device_id"] = value
         elseif string_key == "gpuAccelerator"

@@ -1,5 +1,11 @@
 # JuliaFlow TODO
 
+## 2026-09-25 — M1/M2 active work
+
+- [ ] AKS-69: complete same-candidate local cold/warm PR, push and validation-only release-candidate profiles. The latest mapped WSL web-only PR job passed as a partial run; interrupted full runs remain unresolved. Automatic PR #57 CI passed web, Julia and Debian release at `890d820`, with conditional CUDA skip. Hosted Debian diagnosis is paused.
+- [ ] AKS-41/56: retain the scoped Codex backend review at `e436a7c` and obtain a submitted independent GitHub review for integration clearance.
+- [ ] AKS-58: finish physical-device operation qualification, CPU/RAM/disk/VRAM pressure cases, persistence/API smoke, exact-candidate platform gates and review. [Current evidence](verification-m2-hardware.md) is a draft with no M2 completion claim.
+
 ## 2026-09-23 — AKS-69 reliability candidate
 
 Cross-process retention and verified WSL PostgreSQL cleanup are implemented. Diagnose the Julia precompile stall with isolated fresh/reused depots and process evidence, then run cold/warm full PR, push and validation-only release-candidate profiles at one committed head. Retain all failures and not_run phases. Hosted Debian stays paused.

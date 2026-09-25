@@ -6,6 +6,8 @@ Reconciled 2026-09-20 for [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-ju
 
 All 32 new IDs map to milestone, owning issue and an explicit success/rejection scenario. These are requirements and future gates, not newly completed product tests. Existing code paths and revision-limited local evidence remain in the historical section below; no old checkbox is promoted.
 
+The 2026-09-25 AKS-58 candidate has partial JF-HW-001/JF-HW-002/JF-RT-002 evidence in [verification-m2-hardware.md](verification-m2-hardware.md): `services/worker-service/src/JuliaFlowWorkerService.jl`, `services/api-gateway/src/JuliaFlowDataScienceProjectJobs.jl`, `services/api-gateway/src/JuliaFlowGatewayRepository.jl`, `packages/contracts/src/index.ts`, `packages/contracts/openapi/openapi.json`, and `tests/julia/runtests.jl` separate requested, visible, planned and actual execution. The worker, project-contract and Node contract slices passed locally. Physical CUDA operation and full platform/review acceptance remain open; the M2 TODO stays unchecked.
+
 | Requirement | Milestone | Linear owner issue(s) | Acceptance | Current disposition |
 | --- | --- | --- | --- | --- |
 | JF-LOC-001 | M6–M7 | [AKS-48](https://linear.app/gravelaw/issue/AKS-48/local-dataset-wizard-mvp), [AKS-66](https://linear.app/gravelaw/issue/AKS-66/m7-certify-windows-exe-and-linux-docker-offline-release) | [AC-01](acceptance-v0.5.0.md#ac-01) | Approved requirement; acceptance open |

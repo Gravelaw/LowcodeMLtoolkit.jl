@@ -1897,7 +1897,15 @@ end
     @test resource_evidence["selectedBackend"] == "cpu"
     @test resource_evidence["dispatchLane"] == "cpu"
     @test resource_evidence["workerPool"] == "local-cpu"
-    @test resource_evidence["gpuFallbackReason"] == "no_cuda_device_available"
+    @test resource_evidence["gpuFallbackReason"] == "gpu_operation_not_implemented"
+    @test resource_evidence["evidenceVersion"] == 2
+    @test resource_evidence["actualExecutionBackend"] == "cpu"
+    @test resource_evidence["actualDeviceId"] == "cpu"
+    @test_throws "cuda_required" JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_resource_evidence(
+        merge(compute_settings, Dict("gpuPreference" => "cuda_required")),
+        empty_gpu_registry;
+        execution_mode = "unit_test_job",
+    )
     @test resource_evidence["cpuThreadCount"] == 4
 
     artifact_refs = [
@@ -3023,6 +3031,10 @@ end
     )
     @test promoted_gpu.status == "running"
     @test promoted_gpu.execution_id in service.gpu_execution_ids
+    @test JuliaFlowWorkerService.cuda_failure_reason(ErrorException("CUDA.jl was precompiled for CUDA 13.2")) == "runtime_mismatch"
+    @test JuliaFlowWorkerService.cuda_failure_reason(ErrorException("insufficient driver")) == "driver_mismatch"
+    @test JuliaFlowWorkerService.cuda_failure_reason(ErrorException("out of memory")) == "insufficient_vram"
+    @test JuliaFlowWorkerService.cuda_failure_reason(ErrorException("device permission denied")) == "device_inaccessible"
 
     completed_gpu = process_gpu_compute_tick!(
         service,
@@ -3033,100 +3045,87 @@ end
         materialize_execution = JuliaFlowApiGateway.materialize_execution,
     )
     @test length(completed_gpu) == 1
-    @test completed_gpu[1].status == "completed"
-    @test completed_gpu[1].metadata["gpu_execution_path"] == "gpu"
-    @test completed_gpu[1].metadata["gpu_device_id"] == "nvidia0"
-    @test completed_gpu[1].metadata["gpu_requested_device"] == "nvidia0"
-    @test completed_gpu[1].metadata["gpu_selected_device"] == "nvidia0"
-    @test completed_gpu[1].metadata["gpu_fallback_reason"] == "none"
-    @test completed_gpu[1].metadata["gpu_placement_reason"] == "requested_device_match"
-    @test completed_gpu[1].metadata["gpu_scheduler_policy"] == "deterministic_device_id"
-    @test completed_gpu[1].metadata["gpu_worker_isolation_mode"] == "isolated"
-    @test completed_gpu[1].metadata["gpu_worker_capacity"]["device_count"] == 1
-    @test completed_gpu[1].metadata["gpu_workload_result"]["sum"] == 10.0
+    @test completed_gpu[1].status == "failed"
+    @test completed_gpu[1].metadata["gpu_execution_path"] == "unavailable"
+    @test completed_gpu[1].metadata["gpu_fallback_reason"] == "no_supported_gpu_workload"
+    @test completed_gpu[1].metadata["gpu_probe_status"] == "unprobed"
+    @test completed_gpu[1].metadata["gpu_actual_device"] == "none"
+    @test !haskey(completed_gpu[1].metadata, "gpu_workload_result")
 
-    requested_gpu_workflow = load_workflow_definition_text(replace(gpu_workflow_text, "gpuDevicePreference = \"nvidia0\"" => "gpuDevicePreference = \"nvidia1\""))
-    _, requested_completed = complete_gpu_workflow_once(requested_gpu_workflow; registry = "cuda:nvidia0,cuda:nvidia1")
-    @test requested_completed.metadata["gpu_execution_path"] == "gpu"
-    @test requested_completed.metadata["gpu_requested_device"] == "nvidia1"
-    @test requested_completed.metadata["gpu_selected_device"] == "nvidia1"
-    @test requested_completed.metadata["gpu_fallback_reason"] == "none"
-    @test requested_completed.metadata["gpu_request_satisfied"] == true
-    @test requested_completed.metadata["gpu_placement_fallback_used"] == false
-
-    requested_alias_gpu_workflow = load_workflow_definition_text(replace(gpu_workflow_text, "gpuDevicePreference = \"nvidia0\"" => "gpuDevicePreference = \"nvidia:1\""))
-    _, requested_alias_completed = complete_gpu_workflow_once(requested_alias_gpu_workflow; registry = "cuda:nvidia0,cuda:nvidia1")
-    @test requested_alias_completed.metadata["gpu_requested_device"] == "nvidia:1"
-    @test requested_alias_completed.metadata["gpu_selected_device"] == "nvidia1"
-    @test requested_alias_completed.metadata["gpu_fallback_reason"] == "none"
-    @test requested_alias_completed.metadata["gpu_request_satisfied"] == true
-
-    no_request_text = replace(gpu_workflow_text, ", gpuDevicePreference = \"nvidia0\"" => "")
-    no_request_workflow = load_workflow_definition_text(no_request_text)
-    no_request_queued, no_request_completed = complete_gpu_workflow_once(no_request_workflow; registry = "cuda:nvidia2,cuda:nvidia0")
-    @test !haskey(no_request_queued.metadata, "dispatch_requested_device")
-    @test no_request_completed.metadata["gpu_selected_device"] == "nvidia0"
-    @test !haskey(no_request_completed.metadata, "gpu_requested_device")
-    @test no_request_completed.metadata["gpu_placement_reason"] == "deterministic_default"
-    @test no_request_completed.metadata["gpu_worker_capacity"]["device_count"] == 2
-
-    invalid_gpu_workflow = load_workflow_definition_text(replace(gpu_workflow_text, "gpuDevicePreference = \"nvidia0\"" => "gpuDevicePreference = \"missing-device\""))
-    _, invalid_completed = complete_gpu_workflow_once(invalid_gpu_workflow; registry = "cuda:nvidia2,cuda:nvidia0")
-    @test invalid_completed.metadata["gpu_execution_path"] == "gpu"
-    @test invalid_completed.metadata["gpu_requested_device"] == "missing-device"
-    @test invalid_completed.metadata["gpu_selected_device"] == "nvidia0"
-    @test invalid_completed.metadata["gpu_fallback_used"] == false
-    @test invalid_completed.metadata["gpu_cpu_fallback_used"] == false
-    @test invalid_completed.metadata["gpu_placement_fallback_used"] == true
-    @test invalid_completed.metadata["gpu_request_satisfied"] == false
-    @test invalid_completed.metadata["gpu_fallback_reason"] == "requested_device_unavailable"
-    @test invalid_completed.metadata["gpu_placement_reason"] == "deterministic_default_after_request_miss"
-
-    withenv("JULIAFLOW_GPU_REGISTRY" => "") do
-        fallback_executions = GatewayExecution[]
-        push!(fallback_executions, JuliaFlowApiGateway.materialize_execution(execute_workflow(gpu_workflow; checkpoint_tag = "cp/03-alpha-gpu-bi")))
-        fallback_service = WorkerServiceState()
-        fallback_queued = activate_gpu_execution!(
-            fallback_service,
-            fallback_executions,
-            fallback_executions[1].execution_id;
-            execution_record = JuliaFlowApiGateway.execution_record,
-            transition_execution_record = transition_execution_record,
-            materialize_execution = JuliaFlowApiGateway.materialize_execution,
-        )
-        fallback_running = promote_gpu_execution!(
-            fallback_service,
-            fallback_executions,
-            fallback_queued.execution_id;
-            execution_record = JuliaFlowApiGateway.execution_record,
-            transition_execution_record = transition_execution_record,
-            materialize_execution = JuliaFlowApiGateway.materialize_execution,
-        )
-        fallback_completed = process_gpu_compute_tick!(
-            fallback_service,
-            workflows,
-            fallback_executions;
-            execution_record = JuliaFlowApiGateway.execution_record,
-            transition_execution_record = transition_execution_record,
-            materialize_execution = JuliaFlowApiGateway.materialize_execution,
-        )
-        @test fallback_running.status == "running"
-        @test length(fallback_completed) == 1
-        @test fallback_completed[1].metadata["gpu_execution_path"] == "cpu_fallback"
-        @test fallback_completed[1].metadata["gpu_fallback_used"] == true
-        @test fallback_completed[1].metadata["gpu_cpu_fallback_used"] == true
-        @test fallback_completed[1].metadata["gpu_placement_fallback_used"] == true
-        @test fallback_completed[1].metadata["gpu_request_satisfied"] == false
-        @test fallback_completed[1].metadata["gpu_selected_device"] == "cpu-fallback"
-        @test fallback_completed[1].metadata["gpu_fallback_reason"] == "registry_empty"
-        @test fallback_completed[1].metadata["gpu_placement_reason"] == "no_matching_gpu_device"
-        @test fallback_completed[1].metadata["gpu_worker_capacity"]["device_count"] == 0
+    # Registry strings are fixtures, even when they spell "cuda". A preferred
+    # mock runs on CPU and cannot record hardware-executed GPU evidence.
+    preferred_text = replace(gpu_workflow_text, "execution_hint = \"gpu_required\"" => "execution_hint = \"gpu_preferred\"")
+    preferred = load_workflow_definition_text(preferred_text)
+    _, preferred_completed = complete_gpu_workflow_once(preferred; registry = "cuda:nvidia0,cuda:nvidia1")
+    @test preferred_completed.status == "completed"
+    @test preferred_completed.metadata["gpu_execution_path"] == "cpu_fallback"
+    @test preferred_completed.metadata["gpu_actual_device"] == "cpu"
+    @test preferred_completed.metadata["gpu_evidence_version"] == 2
+    @test preferred_completed.metadata["gpu_registry"]["device_count"] == 0
+    @test preferred_completed.metadata["gpu_registry"]["simulated_device_count"] == 2
+    @test preferred_completed.metadata["gpu_workload_result"]["sum"] == 10.0
+    @test preferred_completed.metadata["gpu_fallback_reason"] == "mock_workload_cpu_only"
+    preferred_payload = JuliaFlowApiGateway.execution_payload(preferred_completed)
+    @test preferred_payload["gpuEvidenceVersion"] == 2
+    @test preferred_payload["gpuProbeStatus"] == "unprobed"
+    @test preferred_payload["gpuActualDevice"] == "cpu"
+    restored_preferred = JuliaFlowApiGateway.JuliaFlowGatewayRepository.gateway_execution(preferred_payload)
+    @test restored_preferred.metadata["gpu_actual_device"] == "cpu"
+    @test restored_preferred.metadata["gpu_evidence_version"] == 2
+    mktempdir() do root
+        repo = JuliaFlowApiGateway.JuliaFlowGatewayRepository.FileGatewayRepository(root)
+        JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_execution!(repo, preferred_completed)
+        loaded = only(JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_executions(repo))
+        @test loaded.metadata["gpu_actual_device"] == "cpu"
+        @test loaded.metadata["gpu_evidence_version"] == 2
+        @test loaded.metadata["gpu_execution_path"] == "cpu_fallback"
     end
+
+    # A real CUDA workload on a machine with probing disabled is a controlled
+    # missing-device scenario, independent of this test host's GPU.
+    cuda_text = replace(gpu_workflow_text, "mock_vector_sum" => "cuda_ka_vector_affine")
+    required_cuda = load_workflow_definition_text(cuda_text)
+    preferred_cuda = load_workflow_definition_text(replace(cuda_text, "execution_hint = \"gpu_required\"" => "execution_hint = \"gpu_preferred\""))
+    withenv("JULIAFLOW_DISABLE_HARDWARE_PROBE" => "1") do
+        disabled_registry = JuliaFlowWorkerService.gpu_registry_health(; probe = true)
+        @test disabled_registry["probe_status"] == "skipped"
+        @test all(device -> device["probe_status"] == "skipped", filter(device -> device["mode"] == "hardware", disabled_registry["devices"]))
+        _, required_result = complete_gpu_workflow_once(required_cuda; registry = "cuda:invented")
+        @test required_result.status == "failed"
+        @test required_result.metadata["gpu_execution_path"] == "unavailable"
+        @test required_result.metadata["gpu_fallback_reason"] == "probe_disabled"
+        @test !haskey(required_result.metadata, "gpu_workload_result")
+
+        _, preferred_result = complete_gpu_workflow_once(preferred_cuda; registry = "cuda:invented")
+        @test preferred_result.status == "completed"
+        @test preferred_result.metadata["gpu_execution_path"] == "cpu_fallback"
+        @test preferred_result.metadata["gpu_workload_result"]["kind"] == "cpu_vector_affine"
+        @test preferred_result.metadata["gpu_workload_result"]["sum"] == 24.0
+        @test preferred_result.metadata["gpu_actual_device"] == "cpu"
+        @test preferred_result.metadata["gpu_fallback_reason"] == "probe_disabled"
+    end
+
+    bad_text = replace(preferred_text, "mock_vector_sum" => "unsupported_kernel")
+    _, bad_result = complete_gpu_workflow_once(load_workflow_definition_text(bad_text); registry = "mock:invented")
+    @test bad_result.status == "failed"
+    @test bad_result.metadata["gpu_fallback_reason"] == "gpu_execution_error"
+    @test bad_result.metadata["gpu_fallback_used"] == false
 end
 
 @testset "API Gateway" begin
     foundation_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "foundation.workflow.toml")
     parallel_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "parallel.workflow.toml")
+
+    mktempdir() do home
+        withenv("JULIAFLOW_HOME" => home, "JULIAFLOW_METADATA_MODE" => "file") do
+            required_state = foundation_state(foundation_path; store_root = joinpath(home, "store"))
+            JuliaFlowApiGateway.save_compute_settings!(required_state,
+                merge(JuliaFlowApiGateway.default_compute_settings(), Dict("gpuPreference" => "cuda_required")))
+            before_projects = length(required_state.data_science_projects)
+            @test_throws "cuda_required" JuliaFlowApiGateway.data_import_profile_response!(required_state, Dict{String,Any}())
+            @test length(required_state.data_science_projects) == before_projects
+        end
+    end
 
     mktempdir() do store_root
         state = foundation_state(foundation_path; store_root = store_root)
@@ -3391,11 +3390,15 @@ end
         @test health_payload["computeSettings"]["selectedBackend"] in ["cpu", "cuda", "simulated_cuda"]
         @test health_payload["computeSettings"]["cpuWorkerConcurrency"] == health_payload["cpuWorkerConcurrency"]
         @test health_payload["computeSettings"]["cpuMemoryLimitBytes"] == health_payload["cpuMemoryLimitBytes"]
-        @test health_payload["gpuCudaStatus"] in ["not_requested", "requested", "ready", "unavailable"]
+        @test health_payload["gpuCudaStatus"] in ["not_requested", "requested", "ready", "unavailable", "unprobed", "passed", "failed", "skipped"]
         @test health_payload["gpuHardwareDeviceCount"] >= 0
+        @test health_payload["gpuCudaInstalled"] isa Bool
+        @test health_payload["gpuVisibleDeviceCount"] >= health_payload["gpuHardwareDeviceCount"]
         @test health_payload["gpuSimulatedDeviceCount"] >= 0
         @test health_payload["gpuTotalVramBytes"] >= 0
-        @test length(health_payload["gpuDeviceSummaries"]) == health_payload["gpuHardwareDeviceCount"] + health_payload["gpuSimulatedDeviceCount"]
+        @test length(health_payload["gpuDeviceSummaries"]) >= health_payload["gpuHardwareDeviceCount"] + health_payload["gpuSimulatedDeviceCount"]
+        @test health_payload["hardwareSelectedBackend"] == "cpu"
+        @test health_payload["hardwareRequestedBackend"] in ["cpu", "cuda", "simulated_cuda"]
         @test health_payload["explainabilityEvidence"]["status"] == "ready"
         @test health_payload["explainabilityEvidence"]["datasetCard"]["datasetId"] == "foundation-sales-sample"
         @test health_payload["explainabilityEvidence"]["modelCard"]["kind"] == "deterministic_linear_baseline"
@@ -7147,9 +7150,10 @@ end
         changed_gpu_complete = JuliaFlowApiGateway.sync_external_execution_updates!(state)
         @test any(execution.execution_id == gpu_execute_reply["result"]["jobId"] for execution in changed_gpu_complete)
         completed_gpu_record = JSON3.read(execution_detail_response(state, gpu_execute_reply["result"]["jobId"]), Dict{String,Any})
-        @test completed_gpu_record["status"] == "completed"
-        @test completed_gpu_record["gpuExecutionPath"] == "gpu"
-        @test completed_gpu_record["gpuWorkloadResult"]["sum"] == 10.0
+        @test completed_gpu_record["status"] == "failed"
+        @test completed_gpu_record["gpuExecutionPath"] == "unavailable"
+        @test completed_gpu_record["gpuFallbackReason"] == "no_supported_gpu_workload"
+        @test !haskey(completed_gpu_record, "gpuWorkloadResult")
 
         stream_execute_response, stream_execute_notifications = JuliaFlowApiGateway.handle_realtime_request!(
             state,

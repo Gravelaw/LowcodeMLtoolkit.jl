@@ -1,5 +1,11 @@
 # JuliaFlow current development plan
 
+## 2026-09-25 — bounded M1 review and M2 hardware candidate
+
+AKS-41/56 received a scoped Codex code review at backend SHA `e436a7c` with no critical/high finding. Its written clearance is technical and bounded; no GitHub review was submitted. AKS-69 local runner tests and parity passed, and a mapped WSL web-only PR job passed at candidate `890d820` / base `a0bfc232`. Automatically triggered PR #57 CI at that head passed web, Julia and Debian `verify:release`, including five live-backend browser tests; the conditional physical-CUDA smoke skipped. Complete local cold/warm, push and release-candidate profiles remain open. Hosted Debian diagnosis remains paused. See [M1 diagnosis](docs/verification-local-ci-aks69.md).
+
+AKS-58 is in progress on the scoped hardware branch. It now separates simulated, visible and operation-proven devices; CPU project work and worker fallback evidence are explicit. The local physical CUDA operation has not passed because of a runtime mismatch. Complete the [M2 evidence record](docs/verification-m2-hardware.md), focused API/repository tests, WSL physical probe, full same-candidate gates and required review before any M2 acceptance or Done claim. No frontend implementation is authorized by this entry.
+
 ## 2026-09-23 — dedicated WSL execution for AKS-69
 
 Docker Desktop reinstall remains blocked by an MSI-detection message. The user directed a dedicated WSL instance as the immediate local CI backend. Ubuntu 24.04.5, Node 25.9.0, Julia 1.12.7 and PostgreSQL 16 are isolated from the existing `ubn` distro. Run the existing mapped workflow commands and retain exact results; WSL cannot close Docker-specific, native Windows, hosted GitHub or review gates. Hosted Debian diagnosis remains paused. [WSL runner and limitations](docs/local-ci.md).

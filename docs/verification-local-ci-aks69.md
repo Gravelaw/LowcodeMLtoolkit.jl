@@ -1,5 +1,13 @@
 # AKS-69 local CI diagnosis and candidate record
 
+## 2026-09-25 bounded M1 evidence
+
+On branch `codex/aks-69-m1-m2-implementation`, candidate `890d8202330567f5885217ba3ec7de5c2cba0457` was checked against base `a0bfc232ac5d855981ff00659ac6302db8b2a285`. The mapped WSL warm web-only PR job `jfci-1790273860565-8e3e9987` passed web, cleanup and evidence finalization. Its top-level status is **partial** because the Julia and release jobs were not selected. Summary SHA-256: `80C7E80C4AB1A973B0688A4E7DA9E74A83D1C0CC35A3DC9874016F3A37DF3DCA`. The run used Ubuntu 24.04.5, Node 25.9.0, Julia 1.12.7 and PostgreSQL 16; it does not certify complete M1 acceptance.
+
+GitHub PR #57 automatically ran CI at exact head `890d820` (run [36040635518](https://github.com/Gravelaw/LowcodeMLtoolkit.jl/actions/runs/36040635518)). Web, Julia and Debian release jobs all completed successfully. The Debian job ran `npm run verify:release`, local metadata and hardware smokes, and five live-backend browser tests; the hardware smoke reported a CUDA skip because its physical probe was not requested. This is a hosted result readback, not a resumed manual Debian diagnosis or M2 physical-GPU qualification. PR #57 remains draft with no submitted reviews, and no merge follows from these checks.
+
+Windows `npm run test:local-ci` passed 17 tests with two platform skips, and `npm run ci:local:parity` passed. A focused cancellation test worked. Earlier Windows `0xC000013A` exits and unfinalized `running` summaries still lack a proven root cause, so no runner timeout or host-termination fix was claimed. The AKS-41/56 Codex code review at `e436a7c` recorded bounded technical clearance with no critical/high finding, but no independent GitHub review was submitted. Full local cold/warm PR, push, validation-only release-candidate, native Windows, Docker-specific and review gates remain open. Hosted Debian diagnosis remains paused.
+
 ## 2026-09-23 WSL cold PR diagnosis
 
 Candidate `f912cc75c269ab40a9e143dc206cdc7363a013a7` ran the full cold PR profile in dedicated Ubuntu 24.04.5 WSL with Node 25.9.0, Julia 1.12.7 and PostgreSQL 16.15. Run `jfci-1790185465769-088b455a` passed web, Julia and release jobs, including real PostgreSQL repository/metadata checks, all local smokes, five live-backend Playwright tests, control validators and `git diff --check`. Its top-level summary SHA-256 is `7478c2b372e24d5248457624385b60a3789e8ab155f0a1f8f9855d6f5eff40aa`. This run required a scoped manual cleanup described below, so it is diagnostic evidence rather than an unattended runner pass.

@@ -471,6 +471,8 @@ export interface GatewayGpuDeviceSummary {
   accelerator: string;
   mode: "hardware" | "simulated" | string;
   memoryBytes: number;
+  usable?: boolean;
+  probeStatus?: "unprobed" | "passed" | "failed" | "skipped";
 }
 
 export interface GatewayDatasetCardEvidence { datasetId: string; sourceUri: string; checksumSha256: string; schemaSummary: Array<{ name: string; type: string }>; rowCount: number; limitations: string[]; }
@@ -639,6 +641,8 @@ export type DataScienceProjectJobType =
 export type DataScienceProjectJobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
 export interface DataScienceProjectJobResourceEvidence {
+  /** Version 2 adds observed execution separately from the requested plan. Missing means historical v1. */
+  evidenceVersion?: 2;
   executionMode: string;
   requestedBackend: GatewayComputeBackend;
   selectedBackend: GatewayComputeBackend;
@@ -652,6 +656,11 @@ export interface DataScienceProjectJobResourceEvidence {
   gpuHardwareDeviceCount: number;
   gpuSimulatedDeviceCount: number;
   gpuFallbackReason: string;
+  gpuProbeStatus?: "unprobed" | "passed" | "failed" | "skipped";
+  requestedDeviceId?: string;
+  plannedDeviceId?: string;
+  actualDeviceId?: string;
+  actualExecutionBackend?: "cpu" | "cuda" | "unavailable";
 }
 
 export interface DataScienceProjectJobExecutionEvidence {
@@ -1160,10 +1169,13 @@ export interface GatewayHealthcheck {
   freeMemoryBytes: number;
   hardwareProfileStatus: "ready" | "degraded";
   hardwareSelectedBackend: "cpu" | "cuda" | "simulated_cuda" | string;
+  hardwareRequestedBackend?: "cpu" | "cuda" | "simulated_cuda";
   cpuSchedulerPolicy: "bounded_threads" | string;
   cpuWorkerConcurrency: number;
   cpuMemoryLimitBytes: number;
-  gpuReadinessStatus: "available" | "cpu_fallback";
+  gpuReadinessStatus: "available" | "cpu_fallback" | "unprobed" | "passed" | "failed" | "skipped";
+  gpuCudaInstalled?: boolean;
+  gpuVisibleDeviceCount?: number;
   gpuFallbackReason: string;
   gpuCudaStatus: "not_requested" | "requested" | "ready" | "unavailable" | string;
   gpuHardwareDeviceCount: number;
@@ -2092,7 +2104,11 @@ export interface GatewayExecutionRecord {
   streamExactlyOnceStatus?: "idle" | "committed" | "duplicate_suppressed" | string;
   streamReplayStatus?: "duplicate_skipped" | string;
   streamReplayOffset?: number;
-  gpuExecutionPath?: "gpu" | "cpu_fallback";
+  gpuExecutionPath?: "gpu" | "cpu_fallback" | "unavailable";
+  gpuEvidenceVersion?: 2;
+  gpuProbeStatus?: "unprobed" | "passed" | "failed" | "skipped";
+  gpuPlannedDevice?: string;
+  gpuActualDevice?: string;
   gpuDeviceId?: string;
   gpuAccelerator?: string;
   gpuVendor?: string;
@@ -2104,6 +2120,10 @@ export interface GatewayExecutionRecord {
   gpuWorkloadResult?: Record<string, unknown>;
   gpuRegistry?: {
     device_count: number;
+    visible_device_count?: number;
+    simulated_device_count?: number;
+    probe_status?: string;
+    probe_reason?: string;
     devices: Array<Record<string, unknown>>;
     fallback_available: boolean;
   };

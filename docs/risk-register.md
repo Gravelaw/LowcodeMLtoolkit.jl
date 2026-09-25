@@ -1,5 +1,9 @@
 # JuliaFlow risk register
 
+## 2026-09-25 — M1/M2 active risks
+
+AKS-69 remains exposed to Windows host interruption and unfinalized full-profile summaries; a partial WSL web pass does not close local-profile verification. Automatic PR #57 CI at `890d820` passed its Debian release job, but physical CUDA skipped and no review/merge or native Windows/Docker claim follows. AKS-58 removes the known registry-to-success misreport, but physical CUDA qualification is blocked by the observed CUDA.jl 13.2 versus local runtime 13.4 mismatch. Until one selected device completes allocation, operation, synchronization and readback on each claimed platform, GPU hardware success is unproven. Required-GPU rejection and CPU-only project evidence are the safe behavior. [Current hardware record](verification-m2-hardware.md).
+
 ## 2026-09-23 — AKS-69 finalization risk
 
 Simultaneous finalizers could remove a completed run while its checksum manifest was still being written. A cross-process lock now covers completion and retention, with a six-process regression. PostgreSQL stop must be verified before WSL job storage removal; cleanup and evidence failures remain visible separately from test outcomes. Full profile, Docker and Windows evidence is still required.

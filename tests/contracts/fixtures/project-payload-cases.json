@@ -69,6 +69,7 @@
             "outputRefs": [],
             "startedAt": "2026-09-20T00:00:00Z",
             "resourceEvidence": {
+              "evidenceVersion": 2,
               "executionMode": "contract_fixture",
               "requestedBackend": "cpu",
               "selectedBackend": "cpu",
@@ -81,7 +82,10 @@
               "gpuReadinessStatus": "cpu_fallback",
               "gpuHardwareDeviceCount": 0,
               "gpuSimulatedDeviceCount": 0,
-              "gpuFallbackReason": "cpu_selected"
+              "gpuFallbackReason": "cpu_selected",
+              "gpuProbeStatus": "unprobed",
+              "actualDeviceId": "cpu",
+              "actualExecutionBackend": "cpu"
             }
           }
         ]
