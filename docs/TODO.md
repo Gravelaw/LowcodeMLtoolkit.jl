@@ -4,7 +4,7 @@
 
 - [ ] AKS-69: complete same-candidate local cold/warm PR, push and validation-only release-candidate profiles. The latest mapped WSL web-only PR job passed as a partial run; interrupted full runs remain unresolved. Automatic PR #57 CI passed web, Julia and Debian release at `890d820`, with conditional CUDA skip. Hosted Debian diagnosis is paused.
 - [ ] AKS-41/56: retain the scoped Codex backend review at `e436a7c` and obtain a submitted independent GitHub review for integration clearance.
-- [ ] AKS-58: finish physical-device operation qualification, CPU/RAM/disk/VRAM pressure cases, persistence/API smoke, exact-candidate platform gates and review. [Current evidence](verification-m2-hardware.md) is a draft with no M2 completion claim.
+- [ ] AKS-58: resolve the opt-in full worker GPUCompiler failure after the bounded native Windows operation pass; finish CPU/RAM/disk/VRAM pressure cases, persistence/API smoke, WSL parity, exact-candidate platform gates and review. [Current evidence](verification-m2-hardware.md) is a draft with no M2 completion claim.
 
 ## 2026-09-23 — AKS-69 reliability candidate
 

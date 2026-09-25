@@ -770,6 +770,12 @@ function physical_gpu_devices()
         return Dict{String,Any}[], "failed", cuda_failure_reason(error) == "cuda_driver_or_runtime_error" ?
             "cuda_package_unavailable" : cuda_failure_reason(error)
     end
+    # CUDA methods enter the method table when Base.require loads the package.
+    # Cross that world boundary before calling them from this module.
+    return Base.invokelatest(physical_gpu_devices_loaded, CUDA)
+end
+
+function physical_gpu_devices_loaded(CUDA)
     try
         CUDA.functional() || return Dict{String,Any}[], "failed", "cuda_runtime_unavailable"
         devices = Dict{String,Any}[]
@@ -1008,6 +1014,10 @@ end
 function execute_cuda_ka_vector_affine(values::Vector{Float64}, selected::AbstractDict)
     CUDA = Base.require(Base.PkgId(Base.UUID("052768ef-5323-5732-b1bb-66c8b64840ba"), "CUDA"))
     KA = Base.require(Base.PkgId(Base.UUID("63c18a36-062a-441e-b654-da1e3ab1ce7c"), "KernelAbstractions"))
+    return Base.invokelatest(execute_cuda_ka_vector_affine_loaded, values, selected, CUDA, KA)
+end
+
+function execute_cuda_ka_vector_affine_loaded(values, selected, CUDA, KA)
     CUDA.functional() || error("CUDA runtime is not functional")
     selected_id = String(selected["device_id"])
     devices = collect(CUDA.devices())

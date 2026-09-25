@@ -3105,6 +3105,21 @@ end
         @test preferred_result.metadata["gpu_fallback_reason"] == "probe_disabled"
     end
 
+    if get(ENV, "JULIAFLOW_CUDA_SMOKE", "0") == "1"
+        live_registry = JuliaFlowWorkerService.gpu_registry_health(; probe = true)
+        @test live_registry["probe_status"] == "passed"
+        live_devices = filter(device -> get(device, "usable", false), live_registry["devices"])
+        @test !isempty(live_devices)
+        if !isempty(live_devices)
+            _, live_result = complete_gpu_workflow_once(required_cuda; registry = "")
+            @test live_result.status == "completed"
+            @test live_result.metadata["gpu_execution_path"] == "gpu"
+            @test live_result.metadata["gpu_actual_device"] == live_result.metadata["gpu_selected_device"]
+            @test live_result.metadata["gpu_actual_device"] == live_result.metadata["gpu_workload_result"]["actual_device_id"]
+            @test live_result.metadata["gpu_workload_result"]["sum"] == 24.0
+        end
+    end
+
     bad_text = replace(preferred_text, "mock_vector_sum" => "unsupported_kernel")
     _, bad_result = complete_gpu_workflow_once(load_workflow_definition_text(bad_text); registry = "mock:invented")
     @test bad_result.status == "failed"
