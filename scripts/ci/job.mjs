@@ -1,3 +1,4 @@
+import { stagePackage } from './delivery.mjs';
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, mkdirSync, existsSync, copyFileSync, readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
@@ -47,6 +48,7 @@ try {
     if (result.status !== 'passed') { report.status = result.status; break; }
   }
   if (report.status === 'running') report.status = 'passed';
+  if (report.status === 'passed' && jobName === 'release-candidate') report.delivery = stagePackage(process.cwd(), out, expectedHead, expectedTree);
   report.after = candidate();
   if (report.after.head !== expectedHead || report.after.tree !== expectedTree || report.after.dirty) {
     report.status = 'failed'; report.error = 'Candidate drift or dirty checkout after job';

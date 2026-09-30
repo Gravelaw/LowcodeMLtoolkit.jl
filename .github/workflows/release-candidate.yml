@@ -7,7 +7,21 @@ on:
       - "v*-rc.*"
 
 jobs:
+  execution-policy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      enabled: ${{ steps.policy.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select hosted or local execution
+        id: policy
+        run: node scripts/ci/hosted-policy.mjs
+
   debian-release-gate:
+    needs: execution-policy
+    if: needs.execution-policy.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:

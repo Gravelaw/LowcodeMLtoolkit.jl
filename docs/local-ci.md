@@ -1,6 +1,6 @@
 # Local CI (AKS-69)
 
-The local runner executes the repository CI commands through Docker or a dedicated WSL2 Ubuntu 24.04 distro. It does not publish GitHub checks, waive reviews, or certify a release. Hosted Debian investigation remains paused. Both GitHub workflow files are unchanged.
+The local runner executes the repository CI commands through Docker or a dedicated WSL2 Ubuntu 24.04 distro. It does not publish GitHub checks, waive reviews, or certify a release. Hosted Debian investigation remains paused. The current user-authorized execution policy is described below; historical records retain their original scope.
 
 ## Dedicated WSL backend while Docker is unavailable
 
@@ -56,3 +56,34 @@ Focused Node runner tests cover argument validation, workflow drift, streaming r
 Docker Desktop currently fails at its Windows dockerInference socket. The old runtime socket directory was retained without deleting volumes or settings; the error recurred after recreation. No factory reset, global upgrade or host reboot was performed by this task. The user subsequently uninstalled Docker; reinstall reports MSI detection. Inspected registrations contain only a Docker reboot-required marker; restart/reinstallation remains a user-managed prerequisite. Resume container verification after the existing installation is restored. Existing product failures remain AKS-50/68 scope, without resuming hosted diagnosis.
 
 Rollback is a scoped revert of AKS-69 code, with evidence preserved. Remove only verified run-owned resources using their recorded identifiers and ownership labels. Warm caches and original Docker data are not part of automatic cleanup.
+
+## Local delivery and hosted skip policy (2026-09-30)
+
+`scripts/ci/execution-policy.json` selects `local` (currently active) or `hosted`.
+Both hosted workflows run only a lightweight policy job in local mode; their web,
+Julia and release jobs are skipped. Invalid policy fails the routing job. Change
+mode to `hosted` to restore hosted jobs. Local runners ignore this hosted selector
+and always execute every command in the requested profile. Workflow fingerprints
+still reject unreviewed drift. These changes take effect on GitHub only after
+separate authorized publication; this task does not push or change protections.
+
+Run the full local release-candidate profile, then promote its retained run:
+
+```sh
+npm run ci:local:wsl -- --ref HEAD --base 11856e4 --profile release-candidate --cache cold
+npm run cd:local -- --run <successful-run-id>
+```
+
+The release job packages committed source, built frontend and resolved Julia
+manifest before cleanup. CD verifies the complete run, every release phase,
+identity, cleanup and file hashes, writes a versioned directory and atomically
+updates `artifacts/local-releases/current.json`. Failed, partial, skipped or modified
+evidence cannot promote. Existing versions are never overwritten. Previous versions
+remain available for deliberate rollback using retained receipts. Promotion uses a
+lock and preserves interrupted staging for diagnosis.
+
+The local `.tar.gz` is a source-and-built-web delivery requiring Node 25, Julia 1.12,
+PostgreSQL 16 and dependency installation. It is not a self-contained/offline EXE or
+Docker image and does not certify other platforms. Release validation and package
+promotion are distinct results. No remote upload or new persistent credential is
+required. Existing per-run ephemeral database credentials stay isolated/redacted.

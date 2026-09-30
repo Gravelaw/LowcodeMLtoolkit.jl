@@ -1,5 +1,10 @@
 # JuliaFlow checkpoint log
 
+## 2026-09-30 - local CI/CD continuation (AKS-69)
+
+The user selected local CI with hosted quality jobs skipped while local mode is active, superseding the earlier unchanged-workflow boundary. A tracked execution policy selects local or hosted execution; mapped local quality commands remain mandatory. Local CD means a versioned source-and-built-web package promoted only after a complete clean same-candidate release-candidate run, checksummed evidence and successful cleanup. It is not an offline installer, native Windows/Docker certification, external deployment or permission to merge. No product or hardware gate is waived. Original planning edits and historical evidence are preserved. Full execution results remain pending; see [local CI](local-ci.md).
+
+
 AKS-69 WSL full cold diagnostic, 2026-09-23: run `jfci-1790185465769-088b455a` at `f912cc7` passed web, Julia, release, PostgreSQL and five live-backend browser tests; bootstrap health became ready in 6.282 seconds after fresh-depot precompilation. The run was manually assisted only after browser assertions passed: an owned Vite descendant survived npm-parent termination and held a pipe open. Verified its command and run-owned working directory, sent targeted SIGTERM, and observed release/control validators finish. The smoke script now signals POSIX process groups. Preserve this assisted outcome as diagnosis and rerun the final candidate unattended. [Hashes and phase boundaries](verification-local-ci-aks69.md).
 
 AKS-69 reliability checkpoint, 2026-09-23: from `ec4d021`, reproduced the completed-summary-before-manifest retention race in code review and added a cross-process finalization lock. A six-finalizer test retained three complete manifests; Windows focused runner tests passed 17 with two platform skips. WSL cleanup now verifies PostgreSQL shutdown and preserves evidence and owned storage on failure. Next: isolated-depot precompile diagnosis, then freeze a candidate for full cold/warm PR, push and validation-only release-candidate profiles. No hosted Debian run or publication.

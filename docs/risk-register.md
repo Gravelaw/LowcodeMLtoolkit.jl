@@ -1,5 +1,10 @@
 # JuliaFlow risk register
 
+## 2026-09-30 - local CI/CD continuation (AKS-69)
+
+The user selected local CI with hosted quality jobs skipped while local mode is active, superseding the earlier unchanged-workflow boundary. A tracked execution policy selects local or hosted execution; mapped local quality commands remain mandatory. Local CD means a versioned source-and-built-web package promoted only after a complete clean same-candidate release-candidate run, checksummed evidence and successful cleanup. It is not an offline installer, native Windows/Docker certification, external deployment or permission to merge. No product or hardware gate is waived. Original planning edits and historical evidence are preserved. Full execution results remain pending; see [local CI](local-ci.md).
+
+
 ## 2026-09-23 — AKS-69 finalization risk
 
 Simultaneous finalizers could remove a completed run while its checksum manifest was still being written. A cross-process lock now covers completion and retention, with a six-process regression. PostgreSQL stop must be verified before WSL job storage removal; cleanup and evidence failures remain visible separately from test outcomes. Full profile, Docker and Windows evidence is still required.

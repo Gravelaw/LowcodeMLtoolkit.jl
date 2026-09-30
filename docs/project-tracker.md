@@ -1,5 +1,10 @@
 # JuliaFlow project tracker
 
+## 2026-09-30 - local CI/CD continuation (AKS-69)
+
+The user selected local CI with hosted quality jobs skipped while local mode is active, superseding the earlier unchanged-workflow boundary. A tracked execution policy selects local or hosted execution; mapped local quality commands remain mandatory. Local CD means a versioned source-and-built-web package promoted only after a complete clean same-candidate release-candidate run, checksummed evidence and successful cleanup. It is not an offline installer, native Windows/Docker certification, external deployment or permission to merge. No product or hardware gate is waived. Original planning edits and historical evidence are preserved. Full execution results remain pending; see [local CI](local-ci.md).
+
+
 AKS-69 WSL cold diagnosis, 2026-09-23: full PR run `jfci-1790185465769-088b455a` at `f912cc7` passed all mapped jobs, including bootstrap readiness and five browser tests. It needed a targeted manual stop of an owned Vite preview descendant after the tests because npm-parent-only cleanup left the output pipe open. The smoke cleanup repair is now in the candidate; an unattended exact-head cold/warm rerun is required. Fresh-depot `REPL` and 282-package precompilation progressed; no deadlock or deadline repair was justified. [Evidence record](verification-local-ci-aks69.md).
 
 AKS-69 WSL reliability candidate, 2026-09-23: concurrent evidence finalization now serializes completion, retention and manifest writes across processes; an active run cannot become purge-eligible during its own finalization. WSL PostgreSQL shutdown must be verified before owned job storage removal, with its log copied first. Cleanup and evidence-finalization failures are reported separately from executed test outcomes and cause a nonzero runner exit. Six-process retention regression passed; full WSL profiles and precompile diagnosis remain pending. Hosted Debian remains paused.
