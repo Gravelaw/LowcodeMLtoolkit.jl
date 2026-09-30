@@ -44,6 +44,7 @@ test.describe("live-backend release smoke", () => {
         headers: { Connection: "Upgrade", Upgrade: "websocket", "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==", ...headers }
       });
       expect(upgrade.status()).toBe(headers.Authorization === "" ? 401 : 403);
+      expect(upgrade.headers()["connection"]).toBe("close");
     }
     const after = await request.get(`${gatewayUrl}/api/v1/data-science-projects`);
     expect(await after.json()).toEqual(beforePayload);

@@ -1,5 +1,13 @@
 # JuliaFlow current development plan
 
+2026-09-30 release blocker: candidate `9520979` passed 16 release phases, then
+the live browser suite reported 4 passed / 1 failed on rejected-WebSocket
+connection reuse (`ECONNRESET`). Cleanup and evidence finalization passed; no
+package promoted. The bounded AKS-55 transport repair advertises connection
+closure without changing auth/origin policy. Affected and aggregate verification
+remain required before local delivery. Tracker disclosure approval is pending;
+the user explicitly authorized continuing the local repair and aggregate rerun.
+
 ## 2026-09-30 - local CI/CD continuation (AKS-69)
 
 The user selected local CI with hosted quality jobs skipped while local mode is active, superseding the earlier unchanged-workflow boundary. A tracked execution policy selects local or hosted execution; mapped local quality commands remain mandatory. Local CD means a versioned source-and-built-web package promoted only after a complete clean same-candidate release-candidate run, checksummed evidence and successful cleanup. It is not an offline installer, native Windows/Docker certification, external deployment or permission to merge. No product or hardware gate is waived. Original planning edits and historical evidence are preserved. Full execution results remain pending; see [local CI](docs/local-ci.md).

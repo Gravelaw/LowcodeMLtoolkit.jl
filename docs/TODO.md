@@ -1,5 +1,12 @@
 # JuliaFlow TODO
 
+- [ ] Validate the AKS-55 rejected-WebSocket connection-close repair: preserve
+  exact 401/403 and unchanged-state assertions, authorized realtime success,
+  then rerun full same-candidate local profiles before promotion. Candidate
+  `9520979` failed 1/5 browser tests after 16 passing release phases; cleanup and
+  evidence passed. Linear diagnosis update was not authorized; keep it local.
+  The user explicitly authorized the repair and aggregate rerun.
+
 ## 2026-09-30 - local CI/CD continuation (AKS-69)
 
 The user selected local CI with hosted quality jobs skipped while local mode is active, superseding the earlier unchanged-workflow boundary. A tracked execution policy selects local or hosted execution; mapped local quality commands remain mandatory. Local CD means a versioned source-and-built-web package promoted only after a complete clean same-candidate release-candidate run, checksummed evidence and successful cleanup. It is not an offline installer, native Windows/Docker certification, external deployment or permission to merge. No product or hardware gate is waived. Original planning edits and historical evidence are preserved. Full execution results remain pending; see [local CI](local-ci.md).

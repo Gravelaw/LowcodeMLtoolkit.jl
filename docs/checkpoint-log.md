@@ -1,5 +1,18 @@
 # JuliaFlow checkpoint log
 
+2026-09-30 AKS-69/55: release run `jfci-1790783265022-9992c09c` at `9520979`
+finished with 16 passing release phases and browser 4 passed / 1 failed
+(`ECONNRESET` on rejected cross-origin upgrade). Cleanup and evidence passed;
+last three gates not run. CD rejected it with exit 1, no current pointer.
+HTTP.jl 1.11.0 minimal probe reproduced 401 then ECONNRESET; adding a close
+response header yielded 401 then 403, exit 0. The patched browser suite passed
+5/5 tests in 49.6 seconds, exit 0, with automatic process cleanup and the new
+close-header assertion. Aggregate same-candidate validation remains pending.
+No auth/origin assertion, timeout or retry changed. Automatic review
+rejected the Linear diagnosis update; the local record is preserved pending
+permission to disclose. The user explicitly authorized continuing the local
+repair and aggregate rerun; no alternate external write is authorized.
+
 2026-09-30 AKS-69 resource diagnosis: cold release-candidate `jfci-1790781620409-a973c060` at `846ae73` passed six release phases and repository (100) / worker (221) assertions before the WSL service stopped responding (`0x8007274c`) during gateway tests. The VM reached its configured 4 GiB resident limit; no kernel OOM record was found, so memory pressure is suspected, not proven. Scoped termination of the dedicated distro recovered it. Run status failed, cleanup failed, evidence finalization passed; database storage remains. WSL jobs now use Julia's verified CLI `--heap-size-hint=1500M` and one precompile worker, recorded in job summaries. No tests, skips or deadlines change; recovery needs full rerun.
 
 2026-09-30 AKS-69 follow-up: archive round-trip found Windows tar output uses CRLF; normalize archive entries before checking required files. Regression exercises a real Git archive, built-web copy and extraction. Delivery validates explicit no-skip flags and exact release job commands. Focused delivery tests pass; full product run remains pending.
