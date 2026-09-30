@@ -19,7 +19,9 @@ function run(command, args, cwd) {
 }
 export function requireRelease(release, head, tree) {
   if (release.status !== 'passed' || release.commitSha !== head || release.treeSha !== tree ||
-      release.cleanWorktree !== true || !release.skipped || Object.values(release.skipped).some(x => x !== false) ||
+      release.cleanWorktree !== true || !release.skipped ||
+      ['install', 'julia', 'smokes', 'browser', 'controlDocs'].some(key => release.skipped[key] !== false) ||
+      Object.values(release.skipped).some(x => x !== false) ||
       !Array.isArray(release.results) || release.results.length !== phases.length ||
       phases.some((name, i) => release.results[i]?.name !== name || release.results[i]?.status !== 'passed' || release.results[i]?.exitCode !== 0)) {
     throw new Error('Full clean same-candidate release validation with every phase passed is required');
@@ -44,7 +46,7 @@ export function stagePackage(root, out, head, tree) {
     kind: 'source-and-built-web', offlineInstaller: false, runtimePrerequisites: ['Node 25', 'Julia 1.12', 'PostgreSQL 16'] });
   const name = `juliaflow-${version}-${head.slice(0, 12)}-${process.platform}.tar.gz`;
   run('tar', ['-czf', join(delivery, name), '-C', contents, '.'], root);
-  const entries = run('tar', ['-tzf', join(delivery, name)], root).split('\n');
+  const entries = run('tar', ['-tzf', join(delivery, name)], root).split(/\r?\n/);
   for (const required of ['./package.json', './Project.toml', './Manifest.toml', './apps/frontend/dist/index.html', './local-release.json']) {
     if (!entries.includes(required)) throw new Error(`Package missing ${required}`);
   }
@@ -73,8 +75,9 @@ export function promote(root, id) {
       report.cleanupStatus !== 'passed' || report.evidenceFinalization !== 'passed' || report.jobs.length !== 1 ||
       report.jobs[0].name !== 'release-candidate' || report.jobs[0].status !== 'passed' || report.jobs[0].cleanup?.status !== 'passed') throw new Error('Completed full release-candidate profile and cleanup required');
   const job = json(join(out, 'release-candidate/summary.json'));
+  const requiredCommands = ['npm ci', 'npx playwright install --with-deps chromium', 'npm run verify:release'];
   if (job.status !== 'passed' || job.expectedHead !== report.head || job.expectedTree !== report.tree ||
-      job.steps?.length !== 3 || job.steps.some(s => s.status !== 'passed' || s.exitCode !== 0)) throw new Error('Incomplete release job');
+      job.steps?.length !== requiredCommands.length || job.steps.some((s, i) => s.command !== requiredCommands[i] || s.status !== 'passed' || s.exitCode !== 0)) throw new Error('Incomplete release job');
   requireRelease(json(join(out, 'release-candidate/release-verification/latest/summary.json')), report.head, report.tree);
   const pack = json(join(out, 'release-candidate/delivery/package.json'));
   if (pack.head !== report.head || pack.tree !== report.tree || !/^juliaflow-[a-zA-Z0-9.-]+\.tar\.gz$/.test(pack.name)) throw new Error('Package identity mismatch');
