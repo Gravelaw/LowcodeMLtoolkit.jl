@@ -1,5 +1,10 @@
 # JuliaFlow project tracker
 
+AKS-69 resource lifecycle: scoped WSL swap preparation/cleanup is now in the
+runner, replacing manual activation that disappears across distro shutdown.
+The real cleanup failure/success probe passed; same-candidate aggregate and
+profile validation remain required. No host boot settings were edited.
+
 2026-09-30 AKS-69/55: candidate `9520979` reached all 16 pre-browser release
 phases, then failed one of five browser tests on rejected-upgrade connection
 reuse. Cleanup/evidence passed and CD rejected promotion. A minimal HTTP probe

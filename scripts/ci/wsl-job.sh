@@ -32,6 +32,26 @@ cleanup() {
     echo 'WSL cleanup refused: PostgreSQL shutdown unverified' >&2
     return 1
   fi
+  if [[ -e $run_root/swap ]]; then
+    if [[ -L $run_root/swap || $(readlink -f "$run_root/swap") != "$run_root/swap" ]]; then
+      echo 'WSL swap cleanup refused: path mismatch' >&2
+      return 1
+    fi
+    if awk 'NR > 1 {print $1}' /proc/swaps | grep -Fxq "$run_root/swap"; then
+      if [[ ! -f $run_root/swap-uuid || $(blkid -p -s UUID -o value "$run_root/swap") != $(cat "$run_root/swap-uuid") ]]; then
+        echo 'WSL swap cleanup refused: UUID mismatch' >&2
+        return 1
+      fi
+      timeout 20 swapoff "$run_root/swap" || { echo 'WSL swap shutdown unverified' >&2; return 1; }
+      if awk 'NR > 1 {print $1}' /proc/swaps | grep -Fxq "$run_root/swap"; then
+        echo 'WSL swap cleanup refused: still active' >&2
+        return 1
+      fi
+    fi
+    if [[ -n ${evidence:-} && -d $evidence ]]; then
+      printf '{"status":"passed","path":"%s/swap"}\n' "$run_root" > "$evidence/swap-cleanup.json"
+    fi
+  fi
   rm -rf -- "$run_root"
 }
 on_exit() {
@@ -70,7 +90,7 @@ printf '%s' "$$" > "$evidence/wsl-pid"
 trap on_exit EXIT
 
 export PATH=/opt/juliaflow-ci/node/bin:/opt/juliaflow-ci/julia/bin:/usr/lib/postgresql/16/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-for tool in node npm julia pg_ctl git runuser; do command -v "$tool" >/dev/null; done
+for tool in node npm julia pg_ctl git runuser fallocate mkswap swapon swapoff blkid timeout; do command -v "$tool" >/dev/null; done
 git clone --quiet "$bundle" "$run_root/repo"
 git -C "$run_root/repo" checkout --quiet --detach "$head"
 
@@ -81,6 +101,19 @@ sed 's/\r$//' "$run_root/repo/scripts/ci/wsl-julia.sh" > "$run_root/bin/julia"
 chmod 755 "$run_root/bin/julia"
 export PATH="$run_root/bin:$PATH"
 export JULIA_NUM_PRECOMPILE_TASKS=1 JULIAFLOW_CI_HEAP_HINT=1500M
+export JULIAFLOW_CI_SWAP_MIB=0
+if [[ $job != web ]]; then
+  # Native/compiler allocations can exceed the GC hint on the 4 GiB WSL VM.
+  # Own this temporary reserve per job; do not change host or boot settings.
+  fallocate -l 3G "$run_root/swap"
+  chmod 600 "$run_root/swap"
+  mkswap "$run_root/swap" > "$evidence/swap-prepare.log"
+  blkid -p -s UUID -o value "$run_root/swap" > "$run_root/swap-uuid"
+  swapon "$run_root/swap"
+  export JULIAFLOW_CI_SWAP_MIB=3072
+  printf '{"status":"active","sizeMiB":3072,"path":"%s/swap","uuid":"%s"}\n' \
+    "$run_root" "$(cat "$run_root/swap-uuid")" > "$evidence/swap-prepare.json"
+fi
 
 mkdir -p "$run_root/pg" "$run_root/socket"
 chown postgres:postgres "$run_root/pg" "$run_root/socket"

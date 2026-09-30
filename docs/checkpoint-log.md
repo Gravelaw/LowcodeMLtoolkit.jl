@@ -1,5 +1,13 @@
 # JuliaFlow checkpoint log
 
+2026-09-30 resource lifecycle repair: WSL idle shutdown removed the earlier
+manual swap activation. During the `584ec6b` aggregate run the default swap
+filled; the verified temporary reserve was reactivated without changing tests.
+The runner now provisions 3 GiB inside each Julia job's owned directory and
+deactivates it before directory removal. A real 64 MiB fixture proved UUID
+mismatch rejection preserves active storage and matching cleanup deactivates
+and removes the owned job. This does not yet establish a full-run pass.
+
 2026-09-30 AKS-69/55: release run `jfci-1790783265022-9992c09c` at `9520979`
 finished with 16 passing release phases and browser 4 passed / 1 failed
 (`ECONNRESET` on rejected cross-origin upgrade). Cleanup and evidence passed;

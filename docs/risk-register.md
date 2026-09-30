@@ -1,5 +1,10 @@
 # JuliaFlow risk register
 
+WSL memory pressure persists outside Julia's GC heap: the 4 GiB VM exhausted
+its default 1 GiB swap in the aggregate rerun. Each Julia job now provisions
+3 GiB temporary swap with path/UUID-verified bounded cleanup; failed cleanup
+retains storage and blocks promotion. Full unattended verification is pending.
+
 2026-09-30 local release blocker: HTTP.jl closes rejected upgrade connections
 without the gateway advertising closure, allowing client reuse to hit
 `ECONNRESET`. The minimal probe reproduced the failure; a response-only
