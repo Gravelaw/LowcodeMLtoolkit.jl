@@ -87,3 +87,14 @@ PostgreSQL 16 and dependency installation. It is not a self-contained/offline EX
 Docker image and does not certify other platforms. Release validation and package
 promotion are distinct results. No remote upload or new persistent credential is
 required. Existing per-run ephemeral database credentials stay isolated/redacted.
+
+### WSL memory policy
+
+Each isolated WSL job prepends a run-owned Julia launcher with
+`--heap-size-hint=1500M` and sets `JULIA_NUM_PRECOMPILE_TASKS=1`.
+This requests more frequent garbage collection and serial package precompilation;
+it does not cap all native allocations or change assertions, compiled-module
+policy or deadlines. Job summaries record these settings. The Julia 1.12.7 CLI
+probe reports 1572864000 bytes; its environment-only hint probe reports zero.
+No host WSL configuration or unrelated distro is changed.
+[Julia memory guidance](https://docs.julialang.org/en/v1/manual/memory-management/).

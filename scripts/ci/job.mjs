@@ -24,6 +24,7 @@ function git(args) {
 }
 function candidate() { return { head: git(['rev-parse', 'HEAD']), tree: git(['rev-parse', 'HEAD^{tree}']), dirty: git(['status', '--porcelain', '--untracked-files=all']) }; }
 const report = { job: jobName, expectedHead, expectedTree, startedAt: new Date().toISOString(), status: 'running',
+  resourcePolicy: { juliaHeapHint: process.env.JULIAFLOW_CI_HEAP_HINT ?? null, precompileTasks: process.env.JULIA_NUM_PRECOMPILE_TASKS ?? null },
   steps: job.commands.map(command => ({ command, status: 'not_run' })) };
 const save = () => writeJson(join(out, 'summary.json'), report);
 const events = event => appendFileSync(join(out, 'events.jsonl'), JSON.stringify({ at: new Date().toISOString(), ...event }) + '\n');
