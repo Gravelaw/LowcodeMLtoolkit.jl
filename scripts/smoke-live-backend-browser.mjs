@@ -62,7 +62,8 @@ function writeManagedLiveDataset() {
     const churn = index % 3 === 0 ? 1 : 0;
     const contract = churn ? "monthly" : index % 2 === 0 ? "annual" : "two_year";
     const tenure = 3 + index * 2;
-    const monthlyCharges = (48 + index * 2.35 + churn * 18).toFixed(2);
+    // Keep the positive workflow separable for the supported centroid classifier.
+    const monthlyCharges = (48 + index * 0.1 + churn * 100).toFixed(2);
     return `C-${String(index + 1).padStart(4, "0")},${tenure},${monthlyCharges},${contract},${churn}`;
   });
   writeFileSync(datasetPath, ["customer_id,tenure_months,monthly_charges,contract_type,churn", ...rows, ""].join("\n"));

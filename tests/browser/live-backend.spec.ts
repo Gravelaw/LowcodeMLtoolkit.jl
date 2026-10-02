@@ -218,6 +218,8 @@ test.describe("live-backend release smoke", () => {
     await expectOk(evaluation, "final evaluation");
     const evaluationPayload = await evaluation.json();
     expect(["local_csv_trained_artifact", "mlj_package_backed_final_evaluation"]).toContain(evaluationPayload.evaluationReport.validationEvidence.evaluationExecutionMode);
+    expect(evaluationPayload.evaluationReport.approved).toBe(true);
+    expect(evaluationPayload.evaluationReport.metrics.f1).toBeGreaterThanOrEqual(0.1);
     const evaluationReportId = evaluationPayload.evaluationReport.evaluationReportId;
     const prediction = await request.post(`${gatewayUrl}/api/v1/data-science-projects/${projectId}/predictions/export`, {
       data: {
