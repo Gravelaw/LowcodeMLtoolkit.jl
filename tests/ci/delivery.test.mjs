@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { hostedEnabled } from '../../scripts/ci/hosted-policy.mjs';
-import { requireRelease, promote } from '../../scripts/ci/delivery.mjs';
+import { requireRelease, promote, stagePackage } from '../../scripts/ci/delivery.mjs';
 import { inventory, writeJson } from '../../scripts/ci/evidence.mjs';
 
 const head = 'a'.repeat(40), tree = 'b'.repeat(40), id = 'jfci-12345678-abcdef12';
@@ -77,4 +77,27 @@ test('tampered package, missing checksum and path escape fail without a current 
     const f = fixture(); change(f); assert.throws(() => promote(f.root, id));
     assert.equal(existsSync(join(f.root, 'artifacts/local-releases/current.json')), false);
   }
+});
+test('package archive round-trips committed source, built web and dependency metadata', () => {
+  const root = temp(), out = temp(), unpacked = temp();
+  const run = (cmd, args) => {
+    const result = spawnSync(cmd, args, { cwd: root, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr); return result.stdout.trim();
+  };
+  run('git', ['init']);
+  writeJson(join(root, 'package.json'), { name: 'synthetic-package-probe', version: '0.1.0' });
+  writeFileSync(join(root, 'Project.toml'), '[deps]\n');
+  writeFileSync(join(root, '.gitignore'), 'apps/frontend/dist/\nManifest.toml\n');
+  run('git', ['add', '.']);
+  run('git', ['-c', 'user.name=Local CI Probe', '-c', 'user.email=probe@localhost', 'commit', '-m', 'probe']);
+  const candidate = run('git', ['rev-parse', 'HEAD']), candidateTree = run('git', ['rev-parse', 'HEAD^{tree}']);
+  mkdirSync(join(root, 'apps/frontend/dist'), { recursive: true });
+  writeFileSync(join(root, 'apps/frontend/dist/index.html'), '<h1>Archive probe</h1>');
+  writeFileSync(join(root, 'Manifest.toml'), '# synthetic probe only\n');
+  writeJson(join(out, 'release-verification/latest/summary.json'), { ...release(), commitSha: candidate, treeSha: candidateTree });
+  const pack = stagePackage(root, out, candidate, candidateTree);
+  run('tar', ['-xzf', join(out, 'delivery', pack.name), '-C', unpacked]);
+  assert.equal(readFileSync(join(unpacked, 'apps/frontend/dist/index.html'), 'utf8'), '<h1>Archive probe</h1>');
+  assert.equal(JSON.parse(readFileSync(join(unpacked, 'local-release.json'))).head, candidate);
+  assert.equal(readFileSync(join(unpacked, 'Manifest.toml'), 'utf8'), '# synthetic probe only\n');
 });
