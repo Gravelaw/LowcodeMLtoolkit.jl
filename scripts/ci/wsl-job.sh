@@ -74,6 +74,14 @@ for tool in node npm julia pg_ctl git runuser; do command -v "$tool" >/dev/null;
 git clone --quiet "$bundle" "$run_root/repo"
 git -C "$run_root/repo" checkout --quiet --detach "$head"
 
+# Keep compiler/depot preparation from exhausting the shared WSL VM. All mapped
+# commands still run, with unchanged assertions, compile modes and deadlines.
+mkdir -p "$run_root/bin"
+sed 's/\r$//' "$run_root/repo/scripts/ci/wsl-julia.sh" > "$run_root/bin/julia"
+chmod 755 "$run_root/bin/julia"
+export PATH="$run_root/bin:$PATH"
+export JULIA_NUM_PRECOMPILE_TASKS=1 JULIAFLOW_CI_HEAP_HINT=1500M
+
 mkdir -p "$run_root/pg" "$run_root/socket"
 chown postgres:postgres "$run_root/pg" "$run_root/socket"
 chmod 755 "$run_root" "$(dirname "$run_root")"
