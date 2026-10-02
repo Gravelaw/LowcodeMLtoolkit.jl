@@ -82,6 +82,22 @@ describe("dataset edit identity", () => {
 
 describe("historical project evidence", () => {
   it.each([
+    ["missing historical fractions", undefined, undefined, undefined, "unavailable / unavailable / unavailable"],
+    ["nonfinite fractions", Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, "unavailable / unavailable / unavailable"],
+    ["recorded fractions including zero", 0.75, 0.25, 0, "75% / 25% / 0%"]
+  ] as const)("shows %s accurately in the validation plan", (_, trainFraction, validationFraction, testFraction, expected) => {
+    const data = viewData();
+    data.dataScienceProject = {
+      ...data.dataScienceProject,
+      splitPlans: data.dataScienceProject.splitPlans.map((plan) => ({
+        ...plan, trainFraction, validationFraction, testFraction
+      }))
+    };
+    render(<DataView data={data} onImport={vi.fn()} onSelectProfile={vi.fn()} onProjectUpdate={vi.fn()} />);
+    expect(screen.getByText(/Train \/ validation \/ test:/)).toHaveTextContent(`Train / validation / test: ${expected}`);
+  });
+
+  it.each([
     ["transform", "Project Transform Evidence"],
     ["visualize", "Project Statistical Analysis Evidence"],
     ["ml-studio", "Project Validation Workflow"],

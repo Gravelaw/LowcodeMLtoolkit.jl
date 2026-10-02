@@ -54,6 +54,12 @@ function modeTone(status: string | undefined) {
   return "blue";
 }
 
+function splitFractionLabel(value: number | undefined): string {
+  return typeof value === "number" && Number.isFinite(value)
+    ? `${Math.round(value * 100)}%`
+    : "unavailable";
+}
+
 function compareValues(a: unknown, b: unknown) {
   if (typeof a === "number" && typeof b === "number") return a - b;
   return String(a ?? "").localeCompare(String(b ?? ""));
@@ -430,7 +436,7 @@ export function DataView({
               </select>
             </label>
             <p className="workspace-state-line">
-              Train / validation / test: <strong>{Math.round((activeSplitPlan.trainFraction ?? 0) * 100)}%</strong> / <strong>{Math.round((activeSplitPlan.validationFraction ?? 0) * 100)}%</strong> / <strong>{Math.round((activeSplitPlan.testFraction ?? 0) * 100)}%</strong>
+              Train / validation / test: <strong>{splitFractionLabel(activeSplitPlan.trainFraction)}</strong> / <strong>{splitFractionLabel(activeSplitPlan.validationFraction)}</strong> / <strong>{splitFractionLabel(activeSplitPlan.testFraction)}</strong>
             </p>
             <button type="button" className="jf-button secondary full-width" disabled={!canEditDataset || Boolean(finalTestLock)} onClick={lockFinalTestSplit}>
               {finalTestLock ? "Final Test Locked" : "Lock Final Test Split"}
