@@ -90,6 +90,15 @@ required. Existing per-run ephemeral database credentials stay isolated/redacted
 
 ### WSL memory policy
 
+Before each Julia job, the runner allocates a temporary 3 GiB swap file under
+that job's owned directory. Web-only jobs do not allocate it. Preparation records
+size, path and UUID in evidence; job summaries record the allocation. Cleanup
+checks the resolved path and UUID, uses bounded `swapoff`, verifies inactivity,
+then removes the owned directory. A cleanup failure preserves storage and blocks
+promotion. Allow at least 3 GiB additional free disk per concurrent Julia job.
+This does not modify `.wslconfig`, `/etc/fstab`, or other swap files, and survives
+WSL shutdown through fresh preparation on each invocation.
+
 Each isolated WSL job prepends a run-owned Julia launcher with
 `--heap-size-hint=1500M` and sets `JULIA_NUM_PRECOMPILE_TASKS=1`.
 This requests more frequent garbage collection and serial package precompilation;

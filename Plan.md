@@ -1,5 +1,10 @@
 # JuliaFlow current development plan
 
+WSL resource follow-up: Julia jobs provision a temporary 3 GiB swap file inside
+their owned job directory before execution. Cleanup verifies its path and UUID,
+deactivates it, then removes owned storage. This replaces manual activation lost
+across WSL shutdown; full profiles must verify the committed runner behavior.
+
 2026-09-30 release blocker: candidate `9520979` passed 16 release phases, then
 the live browser suite reported 4 passed / 1 failed on rejected-WebSocket
 connection reuse (`ECONNRESET`). Cleanup and evidence finalization passed; no

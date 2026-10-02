@@ -1,5 +1,9 @@
 # JuliaFlow TODO
 
+- [ ] Verify full profiles with automatic job-owned WSL swap preparation and
+  cleanup. The 64 MiB cleanup probe passed both mismatch preservation and valid
+  deactivation/removal. No host configuration or test deadline changes.
+
 - [ ] Validate the AKS-55 rejected-WebSocket connection-close repair: preserve
   exact 401/403 and unchanged-state assertions, authorized realtime success,
   then rerun full same-candidate local profiles before promotion. Candidate
