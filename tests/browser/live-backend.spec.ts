@@ -416,6 +416,11 @@ test.describe("live-backend release smoke", () => {
       await action();
       await expectOk(await response, "persist UI split choice");
     }
+    // File-derived profiles do not infer a training target from fixture names.
+    // Assign it through the same persisted schema control a user must operate.
+    await page.getByRole("tab", { name: "schema", exact: true }).click();
+    await updateFromUi(() => page.getByLabel("Column role for churn", { exact: true }).selectOption("target"));
+    await expect(page.getByLabel("Column role for churn", { exact: true })).toHaveValue("target");
     await updateFromUi(() => page.getByLabel("Validation strategy", { exact: true }).selectOption("grouped"));
     await expect(page.getByLabel("Validation strategy", { exact: true })).toHaveValue("grouped");
     await updateFromUi(() => page.getByLabel("Validation group column", { exact: true }).selectOption("contract_type"));
