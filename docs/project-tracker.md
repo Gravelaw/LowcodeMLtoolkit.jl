@@ -1,5 +1,16 @@
 # JuliaFlow project tracker
 
+2026-10-02 AKS-48/53 bounded profiling follow-up: user authorized the repository-required tracker write; comment `08c4e330-3cf1-4823-9b40-cb213cb1c952` posted to existing AKS-48 and read back exactly, issue stays In Progress. Real-file profiling source/runtime gates passed; unchanged reviewed hashes and live PR #58 base permit the authorized development publication handoff. Five AKS-69/55 replays remain distinct and hardware files unchanged. No issue Done, merge or release claim.
+
+2026-10-01 final profiling verification: parent confirmed independent acceptance of all four findings and CI resource clearance. Accepted eight source hashes match after validation. Dedicated HTTP 65/65; complete WSL Julia 1.12.7 affected slice 1,639 pass / zero fail / two existing root-permission skips, exit zero in 674.38 seconds; Node contracts 63 pass / three platform skips; frontend/browser-tooling TypeScript checks pass. Uncommitted isolated candidate awaits authoritative issue/remote branch reconciliation and publication; no GPU/release claim.
+
+2026-10-01 second review: original three findings accepted by source rereview; an invalid datasetName could still leave a failed-import artifact. Request normalization now precedes writes; project mutation uses a deepcopy until save. HTTP regression checks invalid names with unique valid source bytes and unchanged project/job/file state. Later storage failures retain shared managed copies by policy. Final runtime/rereview/publication gates remain open.
+
+2026-10-01 review changes requested: P1 project source contract mismatch and P2 preview/chart correctness addressed in the uncommitted isolated candidate. Actual managed CSV bytes are materialized and checksummed; external source is provenance only. Standalone Julia 32/32, focused Node contracts 9/9, frontend typecheck and diff check pass. HTTP/gateway reruns, independent rereview, authoritative issue ownership and publication remain open. CI/hardware branches preserved.
+
+2026-10-01 local reconciliation candidate (untracked pending Linear readback): `codex/reconcile-profiling` combines PR #58 hardware head with five local AKS-69/55 commits and adds bounded real-file CSV profiling. Corrected WSL Julia 1.12.7 affected gateway slice passed 1,501 assertions, zero failed, two existing root-permission skips (709.85 seconds); Node contracts passed 63, three platform skips. Review and full release gates remain open. No remote write, GPU worker certification, or release claim.
+
+
 AKS-69 resource lifecycle: scoped WSL swap preparation/cleanup is now in the
 runner, replacing manual activation that disappears across distro shutdown.
 The real cleanup failure/success probe passed; same-candidate aggregate and

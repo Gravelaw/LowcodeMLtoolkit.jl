@@ -1,5 +1,16 @@
 # JuliaFlow current development plan
 
+2026-10-02 publication handoff: user-authorized AKS-48 follow-up comment `08c4e330-3cf1-4823-9b40-cb213cb1c952` records the discovered profiling defect, corrections and exact affected evidence; readback confirms In Progress. Accepted source hashes and live PR #58 base remain unchanged. Development publication of `codex/reconcile-profiling` is authorized; merge/deployment/full release and GPU qualification remain open.
+
+2026-10-01 final reviewed profiling candidate validation: all four source findings accepted by independent rereview; accepted eight-file hashes remained unchanged. WSL Julia 1.12.7 dedicated HTTP 65/65; complete affected gateway slice 1,639 pass / zero fail / two existing root-permission skips (674.38 seconds); Node contracts 63 pass / three platform skips; both frontend typechecks passed. Tracker/remote reconciliation and commit/publication remain open. No full-release or hardware qualification claim for this revised tree.
+
+2026-10-01 second review follow-up: normalize/validate every supplied import string before materialization, including datasetName; mutate a project copy before persistence. Shared checksum-addressed CSV copies are retained on later job/storage failure, never deleted as rollback. Added invalid-name HTTP rejection-state/artifact regressions. Final runtime gates and independent acceptance remain open.
+
+2026-10-01 independent review follow-up: the bounded profiling candidate now materializes verified content-addressed managed CSV sources for project imports, retains `importSourceUri` provenance, emits numeric/null previews and separates missing-cell chart buckets from literal categories. Standalone regressions pass 32/32, focused contracts 9/9 and frontend typecheck pass. New import/update/wizard/reload/analysis HTTP regression and the complete affected gateway slice require an explicit CI resource window and reviewer reread; earlier gateway counts apply to the previous candidate. No publication or release claim.
+
+2026-10-01 isolated reconciliation candidate: PR #58 head `6618d19` plus the five local AKS-69/55 commits has a bounded real-file CSV profiling correction in `codex/reconcile-profiling`. It profiles complete unquoted unique-header CSV files up to 1,000 rows / 8 MiB, rejects quoted/malformed/oversize or non-CSV profiling, and no longer reports nonexistent derived artifacts. On WSL Julia 1.12.7 the corrected affected gateway slice passed 1,501 assertions with zero failures and two existing root-permission skips; Node contracts passed 63 with three platform skips. Review, tracker ownership and full release validation remain open; AKS-61 scalable ingestion and AKS-58 full GPU worker remain open. No merge or release claim.
+
+
 WSL resource follow-up: Julia jobs provision a temporary 3 GiB swap file inside
 their owned job directory before execution. Cleanup verifies its path and UUID,
 deactivates it, then removes owned storage. This replaces manual activation lost
@@ -71,7 +82,7 @@ No dates are invented. AKS-67 is deferred Medium-priority compatibility; AKS-64 
 
 Finish AKS-69 WSL runner reliability and same-candidate local profiles first. Then perform bounded AKS-41/56 backend review with AKS-68 evidence and relevant AKS-38 findings before AKS-58 begins. Native Windows, Docker-specific and hosted GitHub gates remain separately open; hosted Debian diagnosis is paused. Preserve all source branches and evidence. [Diagnosis and exact results](docs/verification-m1-integration.md).
 
-In parallel, AKS-64 can refine design only: remaining lifecycle/settings routes, compute preference/coverage, real-file onboarding, <=1,000-row current sample, new-plan split semantics and project-loading guards. The existing 404 hydration race remains unfixed; controls must ultimately wait for real identity on initial load and project switch.
+In parallel, AKS-64 can refine design only: remaining lifecycle/settings routes, compute preference/coverage, real-file onboarding, <=1,000-row / 8 MiB current sample, new-plan split semantics and project-loading guards. The existing 404 hydration race remains unfixed; controls must ultimately wait for real identity on initial load and project switch.
 
 ## Invariants and gates
 

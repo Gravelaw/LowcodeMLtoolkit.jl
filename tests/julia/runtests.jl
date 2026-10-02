@@ -3147,6 +3147,7 @@ end
         reloaded = load_state(store_root)
         import_root = mktempdir()
         import_source_path = joinpath(import_root, "foundation-profile.csv")
+        json_import_path = joinpath(import_root, "foundation-profile.json")
         symlink_source_path = joinpath(import_root, "foundation-profile-link.csv")
         secret_source_path = joinpath(import_root, "secrets.csv")
         large_source_path = joinpath(import_root, "large-profile.csv")
@@ -3163,6 +3164,7 @@ end
         managed_sensitive_dataset_path = joinpath(foundation_raw_data_dir, "managed-sensitive.csv")
         foundation_output_contract_path = joinpath(foundation_contract_dir, "foundation-submission.json")
         write(import_source_path, "region,amount,window\nnorth,12.5,2026-Q2\nsouth,9.5,2026-Q2\n")
+        write(json_import_path, "[{\"region\":\"north\"}]")
         symlink_source_available = try
             symlink(import_source_path, symlink_source_path)
             isfile(symlink_source_path)
@@ -3644,6 +3646,20 @@ end
                     ),
                 ),
             ),
+        )
+        data_import_json_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "JSON Profile", "sourceUri" => json_import_path, "format" => "json")),
+            ),
+        )
+        data_import_named_response = route_request(
+            state,
+            HTTP.Request("POST", "/api/v1/local-data/import", ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "Superstore", "sourceUri" => import_source_path, "format" => "csv"))),
         )
         data_import_managed_response = route_request(
             state,
@@ -6029,13 +6045,18 @@ end
         @test occursin("\"flow_variables\":{\"JULIAFLOW_GPU_DEVICE\":\"nvidia:0\"}", String(execute_response.body))
         @test occursin("\"resourcePlan\":[", String(execute_response.body))
         @test data_import_response.status == 201
+        @test data_import_named_response.status == 201
+        named_profile = JSON3.read(String(data_import_named_response.body), Dict{String,Any})["profile"]
+        @test named_profile["rowCount"] == 2
+        @test named_profile["schemaSummary"] == JSON3.read(String(data_import_response.body), Dict{String,Any})["profile"]["schemaSummary"]
+        @test data_import_json_response.status == 400
+        @test occursin("real-file profiling currently supports CSV files only", String(data_import_json_response.body))
         data_import_payload = JSON3.read(String(data_import_response.body), Dict{String,Any})
         @test data_import_payload["status"] == "profiled"
         @test data_import_payload["profile"]["datasetId"] == "foundation-profile"
         @test data_import_payload["profile"]["sourceUri"] == realpath(import_source_path)
         @test data_import_payload["profile"]["sourceConnector"] == "local_file"
         @test data_import_payload["profile"]["targetZone"] == "raw"
-        @test startswith(data_import_payload["profile"]["artifactRef"], "local://data/raw/foundation-profile")
         @test data_import_payload["profile"]["localOnly"] == true
         @test data_import_payload["profile"]["activeReadMode"] == "csv"
         @test length(data_import_payload["profile"]["sourceOptions"]) == 7
@@ -6048,9 +6069,14 @@ end
             option -> option["mode"] == "s3" && occursin("disabled", String(option["semantics"])),
             data_import_payload["profile"]["sourceOptions"],
         )
-        @test length(data_import_payload["profile"]["lineageArtifacts"]) == 4
+        @test length(data_import_payload["profile"]["lineageArtifacts"]) == 1
+        @test data_import_payload["profile"]["rowCount"] == 2
+        @test data_import_payload["profile"]["checksumSha256"] == bytes2hex(sha256(read(import_source_path)))
+        @test data_import_payload["profile"]["artifactRef"] == realpath(import_source_path)
+        @test data_import_payload["profile"]["profileScope"] == "complete_unquoted_csv_1000_rows"
+        @test all(option -> option["status"] == "unavailable", filter(option -> option["mode"] in ["arrow_ipc", "parquet", "duckdb"], data_import_payload["profile"]["sourceOptions"]))
         @test length(data_import_payload["profile"]["qualityChecks"]) >= 1
-        @test data_import_payload["profile"]["workflowReadiness"]["downstreamReady"] == true
+        @test data_import_payload["profile"]["workflowReadiness"]["downstreamReady"] == false
         @test length(data_import_payload["profile"]["quickPlots"]) >= 1
         @test length(data_import_payload["profile"]["previewRows"]) >= 1
         @test data_import_managed_response.status == 201
@@ -6076,7 +6102,9 @@ end
         @test project_data_profile_payload["profile"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
         @test project_data_profile_payload["profile"]["executionEvidence"]["dispatchStatus"] == "completed"
         profile_project_dataset = first(filter(dataset -> dataset["datasetId"] == "foundation-profile", project_data_profile_payload["project"]["datasets"]))
-        @test profile_project_dataset["sourceUri"] == "local://data/raw/foundation-profile.csv"
+        @test startswith(profile_project_dataset["sourceUri"], "local://data/raw/imports/")
+        @test profile_project_dataset["importSourceUri"] == realpath(import_source_path)
+        @test read(JuliaFlowApiGateway.resolve_local_data_ref_path(profile_project_dataset["sourceUri"])) == read(import_source_path)
         @test profile_project_dataset["artifactRef"] == project_data_profile_payload["profile"]["artifactRef"]
         @test profile_project_dataset["checksumSha256"] == project_data_profile_payload["profile"]["checksumSha256"]
         profile_schema = first(filter(schema -> schema["schemaId"] == "schema-foundation-profile-profile", project_data_profile_payload["project"]["schemaContracts"]))
@@ -7860,4 +7888,12 @@ end
 
 @testset "Project split membership boundary" begin
     include(joinpath(@__DIR__, "split_membership_tests.jl"))
+end
+
+@testset "Local CSV profiling boundary" begin
+    include(joinpath(@__DIR__, "local_csv_profile_tests.jl"))
+end
+
+@testset "Real file profile route boundary" begin
+    include(joinpath(@__DIR__, "real_file_profile_gateway_tests.jl"))
 end

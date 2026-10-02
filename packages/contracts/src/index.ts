@@ -555,6 +555,8 @@ export interface ProjectDataset {
   columnCount?: number;
   checksumSha256?: string;
   artifactRef?: string;
+  /** Original approved import source; provenance only, never used as the managed read reference. */
+  importSourceUri?: string;
 }
 
 export interface SchemaColumnContract {
@@ -1503,6 +1505,7 @@ export interface GatewayDataProfileField {
   missingCount?: number;
   distinctCount?: number;
   outlierCount?: number;
+  numericSummary?: { count: number; minimum: number; maximum: number; mean: number };
 }
 
 export interface GatewayDataSourceOption {
@@ -1541,7 +1544,7 @@ export interface GatewayDataQuickPlot {
   title: string;
   kind: "histogram" | "bar" | "line" | "target_balance" | string;
   field: string;
-  values: Array<{ label: string; value: number }>;
+  values: Array<{ label: string; value: number; missing?: boolean }>;
 }
 
 export interface GatewayDataImportProfile {
@@ -1555,6 +1558,7 @@ export interface GatewayDataImportProfile {
   rowCount: number;
   schemaSummary: Array<{ name: string; type: string }>;
   profileSummary: GatewayDataProfileField[];
+  profileScope?: "complete_unquoted_csv_1000_rows";
   manifestReady: boolean;
   manifestChecksums: GatewayDataEstateManifestChecksum[];
   duckdbStatus: "ready" | "pending" | string;

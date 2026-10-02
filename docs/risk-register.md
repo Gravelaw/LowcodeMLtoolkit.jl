@@ -1,5 +1,16 @@
 # JuliaFlow risk register
 
+2026-10-02 tracker recording gate resolved: exact approved profiling follow-up posted to AKS-48 and verified, status In Progress. Source hashes and upstream PR #58 base still match. Development branch publication carries the validated bounded correction and preserved CI replays; full release/platform/GPU qualification, picker/persona acceptance and shared-job provenance/transaction limits remain open. No completion or deployment inference from publication.
+
+2026-10-01 final profiling review/runtime result: four source findings accepted and dedicated HTTP 65/65 plus complete gateway 1,639 pass / zero fail / two root-permission skips passed on unchanged accepted hashes. Invalid-name rejection now proves no managed artifact/project-job mutation; import/update/reload/real-source analysis passes. Existing shared-copy retention on later storage faults, cross-resource transaction limits, full release/hardware/other-platform and broader CSV scope remain open. No publication or release claim.
+
+2026-10-01 second review failure-path correction: malformed import strings now reject before managed file creation; project changes occur on a copy until persistence. Later job/storage faults can leave a verified unreferenced checksum-addressed CSV retained for diagnosis/reuse; no rollback deletes shared files. Repository/worker persistence is not a cross-resource transaction. This bounded policy and the new invalid-name artifact/state regression await HTTP/runtime validation and rereview.
+
+2026-10-01 independent review identified project source round-trip rejection, numeric preview lexical sorting and missing-label collisions. The revised bounded candidate uses real checksum-addressed managed CSV copies for project datasets, typed numeric/null preview and a distinct missing sentinel with collision-free labels. Lightweight regressions pass; actual HTTP update/reload/downstream and broader gateway validation remain pending CI resource clearance and independent rereview. Managed copy materialization is new local I/O and must retain confinement and conflict rejection; no broader ingestion/worker claim.
+
+2026-10-01 isolated profiling correction candidate: local import previously validated a source then displayed hardcoded quality/profile/chart values and invented derived artifact refs. After correcting two failures on the initial candidate, the corrected WSL Julia 1.12.7 affected slice passed 1,501 assertions, zero failed, with two existing root-permission skips; parser (14) and strict HTTP (12) boundaries are included. Larger/quoted/non-CSV files explicitly fail. Review/full release gates, downstream simple CSV limits and source mutation after profiling remain open. The existing worker-tick job record does not establish that a worker computed this gateway-side profile.
+
+
 WSL memory pressure persists outside Julia's GC heap: the 4 GiB VM exhausted
 its default 1 GiB swap in the aggregate rerun. Each Julia job now provisions
 3 GiB temporary swap with path/UUID-verified bounded cleanup; failed cleanup

@@ -42,7 +42,7 @@ const SLICES = {
   "execution-service": ["Execution Service"],
   repository: ["Gateway Repository", "Project payload contract boundary"],
   worker: ["Data science project job helpers", "Worker Service"],
-  "api-gateway": ["API Gateway", "Gateway local browser boundary", "Project real evidence boundary", "Project split membership boundary"],
+  "api-gateway": ["API Gateway", "Gateway local browser boundary", "Project real evidence boundary", "Project split membership boundary", "Local CSV profiling boundary", "Real file profile route boundary"],
   realtime: ["API Gateway Realtime", "Gateway realtime cleanup"],
   "base-extension": ["Base Extension"],
   auth: [

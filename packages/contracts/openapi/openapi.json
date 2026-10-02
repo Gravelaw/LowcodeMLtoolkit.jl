@@ -2118,6 +2118,10 @@
           "artifactRef": {
             "type": "string",
             "description": "Optional managed local artifact reference using local://."
+          },
+          "importSourceUri": {
+            "type": "string",
+            "description": "Original approved local import source, retained only as provenance; sourceUri and artifactRef identify the actual managed CSV used by consumers."
           }
         }
       },
@@ -7648,6 +7652,16 @@
           "outlierCount": {
             "type": "integer",
             "minimum": 0
+          },
+          "numericSummary": {
+            "type": "object",
+            "required": ["count", "minimum", "maximum", "mean"],
+            "properties": {
+              "count": { "type": "integer", "minimum": 1 },
+              "minimum": { "type": "number" },
+              "maximum": { "type": "number" },
+              "mean": { "type": "number" }
+            }
           }
         }
       },
@@ -7726,6 +7740,10 @@
             "items": {
               "$ref": "#/components/schemas/DataProfileField"
             }
+          },
+          "profileScope": {
+            "type": "string",
+            "enum": ["complete_unquoted_csv_1000_rows"]
           },
           "manifestReady": {
             "type": "boolean"
@@ -7903,6 +7921,10 @@
                       },
                       "value": {
                         "type": "number"
+                      },
+                      "missing": {
+                        "type": "boolean",
+                        "description": "True for the distinct missing-cell bucket; false for literal categories."
                       }
                     }
                   }

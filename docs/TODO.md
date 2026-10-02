@@ -1,5 +1,16 @@
 # JuliaFlow TODO
 
+- [ ] Publish and verify the reviewed `codex/reconcile-profiling` development branch. AKS-48 follow-up was recorded and read back on 2026-10-02 (comment `08c4e330-3cf1-4823-9b40-cb213cb1c952`), with status In Progress. Required affected checks/review passed on unchanged source hashes. No merge/deployment or full release/GPU completion is authorized or claimed.
+
+- [ ] Complete authoritative issue/remote development-branch reconciliation and publication handoff for the accepted profiling correction. Final dedicated HTTP 65/65 and complete gateway slice 1,639 pass / zero fail / two existing root-permission skips; full Node contracts 63 pass / three platform skips and both frontend typechecks passed. Preserve reviewed source hashes; no merge/deploy/release qualification inferred.
+
+- [ ] Verify the second-review failure-path fix: invalid null/number/object/array/empty datasetName must return 400 without changing project/jobs or managed artifacts. All import strings now validate before materialization. Run the dedicated HTTP and complete affected gateway gates after CI resource clearance; obtain reviewer acceptance on final hashes.
+
+- [ ] Validate and independently rereview the three profiling review fixes: managed source round-trip/downstream compatibility, typed numeric/null preview and separate missing/category identity. Standalone Julia 32/32, focused contracts 9/9 and frontend typecheck pass; new HTTP integration and full affected gateway slice wait for the CI owner's resource window. Retained earlier gateway evidence does not certify this revised tree.
+
+- [ ] Review and track the isolated 2026-10-01 real-file CSV profiling correction. It replaces fixture-backed import display on a bounded <=1,000-row / 8 MiB unquoted CSV path, rejects unsupported formats, and records only the actual source artifact. Corrected WSL Julia 1.12.7 gateway slice: 1,501 pass / zero fail / two existing root-permission skips; Node contracts: 63 pass / three platform skips. Full release gates remain pending; assign the correction to the appropriate AKS-48/61 scope after tracker readback.
+
+
 - [ ] Verify full profiles with automatic job-owned WSL swap preparation and
   cleanup. The 64 MiB cleanup probe passed both mismatch preservation and valid
   deactivation/removal. No host configuration or test deadline changes.

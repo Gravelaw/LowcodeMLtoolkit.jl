@@ -8,6 +8,7 @@ include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectRegistry.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectRegistryPayloads.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectJobs.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectStatistics.jl"))
+include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectProfiling.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectLocalSources.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectCatalog.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectPredictionExport.jl"))
@@ -2512,8 +2513,7 @@ function upsert_project_dataset_profile!(
 )
     dataset_id = String(profile["datasetId"])
     timestamp = String(profile["importedAt"])
-    managed_source_ref = String(get(body, "sourceUri", "local://data/$(profile["targetZone"])/$(dataset_id).$(profile["sourceFormat"])"))
-    startswith(lowercase(replace(managed_source_ref, "\\" => "/")), "local://") || (managed_source_ref = "local://data/$(profile["targetZone"])/$(dataset_id).$(profile["sourceFormat"])")
+    managed_source_ref = String(profile["artifactRef"])
     dataset_record = Dict{String,Any}(
         "datasetId" => dataset_id,
         "name" => String(get(body, "datasetName", dataset_id)),
@@ -2524,6 +2524,7 @@ function upsert_project_dataset_profile!(
         "columnCount" => length(get(profile, "schemaSummary", Any[])),
         "checksumSha256" => String(profile["checksumSha256"]),
         "artifactRef" => String(profile["artifactRef"]),
+        "importSourceUri" => String(profile["sourceUri"]),
     )
     project.datasets = [
         dataset for dataset in project.datasets
@@ -2658,6 +2659,7 @@ function local_data_import_audit_details(body::AbstractDict; outcome::AbstractSt
 end
 
 function data_import_profile_response!(state::GatewayState, body::AbstractDict)
+    body = JuliaFlowDataScienceProjectProfiling.normalize_profile_request(body)
     ensure_cpu_project_job_allowed(state)
     health = JSON3.read(healthcheck(state), Dict{String,Any})
     evidence = gateway_explainability_evidence(state)
@@ -2678,15 +2680,27 @@ function data_import_profile_response!(state::GatewayState, body::AbstractDict)
         source_uri
     end
     validate_local_data_import_file!(source_path, source_format)
+    (lowercase(source_format) == "csv" && lowercase(splitext(source_path)[2]) == ".csv") ||
+        error("local data import real-file profiling currently supports CSV files only; $(source_format) is unavailable")
     target_zone = String(get(body, "targetZone", "raw"))
-    read_mode = String(get(body, "readMode", source_format == "arrow_ipc" ? "arrow_ipc" : source_format == "parquet" ? "parquet" : source_format == "duckdb" ? "duckdb" : "csv"))
+    read_mode = lowercase(String(get(body, "readMode", "csv")))
+    read_mode == "csv" || error("local data import real-file profiling readMode $(read_mode) is unavailable; use csv")
     zones = [String(zone["name"]) for zone in health["dataEstateZones"]]
     target_zone in zones || error("data estate zone not found: $(target_zone)")
-    checksum = explainability_source_checksum(source_uri)
+    filesize(source_path) <= JuliaFlowDataScienceProjectProfiling.MAX_PROFILE_BYTES ||
+        error("local data import CSV profile supports files up to 8 MiB")
+    checksum = explainability_source_checksum(source_path)
     imported_at = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
-    artifact_ref = "local://data/$(target_zone)/$(dataset_id).arrow"
-    fixture = data_profile_fixture(dataset_id, source_uri)
-    row_count = Int(get(fixture, "rowCount", get(dataset_card, "rowCount", 0)))
+    artifact_ref = source_uri
+    profile_evidence = JuliaFlowDataScienceProjectProfiling.local_csv_profile(source_path)
+    checksum == explainability_source_checksum(source_path) || error("source evidence unavailable: local CSV source changed during profiling; retry import")
+    row_count = Int(profile_evidence["rowCount"])
+    source_options = data_source_options(dataset_id, source_uri, target_zone, read_mode, health)
+    for option in source_options
+        String(option["mode"]) in ("arrow_ipc", "parquet", "duckdb") || continue
+        option["status"] = "unavailable"
+        option["semantics"] = "No derived artifact or query view was created by this CSV profile."
+    end
 
     profile = Dict{String,Any}(
         "datasetId" => dataset_id,
@@ -2695,30 +2709,44 @@ function data_import_profile_response!(state::GatewayState, body::AbstractDict)
         "sourceFormat" => source_format,
         "targetZone" => target_zone,
         "artifactRef" => artifact_ref,
-        "artifactFormats" => health["dataEstateArtifactFormats"],
+        "artifactFormats" => String[],
         "checksumSha256" => checksum,
         "rowCount" => row_count,
-        "schemaSummary" => get(fixture, "schemaSummary", get(dataset_card, "schemaSummary", Any[])),
-        "profileSummary" => get(fixture, "profileSummary", Any[]),
+        "schemaSummary" => profile_evidence["schemaSummary"],
+        "profileSummary" => profile_evidence["profileSummary"],
+        "profileScope" => profile_evidence["profileScope"],
         "manifestReady" => Bool(health["dataEstateManifestReady"]),
         "manifestChecksums" => health["dataEstateManifestChecksums"],
         "duckdbStatus" => health["dataEstateDuckdbStatus"],
         "importedAt" => imported_at,
         "localOnly" => true,
         "activeReadMode" => read_mode,
-        "sourceOptions" => data_source_options(dataset_id, source_uri, target_zone, read_mode, health),
-        "lineageArtifacts" => data_lineage_artifacts(dataset_id, source_uri, target_zone, checksum, row_count, health),
-        "qualityChecks" => get(fixture, "qualityChecks", Any[]),
-        "workflowReadiness" => get(fixture, "workflowReadiness", Dict{String,Any}()),
-        "quickPlots" => get(fixture, "quickPlots", Any[]),
-        "previewRows" => get(fixture, "previewRows", Any[]),
-        "charts" => data_profile_chart_specs(dataset_id, fixture, source_uri),
+        "sourceOptions" => source_options,
+        "lineageArtifacts" => [Dict("stage" => "raw", "artifactRef" => source_uri, "format" => "csv", "checksumSha256" => checksum, "rowCount" => row_count)],
+        "qualityChecks" => profile_evidence["qualityChecks"],
+        "workflowReadiness" => profile_evidence["workflowReadiness"],
+        "quickPlots" => profile_evidence["quickPlots"],
+        "previewRows" => profile_evidence["previewRows"],
+        "charts" => data_profile_chart_specs(dataset_id, profile_evidence, source_uri),
     )
     response = Dict{String,Any}("status" => "profiled", "profile" => profile)
     if haskey(body, "projectId")
         project_id = String(body["projectId"])
         haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
-        project = state.data_science_projects[project_id]
+        project = deepcopy(state.data_science_projects[project_id])
+        profile_dataset_role(project, dataset_id, body) in ("train", "validation", "test", "evaluation", "output", "reference") ||
+            error("local data import dataset role invalid")
+        if !managed_source
+            # Verified copies are shared by checksum. Retain them on later job/storage
+            # failure; never roll back by deleting a copy another dataset may use.
+            home = local_appliance_home()
+            profile["artifactRef"] = JuliaFlowDataScienceProjectLocalSources.materialize_profile_source!(
+                source_path, checksum; data_root = local_data_estate_root(home), zone = target_zone,
+                max_bytes = JuliaFlowDataScienceProjectProfiling.MAX_PROFILE_BYTES)
+            profile["artifactFormats"] = ["csv"]
+            push!(profile["lineageArtifacts"], Dict("stage" => "managed_source", "artifactRef" => profile["artifactRef"],
+                "format" => "csv", "checksumSha256" => checksum, "rowCount" => row_count))
+        end
         upsert_project_dataset_profile!(state, project, profile, body)
         state.data_science_projects[project.project_id] = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
         response["project"] = JuliaFlowGatewayRepository.data_science_project_payload(state.data_science_projects[project.project_id])

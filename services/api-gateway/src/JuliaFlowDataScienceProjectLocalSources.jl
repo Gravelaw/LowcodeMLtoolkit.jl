@@ -8,6 +8,7 @@ export local_data_import_audit_source_details,
     local_data_import_sample,
     local_artifact_checksum,
     write_local_artifact!,
+    materialize_profile_source!,
     local_data_ref_path_for_write,
     confined_data_estate_path,
     path_within_root,
@@ -157,6 +158,42 @@ function write_local_artifact!(path::AbstractString, content::AbstractString)
         "sizeBytes" => filesize(path),
         "checksumMode" => "streaming_file_sha256",
     )
+end
+
+"""
+    materialize_profile_source!(source_path, checksum; data_root, zone, max_bytes)
+
+Copy bounded, checksum-verified source bytes to a confined content-addressed CSV.
+Reuse an existing matching copy, reject conflicts, and return its managed reference.
+The original source is never changed; temporary output is removed on failure.
+"""
+function materialize_profile_source!(source_path::AbstractString, checksum::AbstractString;
+    data_root::AbstractString, zone::AbstractString, max_bytes::Integer)
+    occursin(r"^[0-9a-f]{64}$", checksum) || error("local data import invalid source checksum")
+    occursin(r"^[A-Za-z0-9_-]+$", zone) || error("local data import invalid target zone")
+    content = open(source_path, "r") do io
+        read(io, max_bytes + 1)
+    end
+    length(content) <= max_bytes || error("local data import CSV profile supports files up to 8 MiB")
+    bytes2hex(sha256(content)) == checksum || error("source evidence unavailable: source changed before managed copy")
+    relative = "$(zone)/imports/$(checksum).csv"
+    destination = confined_data_estate_path(data_root, relative)
+    if isfile(destination)
+        local_artifact_checksum(destination) == checksum || error("source evidence unavailable: managed CSV checksum conflict")
+        return "local://data/$(relative)"
+    end
+    mkpath(dirname(destination))
+    temporary, io = mktemp(dirname(destination))
+    try
+        write(io, content)
+        close(io)
+        confined_data_estate_path(data_root, relative) == destination || error("local data import destination changed")
+        mv(temporary, destination; force = false)
+    finally
+        isopen(io) && close(io)
+        isfile(temporary) && rm(temporary)
+    end
+    return "local://data/$(relative)"
 end
 
 function validate_local_data_import_sample!(path::AbstractString)
