@@ -16,7 +16,8 @@ function project_body()
             "sourceUri" => "local://data/raw/evidence.csv", "localOnly" => true)],
         "splitPlans" => [Dict("splitPlanId" => "server-split", "datasetId" => "server-data",
             "strategy" => "random", "trainFraction" => 0.6, "validationFraction" => 0.2,
-            "testFraction" => 0.2, "seed" => 5, "locked" => true)])
+            "testFraction" => 0.2, "seed" => 5, "locked" => true,
+            "createdAt" => "2026-09-20T00:00:00Z")])
 end
 
 function forged_report()

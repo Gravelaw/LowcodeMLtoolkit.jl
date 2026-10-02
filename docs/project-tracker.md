@@ -127,3 +127,7 @@ PR #39 remains the explicitly retained unmerged fallback until PR #40 merges. No
 ## Historical tracker
 
 [The pre-cleanup tracker](archive/2026-09-20/project-tracker.md) retains prior scope, evidence, and decisions. [The archive index](archive/2026-09-20/README.md) binds those bytes to their source commit and checksums. Current acceptance is owned by Linear and the current control set.
+
+## October 2 remediation fixture validation follow-up
+
+The first mapped warm push at f009ff0 failed frontend fixture assertions and new gateway policy setup. Main gateway 1089/1089, repository 100/100 and worker 216/216 passed; new policy tests had 41 passes, 11 failures and 2 errors after three create fixtures omitted required splitPlans.createdAt. Corrected the schema-complete policy and server-owned-evidence fixtures and added creation diagnostics, preserving rejection and legitimate-control assertions. No product guard changed. Cleanup and evidence finalization passed; all 33 retained hashes verified. AKS-69 records the defect and regression repair scope; issue remains In Progress. Focused new tests, final independent patch review and a complete exact-candidate release gate remain pending. No promotion or publication.

@@ -204,3 +204,7 @@ Forced removal of the 19 read-only Git temporary objects was rejected by automat
 ## Earlier checkpoints
 
 [Full pre-cleanup checkpoint history](archive/2026-09-20/checkpoint-log.md) is preserved byte-for-byte with [source and hash manifest](archive/2026-09-20/manifest.json). Historical success belongs to its recorded commit/platform and is not evidence for the current candidate.
+
+## October 2 remediation fixture validation follow-up
+
+The first mapped warm push at f009ff0 failed frontend fixture assertions and new gateway policy setup. Main gateway 1089/1089, repository 100/100 and worker 216/216 passed; new policy tests had 41 passes, 11 failures and 2 errors after three create fixtures omitted required splitPlans.createdAt. Corrected the schema-complete policy and server-owned-evidence fixtures and added creation diagnostics, preserving rejection and legitimate-control assertions. No product guard changed. Cleanup and evidence finalization passed; all 33 retained hashes verified. AKS-69 records the defect and regression repair scope; issue remains In Progress. Focused new tests, final independent patch review and a complete exact-candidate release gate remain pending. No promotion or publication.

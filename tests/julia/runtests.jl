@@ -7022,9 +7022,12 @@ end
                 "projectId" => id, "name" => id,
                 "datasets" => [Dict("datasetId" => dataset, "name" => dataset, "role" => "train", "sourceUri" => "local://data/raw/policy-dataset.csv", "localOnly" => true)],
                 "splitPlans" => [Dict("splitPlanId" => "split-$(id)", "datasetId" => dataset, "strategy" => "random", "seed" => 3,
-                    "trainFraction" => 0.5, "validationFraction" => 0.25, "testFraction" => 0.25, "locked" => true)])
+                    "trainFraction" => 0.5, "validationFraction" => 0.25, "testFraction" => 0.25, "locked" => true,
+                    "createdAt" => "2026-10-02T00:00:00Z")])
             for (id, dataset) in [("policy-denied", "policy-dataset"), ("policy-allowed", "allowed-dataset"), ("policy-foreign", "foreign-dataset")]
-                @test request("POST", "/api/v1/data-science-projects", project_body(id, dataset)).status == 201
+                created = request("POST", "/api/v1/data-science-projects", project_body(id, dataset))
+                @test created.status == 201
+                created.status == 201 || error("policy fixture project creation failed: $(String(created.body))")
             end
             function save_project_policies(deny_write)
                 repo.save_auth_policy!(state.repository, repo.GatewayAuthPolicy(resource_policies = [
