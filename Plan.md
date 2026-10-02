@@ -1,5 +1,10 @@
 # JuliaFlow current development plan
 
+## 2026-09-30 - local CI/CD continuation (AKS-69)
+
+The user selected local CI with hosted quality jobs skipped while local mode is active, superseding the earlier unchanged-workflow boundary. A tracked execution policy selects local or hosted execution; mapped local quality commands remain mandatory. Local CD means a versioned source-and-built-web package promoted only after a complete clean same-candidate release-candidate run, checksummed evidence and successful cleanup. It is not an offline installer, native Windows/Docker certification, external deployment or permission to merge. No product or hardware gate is waived. Original planning edits and historical evidence are preserved. Full execution results remain pending; see [local CI](docs/local-ci.md).
+
+
 ## 2026-09-25 — bounded M1 review and M2 hardware candidate
 
 AKS-41/56 received a scoped Codex code review at backend SHA `e436a7c` with no critical/high finding. Its written clearance is technical and bounded; no GitHub review was submitted. AKS-69 local runner tests and parity passed, and a mapped WSL web-only PR job passed at candidate `890d820` / base `a0bfc232`. Automatically triggered PR #57 CI at that head passed web, Julia and Debian `verify:release`, including five live-backend browser tests; the conditional physical-CUDA smoke skipped. Complete local cold/warm, push and release-candidate profiles remain open. Hosted Debian diagnosis remains paused. See [M1 diagnosis](docs/verification-local-ci-aks69.md).

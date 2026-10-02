@@ -1,5 +1,10 @@
 # JuliaFlow risk register
 
+## 2026-09-30 - local CI/CD continuation (AKS-69)
+
+The user selected local CI with hosted quality jobs skipped while local mode is active, superseding the earlier unchanged-workflow boundary. A tracked execution policy selects local or hosted execution; mapped local quality commands remain mandatory. Local CD means a versioned source-and-built-web package promoted only after a complete clean same-candidate release-candidate run, checksummed evidence and successful cleanup. It is not an offline installer, native Windows/Docker certification, external deployment or permission to merge. No product or hardware gate is waived. Original planning edits and historical evidence are preserved. Full execution results remain pending; see [local CI](local-ci.md).
+
+
 ## 2026-09-25 — M1/M2 active risks
 
 AKS-69 remains exposed to Windows host interruption and unfinalized full-profile summaries; a partial WSL web pass does not close local-profile verification. Automatic PR #57 CI at `890d820` passed its Debian release job, but physical CUDA skipped and no review/merge or native Windows/Docker claim follows. AKS-58 removes the known registry-to-success misreport. A selected native Windows RTX 5080 completed a bounded allocation, operation, synchronization and readback with matching device identity after a dynamic-load world-age repair, while CUDA.jl still warns of a 13.2/13.4 precompile/runtime mismatch. The opt-in full worker test still fails GPUCompiler kernel compilation in the larger Julia 1.13 process, so complete worker GPU execution is unproven. WSL/Debian parity, pressure cases and broad workflow acceleration remain unproven; exact-head GitHub jobs could not start because of the account payment/spending-limit condition. Required-GPU rejection and CPU-only project evidence remain the safe behavior. [Current hardware record](verification-m2-hardware.md).

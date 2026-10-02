@@ -1,8 +1,8 @@
 {
   "version": 1,
   "workflows": {
-    ".github/workflows/ci.yml": "a6c8939fcc864bc3fd0f16fab7184bc78d85144ea53d90de8f97342ee6eb2fe8",
-    ".github/workflows/release-candidate.yml": "14f30400eb45e9c43ed6ad41f5c991f64aa68023d47510c1306eb397b38295a8"
+    ".github/workflows/ci.yml": "35f12ec4d0bb542e2d158f96fe7f691508ff2b95c3e55a9700c6ccf5b69d9cce",
+    ".github/workflows/release-candidate.yml": "f8d4936a252d6ee7badd956f0f592e2bc7fbcffd1174329d09eb06d9da92fdd3"
   },
   "profiles": {
     "pr": [
@@ -25,6 +25,7 @@
       "timeoutMinutes": 360,
       "commands": [
         "npm install",
+        "npm run test:local-ci",
         "npm run validate:contracts",
         "npm run build",
         "npm run test",

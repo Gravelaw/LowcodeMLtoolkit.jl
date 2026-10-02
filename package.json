@@ -56,7 +56,9 @@
     "ci:local": "node scripts/ci/local.mjs",
     "ci:local:wsl": "node scripts/ci/wsl.mjs",
     "ci:local:parity": "node scripts/ci/parity.mjs",
-    "test:local-ci": "node --test tests/ci/*.test.mjs"
+    "test:local-ci": "node --test tests/ci/*.test.mjs",
+    "cd:local": "node scripts/ci/delivery.mjs",
+    "ci:hosted-policy": "node scripts/ci/hosted-policy.mjs"
   },
   "dependencies": {
     "smol-toml": "^1.7.1"
