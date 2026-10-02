@@ -169,9 +169,9 @@ function require_evaluation_report_artifact(report::AbstractDict, mode::Abstract
     return stored
 end
 
-"""Bind a verified model payload to the server-produced final evaluation and frozen source."""
+"""Bind a verified model payload to the final evaluation using the dataset source reader's resolver."""
 function require_evaluation_model_binding(project, report::AbstractDict, payload::AbstractDict,
-    model_artifact::AbstractDict, mode::AbstractString, action::AbstractString, resolve_path::Function)
+    model_artifact::AbstractDict, mode::AbstractString, action::AbstractString, resolve_source_path::Function)
     strict_evidence_mode(mode) || return nothing
     validation = get(report, "validationEvidence", Dict{String,Any}())
     evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
@@ -192,8 +192,8 @@ function require_evaluation_model_binding(project, report::AbstractDict, payload
     length(dataset) == 1 || unavailable(action)
     source_ref = get(payload, "sourceRef", "")
     source_ref == get(only(dataset), "sourceUri", "") == get(evidence, "sourceRef", "") || unavailable(action)
-    source_path = resolve_path(source_ref)
-    isfile(source_path) || unavailable(action)
+    source_path = resolve_source_path(source_ref)
+    source_path !== nothing && isfile(source_path) || unavailable(action)
     source_checksum = read_result(() -> open(io -> bytes2hex(sha256(io)), source_path, "r"), mode, action)
     source_checksum == get(payload, "sourceChecksumSha256", "") || unavailable(action)
     return report

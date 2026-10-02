@@ -3523,7 +3523,7 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
             model_payload = JuliaFlowDataScienceProjectEvidence.require_model_artifact(model_artifact, juliaflow_runtime_mode(), "model lifecycle", local_data_ref_path_for_write)
             registry_report = JuliaFlowDataScienceProjectEvidence.context_evaluation(project, get(registry, "validationEvidence", Dict{String,Any}()), juliaflow_runtime_mode(), "model lifecycle"; required = true, resolve_path = local_data_ref_path_for_write)
             JuliaFlowDataScienceProjectEvidence.require_evaluation_model_binding(project, registry_report, model_payload,
-                model_artifact, juliaflow_runtime_mode(), "model lifecycle", local_data_ref_path_for_write)
+                model_artifact, juliaflow_runtime_mode(), "model lifecycle", resolve_local_data_ref_path)
             if String(get(record, "lifecycleAction", "")) != "mark_rolled_back"
                 get(registry_report, "evaluationReportId", "") == get(record, "evaluationReportId", "") || JuliaFlowDataScienceProjectEvidence.unavailable("model lifecycle")
             end
@@ -3849,7 +3849,7 @@ function strict_model_execution_evidence(state::GatewayState, execution::Gateway
         evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
         get(evidence, "targetColumn", "") == get(artifact, "targetColumn", "") || JuliaFlowDataScienceProjectEvidence.unavailable(action)
         JuliaFlowDataScienceProjectEvidence.require_evaluation_model_binding(project, report, artifact,
-            get(execution.metadata, "ml_training_artifact_evidence", Dict{String,Any}()), mode, action, local_data_ref_path_for_write)
+            get(execution.metadata, "ml_training_artifact_evidence", Dict{String,Any}()), mode, action, resolve_local_data_ref_path)
     end
     return artifact, report
 end
@@ -6218,7 +6218,7 @@ function require_evaluation_consumer_evidence(project::DataScienceProjectRecord,
         artifact = Dict("artifactRef" => get(evidence, "modelArtifactRef", ""),
             "checksumSha256" => get(evidence, "modelArtifactChecksumSha256", ""))
         payload = JuliaFlowDataScienceProjectEvidence.require_model_artifact(artifact, mode, action, local_data_ref_path_for_write)
-        JuliaFlowDataScienceProjectEvidence.require_evaluation_model_binding(project, report, payload, artifact, mode, action, local_data_ref_path_for_write)
+        JuliaFlowDataScienceProjectEvidence.require_evaluation_model_binding(project, report, payload, artifact, mode, action, resolve_local_data_ref_path)
     end
     return report
 end
@@ -6623,6 +6623,11 @@ function classify_gateway_error(err)
     if occursin("source evidence unavailable", message)
         return 409, message
     elseif occursin("execution metadata ", message) && occursin(" is server owned", message)
+        return 400, message
+    elseif occursin("data science project ", message) && (
+        occursin(" is server-owned execution evidence; use the project action", message) ||
+        occursin("executed training plans are immutable; create a new plan id", message)
+    )
         return 400, message
     elseif occursin("split membership ", message)
         return 400, message

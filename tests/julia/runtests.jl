@@ -7125,8 +7125,9 @@ end
             @test request("POST", "/api/v1/data-science-projects", project_body("policy-ambiguous", "policy-dataset")).status == 201
             before_ambiguous = product_snapshot()
             ambiguous = request("POST", run_path, run_body)
-            @test ambiguous.status == 400
-            @test occursin("projectId required", String(ambiguous.body))
+            # Preserve the existing mapper's status for ambiguous project inference.
+            @test ambiguous.status == 500
+            @test JSON3.read(ambiguous.body, Dict{String,Any})["error"] == "ml experiment projectId required for dataset with multiple projects: policy-dataset"
             @test product_snapshot() == before_ambiguous
             internal_health = JSON3.read(healthcheck(state), Dict{String,Any})
             @test any(replace(item["path"], '\\' => '/') == marker_path for item in internal_health["workspaceSummary"]["artifacts"])

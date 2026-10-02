@@ -152,11 +152,11 @@ end
                 model = JSON3.read(String(registered.body), Dict{String,Any})["model"]
                 artifact = JuliaFlowApiGateway.JuliaFlowDataScienceProjectDeploy.deploy_model_artifact(model)
                 payload = Evidence.require_model_artifact(artifact, mode, "approval", JuliaFlowApiGateway.local_data_ref_path_for_write)
-                @test Evidence.require_evaluation_model_binding(project, report, payload, artifact, mode, "approval", JuliaFlowApiGateway.local_data_ref_path_for_write) == report
+                @test Evidence.require_evaluation_model_binding(project, report, payload, artifact, mode, "approval", JuliaFlowApiGateway.resolve_local_data_ref_path) == report
                 for (key, value) in (("datasetId", "other"), ("splitPlanId", "other"), ("sourceChecksumSha256", repeat("a", 64)))
-                    @test_throws "source evidence unavailable" Evidence.require_evaluation_model_binding(project, report, merge(payload, Dict(key => value)), artifact, mode, "approval", JuliaFlowApiGateway.local_data_ref_path_for_write)
+                    @test_throws "source evidence unavailable" Evidence.require_evaluation_model_binding(project, report, merge(payload, Dict(key => value)), artifact, mode, "approval", JuliaFlowApiGateway.resolve_local_data_ref_path)
                 end
-                @test_throws "source evidence unavailable" Evidence.require_evaluation_model_binding(project, report, payload, merge(artifact, Dict("artifactRef" => "local://models/another/model.json")), mode, "approval", JuliaFlowApiGateway.local_data_ref_path_for_write)
+                @test_throws "source evidence unavailable" Evidence.require_evaluation_model_binding(project, report, payload, merge(artifact, Dict("artifactRef" => "local://models/another/model.json")), mode, "approval", JuliaFlowApiGateway.resolve_local_data_ref_path)
                 @test send("POST", path * "/models/lifecycle", Dict("modelId" => "server-model", "action" => "approve_model")).status == 201
                 before = snapshot()
                 before_files = files()
@@ -169,7 +169,7 @@ end
                 @test files() == before_files
                 @test send("PUT", path, before).status == 200
                 write(source_path, "x,y\n1,999\n")
-                @test_throws "source evidence unavailable" Evidence.require_evaluation_model_binding(project, report, payload, artifact, mode, "approval", JuliaFlowApiGateway.local_data_ref_path_for_write)
+                @test_throws "source evidence unavailable" Evidence.require_evaluation_model_binding(project, report, payload, artifact, mode, "approval", JuliaFlowApiGateway.resolve_local_data_ref_path)
             end
         end
     end
