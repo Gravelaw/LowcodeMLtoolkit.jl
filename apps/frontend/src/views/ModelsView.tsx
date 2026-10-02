@@ -15,7 +15,7 @@ function latestLifecycleJob(data: AppData, modelId?: string) {
   return [...data.dataScienceProject.projectJobs]
     .filter((job) => job.jobType === "model_lifecycle")
     .filter((job) => !modelId || !job.sourceRecordId || job.sourceRecordId === modelId)
-    .sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
+    .sort((left, right) => (right.startedAt ?? "").localeCompare(left.startedAt ?? ""))[0];
 }
 
 export function ModelsView({

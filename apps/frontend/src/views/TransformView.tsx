@@ -70,11 +70,11 @@ function afterPreviewRows(rows: Array<Record<string, unknown>>) {
 
 function latestProjectTransformEvidence(data: AppData) {
   const record = [...data.dataScienceProject.transformFitApplyRecords]
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+    .sort((left, right) => (right.createdAt ?? "").localeCompare(left.createdAt ?? ""))[0];
   const job = [...data.dataScienceProject.projectJobs]
     .filter((item) => item.jobType === "transform_fit_apply")
     .filter((item) => !record || !item.sourceRecordId || item.sourceRecordId === record.transformRunId)
-    .sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
+    .sort((left, right) => (right.startedAt ?? "").localeCompare(left.startedAt ?? ""))[0];
   return { record, job };
 }
 
@@ -314,10 +314,10 @@ export function TransformView({
       <Card title="Project Transform Evidence" className="right-panel">
         {projectEvidence.record ? (
           <div className="key-values wrap-values">
-            <span>Transform Run</span><strong>{projectEvidence.record.transformRunId}</strong>
-            <span>Fit Split</span><strong>{projectEvidence.record.fitSplit}</strong>
-            <span>Apply Splits</span><strong>{projectEvidence.record.applySplits.join(", ")}</strong>
-            <span>Leakage Checks</span><strong>{projectEvidence.record.leakageChecks.map((check) => check.status).join(", ")}</strong>
+            <span>Transform Run</span><strong>{projectEvidence.record.transformRunId ?? "unavailable"}</strong>
+            <span>Fit Split</span><strong>{projectEvidence.record.fitSplit ?? "unavailable"}</strong>
+            <span>Apply Splits</span><strong>{projectEvidence.record.applySplits?.join(", ") || "unavailable"}</strong>
+            <span>Leakage Checks</span><strong>{projectEvidence.record.leakageChecks?.map((check) => check.status ?? "unavailable").join(", ") || "unavailable"}</strong>
             <span>Job</span><strong>{projectEvidence.job?.jobId ?? "No project job linked"}</strong>
             <span>Execution</span><strong>{projectEvidence.job?.executionEvidence?.executionId ?? "pending"}</strong>
           </div>

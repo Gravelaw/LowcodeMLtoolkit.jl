@@ -2010,6 +2010,34 @@ function find_execution_index(state::GatewayState, execution_id::AbstractString)
     error("execution not found: $(execution_id)")
 end
 
+const HTTP_RESERVED_EXECUTION_FIELDS = Set(lowercase(replace(key, "_" => "")) for key in (
+    "execution_id", "workflow_id", "workflow_version", "checkpoint_tag", "status", "mode", "plan", "stages",
+    "node_count", "connection_count", "created_at", "updated_at", "status_history", "queued_at", "started_at", "finished_at",
+    "explainability_evidence", "ml_validation_context", "ml_training_artifact_evidence", "ml_training_execution_evidence",
+    "ml_training_metrics", "model_registry_record", "deploy_package_records", "data_science_project_job", "artifact_refs",
+    "data_science_project_worker_state", "worker_dispatch", "resource_evidence", "executor_state",
+))
+
+"Validate HTTP metadata before transitions; producer echoes are checked and omitted from the merge."
+function admit_execution_status_metadata(state::GatewayState, execution_id::AbstractString, metadata::AbstractDict)
+    execution = state.executions[find_execution_index(state, execution_id)]
+    current = (execution_record(execution), execution_payload(execution))
+    admitted = Dict{String,Any}()
+    for (key, value) in pairs(metadata)
+        field = String(key)
+        normalized = lowercase(replace(field, "_" => ""))
+        if normalized in HTTP_RESERVED_EXECUTION_FIELDS
+            unchanged = any(any(lowercase(replace(String(existing_key), "_" => "")) == normalized &&
+                isequal(json_compatible_value(existing_value), json_compatible_value(value))
+                for (existing_key, existing_value) in pairs(record)) for record in current)
+            unchanged || error("execution metadata $(field) is server owned")
+            continue
+        end
+        admitted[field] = value
+    end
+    return admitted
+end
+
 function transition_execution_response!(
     state::GatewayState,
     execution_id::AbstractString;
@@ -2658,8 +2686,13 @@ function local_data_import_audit_details(body::AbstractDict; outcome::AbstractSt
     return details
 end
 
-function data_import_profile_response!(state::GatewayState, body::AbstractDict)
+function data_import_profile_response!(state::GatewayState, body::AbstractDict; auth_context = nothing)
     body = JuliaFlowDataScienceProjectProfiling.normalize_profile_request(body)
+    if haskey(body, "projectId")
+        project_id = String(body["projectId"])
+        haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
+        auth_context === nothing || enforce_resource_policy!(state, auth_context, "workflow:write", "data_science_project", project_id)
+    end
     ensure_cpu_project_job_allowed(state)
     health = JSON3.read(healthcheck(state), Dict{String,Any})
     evidence = gateway_explainability_evidence(state)
@@ -3482,13 +3515,15 @@ function model_lifecycle_action_response!(state::GatewayState, project_id::Abstr
     )
     model_id = String(record["modelId"])
     if String(get(record, "lifecycleAction", "")) in ("approve_model", "mark_rollback_ready", "mark_rolled_back", "request_retraining")
-        JuliaFlowDataScienceProjectEvidence.context_evaluation(project, record, juliaflow_runtime_mode(), "model lifecycle"; required = true)
+        JuliaFlowDataScienceProjectEvidence.context_evaluation(project, record, juliaflow_runtime_mode(), "model lifecycle"; required = true, resolve_path = local_data_ref_path_for_write)
         if !fixture_substitution_allowed(juliaflow_runtime_mode())
             target_model_id = String(get(record, "lifecycleAction", "")) == "mark_rolled_back" ? String(get(record, "rollbackModelId", "")) : model_id
             registry = project_model_registry_record_by_model_id(project, target_model_id)
             model_artifact = JuliaFlowDataScienceProjectDeploy.deploy_model_artifact(registry)
-            JuliaFlowDataScienceProjectEvidence.require_model_artifact(model_artifact, juliaflow_runtime_mode(), "model lifecycle", local_data_ref_path_for_write)
-            registry_report = JuliaFlowDataScienceProjectEvidence.context_evaluation(project, get(registry, "validationEvidence", Dict{String,Any}()), juliaflow_runtime_mode(), "model lifecycle"; required = true)
+            model_payload = JuliaFlowDataScienceProjectEvidence.require_model_artifact(model_artifact, juliaflow_runtime_mode(), "model lifecycle", local_data_ref_path_for_write)
+            registry_report = JuliaFlowDataScienceProjectEvidence.context_evaluation(project, get(registry, "validationEvidence", Dict{String,Any}()), juliaflow_runtime_mode(), "model lifecycle"; required = true, resolve_path = local_data_ref_path_for_write)
+            JuliaFlowDataScienceProjectEvidence.require_evaluation_model_binding(project, registry_report, model_payload,
+                model_artifact, juliaflow_runtime_mode(), "model lifecycle", local_data_ref_path_for_write)
             if String(get(record, "lifecycleAction", "")) != "mark_rolled_back"
                 get(registry_report, "evaluationReportId", "") == get(record, "evaluationReportId", "") || JuliaFlowDataScienceProjectEvidence.unavailable("model lifecycle")
             end
@@ -3626,7 +3661,7 @@ function ml_experiment_payload(state::GatewayState, execution::GatewayExecution;
     return json_compatible_value(payload)
 end
 
-function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
+function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict; auth_context = nothing)
     ensure_cpu_project_job_allowed(state)
     flow_variable_values = haskey(body, "flowVariables") ? normalized_string_dict(body["flowVariables"]) : Dict{String,Any}()
     execution_mode_override = haskey(body, "executionMode") ? String(body["executionMode"]) : nothing
@@ -3634,6 +3669,9 @@ function ml_experiment_run_response!(state::GatewayState, workflow_id::AbstractS
     dataset_card = evidence["datasetCard"]
     dataset_id = haskey(body, "datasetId") ? String(body["datasetId"]) : String(dataset_card["datasetId"])
     validation_context = validate_ml_experiment_project_context(state, body, dataset_id)
+    if auth_context !== nothing && haskey(validation_context, "projectId")
+        enforce_resource_policy!(state, auth_context, "workflow:write", "data_science_project", String(validation_context["projectId"]))
+    end
     if !fixture_substitution_allowed(juliaflow_runtime_mode())
         model_card = evidence["modelCard"]
         preview = Dict{String,Any}("datasetId" => dataset_id, "modelId" => String(model_card["modelId"]),
@@ -3804,19 +3842,41 @@ function strict_model_execution_evidence(state::GatewayState, execution::Gateway
     project === nothing && JuliaFlowDataScienceProjectEvidence.unavailable(action)
     get(artifact, "projectId", "") == project.project_id || JuliaFlowDataScienceProjectEvidence.unavailable(action)
     get(artifact, "splitPlanId", "") == get(context, "splitPlanId", "") || JuliaFlowDataScienceProjectEvidence.unavailable(action)
-    report = JuliaFlowDataScienceProjectEvidence.context_evaluation(project, context, mode, action; required = evaluation_required)
+    report = JuliaFlowDataScienceProjectEvidence.context_evaluation(project, context, mode, action; required = evaluation_required, resolve_path = local_data_ref_path_for_write)
     if report !== nothing
         validation = get(report, "validationEvidence", Dict{String,Any}())
         get(validation, "datasetId", "") == get(artifact, "datasetId", "") || JuliaFlowDataScienceProjectEvidence.unavailable(action)
         evidence = get(validation, "evaluationDataEvidence", Dict{String,Any}())
         get(evidence, "targetColumn", "") == get(artifact, "targetColumn", "") || JuliaFlowDataScienceProjectEvidence.unavailable(action)
+        JuliaFlowDataScienceProjectEvidence.require_evaluation_model_binding(project, report, artifact,
+            get(execution.metadata, "ml_training_artifact_evidence", Dict{String,Any}()), mode, action, local_data_ref_path_for_write)
     end
     return artifact, report
 end
 
-function model_register_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
+function enforce_model_registry_destination_policy!(state::GatewayState, auth_context, record::AbstractDict)
+    auth_context === nothing && return nothing
+    context = get(record, "validationEvidence", Dict{String,Any}())
+    if haskey(context, "projectId")
+        enforce_resource_policy!(state, auth_context, "workflow:write", "data_science_project", String(context["projectId"]))
+    end
+    # Model IDs are global upsert keys. Authorize the record being replaced too.
+    for existing in JuliaFlowGatewayRepository.load_model_registry_records(state.repository)
+        get(existing, "modelId", "") == get(record, "modelId", "") || continue
+        existing_context = get(existing, "validationEvidence", Dict{String,Any}())
+        haskey(existing_context, "projectId") || continue
+        enforce_resource_policy!(state, auth_context, "workflow:write", "data_science_project", String(existing_context["projectId"]))
+    end
+    return nothing
+end
+
+function model_register_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict; auth_context = nothing)
     execution = latest_model_execution(state, workflow_id)
     execution === nothing && error("model evidence not found for workflow: $(workflow_id)")
+    validation_context = get(execution.metadata, "ml_validation_context", Dict{String,Any}())
+    if auth_context !== nothing && haskey(validation_context, "projectId")
+        enforce_resource_policy!(state, auth_context, "workflow:write", "data_science_project", String(validation_context["projectId"]))
+    end
     artifact, report = strict_model_execution_evidence(state, execution, "model registration")
     if !fixture_substitution_allowed(juliaflow_runtime_mode())
         String(get(body, "status", "registered")) == "registered" || error("model registration source evidence unavailable for direct status promotion; use lifecycle review")
@@ -3836,6 +3896,7 @@ function model_register_response!(state::GatewayState, workflow_id::AbstractStri
         record["validationEvidence"]["datasetId"] = artifact["datasetId"]
         report === nothing || (record["validationEvidence"]["evaluationReportId"] = report["evaluationReportId"])
     end
+    enforce_model_registry_destination_policy!(state, auth_context, record)
     execution.metadata["model_registry_record"] = record
     upsert_project_model_registry!(state, record)
     upsert_project_model_lifecycle!(
@@ -3950,12 +4011,15 @@ function record_deploy_package_project_job!(
     return execution_evidence
 end
 
-function deploy_package_payload!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
+function deploy_package_payload!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict; auth_context = nothing)
     ensure_cpu_project_job_allowed(state)
     execution = latest_model_execution(state, workflow_id)
     execution === nothing && error("model evidence not found for workflow: $(workflow_id)")
-    strict_model_execution_evidence(state, execution, "deploy package"; evaluation_required = true)
     validation_context = model_validation_context(execution, "deploy package")
+    if auth_context !== nothing && haskey(validation_context, "projectId")
+        enforce_resource_policy!(state, auth_context, "workflow:write", "data_science_project", String(validation_context["projectId"]))
+    end
+    strict_model_execution_evidence(state, execution, "deploy package"; evaluation_required = true)
     model_record = haskey(execution.metadata, "model_registry_record") ?
         Dict{String,Any}(String(key) => value for (key, value) in pairs(execution.metadata["model_registry_record"])) :
         model_registry_payload(state, execution)
@@ -3963,6 +4027,7 @@ function deploy_package_payload!(state::GatewayState, workflow_id::AbstractStrin
     if haskey(body, "modelId") && String(body["modelId"]) != String(model_record["modelId"])
         model_record = model_registry_payload(state, execution; request_body = Dict{String,Any}("modelId" => String(body["modelId"])))
     end
+    enforce_model_registry_destination_policy!(state, auth_context, model_record)
 
     endpoint_config = JuliaFlowDataScienceProjectDeploy.deploy_endpoint_config(body)
     endpoint_url = String(endpoint_config["endpointUrl"])
@@ -4025,8 +4090,8 @@ function deploy_package_payload!(state::GatewayState, workflow_id::AbstractStrin
     return package_record
 end
 
-function deploy_package_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict)
-    package_record = deploy_package_payload!(state, workflow_id, body)
+function deploy_package_response!(state::GatewayState, workflow_id::AbstractString, body::AbstractDict; auth_context = nothing)
+    package_record = deploy_package_payload!(state, workflow_id, body; auth_context = auth_context)
     return JSON3.write(Dict("status" => "packaged", "package" => package_record))
 end
 
@@ -5093,8 +5158,19 @@ function materialize_data_science_project(
     )
 end
 
-function list_data_science_projects_response(state::GatewayState)
-    items = [JuliaFlowGatewayRepository.data_science_project_payload(project) for project in values(state.data_science_projects)]
+function list_data_science_projects_response(state::GatewayState; auth_context = nothing)
+    items = Dict{String,Any}[]
+    for project in values(state.data_science_projects)
+        if auth_context !== nothing
+            try
+                enforce_resource_policy!(state, auth_context, "workflow:read", "data_science_project", project.project_id)
+            catch err
+                err isa ErrorException && err.msg == "permission denied: workflow:read" || rethrow()
+                continue
+            end
+        end
+        push!(items, JuliaFlowGatewayRepository.data_science_project_payload(project))
+    end
     sort!(items; by = item -> String(item["projectId"]))
     return JSON3.write(Dict("items" => items))
 end
@@ -6130,6 +6206,23 @@ function persist_prediction_export_artifact!(
     return artifact_refs
 end
 
+"Require the selected report's producer and original trained model before consuming its scoring evidence."
+function require_evaluation_consumer_evidence(project::DataScienceProjectRecord, report::AbstractDict, action::AbstractString)
+    mode = juliaflow_runtime_mode()
+    validated = JuliaFlowDataScienceProjectEvidence.context_evaluation(project,
+        Dict("evaluationReportId" => get(report, "evaluationReportId", "")), mode, action; required = true, resolve_path = local_data_ref_path_for_write)
+    fixture_substitution_allowed(mode) && return report
+    isequal(json_compatible_value(report), json_compatible_value(validated)) || JuliaFlowDataScienceProjectEvidence.unavailable(action)
+    evidence = get(get(report, "validationEvidence", Dict{String,Any}()), "evaluationDataEvidence", Dict{String,Any}())
+    if get(evidence, "executionMode", "") in ("local_csv_trained_artifact", "mlj_package_backed_final_evaluation")
+        artifact = Dict("artifactRef" => get(evidence, "modelArtifactRef", ""),
+            "checksumSha256" => get(evidence, "modelArtifactChecksumSha256", ""))
+        payload = JuliaFlowDataScienceProjectEvidence.require_model_artifact(artifact, mode, action, local_data_ref_path_for_write)
+        JuliaFlowDataScienceProjectEvidence.require_evaluation_model_binding(project, report, payload, artifact, mode, action, local_data_ref_path_for_write)
+    end
+    return report
+end
+
 function run_prediction_export_response!(state::GatewayState, project_id::AbstractString, body::AbstractDict)
     haskey(state.data_science_projects, project_id) || error("data science project not found: $(project_id)")
     ensure_cpu_project_job_allowed(state)
@@ -6139,7 +6232,7 @@ function run_prediction_export_response!(state::GatewayState, project_id::Abstra
     dataset_index === nothing && error("prediction export dataset not registered: $(dataset_id)")
     dataset = project.datasets[dataset_index]
     report = project_evaluation_report_for_prediction_export(project, body)
-    JuliaFlowDataScienceProjectEvidence.require_evaluation(report, juliaflow_runtime_mode(), "prediction export")
+    require_evaluation_consumer_evidence(project, report, "prediction export")
     Bool(get(report, "approved", false)) || error("prediction export prerequisite approved final evaluation required")
     Bool(get(report, "finalTestOnly", false)) || error("prediction export prerequisite final evaluation evidence required")
     validation = get(report, "validationEvidence", Dict{String,Any}())
@@ -6401,7 +6494,7 @@ function run_drift_report_response!(state::GatewayState, project_id::AbstractStr
     Bool(get(validation, "finalEvaluationApproved", false)) || error("drift report prerequisite approved final evaluation required")
     String(get(validation, "datasetId", dataset_id)) == String(dataset_id) || error("drift report dataset must match prediction export")
     report = project_evaluation_report_for_prediction_export(project, Dict{String,Any}("evaluationReportId" => String(get(prediction_export, "evaluationReportId", ""))))
-    JuliaFlowDataScienceProjectEvidence.require_evaluation(report, juliaflow_runtime_mode(), "drift report")
+    require_evaluation_consumer_evidence(project, report, "drift report")
     metric_names = drift_metric_names(body)
     threshold = drift_threshold(body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
@@ -6529,6 +6622,8 @@ function classify_gateway_error(err)
 
     if occursin("source evidence unavailable", message)
         return 409, message
+    elseif occursin("execution metadata ", message) && occursin(" is server owned", message)
+        return 400, message
     elseif occursin("split membership ", message)
         return 400, message
     elseif occursin("published dashboard not found", message)
@@ -7584,8 +7679,8 @@ function data_science_project_route_response(state::GatewayState, request::HTTP.
     action = route.action
     project_id = route.project_id
     if action == :list
-        require_permission!(state, request, "workflow:read")
-        return json_response(200, list_data_science_projects_response(state))
+        context = require_permission!(state, request, "workflow:read")
+        return json_response(200, list_data_science_projects_response(state; auth_context = context))
     elseif action == :create
         require_permission!(state, request, "workflow:write")
         body = parse_request_body(request)
@@ -7633,7 +7728,12 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
     try
         validate_cors_origin!(request)
         method == "OPTIONS" && return empty_response(204)
-        method == "GET" && segments == ["health"] && return json_response(200, healthcheck(state))
+        method == "GET" && segments == ["health"] && begin
+            health = JSON3.read(healthcheck(state), Dict{String,Any})
+            # The local inventory has no project ownership mapping. Keep it internal.
+            health["workspaceSummary"]["artifacts"] = Any[]
+            return json_response(200, JSON3.write(health))
+        end
         method == "GET" && segments == ["metrics"] && return text_response(200, metrics_response(state); content_type = "text/plain; version=0.0.4")
         method == "GET" && segments == ["api", "v1", "settings", "compute"] && begin
             require_permission!(state, request, "workflow:read")
@@ -7768,11 +7868,11 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             return json_response(201, response)
         end
         method == "POST" && segments == ["api", "v1", "local-data", "import"] && begin
-            require_permission!(state, request, "workflow:write")
+            context = require_permission!(state, request, "workflow:write")
             body = parse_request_body(request)
             target_id = haskey(body, "datasetId") ? String(body["datasetId"]) : "workflow-dataset"
             try
-                response = data_import_profile_response!(state, body)
+                response = data_import_profile_response!(state, body; auth_context = context)
                 append_audit_event!(
                     state,
                     request,
@@ -7846,9 +7946,9 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             return json_response(200, transform_history_response(state, segments[4]))
         end
         method == "POST" && length(segments) == 7 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:7] == ["ml", "experiments", "run"] && begin
-            require_permission!(state, request, "workflow:execute"; resource_type = "workflow", resource_id = segments[4])
+            context = require_permission!(state, request, "workflow:execute"; resource_type = "workflow", resource_id = segments[4])
             body = parse_request_body(request)
-            response = ml_experiment_run_response!(state, segments[4], body)
+            response = ml_experiment_run_response!(state, segments[4], body; auth_context = context)
             append_audit_event!(state, request, "workflow.ml.experiment.run"; target_type = "workflow", target_id = segments[4])
             return json_response(202, response)
         end
@@ -7857,9 +7957,9 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             return json_response(200, ml_experiment_history_response(state, segments[4]))
         end
         method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:6] == ["models", "register"] && begin
-            require_permission!(state, request, "workflow:write"; resource_type = "workflow", resource_id = segments[4])
+            context = require_permission!(state, request, "workflow:write"; resource_type = "workflow", resource_id = segments[4])
             body = parse_request_body(request)
-            response = model_register_response!(state, segments[4], body)
+            response = model_register_response!(state, segments[4], body; auth_context = context)
             append_audit_event!(state, request, "workflow.model.register"; target_type = "workflow", target_id = segments[4])
             return json_response(201, response)
         end
@@ -7868,10 +7968,10 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             return json_response(200, model_registry_list_response(state, segments[4]))
         end
         method == "POST" && length(segments) == 6 && segments[1:3] == ["api", "v1", "workflows"] && segments[5:6] == ["deploy", "package"] && begin
-            require_permission!(state, request, "workflow:write"; resource_type = "workflow", resource_id = segments[4])
+            context = require_permission!(state, request, "workflow:write"; resource_type = "workflow", resource_id = segments[4])
             require_permission!(state, request, "checkpoint:read")
             body = parse_request_body(request)
-            response = deploy_package_response!(state, segments[4], body)
+            response = deploy_package_response!(state, segments[4], body; auth_context = context)
             append_audit_event!(state, request, "workflow.deploy.package"; target_type = "workflow", target_id = segments[4])
             return json_response(201, response)
         end
@@ -7906,7 +8006,7 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             haskey(body, "status") || return error_response(400, "missing status")
             message = haskey(body, "message") ? String(body["message"]) : nothing
             metadata = if haskey(body, "metadata")
-                Dict{String,Any}(String(key) => value for (key, value) in pairs(body["metadata"]))
+                admit_execution_status_metadata(state, segments[4], body["metadata"])
             else
                 Dict{String,Any}()
             end

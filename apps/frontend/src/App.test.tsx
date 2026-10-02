@@ -368,6 +368,9 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply Role Suggestions" }));
     expect(screen.getByText(/Assign target and id roles|Dataset onboarding is ready/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "schema" }));
+    expect(screen.queryByLabelText("Column role for monthly_charges")).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: /customer-churn-local/i }));
     fireEvent.change(screen.getByLabelText("Column role for monthly_charges"), { target: { value: "target" } });
     expect(screen.getByText("Project schema and validation choices updated in demo workspace.")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Logical type for contract_type"), { target: { value: "ordinal" } });

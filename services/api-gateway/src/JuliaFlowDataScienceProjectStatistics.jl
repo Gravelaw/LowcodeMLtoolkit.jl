@@ -484,16 +484,22 @@ function local_csv_statistical_evidence_from_path(
     )
 end
 
+"""Encode metadata as one Julia comment line, preserving readable benign text."""
+function generated_code_comment_metadata(value::AbstractString)
+    encoded = repr(String(value))
+    return replace(encoded[2:prevind(encoded, lastindex(encoded))], '\u0085' => "\\u0085", '\u2028' => "\\u2028", '\u2029' => "\\u2029")
+end
+
 function statistical_analysis_code_artifact(dataset_id::AbstractString, methods::AbstractVector, body::AbstractDict)
     target = haskey(body, "targetColumn") ? String(body["targetColumn"]) : ""
     features = requested_feature_columns(body)
     return join(
         [
             "# JuliaFlow local statistical EDA artifact",
-            "# dataset: $(dataset_id)",
-            "# methods: $(join([String(method) for method in methods], ", "))",
-            "# targetColumn: $(target)",
-            "# featureColumns: $(join(features, ", "))",
+            "# dataset: $(generated_code_comment_metadata(dataset_id))",
+            "# methods: $(generated_code_comment_metadata(join(String.(methods), ", ")))",
+            "# targetColumn: $(generated_code_comment_metadata(target))",
+            "# featureColumns: $(generated_code_comment_metadata(join(features, ", ")))",
             "using Statistics",
             "# Result evidence is persisted beside this code artifact as results.json.",
         ],

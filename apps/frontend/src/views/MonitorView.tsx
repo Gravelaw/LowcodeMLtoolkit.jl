@@ -22,7 +22,7 @@ function modelArtifactRefs(data: AppData): string[] {
 
 function latestProjectJobs(data: AppData) {
   return [...data.dataScienceProject.projectJobs]
-    .sort((left, right) => right.startedAt.localeCompare(left.startedAt))
+    .sort((left, right) => (right.startedAt ?? "").localeCompare(left.startedAt ?? ""))
     .slice(0, 8);
 }
 
@@ -55,7 +55,7 @@ export function MonitorView({ data }: { data: AppData }) {
             columns={[
               { key: "executionId", label: "Execution" },
               { key: "workflowId", label: "Workflow" },
-              { key: "status", label: "Status", render: (row) => <StatusPill tone={statusTone(String(row.status))}>{String(row.status)}</StatusPill> },
+              { key: "status", label: "Status", render: (row) => <StatusPill tone={statusTone(String(row.status ?? "unavailable"))}>{String(row.status ?? "unavailable")}</StatusPill> },
               { key: "mode", label: "Mode" },
               { key: "updatedAt", label: "Updated" }
             ]}
@@ -100,13 +100,13 @@ export function MonitorView({ data }: { data: AppData }) {
           <DataTable
             columns={[
               { key: "jobType", label: "Job Type" },
-              { key: "status", label: "Status", render: (row) => <StatusPill tone={statusTone(String(row.status))}>{String(row.status)}</StatusPill> },
+              { key: "status", label: "Status", render: (row) => <StatusPill tone={statusTone(String(row.status ?? "unavailable"))}>{String(row.status ?? "unavailable")}</StatusPill> },
               { key: "sourceRecordId", label: "Source" },
               { key: "execution", label: "Execution", render: (row) => String(row.executionEvidence?.executionId ?? "pending") },
               { key: "dispatch", label: "Dispatch", render: (row) => String(row.executionEvidence?.dispatchStatus ?? row.executionEvidence?.status ?? "pending") }
             ]}
             rows={projectJobs}
-            getRowKey={(row) => row.jobId}
+            getRowKey={(row, index) => row.jobId ?? `historical-job-${index}`}
           />
         )}
       </Card>

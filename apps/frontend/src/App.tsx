@@ -36,6 +36,7 @@ import type {
   WorkflowDefinition,
   WorkspaceRole
 } from "@juliaflow/contracts";
+import { canEditDisplayedDataset, type DatasetEditIdentity } from "./dataset-edit-boundary";
 import { DataView } from "./views/DataView";
 import { DeployView } from "./views/DeployView";
 import { ExplorerView } from "./views/ExplorerView";
@@ -579,6 +580,8 @@ function App() {
           unavailableState("workflows", "Release mode is waiting for backend workflow metadata before rendering live workspace data.")
         ])
   );
+  const currentDataRef = useRef(data);
+  currentDataRef.current = data;
   const [projectForm, setProjectForm] = useState<ProjectFormState>(() => ({
     name: workflowSummary.name,
     description: "Creates a local workspace scaffold using the current appliance profile and sample workflow template.",
@@ -696,7 +699,9 @@ function App() {
           visualizeExports,
           checkpoints,
           dashboard,
-          projectFiles: health.workspaceSummary?.artifacts?.length ? health.workspaceSummary.artifacts : projectFiles
+          projectFiles: health.workspaceSummary?.artifacts?.length
+            ? health.workspaceSummary.artifacts
+            : fixtureSubstitutionAllowed ? projectFiles : []
         });
       } catch (error) {
         if (!abort.signal.aborted) {
@@ -954,7 +959,11 @@ function App() {
     }
   }
 
-  async function updateDataScienceProject(request: UpdateDataScienceProjectRequest) {
+  async function updateDataScienceProject(request: UpdateDataScienceProjectRequest, identity: DatasetEditIdentity) {
+    if (!canEditDisplayedDataset(currentDataRef.current, identity)) {
+      setViewFeedback("data", "The displayed dataset no longer matches the active project. Select or import a matching dataset before saving.", "error");
+      return;
+    }
     const projectId = data.dataScienceProject.projectId;
     const localProject: DataScienceProject = {
       ...data.dataScienceProject,

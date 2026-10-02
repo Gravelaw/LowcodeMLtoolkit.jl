@@ -1,5 +1,7 @@
 # JuliaFlow TODO
 
+- [ ] Complete the user-approved eight-finding manual remediation in AKS-41/53/48/56: resolved-project policy checks and filtered listing, private health inventory, server-owned executed evidence with real bindings, actual F1/AUC, exact Data identity, safe generated Julia metadata and sparse-history views. Prove original triggers reject or render safely and legitimate controls remain; obtain independent final-patch review and new exact-candidate full local release evidence. Keep unrelated frontend work frozen and project acceptance open.
+
 - [ ] Publish and verify the reviewed `codex/reconcile-profiling` development branch. AKS-48 follow-up was recorded and read back on 2026-10-02 (comment `08c4e330-3cf1-4823-9b40-cb213cb1c952`), with status In Progress. Required affected checks/review passed on unchanged source hashes. No merge/deployment or full release/GPU completion is authorized or claimed.
 
 - [ ] Complete authoritative issue/remote development-branch reconciliation and publication handoff for the accepted profiling correction. Final dedicated HTTP 65/65 and complete gateway slice 1,639 pass / zero fail / two existing root-permission skips; full Node contracts 63 pass / three platform skips and both frontend typechecks passed. Preserve reviewed source hashes; no merge/deploy/release qualification inferred.

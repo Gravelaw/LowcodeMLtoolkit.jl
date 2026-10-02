@@ -30,6 +30,36 @@ const DATA_SCIENCE_PROJECT_ARRAY_FIELDS = Dict(
     "reproducibilityEvidence" => :reproducibility_evidence,
 )
 
+# These records are produced by action handlers, never by aggregate requests.
+# Repository restoration uses its own loader and preserves historical records.
+const SERVER_OWNED_PROJECT_FIELDS = (
+    "projectJobs", "transformFitApplyRecords", "statisticalAnalysisRuns",
+    "tuningStudies", "evaluationReports", "predictionExports",
+    "modelRegistryRecords", "modelLifecycleRecords", "monitoringBaselines",
+    "driftReports", "reproducibilityEvidence",
+)
+
+function protect_execution_evidence!(existing, body)
+    normalize = JuliaFlowGatewayRepository.JuliaFlowProjectPayloadValidation.contract_value
+    for key in SERVER_OWNED_PROJECT_FIELDS
+        haskey(body, key) || continue
+        before = existing === nothing ? Any[] : getfield(existing, DATA_SCIENCE_PROJECT_ARRAY_FIELDS[key])
+        normalize(before) == normalize(body[key]) ||
+            error("data science project $(key) is server-owned execution evidence; use the project action")
+    end
+    existing === nothing && return nothing
+    # Plans remain declarative until a server-produced result binds them.
+    protected = Set(get(record, "trainingPlanId", "") for record in
+        [existing.tuning_studies; existing.evaluation_reports])
+    delete!(protected, "")
+    if !isempty(protected) && haskey(body, "trainingPlans")
+        before = [normalize(record) for record in existing.training_plans if get(record, "trainingPlanId", "") in protected]
+        after = [normalize(record) for record in body["trainingPlans"] if get(record, "trainingPlanId", "") in protected]
+        before == after || error("data science project executed training plans are immutable; create a new plan id")
+    end
+    return nothing
+end
+
 function safe_project_id(value::AbstractString)
     normalized = lowercase(strip(String(value)))
     normalized = replace(normalized, r"[^a-z0-9._-]+" => "-")
@@ -111,6 +141,7 @@ function materialize_project_record(
 )
     JuliaFlowGatewayRepository.JuliaFlowProjectPayloadValidation.validate_project_children!(body)
     JuliaFlowDataScienceProjectSplits.protect_membership!(existing, body)
+    protect_execution_evidence!(existing, body)
     timestamp = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
     name = haskey(body, "name") ? strip(String(body["name"])) : (existing === nothing ? validate_project_name(body) : existing.name)
     isempty(name) && error("data science project name cannot be empty")
@@ -132,9 +163,11 @@ function materialize_project_record(
         if haskey(body, json_key)
             records = normalized_record_vector(body[json_key])
             json_key == "datasets" && validate_project_dataset_records!(records)
-            setfield!(project, field_name, records)
+            # Own nested values even for a validated echo; request mutation must
+            # never mutate evidence retained in the existing project.
+            setfield!(project, field_name, deepcopy(records))
         elseif existing !== nothing
-            setfield!(project, field_name, getfield(existing, field_name))
+            setfield!(project, field_name, deepcopy(getfield(existing, field_name)))
         end
     end
 

@@ -2,6 +2,7 @@ module JuliaFlowDataScienceProjectMLJ
 
 import DataFrames
 import Serialization
+using ..JuliaFlowDataScienceProjectStatistics
 
 export mlj_algorithm_requested,
     mlj_package_status,
@@ -464,9 +465,9 @@ function mlj_generated_training_code(
     return join(
         [
             "# JuliaFlow MLJ-compatible local training artifact",
-            "# requestedAlgorithm: $(String(algorithm))",
-            "# targetColumn: $(String(target_column))",
-            "# featureColumns: $(join(String.(feature_columns), ", "))",
+            "# requestedAlgorithm: $(JuliaFlowDataScienceProjectStatistics.generated_code_comment_metadata(algorithm))",
+            "# targetColumn: $(JuliaFlowDataScienceProjectStatistics.generated_code_comment_metadata(target_column))",
+            "# featureColumns: $(JuliaFlowDataScienceProjectStatistics.generated_code_comment_metadata(join(String.(feature_columns), ", ")))",
             "using MLJ",
             "using MLJLinearModels",
             "model = @load $(model_name) pkg=MLJLinearModels",

@@ -7000,6 +7000,155 @@ end
     end
 end
 
+@testset "Gateway resolved project policy boundary" begin
+    mktempdir() do home
+        data_root = joinpath(home, "data")
+        mkpath(joinpath(data_root, "raw"))
+        source = joinpath(home, "input.csv")
+        write(source, "amount,margin\n10,2\n20,4\n30,9\n40,11\n")
+        write(joinpath(data_root, "raw", "policy-dataset.csv"), read(source))
+        marker_path = "raw/private-inventory-marker.csv"
+        write(joinpath(data_root, marker_path), repeat("x", 12345))
+        withenv("JULIAFLOW_HOME" => home, "JULIAFLOW_DATA_ESTATE_ROOT" => data_root,
+            "JULIAFLOW_IMPORT_ROOTS" => home, "JULIAFLOW_METADATA_MODE" => "file",
+            "JULIAFLOW_RUNTIME_MODE" => "demo", "JULIAFLOW_AUTH_MODE" => "required",
+            "JULIAFLOW_DEV_AUTH_TOKEN" => "policy-test-token") do
+            gateway = JuliaFlowApiGateway
+            repo = gateway.JuliaFlowGatewayRepository
+            state = foundation_state(joinpath(@__DIR__, "..", "contracts", "fixtures", "foundation.workflow.toml"); store_root = joinpath(home, "store"))
+            headers = ["Authorization" => "Bearer policy-test-token", "X-JuliaFlow-Workspace" => "workspace-a", "Content-Type" => "application/json"]
+            request(method, path, body = Dict{String,Any}()) = route_request(state, HTTP.Request(method, path, headers, JSON3.write(body)))
+            project_body(id, dataset) = Dict{String,Any}(
+                "projectId" => id, "name" => id,
+                "datasets" => [Dict("datasetId" => dataset, "name" => dataset, "role" => "train", "sourceUri" => "local://data/raw/policy-dataset.csv", "localOnly" => true)],
+                "splitPlans" => [Dict("splitPlanId" => "split-$(id)", "datasetId" => dataset, "strategy" => "random", "seed" => 3,
+                    "trainFraction" => 0.5, "validationFraction" => 0.25, "testFraction" => 0.25, "locked" => true)])
+            for (id, dataset) in [("policy-denied", "policy-dataset"), ("policy-allowed", "allowed-dataset"), ("policy-foreign", "foreign-dataset")]
+                @test request("POST", "/api/v1/data-science-projects", project_body(id, dataset)).status == 201
+            end
+            function save_project_policies(deny_write)
+                repo.save_auth_policy!(state.repository, repo.GatewayAuthPolicy(resource_policies = [
+                    repo.GatewayResourcePolicy(resource_type = "data_science_project", resource_id = "policy-denied", workspace_id = "workspace-a",
+                        permissions_by_role = Dict("owner" => (deny_write ? String[] : ["workflow:read", "workflow:write"]))),
+                    repo.GatewayResourcePolicy(resource_type = "data_science_project", resource_id = "policy-allowed", workspace_id = "workspace-a",
+                        permissions_by_role = Dict("owner" => ["workflow:read", "workflow:write"])),
+                    repo.GatewayResourcePolicy(resource_type = "data_science_project", resource_id = "policy-foreign", workspace_id = "workspace-b",
+                        permissions_by_role = Dict("owner" => ["workflow:read", "workflow:write"])),
+                ]))
+            end
+            save_project_policies(true)
+            listed = JSON3.read(request("GET", "/api/v1/data-science-projects").body, Dict{String,Any})
+            @test [item["projectId"] for item in listed["items"]] == ["policy-allowed"]
+            @test_throws KeyError gateway.list_data_science_projects_response(state; auth_context = Dict{String,Any}("workspaceId" => "workspace-a"))
+            @test request("GET", "/api/v1/data-science-projects/policy-denied").status == 403
+            @test request("GET", "/api/v1/data-science-projects/policy-foreign").status == 403
+            # Compare only product state/files: audit and observability may record rejections.
+            function product_snapshot()
+                projects = Dict(id => repo.data_science_project_payload(project) for (id, project) in state.data_science_projects)
+                executions = [Dict("id" => item.execution_id, "status" => item.status, "metadata" => deepcopy(item.metadata)) for item in state.executions]
+                files = Dict{String,String}()
+                for (root, _, names) in walkdir(data_root), name in names
+                    path = joinpath(root, name)
+                    files[relpath(path, data_root)] = bytes2hex(sha256(read(path)))
+                end
+                persisted = load_state(state.repository)
+                persisted_projects = Dict(id => repo.data_science_project_payload(project) for (id, project) in persisted.data_science_projects)
+                persisted_executions = [Dict("id" => item.execution_id, "status" => item.status, "metadata" => deepcopy(item.metadata)) for item in persisted.executions]
+                return deepcopy((projects, executions, files, persisted_projects, persisted_executions, repo.load_model_registry_records(state.repository)))
+            end
+            before = product_snapshot()
+            import_body = Dict("projectId" => "policy-denied", "datasetId" => "policy-dataset", "sourceUri" => source,
+                "connector" => "local_file", "format" => "csv", "targetZone" => "raw")
+            @test request("POST", "/api/v1/local-data/import", import_body).status == 403
+            @test product_snapshot() == before
+            run_path = "/api/v1/workflows/wf-foundation/ml/experiments/run"
+            run_body = Dict{String,Any}("datasetId" => "policy-dataset", "executionMode" => "cpu_only", "target" => "amount", "algorithm" => "deterministic_linear_baseline")
+            @test request("POST", run_path, merge(run_body, Dict("projectId" => "policy-denied"))).status == 403
+            @test product_snapshot() == before
+            @test request("POST", run_path, run_body).status == 403
+            @test product_snapshot() == before
+            save_project_policies(false)
+            @test request("POST", "/api/v1/local-data/import", import_body).status == 201
+            # Unique project inference remains a supported training entry point.
+            trained = request("POST", run_path, run_body)
+            @test trained.status == 202
+            @test JSON3.read(trained.body, Dict{String,Any})["experiment"]["validationEvidence"]["projectId"] == "policy-denied"
+            @test request("POST", run_path, merge(run_body, Dict("projectId" => "policy-denied"))).status == 202
+            model_execution = gateway.latest_model_execution(state, "wf-foundation")
+            status_path = "/api/v1/executions/$(model_execution.execution_id)/status"
+            before_metadata = product_snapshot()
+            for (key, forged) in [("ml_validation_context", Dict("projectId" => "policy-allowed")),
+                ("ml_training_artifact_evidence", nothing), ("ml_training_execution_evidence", Dict()),
+                ("ml_training_metrics", Dict("rmse" => 0.0)), ("model_registry_record", Dict()),
+                ("deploy_package_records", Any[]), ("data_science_project_job", Dict("project_id" => "policy-allowed")),
+                ("artifact_refs", [Dict("path" => "local://models/forged.json")]), ("executorState", Dict()),
+                ("workflow_id", "another-workflow"), ("executionId", "another-execution"), ("status", "completed")]
+                rejected = request("POST", status_path, Dict("status" => "queued", "metadata" => Dict(key => forged)))
+                @test rejected.status == 400
+                @test occursin("server owned", String(rejected.body))
+                @test product_snapshot() == before_metadata
+            end
+            echo = deepcopy(model_execution.metadata["ml_validation_context"])
+            @test request("POST", status_path, Dict("status" => "queued", "metadata" => Dict("mlValidationContext" => echo, "customNote" => "allowed", "workerId" => "policy-worker"))).status == 200
+            echoed_execution = state.executions[gateway.find_execution_index(state, model_execution.execution_id)]
+            @test echoed_execution.metadata["ml_validation_context"] == echo
+            @test !haskey(echoed_execution.metadata, "mlValidationContext")
+            @test echoed_execution.metadata["customNote"] == "allowed"
+            @test echoed_execution.metadata["workerId"] == "policy-worker"
+            @test request("POST", status_path, Dict("status" => "running")).status == 200
+            save_project_policies(true)
+            before_model_actions = product_snapshot()
+            for path in ["/api/v1/workflows/wf-foundation/models/register", "/api/v1/workflows/wf-foundation/deploy/package"]
+                # A permitted body project must not replace execution provenance.
+                @test request("POST", path, Dict("projectId" => "policy-allowed")).status == 403
+                @test product_snapshot() == before_model_actions
+            end
+            save_project_policies(false)
+            @test request("POST", "/api/v1/workflows/wf-foundation/models/register").status == 201
+            @test request("POST", "/api/v1/workflows/wf-foundation/deploy/package").status == 201
+            # A global model-ID upsert must authorize the old record's project.
+            collision = deepcopy(gateway.latest_model_execution(state, "wf-foundation").metadata["model_registry_record"])
+            collision["modelId"] = "foreign-collision"
+            collision["registryId"] = "model-foreign-collision"
+            collision["datasetId"] = "foreign-dataset"
+            collision["validationEvidence"]["projectId"] = "policy-foreign"
+            collision["validationEvidence"]["datasetId"] = "foreign-dataset"
+            repo.save_model_registry_record!(state.repository, collision)
+            before_collision = product_snapshot()
+            for path in ["/api/v1/workflows/wf-foundation/models/register", "/api/v1/workflows/wf-foundation/deploy/package"]
+                @test request("POST", path, Dict("modelId" => "foreign-collision")).status == 403
+                @test product_snapshot() == before_collision
+            end
+            @test request("POST", "/api/v1/data-science-projects", project_body("policy-ambiguous", "policy-dataset")).status == 201
+            before_ambiguous = product_snapshot()
+            ambiguous = request("POST", run_path, run_body)
+            @test ambiguous.status == 400
+            @test occursin("projectId required", String(ambiguous.body))
+            @test product_snapshot() == before_ambiguous
+            internal_health = JSON3.read(healthcheck(state), Dict{String,Any})
+            @test any(replace(item["path"], '\\' => '/') == marker_path for item in internal_health["workspaceSummary"]["artifacts"])
+            for health_headers in [Pair{String,String}[], headers]
+                health_response = route_request(state, HTTP.Request("GET", "/health", health_headers))
+                @test health_response.status == 200
+                health = JSON3.read(health_response.body, Dict{String,Any})
+                @test isempty(health["workspaceSummary"]["artifacts"])
+                @test !occursin(marker_path, String(health_response.body))
+                @test !occursin("12.1 KB", String(health_response.body))
+                @test all(haskey(health, key) for key in ["dataEstateReady", "metadataReady", "hardwareProfileStatus"])
+                @test [chart["chartId"] for chart in health["charts"]] == ["workspace-cpu-trend", "workspace-ram-trend", "workspace-disk-trend"]
+            end
+        end
+    end
+end
+
+@testset "Final metric and generated code boundary" begin
+    include(joinpath(@__DIR__, "final_metric_codegen_tests.jl"))
+end
+
+@testset "Server-owned project evidence boundary" begin
+    include(joinpath(@__DIR__, "server_owned_evidence_tests.jl"))
+end
+
 @testset "API Gateway Realtime" begin
     foundation_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "foundation.workflow.toml")
 

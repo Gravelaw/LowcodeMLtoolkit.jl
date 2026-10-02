@@ -4,6 +4,7 @@ import { Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
 import { InteractiveChart } from "../components/InteractiveChart";
 import { localCode } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
+import type { DatasetEditIdentity } from "../dataset-edit-boundary";
 import type {
   DataScienceColumnRole,
   DataScienceProjectDatasetRole,
@@ -100,7 +101,7 @@ export function DataView({
   data: AppData;
   onImport: (request?: ReturnType<typeof sourceRequest>) => void;
   onSelectProfile: (profile: GatewayDataImportProfile) => void;
-  onProjectUpdate: (request: UpdateDataScienceProjectRequest) => void;
+  onProjectUpdate: (request: UpdateDataScienceProjectRequest, identity: DatasetEditIdentity) => void;
   feedback?: ActionFeedback;
 }) {
   const [activeTab, setActiveTab] = useState<DataTab>("table");
@@ -115,10 +116,15 @@ export function DataView({
   const sourceOptions = activeProfile.sourceOptions ?? [];
   const previewRows = activeProfile.previewRows ?? [];
   const project = data.dataScienceProject;
-  const projectDataset = project.datasets.find((dataset) => dataset.datasetId === activeProfile.datasetId) ?? project.datasets[0];
-  const schemaContract = project.schemaContracts.find((schema) => schema.datasetId === activeProfile.datasetId) ?? project.schemaContracts[0];
+  const projectDataset = project.datasets.find((dataset) => dataset.datasetId === activeProfile.datasetId);
+  const schemaContract = project.schemaContracts.find((schema) => schema.datasetId === activeProfile.datasetId);
   const schemaColumns = schemaContract?.columns ?? [];
-  const activeSplitPlan = project.splitPlans.find((plan) => plan.datasetId === activeProfile.datasetId) ?? project.splitPlans[0];
+  const canEditDataset = Boolean(projectDataset && schemaContract);
+  function submitProjectUpdate(request: UpdateDataScienceProjectRequest) {
+    if (!canEditDataset) return;
+    onProjectUpdate(request, { projectId: project.projectId, datasetId: activeProfile.datasetId });
+  }
+  const activeSplitPlan = project.splitPlans.find((plan) => plan.datasetId === activeProfile.datasetId);
   const finalTestLock = activeSplitPlan
     ? project.finalTestLocks.find((lock) => lock.splitPlanId === activeSplitPlan.splitPlanId)
     : undefined;
@@ -165,7 +171,7 @@ export function DataView({
   const columns = previewColumns(preview.length ? preview : previewRows, activeProfile.schemaSummary);
 
   function updateSchemaColumn(columnName: string, patch: Partial<SchemaColumnContract>) {
-    if (!schemaContract) return;
+    if (!canEditDataset || !schemaContract) return;
     const updatedSchema = {
       ...schemaContract,
       updatedAt: new Date().toISOString(),
@@ -175,7 +181,7 @@ export function DataView({
           : column
       ))
     };
-    onProjectUpdate({
+    submitProjectUpdate({
       schemaContracts: project.schemaContracts.map((schema) => (
         schema.schemaId === updatedSchema.schemaId ? updatedSchema : schema
       ))
@@ -183,7 +189,8 @@ export function DataView({
   }
 
   function updateProjectDataset(dataset: ProjectDataset) {
-    onProjectUpdate({
+    if (!canEditDataset || dataset.datasetId !== activeProfile.datasetId) return;
+    submitProjectUpdate({
       datasets: project.datasets.map((item) => (
         item.datasetId === dataset.datasetId ? dataset : item
       ))
@@ -191,12 +198,12 @@ export function DataView({
   }
 
   function updateSplitPlan(patch: Partial<DatasetSplitPlan>) {
-    if (!activeSplitPlan) return;
+    if (!canEditDataset || !activeSplitPlan) return;
     const updatedPlan = {
       ...activeSplitPlan,
       ...patch
     };
-    onProjectUpdate({
+    submitProjectUpdate({
       splitPlans: project.splitPlans.map((plan) => (
         plan.splitPlanId === updatedPlan.splitPlanId ? updatedPlan : plan
       ))
@@ -204,7 +211,7 @@ export function DataView({
   }
 
   function applyWizardDefaults() {
-    if (!schemaContract || !activeSplitPlan) return;
+    if (!canEditDataset || !schemaContract || !activeSplitPlan) return;
     const nextColumns = schemaContract.columns.map((column) => ({
       ...column,
       role: wizardRoleForColumn(column),
@@ -214,7 +221,7 @@ export function DataView({
     const groupColumn = nextColumns.find((column) => column.role === "group")?.name;
     const timeColumn = nextColumns.find((column) => column.role === "time")?.name;
     const depthColumn = nextColumns.find((column) => column.role === "depth")?.name;
-    onProjectUpdate({
+    submitProjectUpdate({
       schemaContracts: project.schemaContracts.map((schema) => (
         schema.schemaId === schemaContract.schemaId
           ? { ...schemaContract, columns: nextColumns, updatedAt: new Date().toISOString() }
@@ -245,7 +252,7 @@ export function DataView({
   }
 
   function lockFinalTestSplit() {
-    if (!activeSplitPlan) return;
+    if (!canEditDataset || !activeSplitPlan) return;
     const lock = finalTestLock ?? {
       lockId: `lock-${activeSplitPlan.splitPlanId}`,
       splitPlanId: activeSplitPlan.splitPlanId,
@@ -253,7 +260,7 @@ export function DataView({
       reason: "Final test split locked from Data workspace before model tuning or promotion.",
       lockedBy: "local-user"
     };
-    onProjectUpdate({
+    submitProjectUpdate({
       splitPlans: project.splitPlans.map((plan) => (
         plan.splitPlanId === activeSplitPlan.splitPlanId ? { ...plan, locked: true } : plan
       )),
@@ -358,6 +365,7 @@ export function DataView({
               <label>
                 <span>Dataset role</span>
                 <select
+                  disabled={!canEditDataset}
                   aria-label="Dataset role"
                   value={projectDataset.role}
                   onChange={(event) => updateProjectDataset({ ...projectDataset, role: event.target.value as DataScienceProjectDatasetRole })}
@@ -365,10 +373,10 @@ export function DataView({
                   {datasetRoles.map((role) => <option key={role}>{role}</option>)}
                 </select>
               </label>
-              <button type="button" className="jf-button secondary full-width" onClick={applyWizardDefaults}>
+              <button type="button" className="jf-button secondary full-width" disabled={!canEditDataset} onClick={applyWizardDefaults}>
                 Apply Role Suggestions
               </button>
-              <button type="button" className="jf-button primary full-width" disabled={Boolean(finalTestLock)} onClick={lockFinalTestSplit}>
+              <button type="button" className="jf-button primary full-width" disabled={!canEditDataset || Boolean(finalTestLock)} onClick={lockFinalTestSplit}>
                 {finalTestLock ? "Final Test Locked" : "Lock Wizard Split"}
               </button>
             </div>
@@ -379,7 +387,7 @@ export function DataView({
             </p>
           </div>
         ) : (
-          <p className="empty-state">No project dataset, schema contract, or split plan is attached yet.</p>
+          <p className="empty-state">The displayed dataset has no matching project dataset, schema contract, or split plan. Select or import a matching dataset before editing.</p>
         )}
       </Card>
 
@@ -389,6 +397,7 @@ export function DataView({
             <label>
               <span>Validation strategy</span>
               <select
+                disabled={!canEditDataset}
                 aria-label="Validation strategy"
                 value={activeSplitPlan.strategy}
                 onChange={(event) => updateSplitPlan({ strategy: event.target.value as DataScienceSplitStrategy })}
@@ -399,6 +408,7 @@ export function DataView({
             <label>
               <span>Group column</span>
               <select
+                disabled={!canEditDataset}
                 aria-label="Validation group column"
                 value={activeSplitPlan.groupColumn ?? ""}
                 onChange={(event) => updateSplitPlan({ groupColumn: event.target.value || undefined })}
@@ -410,6 +420,7 @@ export function DataView({
             <label>
               <span>Depth column</span>
               <select
+                disabled={!canEditDataset}
                 aria-label="Validation depth column"
                 value={activeSplitPlan.depthColumn ?? ""}
                 onChange={(event) => updateSplitPlan({ depthColumn: event.target.value || undefined })}
@@ -421,7 +432,7 @@ export function DataView({
             <p className="workspace-state-line">
               Train / validation / test: <strong>{Math.round((activeSplitPlan.trainFraction ?? 0) * 100)}%</strong> / <strong>{Math.round((activeSplitPlan.validationFraction ?? 0) * 100)}%</strong> / <strong>{Math.round((activeSplitPlan.testFraction ?? 0) * 100)}%</strong>
             </p>
-            <button type="button" className="jf-button secondary full-width" disabled={Boolean(finalTestLock)} onClick={lockFinalTestSplit}>
+            <button type="button" className="jf-button secondary full-width" disabled={!canEditDataset || Boolean(finalTestLock)} onClick={lockFinalTestSplit}>
               {finalTestLock ? "Final Test Locked" : "Lock Final Test Split"}
             </button>
             {finalTestLock ? <p className="empty-state">Locked by {finalTestLock.lockedBy}: {finalTestLock.reason}</p> : null}
@@ -525,6 +536,7 @@ export function DataView({
                 label: "Logical type",
                 render: (row) => (
                   <select
+                    disabled={!canEditDataset}
                     aria-label={`Logical type for ${row.name}`}
                     value={row.logicalType}
                     onChange={(event) => updateSchemaColumn(row.name, { logicalType: event.target.value })}
@@ -538,6 +550,7 @@ export function DataView({
                 label: "Role",
                 render: (row) => (
                   <select
+                    disabled={!canEditDataset}
                     aria-label={`Column role for ${row.name}`}
                     value={row.role}
                     onChange={(event) => updateSchemaColumn(row.name, { role: event.target.value as DataScienceColumnRole })}
@@ -551,6 +564,7 @@ export function DataView({
                 label: "Nullable",
                 render: (row) => (
                   <input
+                    disabled={!canEditDataset}
                     aria-label={`Nullable ${row.name}`}
                     type="checkbox"
                     checked={row.nullable}

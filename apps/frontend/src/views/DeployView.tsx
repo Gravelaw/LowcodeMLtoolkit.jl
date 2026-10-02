@@ -9,7 +9,7 @@ function currentModel(data: AppData) {
 function latestDeployProjectJob(data: AppData) {
   return [...data.dataScienceProject.projectJobs]
     .filter((job) => job.jobType === "deploy_package")
-    .sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
+    .sort((left, right) => (right.startedAt ?? "").localeCompare(left.startedAt ?? ""))[0];
 }
 
 function deployBlockedReason(data: AppData) {
@@ -112,7 +112,7 @@ export function DeployView({
               { key: "status", label: "Status", render: (row) => <StatusPill tone="green">{String(row.status)}</StatusPill> },
               { key: "artifact", label: "Artifact" }
             ]}
-            rows={[{ ...projectDeployJob, artifact: projectDeployJob.outputRefs[0]?.path ?? projectDeployJob.outputRefs[0]?.refId ?? "No artifact ref" }]}
+            rows={[{ ...projectDeployJob, artifact: projectDeployJob.outputRefs?.[0]?.path ?? projectDeployJob.outputRefs?.[0]?.refId ?? "No artifact ref" }]}
             getRowKey={(row) => String(row.jobId)}
           />
         ) : (

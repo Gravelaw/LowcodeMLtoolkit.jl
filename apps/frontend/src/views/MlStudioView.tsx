@@ -27,7 +27,7 @@ export function MlStudioView({
   const experiment = data.mlExperiments[0];
   const latestTrainingJob = data.dataScienceProject.projectJobs
     .filter((job) => job.jobType === "training")
-    .sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
+    .sort((left, right) => (right.startedAt ?? "").localeCompare(left.startedAt ?? ""))[0];
   const latestTrainingPlan = newestBy(data.dataScienceProject.trainingPlans, (plan) => plan.createdAt);
   const latestTuningStudy = newestBy(data.dataScienceProject.tuningStudies, (study) => study.createdAt);
   const latestEvaluation = newestBy(data.dataScienceProject.evaluationReports, (report) => report.generatedAt);
@@ -134,7 +134,7 @@ export function MlStudioView({
             <span>Tuning Study</span><strong>{latestTuningStudy ? `${latestTuningStudy.tuningStudyId} (${latestTuningStudy.validationOnly ? "validation only" : "review"})` : "not tuned"}</strong>
             <span>Best Trial</span><strong>{latestTuningStudy?.bestTrialId ?? "pending"}</strong>
             <span>Final Evaluation</span><strong>{latestEvaluation ? `${latestEvaluation.evaluationReportId} (${latestEvaluation.approved ? "approved" : "review"})` : "not evaluated"}</strong>
-            <span>Prediction Export</span><strong>{latestPredictionExport ? `${latestPredictionExport.predictionExportId} (${latestPredictionExport.rowCount.toLocaleString()} rows)` : "not exported"}</strong>
+            <span>Prediction Export</span><strong>{latestPredictionExport ? `${latestPredictionExport.predictionExportId ?? "unavailable"} (${(typeof latestPredictionExport.rowCount === "number" ? latestPredictionExport.rowCount.toLocaleString() : "unavailable")} rows)` : "not exported"}</strong>
             <span>Drift Report</span><strong>{latestDriftReport ? `${latestDriftReport.driftReportId} (${latestDriftReport.status})` : "not monitored"}</strong>
           </div>
         ) : (

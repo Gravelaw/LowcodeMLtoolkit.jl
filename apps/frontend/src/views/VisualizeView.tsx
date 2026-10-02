@@ -48,7 +48,7 @@ function metricPercent(value: unknown) {
 
 function latestProjectAnalysisRuns(data: AppData) {
   return [...data.dataScienceProject.statisticalAnalysisRuns]
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .sort((left, right) => (right.createdAt ?? "").localeCompare(left.createdAt ?? ""))
     .slice(0, 4);
 }
 
@@ -60,7 +60,7 @@ function checksumLabel(run: ReturnType<typeof latestProjectAnalysisRuns>[number]
   return run.artifactRefs?.find((ref) => ref.checksumSha256)?.checksumSha256?.slice(0, 12) ?? "No checksum";
 }
 
-function statusTone(status: string): "green" | "blue" | "orange" | "neutral" {
+function statusTone(status?: string): "green" | "blue" | "orange" | "neutral" {
   if (status === "completed") return "green";
   if (status === "failed" || status === "unavailable") return "orange";
   if (status === "running") return "blue";
@@ -158,15 +158,15 @@ export function VisualizeView({
             ) : (
               <DataTable
                 columns={[
-                  { key: "analysisRunId", label: "Run" },
-                  { key: "method", label: "Method" },
-                  { key: "status", label: "Status", render: (row) => <StatusPill tone={statusTone(row.status)}>{row.status}</StatusPill> },
+                  { key: "analysisRunId", label: "Run", render: (row) => row.analysisRunId ?? "unavailable" },
+                  { key: "method", label: "Method", render: (row) => row.method ?? "unavailable" },
+                  { key: "status", label: "Status", render: (row) => <StatusPill tone={statusTone(row.status)}>{row.status ?? "unavailable"}</StatusPill> },
                   { key: "resultRef", label: "Result", render: (row) => evidenceRefLabel(row) },
                   { key: "generatedCodeRef", label: "Code", render: (row) => row.generatedCodeRef ?? "No code ref" },
                   { key: "checksum", label: "Checksum", render: (row) => checksumLabel(row) }
                 ]}
                 rows={projectAnalysisRuns}
-                getRowKey={(row) => row.analysisRunId}
+                getRowKey={(row, index) => row.analysisRunId ?? `historical-analysis-${index}`}
               />
             )}
           </Card>

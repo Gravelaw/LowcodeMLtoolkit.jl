@@ -116,11 +116,13 @@ function final_evaluation_metrics(metric_names::AbstractVector)
     return metrics
 end
 
-function final_evaluation_metric_from_errors(metric::AbstractString, actual::Vector{Float64}, predicted::Vector{Float64})
-    n = min(length(actual), length(predicted))
-    n == 0 && return 0.0
-    y = actual[1:n]
-    yhat = predicted[1:n]
+function final_evaluation_metric_from_errors(metric::AbstractString, actual::Vector{Float64}, predicted::Vector{Float64}; negative_label::Real = 0.0, positive_label::Real = 1.0, classification_threshold::Real = 0.5)
+    length(actual) == length(predicted) || error("final evaluation target and prediction lengths must match")
+    n = length(actual)
+    n > 0 || error("final evaluation requires nonempty targets and predictions")
+    all(isfinite, actual) && all(isfinite, predicted) || error("final evaluation requires finite targets and predictions")
+    y = actual
+    yhat = predicted
     errors = [y[index] - yhat[index] for index in 1:n]
     metric_name = safe_evaluation_token(metric)
     if metric_name in ("mae", "mean-absolute", "mean-absolute-error")
@@ -134,13 +136,29 @@ function final_evaluation_metric_from_errors(metric::AbstractString, actual::Vec
         sst = sum((value - mean_actual)^2 for value in y)
         sse = sum(error^2 for error in errors)
         return round(sst == 0.0 ? 0.0 : 1.0 - (sse / sst); digits = 6)
-    elseif metric_name in ("accuracy", "f1", "auc")
-        rounded_actual = [round(value) for value in y]
-        rounded_predicted = [round(value) for value in yhat]
-        correct = sum(rounded_actual[index] == rounded_predicted[index] for index in 1:n)
-        return round(correct / n; digits = 6)
+    elseif metric_name in ("accuracy", "f1", "f1-score", "auc")
+        isfinite(negative_label) && isfinite(positive_label) && negative_label != positive_label || error("final evaluation requires two distinct finite trained class labels")
+        isfinite(classification_threshold) && 0.0 <= classification_threshold <= 1.0 || error("final evaluation classification threshold must be between 0 and 1")
+        all(value -> value == negative_label || value == positive_label, y) || error("final evaluation target contains an untrained class label")
+        all(value -> 0.0 <= value <= 1.0, yhat) || error("final evaluation classification predictions must be probabilities")
+        positives = [value == positive_label for value in y]
+        if metric_name == "auc"
+            positive_count = count(positives)
+            negative_count = n - positive_count
+            positive_count > 0 && negative_count > 0 || error("final evaluation AUC requires both classes in the test split")
+            ranks = JuliaFlowDataScienceProjectStatistics.rank_values(yhat)
+            rank_sum = sum(ranks[index] for index in 1:n if positives[index])
+            return round((rank_sum - positive_count * (positive_count + 1) / 2) / (positive_count * negative_count); digits = 6)
+        end
+        decisions = [value >= classification_threshold for value in yhat]
+        metric_name == "accuracy" && return round(count(index -> positives[index] == decisions[index], 1:n) / n; digits = 6)
+        true_positive = count(index -> positives[index] && decisions[index], 1:n)
+        false_positive = count(index -> !positives[index] && decisions[index], 1:n)
+        false_negative = count(index -> positives[index] && !decisions[index], 1:n)
+        denominator = 2 * true_positive + false_positive + false_negative
+        return denominator == 0 ? 0.0 : round(2 * true_positive / denominator; digits = 6)
     end
-    return round(max(0.0, 1.0 - (sum(abs(error) for error in errors) / n)); digits = 6)
+    error("final evaluation unsupported metric: $(metric_name)")
 end
 
 function final_evaluation_lower_is_better_metric(metric::AbstractString)
@@ -308,9 +326,22 @@ function final_evaluation_metrics_from_csv(
     metrics = Dict{String,Any}()
     raw_metrics = Dict{String,Any}()
     metric_semantics = Dict{String,Any}()
+    classifier_mode = model_artifact !== nothing && String(get(model_artifact, "nativeModelKind", get(model_artifact, "modelKind", ""))) == "local_csv_binary_centroid_classifier"
+    trained_labels = sort(unique(train_values))
+    if classifier_mode
+        length(trained_labels) == 2 || error("final evaluation classifier requires two trained classes")
+        coefficients = get(model_artifact, "coefficients", Dict{String,Any}())
+        Float64(get(coefficients, "negativeLabel", 0.0)) == first(trained_labels) &&
+            Float64(get(coefficients, "positiveLabel", 1.0)) == last(trained_labels) ||
+            error("final evaluation artifact class labels must match the trained classes")
+    end
     for metric in metric_names
         metric_key = String(metric)
-        raw_value = final_evaluation_metric_from_errors(metric_key, test_values, predictions)
+        classification_metric = safe_evaluation_token(metric_key) in ("accuracy", "f1", "f1-score", "auc")
+        classification_metric == classifier_mode || error("final evaluation metric is unsupported for the trained task: $(metric_key)")
+        raw_value = classifier_mode ? final_evaluation_metric_from_errors(metric_key, test_values, predictions;
+            negative_label = first(trained_labels), positive_label = last(trained_labels)) :
+            final_evaluation_metric_from_errors(metric_key, test_values, predictions)
         raw_metrics[metric_key] = raw_value
         metrics[metric_key] = final_evaluation_normalized_score(metric_key, raw_value, train_values)
         metric_semantics[metric_key] = final_evaluation_lower_is_better_metric(metric_key) ? "lower_is_better_normalized_quality_score" : "higher_is_better_score"
