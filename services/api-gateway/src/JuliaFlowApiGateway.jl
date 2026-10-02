@@ -7506,6 +7506,9 @@ function gateway_stream_handler(state::GatewayState)
                 for header in response.headers
                     HTTP.setheader(http, header)
                 end
+                # HTTP.jl closes upgrade-request connections after writing the response.
+                # Tell clients not to reuse that socket after a rejected handshake.
+                HTTP.setheader(http, "Connection" => "close")
                 HTTP.startwrite(http)
                 write(http, response.body)
                 return nothing

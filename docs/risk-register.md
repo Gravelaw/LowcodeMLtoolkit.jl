@@ -1,5 +1,12 @@
 # JuliaFlow risk register
 
+2026-09-30 local release blocker: HTTP.jl closes rejected upgrade connections
+without the gateway advertising closure, allowing client reuse to hit
+`ECONNRESET`. The minimal probe reproduced the failure; a response-only
+`Connection: close` repair preserves 401/403 and origin/auth checks. The patched
+browser suite passed 5/5; aggregate release verification remains pending, and failed candidate `9520979`
+cannot promote. Tracker disclosure permission remains pending.
+
 2026-09-30 AKS-69 resource diagnosis: cold release-candidate `jfci-1790781620409-a973c060` at `846ae73` passed six release phases and repository (100) / worker (221) assertions before the WSL service stopped responding (`0x8007274c`) during gateway tests. The VM reached its configured 4 GiB resident limit; no kernel OOM record was found, so memory pressure is suspected, not proven. Scoped termination of the dedicated distro recovered it. Run status failed, cleanup failed, evidence finalization passed; database storage remains. WSL jobs now use Julia's verified CLI `--heap-size-hint=1500M` and one precompile worker, recorded in job summaries. No tests, skips or deadlines change; recovery needs full rerun.
 
 ## 2026-09-30 - local CI/CD continuation (AKS-69)
