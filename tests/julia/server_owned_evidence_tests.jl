@@ -7,7 +7,7 @@ using Test, HTTP, JSON3, SHA
 using ..JuliaFlowApiGateway
 
 const Repo = JuliaFlowApiGateway.JuliaFlowGatewayRepository
-const Core = JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore
+const ProjectCore = JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore
 const Evidence = JuliaFlowApiGateway.JuliaFlowDataScienceProjectEvidence
 
 function project_body()
@@ -37,33 +37,33 @@ end
     @test Repo.JuliaFlowProjectPayloadValidation.validate_project_children!(Dict("evaluationReports" => [fake])) isa AbstractDict
     # This payload meets the former strict shape guard, but carries no producer.
     @test Evidence.require_evaluation(fake, "release", "approval") === fake
-    @test_throws "server-owned execution evidence" Core.materialize_project_record(merge(project_body(), Dict("evaluationReports" => [fake])))
-    project = Core.materialize_project_record(project_body())
+    @test_throws "server-owned execution evidence" ProjectCore.materialize_project_record(merge(project_body(), Dict("evaluationReports" => [fake])))
+    project = ProjectCore.materialize_project_record(project_body())
     # Restore sparse historical state through the repository loader, not admission.
     historical = merge(Repo.data_science_project_payload(project), Dict("evaluationReports" => [fake]))
     restored = Repo.gateway_data_science_project(historical)
     @test restored.evaluation_reports == [fake]
     @test_throws "source evidence unavailable" Evidence.context_evaluation(restored, Dict("evaluationReportId" => "forged"), "release", "approval"; required = true)
-    @test_throws "server-owned execution evidence" Core.materialize_project_record(Dict("evaluationReports" => [merge(fake, Dict("metrics" => Dict("rmse" => 0.99)))]); existing = restored)
-    @test_throws "server-owned execution evidence" Core.materialize_project_record(Dict("evaluationReports" => Any[]); existing = restored)
+    @test_throws "server-owned execution evidence" ProjectCore.materialize_project_record(Dict("evaluationReports" => [merge(fake, Dict("metrics" => Dict("rmse" => 0.99)))]); existing = restored)
+    @test_throws "server-owned execution evidence" ProjectCore.materialize_project_record(Dict("evaluationReports" => Any[]); existing = restored)
     echoed = JSON3.read(JSON3.write(Repo.data_science_project_payload(restored)), Dict{String,Any})
-    @test Core.materialize_project_record(echoed; existing = restored).evaluation_reports == [fake]
-    omitted = Core.materialize_project_record(Dict("name" => "Renamed"); existing = restored)
+    @test ProjectCore.materialize_project_record(echoed; existing = restored).evaluation_reports == [fake]
+    omitted = ProjectCore.materialize_project_record(Dict("name" => "Renamed"); existing = restored)
     @test omitted.evaluation_reports == [fake]
     omitted.evaluation_reports[1]["metrics"]["rmse"] = 0.0
     @test restored.evaluation_reports[1]["metrics"]["rmse"] == 1.0
-    copied = Core.materialize_project_record(echoed; existing = restored)
+    copied = ProjectCore.materialize_project_record(echoed; existing = restored)
     echoed["evaluationReports"][1]["approved"] = false
     @test copied.evaluation_reports[1]["approved"] === true
-    for key in Core.SERVER_OWNED_PROJECT_FIELDS
+    for key in ProjectCore.SERVER_OWNED_PROJECT_FIELDS
         # The shared ownership guard applies equally to metadata/job copies.
-        @test_throws "server-owned execution evidence" Core.protect_execution_evidence!(project, Dict(key => [Dict("copiedEvaluation" => fake)]))
-        @test Core.protect_execution_evidence!(project, Dict(key => Any[])) === nothing
+        @test_throws "server-owned execution evidence" ProjectCore.protect_execution_evidence!(project, Dict(key => [Dict("copiedEvaluation" => fake)]))
+        @test ProjectCore.protect_execution_evidence!(project, Dict(key => Any[])) === nothing
     end
     declaration = Dict("trainingPlanId" => "training", "targetColumn" => "y", "splitPlanId" => "server-split")
-    @test length(Core.materialize_project_record(merge(project_body(), Dict("trainingPlans" => [declaration]))).training_plans) == 1
+    @test length(ProjectCore.materialize_project_record(merge(project_body(), Dict("trainingPlans" => [declaration]))).training_plans) == 1
     restored.training_plans = [declaration]
-    @test_throws "executed training plans are immutable" Core.materialize_project_record(Dict("trainingPlans" => [merge(declaration, Dict("targetColumn" => "other"))]); existing = restored)
+    @test_throws "executed training plans are immutable" ProjectCore.materialize_project_record(Dict("trainingPlans" => [merge(declaration, Dict("targetColumn" => "other"))]); existing = restored)
 end
 
 @testset "HTTP admission and genuine producer evidence" begin

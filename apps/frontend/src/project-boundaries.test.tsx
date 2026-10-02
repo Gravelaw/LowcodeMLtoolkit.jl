@@ -26,7 +26,15 @@ function mockGateway(project = fixtures.dataScienceProject) {
       workspaceSummary: { ...fixtures.localHealth.workspaceSummary, artifacts: [] }
     };
     else if (url.endsWith("/api/v1/workflows")) payload = { items: [fixtures.workflowSummary] };
-    else if (url.endsWith(`/api/v1/workflows/${fixtures.workflowSummary.workflowId}`)) payload = fixtures.localWorkflow;
+    else if (url.endsWith(`/api/v1/workflows/${fixtures.workflowSummary.workflowId}`)) payload = {
+      ...fixtures.localWorkflow,
+      graph: {
+        revision: fixtures.workflowSummary.graphRevision,
+        nodeLayouts: fixtures.localWorkflow.nodes.map((node, index) => ({
+          nodeId: node.id, x: 36 + index * 192, y: 44, width: 176
+        }))
+      }
+    };
     else if (url.endsWith("/api/v1/data-science-projects")) payload = { items: [project] };
     else if (url.includes("/ml/experiments")) payload = { items: fixtures.mlExperiments };
     return new Response(JSON.stringify(payload), { status: 200, headers: { "content-type": "application/json" } });
