@@ -47,6 +47,7 @@ export function viewFromPath(pathname: string): AppView {
 
 export function Shell({
   activeView,
+  theme, onToggleTheme,
   children,
   onNavigate,
   onPrimaryAction,
@@ -56,6 +57,8 @@ export function Shell({
   onProfileAction
 }: {
   activeView: AppView;
+  theme?: "light" | "dark";
+  onToggleTheme?: () => void;
   children: React.ReactNode;
   onNavigate: (view: AppView) => void;
   onPrimaryAction: () => void;
@@ -112,6 +115,7 @@ export function Shell({
             <span>All data stays on this device</span>
           </div>
           <div className="top-actions">
+            <Button ariaLabel="Toggle color theme" onClick={onToggleTheme}>{theme === "dark" ? "Light theme" : "Dark theme"}</Button>
             <Button variant="primary" onClick={onPrimaryAction}>+ New Project</Button>
             <Button ariaLabel="Open grid menu" onClick={onGridAction}><Grid3X3 size={17} aria-hidden="true" /></Button>
             <Button ariaLabel="Open share panel" onClick={onShareAction}><Share2 size={17} aria-hidden="true" /></Button>

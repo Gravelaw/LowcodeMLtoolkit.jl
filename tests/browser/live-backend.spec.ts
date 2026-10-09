@@ -287,6 +287,8 @@ test.describe("live-backend release smoke", () => {
     await expect(page.getByText(/summary,pearson_correlation,spearman_correlation,ols,t_test,chi_square,anova \(completed\)/)).toBeVisible();
     await expect(page.getByText(new RegExp(`local://analysis/${datasetId}/stats-.*?/results.json`)).first()).toBeVisible();
     await expect(page.getByText(new RegExp(`local://analysis/${datasetId}/stats-.*?/analysis.jl`)).first()).toBeVisible();
+    await page.getByLabel("Dataset ID", { exact: true }).fill(datasetId);
+    await page.getByLabel("Approved local CSV path", { exact: true }).fill(`local://data/raw/${datasetId}.csv`);
     await page.getByRole("button", { name: /import local data/i }).click();
     await expect(page.getByText("Gateway action completed locally.")).toBeVisible();
 

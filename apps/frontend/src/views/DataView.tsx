@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
 import { InteractiveChart } from "../components/InteractiveChart";
@@ -105,11 +105,22 @@ export function DataView({
   feedback
 }: {
   data: AppData;
-  onImport: (request?: ReturnType<typeof sourceRequest>) => void;
+  onImport: (request?: ReturnType<typeof sourceRequest>) => void | Promise<void>;
   onSelectProfile: (profile: GatewayDataImportProfile) => void;
   onProjectUpdate: (request: UpdateDataScienceProjectRequest, identity: DatasetEditIdentity) => void;
   feedback?: ActionFeedback;
 }) {
+  const [importSource, setImportSource] = useState("");
+  const [importDataset, setImportDataset] = useState("");
+  const [importing, setImporting] = useState(false);
+  const importLock = useRef(false);
+  async function importLocalCsv() {
+    if (importLock.current || !data.dataScienceProject.projectId || !importSource.trim() || !importDataset.trim()) return;
+    importLock.current = true;
+    setImporting(true);
+    try { await onImport({ datasetId: importDataset.trim(), sourceUri: importSource.trim(), format: "csv", targetZone: "raw", readMode: "csv" }); }
+    finally { importLock.current = false; setImporting(false); }
+  }
   const [activeTab, setActiveTab] = useState<DataTab>("table");
   const [filterField, setFilterField] = useState("contract_type");
   const [filterValue, setFilterValue] = useState("all");
@@ -290,19 +301,23 @@ export function DataView({
       <section className="page-title">
         <div>
           <h1>Data</h1>
-          <p>Customer Churn Dataset. All data is stored and processed locally on this machine.</p>
+          <p>{project.projectId ? project.name : "Open or create a saved project to import data."} All data is stored and processed locally on this machine.</p>
         </div>
         <div className="button-row">
-          <button type="button" className="jf-button secondary" onClick={() => onImport(sourceRequest(activeProfile, sourceOptions.find((option) => option.mode === "csv") ?? activeOption))}>
-            Import Local Data
-          </button>
-          <button type="button" className="jf-button primary" onClick={() => onImport(sourceRequest(activeProfile, activeOption))}>
+          <button type="button" className="jf-button primary" disabled={!activeProfile.datasetId || !project.projectId || importing} onClick={() => onImport(sourceRequest(activeProfile, activeOption))}>
             Re-profile Active Dataset
           </button>
         </div>
       </section>
       {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
 
+      <section className="wide csv-import-form" aria-label="Import CSV into saved project">
+        <label>Dataset ID<input value={importDataset} onChange={(event) => setImportDataset(event.target.value)} /></label>
+        <label>Approved local CSV path<input value={importSource} onChange={(event) => setImportSource(event.target.value)} placeholder="local://data/raw/example.csv" /></label>
+        <button type="button" className="jf-button primary" disabled={!project.projectId || importing || !importSource.trim() || !importDataset.trim()} onClick={() => void importLocalCsv()}>{importing ? "Importing…" : "Import Local Data"}</button>
+        <p>Unquoted CSV only, unique headers, up to 1,000 rows and 8 MiB. The gateway validates the approved source and checksum.</p>
+      </section>
+      {!activeProfile.profileScope ? <p className="wide feedback info">{activeProfile.datasetId ? "Saved dataset metadata reopened. Full profiling details and preview are unavailable; no automatic re-import was performed." : "No dataset imported into this project."}</p> : null}
       <Card title="Local Data Sources" eyebrow="All sources stay on this device">
         <div className="source-stack">
           {sourceBrowser.map((source) => (
@@ -328,18 +343,26 @@ export function DataView({
 
       <Card title="Local Data Profile" className="right-panel">
         <div className="profile-cards single">
-          <div><span>Rows</span><strong>{preview.length.toLocaleString()} / {activeProfile.rowCount.toLocaleString()}</strong></div>
+          <div><span>Preview / saved rows</span><strong>{preview.length.toLocaleString()} / {activeProfile.rowCount.toLocaleString()}</strong></div>
           <div><span>Columns</span><strong>{activeProfile.schemaSummary.length}</strong></div>
-          <div><span>Missing Values</span><strong>{activeProfile.profileSummary.reduce((sum, field) => sum + (field.missingCount ?? 0), 0).toLocaleString()}</strong></div>
-          <div><span>Quality</span><strong>{qualityHighlight ?? "profile ready"}</strong></div>
+          <div><span>Missing Values</span><strong>{activeProfile.profileScope ? activeProfile.profileSummary.reduce((sum, field) => sum + (field.missingCount ?? 0), 0).toLocaleString() : "unavailable"}</strong></div>
+          <div><span>Quality</span><strong>{qualityHighlight ?? "unavailable"}</strong></div>
           <div><span>Source</span><strong>{activeProfile.activeReadMode ?? activeProfile.sourceFormat}</strong></div>
         </div>
-        <button type="button" className="jf-button secondary full-width" onClick={() => onImport(sourceRequest(activeProfile, activeOption))}>
+        <button type="button" className="jf-button secondary full-width" disabled={!activeProfile.datasetId || !project.projectId || importing} onClick={() => onImport(sourceRequest(activeProfile, activeOption))}>
           Re-profile Active Read Mode
         </button>
       </Card>
 
       <Card title="Project Schema Diagnostics" eyebrow={project.projectId} className="right-panel">
+        {projectDataset ? <div className="key-values wrap-values" aria-label="Saved dataset metadata">
+          <span>Dataset ID</span><strong>{projectDataset.datasetId}</strong>
+          <span>Saved source</span><strong>{projectDataset.sourceUri}</strong>
+          <span>Saved artifact</span><strong>{projectDataset.artifactRef ?? "unavailable"}</strong>
+          <span>Source checksum</span><strong>{projectDataset.checksumSha256 ?? "unavailable"}</strong>
+          <span>Saved rows</span><strong>{projectDataset.rowCount ?? "unavailable"}</strong>
+          <span>Saved columns</span><strong>{projectDataset.columnCount ?? "unavailable"}</strong>
+        </div> : null}
         {schemaContract ? (
           <div className="key-values wrap-values">
             <span>Schema</span><strong>{schemaContract.schemaId}</strong>
@@ -460,7 +483,7 @@ export function DataView({
         </div>
       </Card>
 
-      <Card title="Dataset Catalog" eyebrow="Local fixtures">
+      <Card title="Dataset Catalog" eyebrow={data.runtimeMode === "demo" ? "Local fixtures" : "Saved project datasets"}>
         <div className="source-grid">
           {dataProfiles.map((profile) => (
             <button
@@ -528,7 +551,7 @@ export function DataView({
               getRowKey={(row, index) => `${activeProfile.datasetId}-${String(row[String(columns[0]?.key ?? "row")] ?? "row")}-${index}`}
             />
           ) : (
-            <p className="empty-state">No preview rows match the active filter. Clear filters or re-profile the local dataset.</p>
+            <p className="empty-state">{!activeProfile.profileScope ? "Saved preview unavailable. Re-profile the local dataset to load a preview." : "No preview rows match the active filter. Clear filters or re-profile the local dataset."}</p>
           )
         ) : null}
 
@@ -713,7 +736,7 @@ export function DataView({
       </Card>
 
       <Card title="Generated Julia Code" className="wide">
-        <CodeBlock label="data/import_profile.jl">{localCode.data}</CodeBlock>
+        {data.runtimeMode === "demo" ? <CodeBlock label="data/import_profile.jl">{localCode.data}</CodeBlock> : <p className="empty-state">Generated import code is unavailable in saved project metadata.</p>}
       </Card>
     </div>
   );

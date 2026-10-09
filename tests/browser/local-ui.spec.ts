@@ -36,6 +36,12 @@ test.beforeEach(async ({ page }) => {
   await mockGateway(page);
   await page.goto("/");
   await expect(page.getByRole("status", { name: /100% local status/i })).toContainText("100% Local");
+  await page.getByRole("button", { name: "Data", exact: true }).click();
+  await page.getByLabel("Dataset ID", { exact: true }).fill(dataProfile.datasetId);
+  await page.getByLabel("Approved local CSV path", { exact: true }).fill(dataProfile.sourceUri);
+  await page.getByRole("button", { name: "Import Local Data", exact: true }).click();
+  await expect(page.getByText("Gateway action completed locally.")).toBeVisible();
+  await page.getByRole("button", { name: "Explorer", exact: true }).click();
 });
 
 test.afterEach(async ({ page }) => {
@@ -87,6 +93,8 @@ test("sidebar navigation reaches every redesigned local-only route", async ({ pa
 
 test("backend-backed local actions use mocked gateway fixtures", async ({ page }) => {
   await page.getByRole("button", { name: "Data" }).click();
+  await page.getByLabel("Dataset ID", { exact: true }).fill(dataProfile.datasetId);
+  await page.getByLabel("Approved local CSV path", { exact: true }).fill(dataProfile.sourceUri);
   await page.getByRole("button", { name: /import local data/i }).click();
   await expect(page.getByText("Gateway action completed locally.")).toBeVisible();
 
@@ -203,6 +211,7 @@ async function mockGateway(page: Page) {
     if (path === "/api/v1/workflows") return route.fulfill(json({ items: [workflowSummary] }));
     if (path === "/api/v1/executions") return route.fulfill(json({ items: executionRecords }));
     if (path === "/api/v1/data-science-projects" && method === "GET") return route.fulfill(json({ items: [project], count: 1 }));
+    if (path === `/api/v1/data-science-projects/${project.projectId}` && method === "GET") return route.fulfill(json(project));
     if (path === `/api/v1/data-science-projects/${project.projectId}` && method === "PUT") {
       project = { ...project, ...(request.postDataJSON() as object), updatedAt: new Date().toISOString() };
       return route.fulfill(json(project));

@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import * as matchers from "@testing-library/jest-dom/matchers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -130,6 +130,7 @@ describe("sample workflow helpers", () => {
 
 describe("JuliaFlow local-only app redesign", () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.restoreAllMocks();
     window.history.pushState({}, "", "/");
     window.__JULIAFLOW_CONFIG__ = { gatewayBaseUrl: "", runtimeMode: "demo" };
@@ -157,18 +158,11 @@ describe("JuliaFlow local-only app redesign", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "+ New Project" }));
     expect(screen.getByRole("dialog", { name: "Create New Project" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Description")).toHaveValue(
-      "Creates a local workspace scaffold using the current appliance profile and sample workflow template."
-    );
-    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "A" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create Local Project" }));
-    expect(screen.getByText("Project name must be at least 3 characters.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Description (optional)")).toHaveValue("");
     fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Foundation PoC" } });
-    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Local churn analysis workspace" } });
-    fireEvent.change(screen.getByLabelText("Folder path"), { target: { value: "/Users/alexj/JuliaFlowLocal/Projects/Foundation_PoC" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create Local Project" }));
-    expect(screen.getByText("Local project scaffold created at /Users/alexj/JuliaFlowLocal/Projects/Foundation_PoC.")).toBeInTheDocument();
-    expect(screen.getByText("Foundation_PoC/Project.toml")).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create project", exact: true }));
+    expect(screen.getByText("Connect the local gateway before creating a saved project.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     fireEvent.click(screen.getAllByRole("button", { name: "Copy Path" })[0]);
     expect(screen.getByText(/Artifact path/)).toBeInTheDocument();
 
@@ -279,24 +273,14 @@ describe("JuliaFlow local-only app redesign", () => {
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "+ New Project" }));
-    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Browser Project" } });
-    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Filesystem scaffold test" } });
-    fireEvent.change(screen.getByLabelText("Folder path"), { target: { value: "/Users/alexj/JuliaFlowLocal/Projects/Browser_Project" } });
-    fireEvent.click(screen.getByRole("button", { name: "Choose Target Folder" }));
-    await screen.findByText("Write access granted: Browser_Project");
+    fireEvent.click(screen.getByRole("button", { name: "Write optional folder" }));
+    await screen.findByText("Folder selected. Click Write optional folder to write its README.");
+    fireEvent.click(screen.getByRole("button", { name: "Write optional folder" }));
+    await waitFor(() => expect(writes.map((write) => write.path)).toEqual(["Browser_Project/README.md"]));
+    expect(writes[0]?.content).toContain(dataScienceProject.name);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Optional folder README written. Saved project metadata is independent of this folder.")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Local Project" }));
-
-    await waitFor(() => expect(writes.map((write) => write.path)).toEqual([
-      "Browser_Project/Project.toml",
-      "Browser_Project/README.md",
-      "Browser_Project/workflows/wf-browser-project.toml",
-      "Browser_Project/data/raw/.gitkeep"
-    ]));
-    expect(writes.find((write) => write.path.endsWith("README.md"))?.content).toContain("Filesystem scaffold test");
-    expect(close).toHaveBeenCalledTimes(4);
-    expect(screen.getByText("Local project scaffold written to Browser_Project.")).toBeInTheDocument();
   });
 
   it("runs redesigned actions through deterministic demo fallback without a gateway", () => {
@@ -482,6 +466,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithDataEvidence], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${projectWithDataEvidence.projectId}`)) return json(projectWithDataEvidence);
       if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
       if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
       if (url.includes("/models")) return json({ items: [], count: 0 });
@@ -493,6 +478,7 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Data" }));
     expect(screen.getByText("Project Data Workflow Evidence")).toBeInTheDocument();
     expect(screen.getByText("job-data-profile-001")).toBeInTheDocument();
@@ -557,6 +543,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithVisualizeEvidence], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${projectWithVisualizeEvidence.projectId}`)) return json(projectWithVisualizeEvidence);
       if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
       if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
       if (url.includes("/models")) return json({ items: [], count: 0 });
@@ -568,6 +555,7 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Visualize" }));
     expect(screen.getByText("Project Statistical Analysis Evidence")).toBeInTheDocument();
     expect(screen.getByText("stats-project-visualize-001")).toBeInTheDocument();
@@ -657,6 +645,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithTransformEvidence], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${projectWithTransformEvidence.projectId}`)) return json(projectWithTransformEvidence);
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
@@ -668,6 +657,7 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Transform" }));
     expect(screen.getByText("Project Transform Evidence")).toBeInTheDocument();
     expect(screen.getByText(transformRunId)).toBeInTheDocument();
@@ -756,6 +746,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithModelAndDeployEvidence], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${projectWithModelAndDeployEvidence.projectId}`)) return json(projectWithModelAndDeployEvidence);
       if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
       if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
       if (url.includes("/models")) return json({ items: [], count: 0 });
@@ -767,6 +758,7 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Models" }));
     expect(screen.getAllByText("Project Registry Model").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Project-backed registry records").length).toBeGreaterThan(0);
@@ -907,6 +899,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithValidationWorkflow], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${projectWithValidationWorkflow.projectId}`)) return json(projectWithValidationWorkflow);
       if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
@@ -918,6 +911,7 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "ML Studio" }));
     expect(screen.getByText("Project Validation Workflow")).toBeInTheDocument();
     expect(screen.getByText("plan-project-validation-001")).toBeInTheDocument();
@@ -1019,6 +1013,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [projectWithLifecycleReview], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${projectWithLifecycleReview.projectId}`)) return json(projectWithLifecycleReview);
       if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
       if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
       if (url.includes("/models")) return json({ items: [], count: 0 });
@@ -1030,6 +1025,7 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Models" }));
     expect(screen.getByText("Lifecycle Review")).toBeInTheDocument();
     expect(screen.getAllByText("Lifecycle Review Model").length).toBeGreaterThan(0);
@@ -1067,6 +1063,7 @@ describe("JuliaFlow local-only app redesign", () => {
         }))
       });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${dataScienceProject.projectId}`)) return json(dataScienceProject);
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models/register") && method === "POST") return json({ status: "registered", model: modelRegistry[0] });
@@ -1079,6 +1076,7 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Models" }));
     fireEvent.click(screen.getByRole("button", { name: /register model/i }));
     await waitFor(() => expect(screen.getByText("Gateway action completed locally.")).toBeInTheDocument());
@@ -1089,21 +1087,23 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(headerValue(registerCall?.[1], "x-juliaflow-workspace-role")).toBe("editor");
 
     fireEvent.click(screen.getByRole("button", { name: "Data" }));
-    fireEvent.click(screen.getByRole("button", { name: /global-superstore-local/i }));
-    fireEvent.click(screen.getByRole("button", { name: /duckdb query view/i }));
+    fireEvent.change(screen.getByLabelText("Dataset ID"), { target: { value: "global-superstore-local" } });
+    fireEvent.change(screen.getByLabelText("Approved local CSV path"), { target: { value: "local://data/raw/global-superstore-local.csv" } });
+    fireEvent.click(screen.getByRole("button", { name: "Import Local Data" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       "http://127.0.0.1:8088/api/v1/local-data/import",
-      expect.objectContaining({
-        method: "POST",
-        body: expect.stringContaining("\"readMode\":\"duckdb\"")
-      })
+      expect.objectContaining({ method: "POST", body: expect.stringContaining('"datasetId":"global-superstore-local"') })
     ));
     await waitFor(() => expect(screen.getByText("Gateway action completed locally.")).toBeInTheDocument());
     expect(screen.getAllByText("CA-2016-152156").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("tab", { name: "schema" }));
     expect(screen.queryByLabelText("Column role for monthly_charges")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
-    fireEvent.click(screen.getByRole("button", { name: /customer-churn-local/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Explorer" }));
+    fireEvent.change(screen.getByLabelText("Open saved project"), { target: { value: dataScienceProject.projectId } });
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Data" }));
+    fireEvent.click(screen.getByRole("tab", { name: "schema" }));
     fireEvent.change(screen.getByLabelText("Column role for monthly_charges"), { target: { value: "target" } });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       "http://127.0.0.1:8088/api/v1/data-science-projects/customer-churn-project",
@@ -1191,8 +1191,9 @@ describe("JuliaFlow local-only app redesign", () => {
       }
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
-      if (url.endsWith(`/api/v1/data-science-projects/${dataScienceProject.projectId}`)) return json(refreshedProject);
+      if (url.endsWith(`/api/v1/data-science-projects/${dataScienceProject.projectId}`)) return json(fetchMock.mock.calls.some(([input, init]) => String(input).endsWith("/ml/experiments/run") && init?.method === "POST") ? refreshedProject : dataScienceProject);
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${dataScienceProject.projectId}`)) return json(dataScienceProject);
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
@@ -1204,6 +1205,7 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "ML Studio" }));
     expect(screen.getByText("Project Training Job Evidence")).toBeInTheDocument();
     expect(screen.getByText("No project training job has been recorded yet. Train a model through the local gateway to attach worker dispatch evidence to this project.")).toBeInTheDocument();
@@ -1257,6 +1259,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${dataScienceProject.projectId}`)) return json(dataScienceProject);
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
@@ -1309,6 +1312,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(localWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${dataScienceProject.projectId}`)) return json(dataScienceProject);
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
@@ -1320,6 +1324,7 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /save workflow/i }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(`/api/v1/workflows/${workflowSummary.workflowId}`), expect.objectContaining({ method: "PUT" })));
     expect(screen.getByText("Gateway action completed locally.")).toBeInTheDocument();
@@ -1343,6 +1348,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json({ ...workflowSummary, nodes: [], connections: [], flowVariables: [] });
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${dataScienceProject.projectId}`)) return json(dataScienceProject);
       if (url.includes("/transforms/history")) return json({ items: transformRuns, count: transformRuns.length });
       if (url.includes("/ml/experiments")) return json({ items: mlExperiments, count: mlExperiments.length });
       if (url.includes("/models")) return json({ items: modelRegistry, count: modelRegistry.length });
@@ -1354,6 +1360,7 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     const healthCall = fetchMock.mock.calls.find(([input]) => String(input).endsWith("/health"));
     expect(headerValue(healthCall?.[1], "authorization")).toBeNull();
     expect(headerValue(healthCall?.[1], "x-juliaflow-workspace")).toBeNull();
@@ -1367,7 +1374,7 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByLabelText("Release mode unavailable")).toHaveTextContent("No gatewayBaseUrl is configured");
     fireEvent.click(screen.getByRole("button", { name: "Data" }));
     fireEvent.click(screen.getByRole("button", { name: /re-profile active dataset/i }));
-    expect(screen.getByText("Release mode requires the local gateway before this action can run.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /re-profile active dataset/i })).toBeDisabled();
     expect(screen.queryByText("Synthetic csv profile loaded from fixture.")).not.toBeInTheDocument();
   });
 
@@ -1409,6 +1416,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [] });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${dataScienceProject.projectId}`)) return json(dataScienceProject);
       if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
       if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
       if (url.includes("/models")) return json({ items: [], count: 0 });
@@ -1420,6 +1428,7 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Transform" }));
     expect(screen.queryByText("transform-2026-06-17-001")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Monitor" }));
@@ -1470,6 +1479,7 @@ describe("JuliaFlow local-only app redesign", () => {
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}`)) return json(backendWorkflow);
       if (url.endsWith(`/api/v1/workflows/${workflowSummary.workflowId}/dashboards`)) return json({ items: [publishedDashboard] });
       if (url.endsWith("/api/v1/data-science-projects")) return json({ items: [dataScienceProject], count: 1 });
+      if (url.endsWith(`/api/v1/data-science-projects/${dataScienceProject.projectId}`)) return json(dataScienceProject);
       if (url.includes("/transforms/history")) return json({ items: [], count: 0 });
       if (url.includes("/ml/experiments")) return json({ items: [], count: 0 });
       if (url.includes("/models")) return json({ items: [], count: 0 });
@@ -1485,7 +1495,10 @@ describe("JuliaFlow local-only app redesign", () => {
     render(<App />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8088/health", expect.objectContaining({ method: "GET" })));
+    await waitFor(() => expect(screen.queryByText(/Active project:/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Data" }));
+    fireEvent.change(screen.getByLabelText("Dataset ID"), { target: { value: "customer-churn-local" } });
+    fireEvent.change(screen.getByLabelText("Approved local CSV path"), { target: { value: "data/raw/customer-churn-local.csv" } });
     fireEvent.click(screen.getByRole("button", { name: /import local data/i }));
     await waitFor(() => expect(importBody?.sourceUri).toBe("local://data/raw/customer-churn-local.csv"));
     expect(importBody?.projectId).toBe(dataScienceProject.projectId);

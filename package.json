@@ -58,13 +58,14 @@
     "ci:local:parity": "node scripts/ci/parity.mjs",
     "test:local-ci": "node --test tests/ci/*.test.mjs",
     "cd:local": "node scripts/ci/delivery.mjs",
-    "ci:hosted-policy": "node scripts/ci/hosted-policy.mjs"
+    "ci:hosted-policy": "node scripts/ci/hosted-policy.mjs",
+    "smoke:create-project": "node scripts/smoke-create-project.mjs"
   },
   "dependencies": {
     "smol-toml": "^1.7.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.57.0",
+    "@playwright/test": "1.64.0",
     "typescript": "^5.9.3"
   }
 }
