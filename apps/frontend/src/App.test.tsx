@@ -147,7 +147,7 @@ describe("JuliaFlow local-only app redesign", () => {
     window.__JULIAFLOW_CONFIG__ = undefined;
   });
 
-  it("renders the mock-aligned local shell and utility controls", () => {
+  it("renders the local shell and creation boundary", () => {
     render(<App />);
 
     expect(screen.getByRole("status", { name: /100% local status/i })).toHaveTextContent("100% Local");
@@ -166,6 +166,11 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Copy Path" })[0]);
     expect(screen.getByText(/Artifact path/)).toBeInTheDocument();
 
+  });
+
+  it("opens the module launcher and local export controls", () => {
+    render(<App />);
+
     fireEvent.click(screen.getByRole("button", { name: "Open grid menu" }));
     expect(screen.getByRole("dialog", { name: "Module Launcher" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close utility dialog" }));
@@ -174,6 +179,11 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByRole("dialog", { name: "Local Export And Share" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Prepare Bundle" }));
     expect(screen.getByText("Local reproducibility bundle export queued for this workspace.")).toBeInTheDocument();
+
+  });
+
+  it("opens local help and profile controls", () => {
+    render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Open help" }));
     expect(screen.getByRole("dialog", { name: "Workspace Help" })).toBeInTheDocument();
@@ -185,7 +195,7 @@ describe("JuliaFlow local-only app redesign", () => {
 
   });
 
-  it("navigates all local workspace routes", () => {
+  it("navigates the data route and dataset profile", () => {
     render(<App />);
     const navigation = within(screen.getByRole("complementary", { name: "JuliaFlow Local navigation" }));
 
@@ -203,6 +213,12 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("Synthetic duckdb profile loaded from fixture.")).toBeInTheDocument();
     expect(screen.getByText("Generated Julia Code")).toBeInTheDocument();
 
+  });
+
+  it("navigates transform, ML Studio and model routes", () => {
+    render(<App />);
+    const navigation = within(screen.getByRole("complementary", { name: "JuliaFlow Local navigation" }));
+
     fireEvent.click(navigation.getByRole("button", { name: "Transform" }));
     expect(screen.getByRole("heading", { name: "Transform" })).toBeInTheDocument();
     expect(screen.getByText("Visual Transform Pipeline")).toBeInTheDocument();
@@ -214,6 +230,12 @@ describe("JuliaFlow local-only app redesign", () => {
     fireEvent.click(navigation.getByRole("button", { name: "Models" }));
     expect(screen.getByRole("heading", { name: "Models" })).toBeInTheDocument();
     expect(screen.getAllByText("Churn Prediction").length).toBeGreaterThan(0);
+
+  });
+
+  it("navigates visualization evidence tabs", () => {
+    render(<App />);
+    const navigation = within(screen.getByRole("complementary", { name: "JuliaFlow Local navigation" }));
 
     fireEvent.click(navigation.getByRole("button", { name: "Visualize" }));
     expect(screen.getByRole("heading", { name: "Visualize" })).toBeInTheDocument();
@@ -230,6 +252,12 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("Local Save And Export Actions")).toBeInTheDocument();
     expect(screen.getByText("Artifact Rows")).toBeInTheDocument();
     expect(screen.getByText("C-1001")).toBeInTheDocument();
+
+  });
+
+  it("navigates deployment, monitoring and settings routes", () => {
+    render(<App />);
+    const navigation = within(screen.getByRole("complementary", { name: "JuliaFlow Local navigation" }));
 
     fireEvent.click(navigation.getByRole("button", { name: "Deploy" }));
     expect(screen.getByRole("heading", { name: "Deploy" })).toBeInTheDocument();
