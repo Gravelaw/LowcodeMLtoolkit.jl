@@ -1659,3 +1659,5 @@ input, select, textarea { background: var(--card); color: var(--text); border: 1
 .analysis-workspace .feedback { overflow-wrap: anywhere; }
 .analysis-workspace summary { cursor: pointer; padding: .65rem 0; }
 @media (max-width: 640px) { .analysis-controls > * { flex-basis: 100%; } }
+
+:root[data-theme="dark"] .top-strip { background: var(--card); }

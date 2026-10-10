@@ -1,5 +1,11 @@
 # JuliaFlow TODO
 
+2026-10-10 — bounded final UI reconciliation: dark utility header now uses the
+approved #202333 surface token; light theme and header/navigation layout unchanged.
+Over-limit chart guidance names saved project evidence, avoiding a false promise
+that older selected runs appear in the latest-four history view. Final exact
+candidate browser/review/fullgate still required; no full-board/human acceptance.
+
 2026-10-10 — independent SEC-A11Y-1 review of9a155ef found quadratic label
 amplification; approval withheld. Corrected presentation tables use a single full
 column-name key plus compact pair references, with explicit64KiB UTF-8-label /

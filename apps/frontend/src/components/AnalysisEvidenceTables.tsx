@@ -11,7 +11,7 @@ export function AnalysisEvidenceTables({ evidence }: { evidence: Record<string, 
   const labelSize = [...columns,String(scatter?.xLabel ?? scatter?.xColumn ?? ""),String(scatter?.yLabel ?? scatter?.yColumn ?? ""),String(distribution?.label ?? distribution?.column ?? "")]
     .reduce((size, label) => size + new TextEncoder().encode(label).byteLength, 0);
   const rowCount = columns.length + columns.length * (columns.length + 1) / 2 + values(scatter?.x).length + values(distribution?.values).length;
-  if (labelSize > 65536 || rowCount > 5000) return <p role="status">Structured chart tables unavailable: this saved evidence exceeds the presentation limit of 64 KiB of UTF-8 labels or 5,000 rows. Immutable evidence is unchanged; its result reference remains in saved run history.</p>;
+  if (labelSize > 65536 || rowCount > 5000) return <p role="status">Structured chart tables unavailable: this saved evidence exceeds the presentation limit of 64 KiB of UTF-8 labels or 5,000 rows. Immutable evidence is unchanged; its result reference remains in saved project evidence.</p>;
   const correlations = values(evidence.correlationMatrix);
   const counts = values(evidence.correlationPairCounts);
   const pairs = columns.flatMap((column, i) => columns.slice(i).map((_, offset) => ({
