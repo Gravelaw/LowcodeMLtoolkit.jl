@@ -110,6 +110,35 @@ function matches_filter(row, headers, filter)
     return op == "gte" ? number >= bound : number <= bound
 end
 
+# Compensate finite summation so cancellation does not erase small terms.
+# Intermediate overflow and nonzero means below range remain unavailable.
+function scoped_sample_mean(values)
+    total, correction = 0.0, 0.0
+    for value in values
+        next_total = total + value
+        isfinite(next_total) || return NaN
+        correction += abs(total) >= abs(value) ? (total - next_total) + value : (value - next_total) + total
+        total = next_total
+    end
+    numerator = total + correction
+    result = numerator / length(values)
+    return !isfinite(numerator) || (numerator != 0 && result == 0) ? NaN : result
+end
+
+# Shift before scaling to retain near-offset differences, and square only
+# bounded deviations. Unrepresentable ranges become unavailable in the caller.
+function scoped_sample_std(values)
+    length(values) <= 1 && return 0.0
+    shifted = values .- first(values)
+    all(isfinite, shifted) || return NaN
+    scale = maximum(abs, shifted)
+    scale == 0 && return 0.0
+    normalized = shifted ./ scale
+    centered = normalized .- Stats.sample_mean(normalized)
+    result = scale * sqrt(sum(abs2, centered) / (length(values) - 1))
+    return result == 0 ? NaN : result
+end
+
 """Compute bounded, schema-bound analysis with original row identity and explicit pairwise missingness."""
 function scoped_evidence(dataset, path, body, schema)
     methods = Stats.statistical_analysis_methods(body)
@@ -130,6 +159,14 @@ function scoped_evidence(dataset, path, body, schema)
     keep = [i for i in eachindex(names) if names[i] in allowed]
     evidence["numericColumns"] = names[keep]
     evidence["summaries"] = [s for s in evidence["summaries"] if s["column"] in allowed]
+    # Scoped evidence preserves measured precision. Legacy statistical helpers
+    # retain their existing rounding and behavior for unrelated callers.
+    columns, _ = Stats.simple_numeric_columns(numeric_table)
+    for summary in evidence["summaries"]
+        values = columns[summary["column"]]
+        summary["mean"] = scoped_sample_mean(values)
+        summary["std"] = scoped_sample_std(values)
+    end
     for key in ("correlationMatrix", "spearmanCorrelationMatrix", "correlationPairCounts")
         matrix = evidence[key]
         evidence[key] = [[matrix[i][j] for j in keep] for i in keep]

@@ -1,5 +1,18 @@
 # JuliaFlow checkpoint log
 
+2026-10-10 — adjacent NUM-1 scoped-summary correction: independent review
+confirmed that a checksum-bound CSV `[1e-200,2e-200,3e-200]` persisted false zero
+mean/std. The finding was recorded and read back on AKS-44 before remediation.
+Scoped means use compensated summation to retain finite cancellation terms
+(`[1e300,1,-1e300]` now retains 1/3), with unrounded results; summaries calculate standard
+deviation using shifted, scaled deviations; genuine constant/cancellation zeros
+remain valid and unrepresentable results remain explicitly unavailable. Legacy
+unscoped helper semantics remain unchanged. New checksum-bound precision
+regressions and independent rereview are required. Prior f4de42a correctness
+clearance is superseded. Its aggregate run was canceled after six passed phases
+and retained as canceled evidence, not a full pass. Earlier 3165022 results remain
+revision-bound. No publication or readiness claim follows from these changes.
+
 2026-10-10 — user-authorized independent review: separate read-only correctness,
 UI and local security reviewers examined the fixed product/policy patch. NUM-1
 reproduced Pearson 1.008264 for finite tiny values; numerical rereview of the first

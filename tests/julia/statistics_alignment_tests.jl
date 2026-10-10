@@ -5,6 +5,31 @@ if !isdefined(Main, :JuliaFlowApiGateway)
     include(joinpath(@__DIR__, "../../services/api-gateway/src/JuliaFlowProjectAnalysis.jl"))
 end
 
+@testset "Scoped summary measured precision" begin
+    analysis = isdefined(Main, :JuliaFlowApiGateway) ? JuliaFlowApiGateway.JuliaFlowProjectAnalysis : JuliaFlowProjectAnalysis
+    for (values, mean, std) in (([1e-200, 2e-200, 3e-200], 2e-200, 1e-200),
+                              ([1e-7, 2e-7, 3e-7], 2e-7, 1e-7),
+                              ([2e-200, 2e-200], 2e-200, 0.0),
+                              ([-1e-200, 0.0, 1e-200], 0.0, 1e-200),
+                              ([1e300, 1.0, -1e300], 1/3, 1e300))
+        mktemp() do path, io
+            write(io, "x\n" * join(string.(values), '\n') * "\n"); close(io)
+            dataset = Dict("datasetId"=>"precision", "sourceUri"=>"precision.csv", "checksumSha256"=>bytes2hex(analysis.sha256(read(path))))
+            schema = Dict("columns"=>[Dict("name"=>"x", "logicalType"=>"numeric", "role"=>"feature")])
+            request = Dict("methods"=>["summary"], "scope"=>Dict("datasetChecksum"=>dataset["checksumSha256"], "schemaFingerprint"=>analysis.schema_fingerprint(schema), "question"=>"Precision?", "filters"=>Any[]))
+            evidence = analysis.scoped_evidence(dataset, path, request, schema)
+            summary = only(evidence["summaries"])
+            @test isapprox(summary["mean"], mean; rtol=1e-14, atol=0)
+            @test isapprox(summary["std"], std; rtol=1e-14, atol=0)
+            @test !any(occursin("numerical result range", warning) for warning in evidence["warnings"])
+            @test !isempty(analysis.JSON3.write(evidence))
+        end
+    end
+    @test isnan(analysis.scoped_sample_std([-1e308, 1e308]))
+    @test isnan(analysis.scoped_sample_std([0.0, 0.0, 0.0, 0.0, nextfloat(0.0)]))
+    @test analysis.scoped_sample_std([0.0, 0.0]) == 0.0
+end
+
 @testset "Bounded analysis identity and range" begin
     analysis = isdefined(Main, :JuliaFlowApiGateway) ? JuliaFlowApiGateway.JuliaFlowProjectAnalysis : JuliaFlowProjectAnalysis
     @test analysis.canonical(Dict("b"=>[1,2], "a"=>Dict("x"=>nothing))) == "{\"a\":{\"x\":null},\"b\":[1,2]}"
