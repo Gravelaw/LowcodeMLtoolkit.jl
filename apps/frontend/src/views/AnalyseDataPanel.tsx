@@ -100,7 +100,7 @@ export function AnalyseDataPanel({ project, actions, onBuildModel }: { project: 
         <span>Save: <strong>{dirty ? "Unsaved changes" : `Saved revision ${revision}`}</strong></span>
       </div>
       <div className="analysis-controls">
-        <label>Analysis dataset<select aria-label="Analysis dataset" value={datasetId} disabled={!!busy} onChange={(e) => { changeScope(() => { setDatasetId(e.target.value); setFindings([]); setXColumn(""); setYColumn(""); }); }}>
+        <label>Analysis dataset<select aria-label="Analysis dataset" value={datasetId} disabled={!!busy} onChange={(e) => { changeScope(() => { setDatasetId(e.target.value); setFilters([]); setXColumn(""); setYColumn(""); }); }}>
           <option value="">Choose imported data</option>{project.datasets.map((d) => <option key={d.datasetId} value={d.datasetId}>{d.name}</option>)}
         </select></label>
         <button className="jf-button secondary" disabled={!actions || !datasetId || !!busy} onClick={() => void perform("Refreshing measured data", loadMeasured)}>Refresh measured data</button>
@@ -166,7 +166,7 @@ export function AnalyseDataPanel({ project, actions, onBuildModel }: { project: 
     </Card> : null}
     <Card title="Editable findings" className="wide">
       {findings.length === 0 ? <p>No findings yet. Run analysis, then add your interpretation.</p> : findings.map((finding,i) => <fieldset key={finding.findingId} disabled={!!busy}>
-        <legend>Finding {i + 1}</legend><p>Immutable evidence: {finding.analysisRunId}</p>
+        <legend>Finding {i + 1}</legend><p>Immutable evidence: {finding.analysisRunId} · Dataset: {project.statisticalAnalysisRuns.find((run) => run.analysisRunId === finding.analysisRunId)?.datasetId ?? "unavailable"}</p>
         <label>Finding title {i + 1}<input value={finding.title} maxLength={500} onChange={(e) => {setFindings(findings.map((f,n) => n === i ? {...f,title:e.target.value} : f));setDirty(true);}} /></label>
         <label>Finding notes {i + 1}<textarea aria-label={`Finding notes ${i + 1}`} value={finding.notes} maxLength={10000} onChange={(e) => {setFindings(findings.map((f,n) => n === i ? {...f,notes:e.target.value} : f));setDirty(true);}} /></label>
         <button className="jf-button secondary" onClick={() => {setFindings(findings.filter((_,n) => n !== i));setDirty(true);}}>Remove finding {i + 1}</button>

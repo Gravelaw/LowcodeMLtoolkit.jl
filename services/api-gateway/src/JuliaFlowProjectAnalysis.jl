@@ -181,12 +181,13 @@ function validate_workspace(body, project, dataset, schema)
         occursin(r"^[a-zA-Z0-9_-]{1,80}$", id) && !(id in ids) || error("analysis finding id invalid or duplicated")
         push!(ids, id)
         length(String(finding["title"])) <= 500 && length(String(finding["notes"])) <= 10_000 || error("analysis finding text limit exceeded")
-        any(r -> get(r,"analysisRunId", "") == finding["analysisRunId"] && get(r,"datasetId", "") == dataset["datasetId"] && haskey(get(r,"resultSummary",Dict()), "scope"), project.statistical_analysis_runs) || error("analysis finding must reference immutable scoped evidence in this dataset")
+        any(r -> get(r,"analysisRunId", "") == finding["analysisRunId"] && haskey(get(r,"resultSummary",Dict()), "scope"), project.statistical_analysis_runs) || error("analysis finding must reference immutable scoped evidence in this project")
     end
     run_id = get(workspace, "analysisRunId", "")
     if !isempty(run_id)
         run = findfirst(r -> get(r, "analysisRunId", "") == run_id, project.statistical_analysis_runs)
         run === nothing && error("analysis run unavailable")
+        project.statistical_analysis_runs[run]["datasetId"] == dataset["datasetId"] || error("analysis selected run belongs to another dataset")
         evidence_scope = get(get(project.statistical_analysis_runs[run], "resultSummary", Dict()), "scope", Dict())
         all(k -> get(evidence_scope,k,nothing) == get(workspace["scope"],k,nothing), ("datasetChecksum","schemaFingerprint","filters","question","xColumn","yColumn")) || error("analysis saved view differs from its evidence; run analysis again")
     end
@@ -233,7 +234,7 @@ function report_response(project, runs)
             table *= "<tr>" * join(["<td>$(escape_html(get(row,k,"unavailable")))</td>" for k in keys]) * "</tr>"
             push!(csv, join(csv_cell.([run["analysisRunId"]; [get(row,k, "unavailable") for k in keys]]), ","))
         end
-        push!(sections, "<h2>$(escape_html(run["analysisRunId"]))</h2>" * table * "</tbody></table>" * report_scatter(evidence) * "<h3>Scope, correlation, chart data and provenance</h3><pre>$(escape_html(JSON3.write(evidence)))</pre><p>$(escape_html(join(run["warnings"], " ")))</p>")
+        push!(sections, "<h2>Dataset: $(escape_html(run["datasetId"])) · Run: $(escape_html(run["analysisRunId"]))</h2>" * table * "</tbody></table>" * report_scatter(evidence) * "<h3>Scope, correlation, chart data and provenance</h3><pre>$(escape_html(JSON3.write(evidence)))</pre><p>$(escape_html(join(run["warnings"], " ")))</p>")
     end
     notes = join(["<h3>$(escape_html(f["title"]))</h3><p>$(escape_html(f["notes"]))</p><p>Evidence: $(escape_html(f["analysisRunId"]))</p>" for f in workspace["findings"]])
     html = "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>JuliaFlow analysis report</title><style>body{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:1rem;color:#202333}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:.5rem;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}p{white-space:pre-wrap}</style><body><h1>$(escape_html(workspace["scope"]["question"]))</h1><p>Project: $(escape_html(project.name)); dataset: $(escape_html(workspace["datasetId"])); saved revision: $(workspace["revision"])</p><p>Presentation report. Source CSV file is not included. Reopenable project packages are a separate export.</p>" * notes * join(sections) * "</body></html>"

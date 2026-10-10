@@ -101,6 +101,23 @@ using .JuliaFlowApiGateway
             replay = JSON3.read(output,Dict{String,Any})
             @test replay["correlationMatrix"] == run["resultSummary"]["correlationMatrix"]
             @test replay["scope"] == run["resultSummary"]["scope"]
+            second_csv = joinpath(source, "second.csv")
+            write(second_csv, "area,price,region\n2,25,C\n6,60,C\n")
+            @test send("/api/v1/local-data/import",Dict("projectId"=>"homes","datasetId"=>"homes-second","sourceUri"=>second_csv,"format"=>"csv")).status == 201
+            second_profile = payload(send(base*"/analysis/profile",Dict("datasetId"=>"homes-second")))
+            second_workspace = deepcopy(workspace)
+            second_workspace["revision"] = 1; second_workspace["datasetId"] = "homes-second"
+            second_workspace["scope"]["schemaFingerprint"] = second_profile["schemaFingerprint"]
+            second_workspace["scope"]["datasetChecksum"] = second_profile["profile"]["checksumSha256"]
+            @test send(base*"/analysis/workspace",Dict("expectedRevision"=>1,"workspace"=>second_workspace)).status == 400
+            delete!(second_workspace, "analysisRunId")
+            @test send(base*"/analysis/workspace",Dict("expectedRevision"=>1,"workspace"=>second_workspace)).status == 200
+            @test state.data_science_projects["homes"].analysis_workspace["findings"][1]["analysisRunId"] == run["analysisRunId"]
+            @test load_state(store).data_science_projects["homes"].analysis_workspace["findings"][1]["notes"] == workspace["findings"][1]["notes"]
+            @test send(base*"/analysis/export",Dict()).status == 200
+            write(managed, original*"5,50,C\n")
+            @test send(base*"/analysis/export",Dict()).status == 400
+            write(managed, original)
             original_summary = deepcopy(state.data_science_projects["homes"].statistical_analysis_runs[2]["resultSummary"])
             state.data_science_projects["homes"].statistical_analysis_runs[2]["resultSummary"]["rowCount"] = 999
             @test send(base*"/analysis/export",Dict()).status == 400

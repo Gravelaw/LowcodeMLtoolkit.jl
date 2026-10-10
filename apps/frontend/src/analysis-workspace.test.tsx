@@ -11,7 +11,7 @@ function fixture() {
   const datasetId = dataScienceProject.datasets[0].datasetId;
   const project: DataScienceProject = { ...structuredClone(dataScienceProject), projectId: `analysis-test-${++fixtureId}`, statisticalAnalysisRuns: [] };
   const measured: AnalysisProfileResponse = { profile: { ...dataProfile, datasetId, checksumSha256: hash }, schemaFingerprint: hash, numericColumns: ["value"] };
-  const actions = { load: vi.fn(async () => measured), run: vi.fn(), save: vi.fn(), export: vi.fn() };
+  const actions = { load: vi.fn(async (datasetId: string) => ({ ...measured, profile: { ...measured.profile, datasetId } })), run: vi.fn(), save: vi.fn(), export: vi.fn() };
   return { datasetId, project, measured, actions };
 }
 describe("Durable analysis workspace", () => {
@@ -71,5 +71,24 @@ describe("Durable analysis workspace", () => {
     expect(screen.queryByRole("heading",{name:"Immutable analysis evidence"})).not.toBeInTheDocument();
     expect(screen.getByLabelText("Finding notes 1")).toHaveValue("Edited");
     expect(actions.run).not.toHaveBeenCalled();
+  });
+  it("preserves finding drafts and their original dataset when selecting another dataset", async () => {
+    const { project, actions, datasetId } = fixture();
+    project.datasets.push({ ...project.datasets[0], datasetId: "other-data", name: "Other data" });
+    project.analysisWorkspace={revision:3,datasetId,scope:{question:"Question",filters:[],datasetChecksum:hash,schemaFingerprint:hash},analysisRunId:"saved-run",findings:[{findingId:"f",analysisRunId:"saved-run",title:"Finding",notes:"Original"}]};
+    project.statisticalAnalysisRuns=[{analysisRunId:"saved-run",datasetId,method:"summary",status:"completed",warnings:[],createdAt:"now",resultSummary:{scope:{datasetChecksum:hash,schemaFingerprint:hash},summaries:[]}}];
+    actions.save.mockImplementation(async (workspace) => ({ ...project, analysisWorkspace: { ...workspace, revision:4 } }));
+    render(<AnalyseDataPanel project={project} actions={actions} onBuildModel={() => {}} />);
+    await screen.findByText(/Measured data loaded/);
+    fireEvent.change(screen.getByLabelText("Finding notes 1"), {target:{value:"Keep this draft"}});
+    fireEvent.change(screen.getByLabelText("Analysis dataset"), {target:{value:"other-data"}});
+    await waitFor(() => expect(actions.load).toHaveBeenLastCalledWith("other-data"));
+    await waitFor(() => expect(screen.getByRole("button", {name:"Save analysis and findings"})).not.toBeDisabled());
+    expect(screen.getByLabelText("Finding notes 1")).toHaveValue("Keep this draft");
+    expect(screen.getByText(`Immutable evidence: saved-run · Dataset: ${datasetId}`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", {name:"Save analysis and findings"}));
+    await screen.findByText("Analysis and findings saved to this project.");
+    expect(actions.save.mock.calls[0][0].findings).toEqual([{findingId:"f",analysisRunId:"saved-run",title:"Finding",notes:"Keep this draft"}]);
+    expect(actions.save.mock.calls[0][0].datasetId).toBe("other-data");
   });
 });

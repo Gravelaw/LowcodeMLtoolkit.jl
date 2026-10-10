@@ -7735,15 +7735,20 @@ function analysis_action_response!(state, project_id, action, body)
         JuliaFlowProjectAnalysis.verified_table(dataset, resolve_local_data_ref_path(dataset["sourceUri"]))
         ids = unique([get(workspace, "analysisRunId", ""); [get(f,"analysisRunId", "") for f in get(workspace,"findings",Any[])]])
         selected = [r for r in project.statistical_analysis_runs if get(r,"analysisRunId", "") in ids]
-        for run in selected, ref in get(run, "artifactRefs", Any[])
-            path = resolve_local_artifact_ref_path(ref["path"])
-            path !== nothing && isfile(path) && local_artifact_checksum(path) == ref["checksumSha256"] || error("analysis report evidence artifact unavailable or changed")
-            if get(ref, "kind", "") == "statistical_analysis_results"
-                result = JSON3.read(read(path, String), Dict{String,Any})
-                all(key -> get(result, key, nothing) == get(run, key, nothing),
-                    ("analysisRunId", "datasetId", "method", "status", "resultSummary", "warnings", "createdAt")) ||
-                    error("analysis report stored evidence differs from its verified result artifact")
+        for run in selected
+            for ref in get(run, "artifactRefs", Any[])
+                path = resolve_local_artifact_ref_path(ref["path"])
+                path !== nothing && isfile(path) && local_artifact_checksum(path) == ref["checksumSha256"] || error("analysis report evidence artifact unavailable or changed")
+                if get(ref, "kind", "") == "statistical_analysis_results"
+                    result = JSON3.read(read(path, String), Dict{String,Any})
+                    all(key -> get(result, key, nothing) == get(run, key, nothing),
+                        ("analysisRunId", "datasetId", "method", "status", "resultSummary", "warnings", "createdAt")) ||
+                        error("analysis report stored evidence differs from its verified result artifact")
+                end
             end
+            evidence = run["resultSummary"]
+            snapshot = Dict("datasetId" => run["datasetId"], "checksumSha256" => evidence["scope"]["datasetChecksum"])
+            JuliaFlowProjectAnalysis.verified_table(snapshot, resolve_local_data_ref_path(evidence["sourceRef"]))
         end
         return JSON3.write(JuliaFlowProjectAnalysis.report_response(project, selected))
     end
