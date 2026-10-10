@@ -173,6 +173,7 @@ export function VisualizeView({
               <p className="empty-state">No project-backed statistical analysis runs are available yet. Run EDA from Data to persist analysis evidence for Visualize.</p>
             ) : (
               <DataTable
+                caption="Saved analysis run history"
                 columns={[
                   { key: "analysisRunId", label: "Run", render: (row) => row.analysisRunId ?? "unavailable" },
                   { key: "method", label: "Method", render: (row) => row.method ?? "unavailable" },

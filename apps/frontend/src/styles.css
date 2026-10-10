@@ -9,7 +9,7 @@
   --muted: #667085;
   --purple: #40456A;
   --purple-2: #40456A;
-  --green: #16a34a;
+  --green: #08783b;
   --green-soft: #eaf8ef;
   --blue: #2563eb;
   --orange: #d97706;
@@ -1615,6 +1615,8 @@ textarea:focus-visible,
 .jf-button.primary, .sidebar nav button.active { color: var(--action-text); background: var(--purple); }
 .sidebar nav button.active { box-shadow: inset 4px 0 var(--olive); font-weight: 700; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--purple); outline-offset: 3px; }
+.table-wrap:focus-visible { outline: 3px solid var(--purple); outline-offset: 3px; }
+.table-wrap caption { text-align: left; font-weight: 600; padding: .5rem; color: var(--text); }
 input, select, textarea { background: var(--card); color: var(--text); border: 1px solid var(--border-strong); border-radius: 6px; padding: 8px; font: inherit; }
 .project-opening-controls { align-items: end; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
 .project-opening-controls label, .csv-import-form label { display: grid; gap: 6px; min-width: 0; }
@@ -1642,6 +1644,8 @@ input, select, textarea { background: var(--card); color: var(--text); border: 1
 :root[data-theme="dark"] .status-pill { background: var(--selected); color: var(--text); }
 :root[data-theme="dark"] .local-status strong { color: var(--olive); }
 :root[data-theme="dark"] .local-status span { color: var(--muted); }
+:root[data-theme="dark"] .avatar { background: var(--selected); }
+:root[data-theme="dark"] .chart-status.ready { background: #243c34; color: #d9f1dd; }
 
 /* Analysis preserves the workstation shell and Wada theme tokens. */
 .analysis-workspace { display: grid; gap: 1rem; min-width: 0; }

@@ -236,3 +236,5 @@ Checked P0/P1/P2 items in `docs/TODO.md` must be linked here before they are all
 ## Evidence Rule
 
 Do not mark `docs/TODO.md` P0/P1/P2 items complete unless this file links code and test evidence for the completed scope.
+
+2026-10-10 AKS-44/64 AC-09 bounded accessibility follow-up: `AnalysisEvidenceTables.tsx`, `InteractiveChart.tsx`, `ui.tsx`, `styles.css`, `JuliaFlowProjectAnalysis.jl`; regressions `analysis-accessibility.test.tsx` and `durable_analysis_tests.jl`. Six real browser theme/zoom/narrow audits, independent affected reviews and full exact-candidate gate required; no human/GPU/full-design acceptance implied.

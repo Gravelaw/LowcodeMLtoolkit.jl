@@ -1,5 +1,19 @@
 # JuliaFlow TODO
 
+2026-10-10 — authorized AKS-44/AKS-64 accessibility follow-up: strengthen light
+status and dark avatar/ready-badge contrast without replacing Wada83 tokens;
+use interactive Plotly group semantics and named keyboard-focusable table regions.
+Progressive structured tables show immutable Pearson/pair counts, complete scatter
+pairs and finite distribution observations with captured axis units; report HTML
+adds escaped equivalents and labeled numeric scatter scales. Sequence numbers are
+not source row IDs, and renderer-chosen histogram bins are not claimed as stored.
+No analysis algorithm, source identity, API payload or nine-section layout changes.
+Focused regressions, actual browser zoom/axe/keyboard checks, affected independent
+reviews and exact clean-candidate full local gate remain required. Prior866c335
+22-phase pass and unexplained original timeout are preserved separately. Human
+DA/DS/assistive-technology, full design, physicalGPU/widerplatform acceptance remain
+open. No push/PR/hosted/billing change under the account cost pause.
+
 2026-10-10 — adjacent NUM-1 scoped-summary correction: independent review
 confirmed that a checksum-bound CSV `[1e-200,2e-200,3e-200]` persisted false zero
 mean/std. The finding was recorded and read back on AKS-44 before remediation.

@@ -68,6 +68,23 @@ using .JuliaFlowApiGateway
             @test occursin("Presentation report",export_result["html"])
             @test occursin("area",export_result["csv"])
             @test bytes2hex(sha256(export_result["html"])) == export_result["checksumSha256"]
+            @test occursin("Pearson correlations and complete-pair counts", export_result["html"])
+            @test occursin("Selected complete scatter pairs", export_result["html"])
+            @test occursin("Selected finite distribution values", export_result["html"])
+            @test occursin("tabindex=\"0\"", export_result["html"])
+            chart_evidence = deepcopy(run["resultSummary"])
+            chart_evidence["scatter"]["xLabel"] = "Area (m²) <script>bad</script>"
+            chart_evidence["scatter"]["yLabel"] = "Price (USD)"
+            chart_html = JuliaFlowApiGateway.JuliaFlowProjectAnalysis.report_scatter(chart_evidence)
+            @test occursin("Area (m²) &lt;script&gt;bad&lt;/script&gt;", chart_html)
+            @test occursin("Price (USD)", chart_html)
+            @test !occursin("<script>", chart_html)
+            @test occursin("text-anchor", chart_html)
+            chart_evidence["correlationMatrix"][1][2] = nothing
+            @test occursin("unavailable", JuliaFlowApiGateway.JuliaFlowProjectAnalysis.report_chart_tables(chart_evidence))
+            chart_evidence["scatter"]["x"] = [-floatmax(Float64), floatmax(Float64)]
+            @test occursin("rendering unavailable", JuliaFlowApiGateway.JuliaFlowProjectAnalysis.report_scatter(chart_evidence))
+            @test occursin(string(floatmax(Float64)), JuliaFlowApiGateway.JuliaFlowProjectAnalysis.report_chart_tables(chart_evidence))
             @test JuliaFlowApiGateway.JuliaFlowProjectAnalysis.csv_cell("=SUM(A1:A2)") == "\"'=SUM(A1:A2)\""
             bad = deepcopy(request);bad["scope"]["datasetChecksum"] = repeat("0",64)
             @test send(base*"/statistical-analysis/run",bad).status == 400

@@ -174,7 +174,7 @@ export function InteractiveChart({
       <div
         ref={chartRef}
         className="plotly-mount"
-        role="img"
+        role="group"
         aria-label={spec.summary}
         data-chart-id={spec.chartId}
       >

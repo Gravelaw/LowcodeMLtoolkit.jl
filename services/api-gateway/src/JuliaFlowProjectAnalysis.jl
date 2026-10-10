@@ -241,6 +241,37 @@ function csv_cell(value)
     return "\"" * replace(text, "\"" => "\"\"") * "\""
 end
 
+report_value(value) = value === nothing ? "unavailable" : escape_html(value)
+
+function report_table(caption, headers, rows)
+    head = join(["<th scope=\"col\">$(escape_html(h))</th>" for h in headers])
+    body = join(["<tr>" * join(["<td>$(report_value(v))</td>" for v in row]) * "</tr>" for row in rows])
+    return "<div class=\"table-wrap\" role=\"region\" aria-label=\"$(escape_html(caption))\" tabindex=\"0\"><table><caption>$(escape_html(caption))</caption><thead><tr>$(head)</tr></thead><tbody>$(body)</tbody></table></div>"
+end
+
+function report_chart_tables(evidence)
+    columns = get(evidence, "numericColumns", String[])
+    matrix, counts = get(evidence, "correlationMatrix", Any[]), get(evidence, "correlationPairCounts", Any[])
+    rows = Any[]
+    for i in eachindex(columns), j in i:length(columns)
+        r = i <= length(matrix) && j <= length(matrix[i]) ? matrix[i][j] : nothing
+        n = i <= length(counts) && j <= length(counts[i]) ? counts[i][j] : nothing
+        push!(rows, [columns[i], columns[j], r, n])
+    end
+    html = report_table("Pearson correlations and complete-pair counts", ["Column", "Compared column", "Pearson r", "Valid pairs"], rows)
+    scatter = get(evidence, "scatter", nothing)
+    if scatter !== nothing
+        rows = [[i, scatter["x"][i], scatter["y"][i]] for i in eachindex(scatter["x"])]
+        html *= report_table("Selected complete scatter pairs", ["Pair", get(scatter,"xLabel",scatter["xColumn"]), get(scatter,"yLabel",scatter["yColumn"])], rows)
+    end
+    distribution = get(evidence, "distribution", nothing)
+    if distribution !== nothing
+        rows = [[i, v] for (i, v) in enumerate(distribution["values"])]
+        html *= report_table("Selected finite distribution values", ["Observation", get(distribution,"label",distribution["column"])], rows)
+    end
+    return html * "<p>Pair and observation numbers identify saved chart sequences, not source row identifiers. Only finite observations and complete finite scatter pairs are included. Histogram bins are chosen by the chart renderer. Unavailable correlations include constant or unqualified numeric ranges; association does not establish cause.</p>"
+end
+
 function report_scatter(evidence)
     scatter = get(evidence, "scatter", nothing)
     scatter === nothing && return ""
@@ -249,9 +280,14 @@ function report_scatter(evidence)
     xmin, xmax, ymin, ymax = minimum(x), maximum(x), minimum(y), maximum(y)
     dx, dy = xmax - xmin, ymax - ymin
     isfinite(dx) && isfinite(dy) || return "<p>Scatter rendering unavailable at this numeric range; accessible chart values are retained below.</p>"
-    dx = dx == 0 ? 1.0 : dx; dy = dy == 0 ? 1.0 : dy
-    points = join(["<circle cx=\"$(40 + 520 * (x[i] - xmin) / dx)\" cy=\"$(270 - 230 * (y[i] - ymin) / dy)\" r=\"3\" fill=\"#40456A\"/>" for i in eachindex(x)])
-    return "<figure><figcaption>$(escape_html(scatter["xColumn"])) and $(escape_html(scatter["yColumn"])) · $(length(x)) complete pairs</figcaption><svg role=\"img\" aria-label=\"Selected complete-pair scatter plot\" viewBox=\"0 0 600 310\"><path d=\"M40 30 V270 H570\" fill=\"none\" stroke=\"#202333\"/>$(points)</svg><p>Full accessible chart data is retained below. Association does not establish cause.</p></figure>"
+    xpos(v) = dx == 0 ? 320.0 : 80 + 480 * ((v - xmin) / dx)
+    ypos(v) = dy == 0 ? 155.0 : 270 - 230 * ((v - ymin) / dy)
+    points = join(["<circle cx=\"$(xpos(x[i]))\" cy=\"$(ypos(y[i]))\" r=\"3\" fill=\"#40456A\"/>" for i in eachindex(x)])
+    xlabel = escape_html(get(scatter, "xLabel", scatter["xColumn"]))
+    ylabel = escape_html(get(scatter, "yLabel", scatter["yColumn"]))
+    xticks = join(["<path d=\"M$(xpos(v)) 270 v5\" stroke=\"#202333\"/><text x=\"$(xpos(v))\" y=\"292\" text-anchor=\"$(dx == 0 ? "middle" : v == xmin ? "start" : "end")\">$(escape_html(v))</text>" for v in unique([xmin,xmax])])
+    yticks = join(["<path d=\"M80 $(ypos(v)) h-5\" stroke=\"#202333\"/><text x=\"85\" y=\"$(ypos(v) - 5)\" text-anchor=\"start\">$(escape_html(v))</text>" for v in unique([ymin,ymax])])
+    return "<figure><figcaption>$(xlabel) and $(ylabel) · $(length(x)) complete pairs</figcaption><svg role=\"img\" aria-label=\"Scatter of $(xlabel) against $(ylabel); values in the following table\" viewBox=\"0 0 640 350\"><g fill=\"#202333\" font-size=\"12\"><path d=\"M80 40 V270 H560\" fill=\"none\" stroke=\"#202333\"/>$(xticks)$(yticks)<text x=\"320\" y=\"325\" text-anchor=\"middle\">$(xlabel)</text><text transform=\"translate(18 155) rotate(-90)\" text-anchor=\"middle\">$(ylabel)</text></g>$(points)</svg><p>X axis: $(xlabel); Y axis: $(ylabel). Complete chart values are in the following table. Association does not establish cause.</p></figure>"
 end
 
 """Render escaped presentation HTML and formula-safe summary CSV from saved evidence."""
@@ -271,10 +307,10 @@ function report_response(project, runs)
             table *= "<tr>" * join(["<td>$(escape_html(get(row,k,"unavailable")))</td>" for k in keys]) * "</tr>"
             push!(csv, join(csv_cell.([run["analysisRunId"]; [get(row,k, "unavailable") for k in keys]]), ","))
         end
-        push!(sections, "<h2>Dataset: $(escape_html(run["datasetId"])) · Run: $(escape_html(run["analysisRunId"]))</h2>" * table * "</tbody></table>" * report_scatter(evidence) * "<h3>Scope, correlation, chart data and provenance</h3><pre>$(escape_html(JSON3.write(evidence)))</pre><p>$(escape_html(join(run["warnings"], " ")))</p>")
+        push!(sections, "<h2>Dataset: $(escape_html(run["datasetId"])) · Run: $(escape_html(run["analysisRunId"]))</h2>" * table * "</tbody></table>" * report_scatter(evidence) * report_chart_tables(evidence) * "<h3>Scope, correlation, chart data and provenance</h3><pre>$(escape_html(JSON3.write(evidence)))</pre><p>$(escape_html(join(run["warnings"], " ")))</p>")
     end
     notes = join(["<h3>$(escape_html(f["title"]))</h3><p>$(escape_html(f["notes"]))</p><p>Evidence: $(escape_html(f["analysisRunId"]))</p>" for f in workspace["findings"]])
-    html = "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>JuliaFlow analysis report</title><style>body{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:1rem;color:#202333}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:.5rem;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}p{white-space:pre-wrap}</style><body><h1>$(escape_html(workspace["scope"]["question"]))</h1><p>Project: $(escape_html(project.name)); dataset: $(escape_html(workspace["datasetId"])); saved revision: $(workspace["revision"])</p><p>Presentation report. Source CSV file is not included. Reopenable project packages are a separate export.</p>" * notes * join(sections) * "</body></html>"
+    html = "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>JuliaFlow analysis report</title><style>body{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:1rem;color:#202333}table{border-collapse:collapse;width:100%}.table-wrap{overflow:auto}.table-wrap:focus-visible{outline:3px solid #40456A}caption{text-align:left;font-weight:bold}svg{width:100%;height:auto}th,td{border:1px solid #ccc;padding:.5rem;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}p{white-space:pre-wrap}</style><body><h1>$(escape_html(workspace["scope"]["question"]))</h1><p>Project: $(escape_html(project.name)); dataset: $(escape_html(workspace["datasetId"])); saved revision: $(workspace["revision"])</p><p>Presentation report. Source CSV file is not included. Reopenable project packages are a separate export.</p>" * notes * join(sections) * "</body></html>"
     return Dict("fileName" => "juliaflow-analysis-report", "html" => html, "csv" => join(csv,"\r\n") * "\r\n", "checksumSha256" => bytes2hex(sha256(html)))
 end
 

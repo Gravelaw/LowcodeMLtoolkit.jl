@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AnalysisFilter, AnalysisFinding, AnalysisProfileResponse, AnalysisReportResponse, AnalysisScopeRequest, AnalysisWorkspace, DataScienceProject, RunStatisticalAnalysisRequest, RunStatisticalAnalysisResponse } from "@juliaflow/contracts";
 import { Card, DataTable } from "../components/ui";
 import { InteractiveChart } from "../components/InteractiveChart";
+import { AnalysisEvidenceTables } from "../components/AnalysisEvidenceTables";
 
 interface Actions {
   load: (datasetId: string) => Promise<AnalysisProfileResponse>;
@@ -160,15 +161,15 @@ export function AnalyseDataPanel({ project, actions, onBuildModel }: { project: 
     </Card>
     {profile ? <Card title="Measured schema and preview" className="wide">
       <p>{profile.profile.rowCount} full-source rows · checksum {profile.profile.checksumSha256.slice(0,12)} · supported unquoted CSV: ≤1,000 rows / 8 MiB / 64 enabled numeric columns</p>
-      <DataTable columns={profile.profile.schemaSummary.map((c) => ({key:c.name,label:c.name}))} rows={profile.profile.previewRows ?? []} getRowKey={(_,i) => String(i)} />
+      <DataTable caption="Measured dataset preview" columns={profile.profile.schemaSummary.map((c) => ({key:c.name,label:c.name}))} rows={profile.profile.previewRows ?? []} getRowKey={(_,i) => String(i)} />
       <p>Schema and role corrections are saved in Data; refresh measured data after changes. Ignored, sensitive, ID and categorical fields are excluded from numeric analysis.</p>
     </Card> : null}
     {currentRun ? <Card title="Immutable analysis evidence" className="wide">
       {stale ? <p role="alert">Source or schema changed. Historical evidence is retained; refresh data and run a new analysis.</p> : null}
       <p>Run {currentRun.analysisRunId} · {String(scope?.selectedRowCount ?? "unavailable")} selected of {String(scope?.sourceRowCount ?? "unavailable")} rows · actual compute: CPU, gateway</p>
-      <DataTable columns={[{key:"column",label:"Column"},{key:"count",label:"Valid"},{key:"missingCount",label:"Missing"},{key:"mean",label:"Mean"},{key:"std",label:"SD"},{key:"min",label:"Min"},{key:"max",label:"Max"}]} rows={summaryRows} getRowKey={(r) => String(r.column)} />
-      <details><summary>Correlation table and valid pair counts</summary><pre>{JSON.stringify({ columns:evidence?.numericColumns, correlation:evidence?.correlationMatrix, validPairs:evidence?.correlationPairCounts },null,2)}</pre></details>
+      <DataTable caption="Numeric summaries" columns={[{key:"column",label:"Column"},{key:"count",label:"Valid"},{key:"missingCount",label:"Missing"},{key:"mean",label:"Mean"},{key:"std",label:"SD"},{key:"min",label:"Min"},{key:"max",label:"Max"}]} rows={summaryRows} getRowKey={(r) => String(r.column)} />
       <div className="chart-grid">{currentRun.charts?.map((chart) => <InteractiveChart spec={chart} key={chart.chartId} />)}</div>
+      {evidence ? <AnalysisEvidenceTables evidence={evidence} /> : null}
       {currentRun.warnings.map((warning) => <p key={warning} className="feedback info">{warning}</p>)}
       <button className="jf-button secondary" disabled={!!busy || findings.length >= 50} onClick={() => { setFindings([...findings,{findingId:crypto.randomUUID(),analysisRunId:runId,title:question,notes:""}]);setDirty(true); }}>Add finding</button>
     </Card> : null}
