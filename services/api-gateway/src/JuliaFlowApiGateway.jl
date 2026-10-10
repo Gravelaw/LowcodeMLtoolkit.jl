@@ -5532,7 +5532,7 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
     end
     run_id = "stats-" * replace(string(uuid4()), "-" => "")
     fixture = data_profile_fixture(dataset_id, "local://data/$(dataset_id)")
-    schema = analysis_schema(project, dataset_id)
+    schema = haskey(body, "scope") ? analysis_schema(project, dataset_id) : nothing
     evidence = JuliaFlowDataScienceProjectEvidence.read_result(
         () -> haskey(body, "scope") ? JuliaFlowProjectAnalysis.scoped_evidence(dataset, resolve_local_data_ref_path(dataset["sourceUri"]), body, schema) : local_csv_statistical_evidence(dataset, body, methods), juliaflow_runtime_mode(), "statistical analysis")
     warnings = evidence === nothing ? String[] : String.(get(evidence, "warnings", String[]))
