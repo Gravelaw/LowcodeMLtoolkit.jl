@@ -341,6 +341,8 @@ test.describe("live-backend release smoke", () => {
     await expect(page.getByText("Dashboard Builder")).toBeVisible();
     await expect(page.getByText("Artifact Rows", { exact: true })).toBeVisible();
     await expect(page.getByText("No artifact-backed dashboard rows are available")).toHaveCount(0);
+    await page.getByRole("tab", { name: "Dashboard", exact: true }).click();
+    await expect(page.getByRole("tab", { name: "Dashboard", exact: true })).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: /save local checkpoint/i }).click();
     await expect(page.getByText("Gateway action completed locally.")).toBeVisible();
 
