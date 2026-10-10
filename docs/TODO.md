@@ -1,5 +1,35 @@
 # JuliaFlow TODO
 
+2026-10-10 — AKS-44 review corrections: NUM-1 uses stable shifted/scaled Pearson
+arithmetic for tiny, near-constant and opposite-extrema finite inputs. UI-1 retains
+unmeasured/partial-axis drafts and rejects incomplete-axis run/save; UI-2 displays
+unavailable numeric results explicitly. Recorded findings and negative/legitimate
+regressions have independent final source rereview acceptance. A new clean-candidate
+full release gate is still required before publication; earlier `3165022` evidence
+stays revision-bound. Broader acceptance and required GitHub reviews remain open.
+
+## Current review and publication tasks — 2026-10-10
+
+- [ ] Obtain independent final-candidate correctness/UI/security review for
+  Durable Analyse Data. Use an available scoped installed workflow or the approved
+  [independent local procedure](agent-tooling.md#independent-local-security-review);
+  missing canonical scan tooling is not a waiver of substantive review.
+- [ ] Resolve findings and verify the final publication candidate. Retain the
+  full aggregate gate: clean product commit `3165022` passed all 22 phases; this
+  documentation revision is not a new product run or independent clearance.
+- [ ] Publish a reviewed development branch/draft PR only after its required
+  checks and reviews pass; verify remote revision, stack, checks, and review state.
+- [ ] Obtain actual participant/accessibility acceptance, complete original-board
+  comparison, and finish GPU/platform qualification for their applicable milestones.
+  These remain open and do not automatically block bounded development publication.
+
+Canonical diff scanning currently lacks `start_codex_security_prompt_only_scan`
+after discovery. Plugin preflight/storage rules and signed Julia integrity checks
+remain intact. Merge needs applicable checks/reviews and explicit action approval;
+deployment, tags, and releases remain separately authorized. No issue is Done.
+Historical entries below retain their dated context; current routing and gate
+separation follow [AGENTS.md](../AGENTS.md).
+
 2026-10-10 final preservation correction: selecting another dataset retains saved and unsaved findings linked to their original project-owned runs, clears dataset-specific filters/axes, and prevents selecting a run from another dataset as current evidence. Reports identify each result dataset and verify every referenced source snapshot. Focused frontend/real-route regressions and the new clean-candidate gate must cover this correction; the earlier candidate gate was canceled, not passed.
 
 - [ ] Verify and review the Durable Analyse Data increment, then obtain user/persona acceptance; preserve wider GPU/platform/release gates.

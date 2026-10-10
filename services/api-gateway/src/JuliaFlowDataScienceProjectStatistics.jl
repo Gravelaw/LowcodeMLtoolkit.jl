@@ -127,16 +127,30 @@ function sample_std(values::Vector{Float64})
     return sqrt(sum((value - mean_value)^2 for value in values) / (length(values) - 1))
 end
 
+function correlation_deviations(values::Vector{Float64})
+    # Shift before scaling to preserve representable variation near a large
+    # offset. Scale first only when opposite finite extrema overflow subtraction.
+    reference = first(values)
+    shifted = values .- reference
+    scale = maximum(abs, shifted)
+    if !isfinite(scale)
+        magnitude = maximum(abs, values)
+        shifted = values ./ magnitude .- reference / magnitude
+        scale = maximum(abs, shifted)
+    end
+    scale == 0.0 && return shifted
+    scaled = shifted ./ scale
+    return scaled .- sample_mean(scaled)
+end
+
 function pearson_correlation(left::Vector{Float64}, right::Vector{Float64})
     n = min(length(left), length(right))
     n <= 1 && return 0.0
-    left_values = left[1:n]
-    right_values = right[1:n]
-    left_mean = sample_mean(left_values)
-    right_mean = sample_mean(right_values)
-    numerator = sum((left_values[index] - left_mean) * (right_values[index] - right_mean) for index in 1:n)
-    left_denominator = sqrt(sum((value - left_mean)^2 for value in left_values))
-    right_denominator = sqrt(sum((value - right_mean)^2 for value in right_values))
+    left_values = correlation_deviations(left[1:n])
+    right_values = correlation_deviations(right[1:n])
+    numerator = sum(left_values[index] * right_values[index] for index in 1:n)
+    left_denominator = sqrt(sum(value^2 for value in left_values))
+    right_denominator = sqrt(sum(value^2 for value in right_values))
     denominator = left_denominator * right_denominator
     denominator == 0.0 && return 0.0
     return round(numerator / denominator; digits = 6)
@@ -427,7 +441,8 @@ end
 
 function paired_correlation(table, left, right; ranked = false)
     x, y = paired_numeric_values(table, left, right)
-    length(x) >= 2 && sample_std(x) > 0 && sample_std(y) > 0 || return nothing
+    # Detect constant inputs directly: unscaled variance can underflow to zero.
+    length(x) >= 2 && any(v -> v != first(x), x) && any(v -> v != first(y), y) || return nothing
     return ranked ? spearman_correlation(x, y) : pearson_correlation(x, y)
 end
 

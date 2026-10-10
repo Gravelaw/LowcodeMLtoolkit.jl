@@ -30,7 +30,7 @@ Project rules and the user's authorization take precedence over skill procedures
 | GitHub | `github` skill and authenticated `gh`; MCP only for capabilities unavailable through `gh` |
 | Linear | `linear` skill and discovered Linear MCP tools |
 | Frontend | Relevant React guidance; rendered-flow testing/debugging for UI behavior |
-| Security-sensitive changes | A scoped installed security skill matched to the changed boundary |
+| Security-sensitive changes | A scoped installed security workflow when its required capabilities are available; otherwise the independent local security-review procedure in `docs/agent-tooling.md` |
 
 Use installed-plugin discovery, not dated `.staging` paths. Keep the nine-skill
 Julia runtime intact; do not trim signed files. The router loads the shared
@@ -38,6 +38,13 @@ engineering contract once; direct leaf invocation follows that leaf's integrity
 and contract instructions. See [tooling guidance](docs/agent-tooling.md).
 For a missing skill, check the open ecosystem with `find-skills` before authoring.
 A connector failure does not authorize bypassing external state or inventing it.
+
+Report the selected security-review method and missing capabilities. Independent
+local review is a separate project procedure, not a canonical Codex Security
+scan. When invoking a plugin, preserve its preflight, scan ownership, artifact
+storage, and completion rules; do not change vendor instructions or invent scan
+IDs, canonical artifacts, or clearance. Julia signature/hash checks and external
+trust policy remain mandatory.
 
 ## Architecture and change safety
 
@@ -81,6 +88,18 @@ A connector failure does not authorize bypassing external state or inventing it.
    substitute fixtures to close release gaps.
 7. Do not merge, force-push, dismiss reviews, rerun deployments, modify branch
    protection, tag, or release without explicit authorization for that action.
+
+Development push and draft PR publication require the applicable exact-candidate
+checks and required independent correctness, UI, and security review through an
+available approved method. Unresolved findings block publication unless resolved
+by implementation, evidence-backed rejection, or explicit authorized acceptance.
+Preserve any increment-specific full aggregate verification requirement.
+Participant, accessibility, original-board, GPU, and wider platform acceptance
+remain milestone requirements; they block bounded development publication only
+when the increment explicitly requires them before publication. A development
+PR does not satisfy those criteria or establish readiness. Merge still requires
+applicable checks/reviews, resolution of merge blockers, and explicit action
+authorization; deployment, tags, and releases remain separately authorized.
 
 | Linear state | Required meaning |
 | --- | --- |

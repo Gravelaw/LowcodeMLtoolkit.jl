@@ -11,7 +11,10 @@ interface Actions {
 }
 
 // Route changes retain unsaved work in this browser session. Only gateway saves are durable.
-const drafts = new Map<string, AnalysisWorkspace>();
+type AnalysisDraft = Omit<AnalysisWorkspace, "scope"> & {
+  scope: Pick<AnalysisScopeRequest, "question" | "filters" | "xColumn" | "yColumn">;
+};
+const drafts = new Map<string, AnalysisDraft>();
 
 function download(name: string, value: string, type: string) {
   const url = URL.createObjectURL(new Blob([value], { type }));
@@ -47,12 +50,16 @@ export function AnalyseDataPanel({ project, actions, onBuildModel }: { project: 
   const dataset = project.datasets.find((d) => d.datasetId === datasetId);
   const schema = project.schemaContracts.find((s) => s.datasetId === datasetId);
   const stale = Boolean(scope && (scope.datasetChecksum !== dataset?.checksumSha256 || scope.schemaFingerprint !== profile?.schemaFingerprint));
+  const summaryRows = ((evidence?.summaries ?? []) as Record<string, unknown>[]).map((row) => ({
+    ...row,
+    ...Object.fromEntries(["mean", "std", "min", "max"].map((key) => [key, row[key] ?? "unavailable"]))
+  }));
 
   useEffect(() => {
     if (!dirty) { drafts.delete(project.projectId); return; }
-    const identity = profile ? { datasetChecksum: profile.profile.checksumSha256, schemaFingerprint: profile.schemaFingerprint } : initial?.scope;
-    if (identity) drafts.set(project.projectId, { revision, datasetId, scope: { datasetChecksum: identity.datasetChecksum,
-      schemaFingerprint: identity.schemaFingerprint, question, filters, ...(xColumn && yColumn ? { xColumn, yColumn } : {}) },
+    // Draft text does not require a successful measured refresh. Source identity
+    // is acquired only by requestScope before a real run/save.
+    drafts.set(project.projectId, { revision, datasetId, scope: { question, filters, xColumn, yColumn },
       findings, ...(runId ? { analysisRunId: runId } : {}) });
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
@@ -88,6 +95,7 @@ export function AnalyseDataPanel({ project, actions, onBuildModel }: { project: 
   function changeScope(change: () => void) { change(); setRunId(""); setDirty(true); }
   function requestScope(): AnalysisScopeRequest {
     if (!profile) throw new Error("Refresh measured data before running or saving.");
+    if (Boolean(xColumn) !== Boolean(yColumn)) throw new Error("Select both chart axes or clear both before running or saving.");
     return { datasetChecksum: profile.profile.checksumSha256, schemaFingerprint: profile.schemaFingerprint, filters, question,
       ...(xColumn && yColumn ? { xColumn, yColumn } : {}) };
   }
@@ -134,7 +142,7 @@ export function AnalyseDataPanel({ project, actions, onBuildModel }: { project: 
           if (ticket !== generation.current) return;
           setRunId(response.analysisRun.analysisRunId); setDirty(true); setMessage("Analysis computed. Save to retain this view and its findings.");
         })}>Run analysis</button>
-        <button className="jf-button secondary" disabled={!actions || !profile || !dirty || !!busy || !question.trim()} onClick={() => void perform("Saving analysis", async () => {
+        <button className="jf-button secondary" disabled={!actions || !profile || !dirty || !!busy || !question.trim() || Boolean(xColumn) !== Boolean(yColumn)} onClick={() => void perform("Saving analysis", async () => {
           const ticket = generation.current;
           const workspace: AnalysisWorkspace = { revision, datasetId, scope: requestScope(), findings, ...(runId ? { analysisRunId: runId } : {}) };
           const result = await actions!.save(workspace, revision);
@@ -158,7 +166,7 @@ export function AnalyseDataPanel({ project, actions, onBuildModel }: { project: 
     {currentRun ? <Card title="Immutable analysis evidence" className="wide">
       {stale ? <p role="alert">Source or schema changed. Historical evidence is retained; refresh data and run a new analysis.</p> : null}
       <p>Run {currentRun.analysisRunId} · {String(scope?.selectedRowCount ?? "unavailable")} selected of {String(scope?.sourceRowCount ?? "unavailable")} rows · actual compute: CPU, gateway</p>
-      <DataTable columns={[{key:"column",label:"Column"},{key:"count",label:"Valid"},{key:"missingCount",label:"Missing"},{key:"mean",label:"Mean"},{key:"std",label:"SD"},{key:"min",label:"Min"},{key:"max",label:"Max"}]} rows={(evidence?.summaries ?? []) as Record<string,unknown>[]} getRowKey={(r) => String(r.column)} />
+      <DataTable columns={[{key:"column",label:"Column"},{key:"count",label:"Valid"},{key:"missingCount",label:"Missing"},{key:"mean",label:"Mean"},{key:"std",label:"SD"},{key:"min",label:"Min"},{key:"max",label:"Max"}]} rows={summaryRows} getRowKey={(r) => String(r.column)} />
       <details><summary>Correlation table and valid pair counts</summary><pre>{JSON.stringify({ columns:evidence?.numericColumns, correlation:evidence?.correlationMatrix, validPairs:evidence?.correlationPairCounts },null,2)}</pre></details>
       <div className="chart-grid">{currentRun.charts?.map((chart) => <InteractiveChart spec={chart} key={chart.chartId} />)}</div>
       {currentRun.warnings.map((warning) => <p key={warning} className="feedback info">{warning}</p>)}

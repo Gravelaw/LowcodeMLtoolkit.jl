@@ -1,5 +1,45 @@
 # JuliaFlow current development plan
 
+2026-10-10 — independent review corrections (AKS-44): NUM-1 tiny-input Pearson
+range error and its near-constant cancellation variant use reference-shifted,
+scaled deviations, with an overflow-safe opposite-extrema fallback. UI-1 retains
+identity-free question/filter/partial-axis drafts after failed refresh/remount;
+incomplete axes block run and save. UI-2 labels unavailable numeric cells without
+changing immutable results. Findings were recorded and read back in Linear before
+remediation. Independent correctness/UI/local security rereview accepted the
+revised source hashes, with no remaining confirmed blocker in the reviewed scope;
+the earlier
+`3165022` release result does not certify these fixes. Obtain a clean final candidate
+and fresh full aggregate verification before development publication.
+
+## 2026-10-10 — review routing and development publication
+
+The user approved capability-aware security-review instructions. Use an available
+scoped installed workflow, or the separate independent local procedure in
+[tooling guidance](docs/agent-tooling.md#independent-local-security-review).
+Canonical Codex Security diff scanning is currently unavailable because
+`start_codex_security_prompt_only_scan` is not exposed after tool discovery;
+its preflight/storage instructions were retrieved and remain binding when that
+plugin is used. Do not fabricate scan ownership or clearance.
+
+Before a development push or draft PR for Durable Analyse Data, obtain required
+independent correctness/UI/security review and retain the full exact-candidate
+aggregate verification requirement. Real participant/accessibility acceptance,
+full original-board fidelity, physical GPU, and wider platform qualification remain
+open milestone criteria, separately recorded rather than inferred from publication.
+Findings still require resolution or explicit authorized acceptance; merge,
+deployment, tags, and releases retain their separate authorization requirements.
+
+Product candidate `3165022190236100d9e0ab85f96c9c74eda94ad7` passed all 22 local
+release phases on clean tree `78dd180424d634e3cc0441151a85ac624e4adf18`; hardware
+and optional platform checks retain their recorded internal skips. This policy-only
+revision does not create new product validation or independent approval. Next:
+independent review under the approved method, then disposition of findings and
+verification of the final publication candidate. No push or merge is claimed.
+
+The dated entries below preserve their historical candidate and gate context;
+this current clarification governs review-method selection and gate separation.
+
 2026-10-10 final preservation correction: selecting another dataset retains saved and unsaved findings linked to their original project-owned runs, clears dataset-specific filters/axes, and prevents selecting a run from another dataset as current evidence. Reports identify each result dataset and verify every referenced source snapshot. Focused frontend/real-route regressions and the new clean-candidate gate must cover this correction; the earlier candidate gate was canceled, not passed.
 
 2026-10-10 — user-authorized Durable Analyse Data implementation (AKS-44, related AKS-47/48/49 and AKS-53 evidence rules), based on unmerged PR #60 at `62d626b599bc49671a6b9f2e7a620b7660b2d7b5`. This is the next product increment after Create Project; release-roadmap M2 hardware and the full BRD local-v1/GPU/compiler/platform requirements remain unchanged. The user's implementation instruction authorizes this bounded Analyse Data UI within the existing nine-section shell.

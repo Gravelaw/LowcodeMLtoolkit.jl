@@ -1,5 +1,34 @@
 # JuliaFlow risk register
 
+2026-10-10 — AKS-44 review corrections: invalid tiny-input Pearson values and
+near-constant cancellation can misstate immutable evidence; failed-refresh or
+partial-axis draft loss can discard user work; blank unavailable cells can hide
+numerical limits. NUM-1/UI-1/UI-2 were recorded/read back before correction.
+Reference-shifted/scaled correlation, identity-free draft retention, paired-axis
+run/save guards, explicit unavailable labels and regressions address the triggers.
+Independent source rereview accepted the corrections within its recorded scope;
+fresh exact-candidate aggregate verification remains required. Wider numerical,
+cross-process/platform and participant risks are not closed by bounded review or
+the earlier `3165022` release pass.
+
+## Current review-method qualification — 2026-10-10
+
+The user approved [independent local security review](agent-tooling.md#independent-local-security-review)
+when a scoped plugin's required capabilities are unavailable. Canonical diff
+scanning currently lacks `start_codex_security_prompt_only_scan` after discovery;
+retrieved plugin preflight/storage rules remain unchanged. Missing tooling does
+not resolve authorization, path, execution, persistence, or evidence risks.
+Independent coverage, reproducible controls, finding dispositions, and final
+candidate clearance are still required; author self-audit is not approval.
+
+Product commit `3165022190236100d9e0ab85f96c9c74eda94ad7` passed all 22 local
+release phases on its exact clean tree. Physical GPU and optional platform checks
+retain their skips; participant/accessibility, complete original-board fidelity,
+wider runtime/platform, and administrative merge requirements remain open.
+Development publication requires its applicable checks and independent reviews;
+milestone acceptance and merge/release authorization are separate. This instruction
+change closes no product risk and waives no finding or verification gate.
+
 2026-10-10 final preservation correction: selecting another dataset retains saved and unsaved findings linked to their original project-owned runs, clears dataset-specific filters/axes, and prevents selecting a run from another dataset as current evidence. Reports identify each result dataset and verify every referenced source snapshot. Focused frontend/real-route regressions and the new clean-candidate gate must cover this correction; the earlier candidate gate was canceled, not passed.
 
 2026-10-10 — user-authorized Durable Analyse Data implementation (AKS-44, related AKS-47/48/49 and AKS-53 evidence rules), based on unmerged PR #60 at `62d626b599bc49671a6b9f2e7a620b7660b2d7b5`. This is the next product increment after Create Project; release-roadmap M2 hardware and the full BRD local-v1/GPU/compiler/platform requirements remain unchanged. The user's implementation instruction authorizes this bounded Analyse Data UI within the existing nine-section shell.

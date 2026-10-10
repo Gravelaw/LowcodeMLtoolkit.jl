@@ -41,3 +41,31 @@ end
         @test stats.paired_correlation(Dict("headers" => ["x", "y"], "rows" => [["1", "2"], ["1", "3"]]), "x", "y") === nothing
     end
 end
+
+@testset "Correlation scale qualification" begin
+    stats = isdefined(Main, :JuliaFlowApiGateway) ? JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics : JuliaFlowDataScienceProjectStatistics
+    for scale in (1.0, 1e-161, 1e-200, 1e300)
+        x = scale .* [1.0, 2.0, 3.0]
+        @test stats.pearson_correlation(x, 3 .* x) == 1.0
+        @test stats.pearson_correlation(x, -3 .* x) == -1.0
+        table = Dict("headers"=>["x","y"], "rows"=>[[string(x[i]),string(3*x[i])] for i in eachindex(x)])
+        @test stats.paired_correlation(table, "x", "y") == 1.0
+    end
+    for offset in (1.0, 1e300)
+        x = [offset, nextfloat(offset), nextfloat(nextfloat(offset))]
+        @test stats.pearson_correlation(x, [1.0, 2.0, 3.0]) == 1.0
+        @test stats.pearson_correlation(x, [3.0, 2.0, 1.0]) == -1.0
+    end
+    @test stats.pearson_correlation([-1e308, 0.0, 1e308], [-1.0, 0.0, 1.0]) == 1.0
+    @test stats.pearson_correlation([1.0, 2.0, 3.0], [1.0, 3.0, 2.0]) == 0.5
+    analysis = isdefined(Main, :JuliaFlowApiGateway) ? JuliaFlowApiGateway.JuliaFlowProjectAnalysis : JuliaFlowProjectAnalysis
+    mktemp() do path, io
+        write(io, "x,y\n1e-161,3e-161\n2e-161,6e-161\n3e-161,9e-161\n"); close(io)
+        dataset = Dict("datasetId"=>"tiny", "sourceUri"=>"tiny.csv", "checksumSha256"=>bytes2hex(analysis.sha256(read(path))))
+        schema = Dict("columns"=>[Dict("name"=>name,"logicalType"=>"numeric","role"=>"feature") for name in ("x","y")])
+        request = Dict("methods"=>["summary","correlation"], "scope"=>Dict("datasetChecksum"=>dataset["checksumSha256"],"schemaFingerprint"=>analysis.schema_fingerprint(schema),"question"=>"Scale?","filters"=>Any[]))
+        evidence = analysis.scoped_evidence(dataset,path,request,schema)
+        @test evidence["correlationMatrix"][1][2] == 1.0
+        @test evidence["correlationPairCounts"][1][2] == 3
+    end
+end

@@ -15,6 +15,51 @@ function fixture() {
   return { datasetId, project, measured, actions };
 }
 describe("Durable analysis workspace", () => {
+  it("retains a question after failed refresh/remount without inventing measured identity", async () => {
+    const { project, actions } = fixture();
+    actions.load.mockRejectedValueOnce(new Error("Source unavailable")).mockRejectedValueOnce(new Error("Source unavailable"));
+    const first = render(<AnalyseDataPanel project={project} actions={actions} onBuildModel={() => {}} />);
+    await screen.findByRole("alert");
+    fireEvent.change(screen.getByLabelText("Analysis question"), {target:{value:"Keep my question"}});
+    first.unmount();
+    render(<AnalyseDataPanel project={project} actions={actions} onBuildModel={() => {}} />);
+    await screen.findByRole("alert");
+    expect(screen.getByLabelText("Analysis question")).toHaveValue("Keep my question");
+    expect(screen.getByRole("button", {name:"Run analysis", exact:true})).toBeDisabled();
+    expect(screen.getByRole("button", {name:"Save analysis and findings"})).toBeDisabled();
+    expect(actions.run).not.toHaveBeenCalled();
+    expect(actions.save).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", {name:"Refresh measured data"}));
+    await screen.findByText(/Measured data loaded/);
+    expect(screen.getByRole("button", {name:"Run analysis", exact:true})).not.toBeDisabled();
+    expect(screen.getByLabelText("Analysis question")).toHaveValue("Keep my question");
+  });
+  it("retains a partially selected axis across remounts while preventing an incomplete run", async () => {
+    const { project, actions } = fixture();
+    const first = render(<AnalyseDataPanel project={project} actions={actions} onBuildModel={() => {}} />);
+    await screen.findByText(/Measured data loaded/);
+    fireEvent.change(screen.getByLabelText("Analysis question"), {target:{value:"Chart question"}});
+    fireEvent.click(screen.getByText("Chart and method", {exact:true}));
+    fireEvent.change(screen.getByLabelText("X column"), {target:{value:"value"}});
+    first.unmount();
+    render(<AnalyseDataPanel project={project} actions={actions} onBuildModel={() => {}} />);
+    await screen.findByText(/Measured data loaded/);
+    expect(screen.getByLabelText("X column")).toHaveValue("value");
+    expect(screen.getByLabelText("Y column")).toHaveValue("");
+    expect(screen.getByRole("button", {name:"Run analysis", exact:true})).toBeDisabled();
+    expect(screen.getByRole("button", {name:"Save analysis and findings"})).toBeDisabled();
+    expect(actions.run).not.toHaveBeenCalled();
+    expect(actions.save).not.toHaveBeenCalled();
+  });
+  it("labels unavailable numeric results without replacing them with invented values", async () => {
+    const { project, actions, datasetId } = fixture();
+    project.analysisWorkspace={revision:1,datasetId,scope:{question:"Range",filters:[],datasetChecksum:hash,schemaFingerprint:hash},analysisRunId:"range-run",findings:[]};
+    project.statisticalAnalysisRuns=[{analysisRunId:"range-run",datasetId,method:"summary",status:"completed",warnings:["Affected results are unavailable."],createdAt:"now",resultSummary:{scope:{datasetChecksum:hash,schemaFingerprint:hash},summaries:[{column:"value",count:2,missingCount:0,mean:null,std:null,min:0,max:1}]}}];
+    render(<AnalyseDataPanel project={project} actions={actions} onBuildModel={() => {}} />);
+    await screen.findByText(/Measured data loaded/);
+    expect(screen.getAllByRole("cell", {name:"unavailable", exact:true})).toHaveLength(2);
+    expect(project.statisticalAnalysisRuns[0].resultSummary!.summaries).toEqual([{column:"value",count:2,missingCount:0,mean:null,std:null,min:0,max:1}]);
+  });
   it("retains unsaved interpretation across route remounts without presenting it as saved", async () => {
     const { project, actions } = fixture();
     const first = render(<AnalyseDataPanel project={project} actions={actions} onBuildModel={() => {}} />);

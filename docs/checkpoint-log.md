@@ -1,5 +1,66 @@
 # JuliaFlow checkpoint log
 
+2026-10-10 — user-authorized independent review: separate read-only correctness,
+UI and local security reviewers examined the fixed product/policy patch. NUM-1
+reproduced Pearson 1.008264 for finite tiny values; numerical rereview of the first
+fix exposed near-constant cancellation (0.852803 instead of 1). The final algorithm
+shifts before scaling and handles overflowing opposite-extrema subtraction.
+UI-1 reproduced failed-refresh question loss and partial-axis loss; drafts now
+retain text independently of measured identity, and partial axes block run/save.
+UI-2 rendered unavailable numbers as blanks; the UI now labels them unavailable.
+Recorded/read-back AKS-44 scope precedes remediation, status remains In Progress.
+
+The parent browser probe on the prior product completed all existing durable
+checks plus Tab/Enter measured refresh, visible focus, clean console/page identity,
+and 720 CSS-pixel reflow. Actual 200% browser zoom and screen-reader participant
+acceptance are not claimed. Source regressions, independent delta review and full
+clean-candidate aggregate verification are separate from this prior browser result;
+earlier failed review/probe evidence is retained, not converted into approval.
+
+Independent rereview accepted the revised source: numerical focused 31/31 and
+seeded BigFloat reference 726/726 (maximum error within six-decimal rounding),
+UI external regressions 6/6 plus workspace tests 8/8, local security helper/replay
+35/35, durable routes 53/53 and authorization 15/15. An initial security-probe
+viewer-header mistake was corrected in the external harness and retained; no
+product guard was weakened. Build, contracts (66 pass/one Windows skip), control
+sync, BRD traceability and whitespace passed. Final clean-candidate aggregate
+verification remains the next publication gate; these are independent local
+reviews, not canonical plugin scans or submitted GitHub approvals.
+
+## 2026-10-10 — approved review-routing instruction change
+
+The user instructed implementation of the proposed capability-aware project
+instructions. Updated AGENTS/tooling, current Plan/TODO/risks/tracker, and durable
+analysis verification to permit a separate independent local security-review
+method when the canonical tool is unavailable. That method requires a scoped
+threat model, complete changed-source coverage and relevant supporting-code
+inspection, reproducible negative/legitimate controls, independent reviewer
+identity, final-candidate verdict, and tracked finding dispositions. It does not
+authorize delegation on its own or claim canonical plugin clearance.
+
+Canonical diff scan cannot obtain required scan ownership because discovery did
+not expose `start_codex_security_prompt_only_scan`; its actual preflight/storage
+instructions were retrieved and are preserved. Signed Julia integrity was checked
+again: status ok/signed true, unchanged catalog 2.1.0 manifest/release identities.
+No vendor runtime, trust/configuration, product source, test assertion, CI workflow,
+or immutable archive was changed.
+
+Retained clean product commit `3165022` passed 22/22 local release phases, with
+physical GPU and optional platform skips explicitly retained. All 55 retained
+handoff/browser/release evidence files matched their checksums in follow-up review.
+These historical results do not certify a new documentation commit. Required
+independent correctness/UI/security review and final publication checks remain
+pending; participant/accessibility, full board fidelity and wider GPU/platform
+acceptance remain milestone tasks. This update grants no merge/deploy/tag/release
+permission and changes no external delivery state. Documentation validation is
+reported separately from product runtime verification.
+
+Documentation checks passed: `npm run validate:control-doc-sync -- --base
+62d626b599bc49671a6b9f2e7a620b7660b2d7b5` (36 baseline-plus-working-tree paths),
+`npm run validate:brd-traceability` (46 P0/P1/P2 TODO mappings), and
+`git diff --check`. Eight documentation/instruction files changed; no new product
+runtime suite or canonical security scan was run for this policy-only update.
+
 2026-10-10 final preservation correction: selecting another dataset retains saved and unsaved findings linked to their original project-owned runs, clears dataset-specific filters/axes, and prevents selecting a run from another dataset as current evidence. Reports identify each result dataset and verify every referenced source snapshot. Focused frontend/real-route regressions and the new clean-candidate gate must cover this correction; the earlier candidate gate was canceled, not passed.
 
 2026-10-10 — user-authorized Durable Analyse Data implementation (AKS-44, related AKS-47/48/49 and AKS-53 evidence rules), based on unmerged PR #60 at `62d626b599bc49671a6b9f2e7a620b7660b2d7b5`. This is the next product increment after Create Project; release-roadmap M2 hardware and the full BRD local-v1/GPU/compiler/platform requirements remain unchanged. The user's implementation instruction authorizes this bounded Analyse Data UI within the existing nine-section shell.

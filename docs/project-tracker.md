@@ -1,5 +1,40 @@
 # JuliaFlow project tracker
 
+2026-10-10 — independent review remediation: AKS-44 records NUM-1 (tiny/near-constant
+Pearson precision), UI-1 (failed-refresh/partial-axis draft preservation) and UI-2
+(unavailable numeric-cell labels), with readback In Progress. Corrections and
+focused regression tests are implemented locally; independent correctness/UI/local
+security reviewers accepted the revised source hashes with recorded coverage and
+limits. Browser QA on the preceding product passed
+keyboard refresh/focus, console/overlay identity checks and 720 CSS-pixel reflow
+equivalent to 200% on a 1440px viewport; actual browser zoom/assistive-technology
+acceptance remains untested. New source requires its own clean-candidate aggregate
+gate. No publication, acceptance, merge or Done claim follows from these fixes.
+
+## Current review handoff — 2026-10-10
+
+The user approved capability-aware project instructions, including the separate
+[independent local security-review procedure](agent-tooling.md#independent-local-security-review).
+Canonical Codex Security diff scan remains unavailable: tool discovery did not
+expose `start_codex_security_prompt_only_scan`. Plugin procedures, signed Julia
+trust checks, test assertions, and historical records remain intact. No canonical
+scan or independent approval is fabricated.
+
+Clean product candidate `3165022190236100d9e0ab85f96c9c74eda94ad7` / tree
+`78dd180424d634e3cc0441151a85ac624e4adf18` passed all 22 local release phases.
+Retained evidence recheck matched 32 handoff/browser files and 23 release files.
+This documentation-only update does not extend that exact-candidate result to a
+new commit. Independent correctness/UI/security review remains the next bounded
+action; findings and final checks must be resolved before development publication.
+Participant/accessibility, original-board, GPU/platform acceptance, administrative
+merge requirements, merge, and deployment remain separate open gates.
+
+Fresh authenticated GitHub reads confirm main `7e725eb0e2fe74a4d4d1bec885c31ab546fb6320`
+and open draft PR60 at `62d626b599bc49671a6b9f2e7a620b7660b2d7b5`, based on
+`codex/reconcile-profiling` at `4d71f1ec18cc3ab7551723fd7ba21f77fc26da31`.
+Branch-protection access still returned 403 on the review readback. No external
+tracker state, PR, push, merge, deployment, tag, or release changed in this update.
+
 2026-10-10 final preservation correction: selecting another dataset retains saved and unsaved findings linked to their original project-owned runs, clears dataset-specific filters/axes, and prevents selecting a run from another dataset as current evidence. Reports identify each result dataset and verify every referenced source snapshot. Focused frontend/real-route regressions and the new clean-candidate gate must cover this correction; the earlier candidate gate was canceled, not passed.
 
 2026-10-10 — user-authorized Durable Analyse Data implementation (AKS-44, related AKS-47/48/49 and AKS-53 evidence rules), based on unmerged PR #60 at `62d626b599bc49671a6b9f2e7a620b7660b2d7b5`. This is the next product increment after Create Project; release-roadmap M2 hardware and the full BRD local-v1/GPU/compiler/platform requirements remain unchanged. The user's implementation instruction authorizes this bounded Analyse Data UI within the existing nine-section shell.
