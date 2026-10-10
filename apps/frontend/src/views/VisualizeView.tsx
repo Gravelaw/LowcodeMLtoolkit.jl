@@ -122,7 +122,7 @@ export function VisualizeView({
           ))}
         </div>
         {mode !== "dashboard" ? (
-          <div className="visualize-capabilities" aria-label="Visualize workspace capabilities">
+          <div className="visualize-capabilities" role="group" aria-label="Visualize workspace capabilities">
             <span>Dashboard Builder</span>
             <span>Artifact Rows</span>
             <span>Local Save And Export Actions</span>

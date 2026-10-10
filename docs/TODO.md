@@ -219,3 +219,5 @@ PR #39 is retained as unmerged fallback; optional connectors/providers stay disa
 24. [x] AKS-13 live workflow metadata recovery: historical bounded-slice evidence in `docs/brd-traceability.md`.
 25. [x] Explorer/Data/Transform mock parity and interactive local analytics: historical bounded-slice evidence in `docs/brd-traceability.md`.
 26. [x] AKS-29 through AKS-35 parity hardening: historical bounded-slice evidence in `docs/brd-traceability.md`.
+
+2026-10-10 accessibility review follow-up: give the existing labeled Visualize capabilities container its semantic group role. Preserve content, navigation and approved palette. Exact-candidate browser/axe and complete release verification remain required; manual SVG contrast and participant acceptance remain separate.

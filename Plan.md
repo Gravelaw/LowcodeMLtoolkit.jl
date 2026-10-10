@@ -187,3 +187,5 @@ Preserve local trust/auth, confined roots, symlink/junction policy, redaction, i
 [Acceptance scenarios](docs/acceptance-v0.5.0.md), [TODO](docs/TODO.md), [risks](docs/risk-register.md) and [traceability](docs/brd-traceability.md) distinguish candidate evidence, requirements, designs and deferred work. M7 requires complete selected capabilities and no skipped required phases; green documentation/web/Julia checks or historical Windows evidence do not replace release proof.
 
 [Historical plan archive](docs/archive/2026-09-20/README.md) and [v0.4.1 BRD snapshot](docs/archive/2026-09-20-brd-v0.4.1/README.md) retain prior statements without promoting them.
+
+2026-10-10 accessibility review follow-up: give the existing labeled Visualize capabilities container its semantic group role. Preserve content, navigation and approved palette. Exact-candidate browser/axe and complete release verification remain required; manual SVG contrast and participant acceptance remain separate.

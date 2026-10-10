@@ -207,3 +207,5 @@ Every original risk ID remains below so historical mitigations can be located. S
 Keep local bootstrap, managed data estate, file/PostgreSQL metadata, local model/explainability evidence, offline Hub, reproducibility, and backup/restore. Metadata support is not database dataset-source execution. Object-store/provider production overlays and enterprise identity remain conditional compatibility work. Keep all previously designed success/failure/rejection coverage.
 
 Update this register when a risk or accepted mitigation changes; maintenance-only edits need no invented new product risk. Link new findings to Linear before expanding committed scope. Do not classify an issue Blocked solely because CI failed, or Done solely because a PR merged.
+
+2026-10-10 accessibility review follow-up: give the existing labeled Visualize capabilities container its semantic group role. Preserve content, navigation and approved palette. Exact-candidate browser/axe and complete release verification remain required; manual SVG contrast and participant acceptance remain separate.
