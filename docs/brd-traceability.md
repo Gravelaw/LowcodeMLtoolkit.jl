@@ -1,5 +1,7 @@
 # JuliaFlow BRD traceability
 
+2026-10-10 bounded capability evidence: JF-EXP-001 / AC-06 and JF-UX-001–004 / AC-07–10 have an additive Durable Analyse Data implementation in `services/api-gateway/src/JuliaFlowProjectAnalysis.jl`, shared contracts, repository mappings and `apps/frontend/src/views/AnalyseDataPanel.tsx`. `tests/julia/durable_analysis_tests.jl`, `tests/julia/statistics_alignment_tests.jl`, frontend workspace tests and `npm run smoke:durable-analysis` cover source/scope identity, paired missingness, independent editable findings, save/restart/reopen and presentation export. See [exact verification and remaining acceptance](verification-durable-analysis.md). These tests do not close JF-ACC-001–003 GPU requirements, JF-REL-001 persona/platform acceptance or the broader AKS-44/47/48/49 issues. Historical mappings below remain historical.
+
 Reconciled 2026-09-20 for [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-juliaflow-brd-v050-and-first-release-roadmap-coordination). [Canonical BRD v0.5.0](../business-requirements-v0.3.0.md), [roadmap](product-roadmap.md), [acceptance scenarios](acceptance-v0.5.0.md) and [source record](source-reconciliation-2026-09-20.md).
 
 ## Current v0.5.0 requirement index

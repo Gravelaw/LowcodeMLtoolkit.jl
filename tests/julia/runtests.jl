@@ -8050,3 +8050,8 @@ end
 @testset "Real file profile route boundary" begin
     include(joinpath(@__DIR__, "real_file_profile_gateway_tests.jl"))
 end
+
+@testset "Durable scoped analysis boundary" begin
+    include(joinpath(@__DIR__, "durable_analysis_tests.jl"))
+    include(joinpath(@__DIR__, "statistics_alignment_tests.jl"))
+end

@@ -215,6 +215,10 @@ client.runDataScienceProjectModelLifecycleAction("contracts-project", modelLifec
   response.lifecycleRecord.state.toUpperCase();
 });
 client.runWorkflowTransform("wf-foundation", transformRunRequest);
+client.getAnalysisProfile("contracts-project", "data").then(response => response.numericColumns.map(column => column.toUpperCase()));
+client.saveAnalysisWorkspace("contracts-project", { expectedRevision: 0, workspace: { revision: 0, datasetId: "data",
+  scope: { datasetChecksum: "a".repeat(64), schemaFingerprint: "b".repeat(64), question: "How do values vary?", filters: [] }, findings: [] } });
+client.exportAnalysisReport("contracts-project").then(response => response.checksumSha256.toLowerCase());
 client.getWorkflowTransformHistory("wf-foundation");
 client.runWorkflowMlExperiment("wf-foundation", mlExperimentRunRequest);
 client.getWorkflowMlExperimentHistory("wf-foundation");

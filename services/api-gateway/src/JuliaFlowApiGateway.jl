@@ -9,6 +9,7 @@ include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectRegistryPayloads.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectJobs.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectStatistics.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectProfiling.jl"))
+include(joinpath(@__DIR__, "JuliaFlowProjectAnalysis.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectLocalSources.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectCatalog.jl"))
 include(joinpath(@__DIR__, "JuliaFlowDataScienceProjectPredictionExport.jl"))
@@ -100,6 +101,8 @@ Base.@kwdef mutable struct GatewayState
     hub_extensions::Dict{String,JuliaFlowGatewayRepository.HubExtensionRecord} = Dict{String,JuliaFlowGatewayRepository.HubExtensionRecord}()
     published_dashboards::Dict{String,JuliaFlowGatewayRepository.PublishedDashboardRecord} = Dict{String,JuliaFlowGatewayRepository.PublishedDashboardRecord}()
     data_science_projects::Dict{String,DataScienceProjectRecord} = Dict{String,DataScienceProjectRecord}()
+    project_mutation_lock::ReentrantLock = ReentrantLock()
+    mutating_projects::Set{String} = Set{String}()
     worker_service::JuliaFlowWorkerService.WorkerServiceState = JuliaFlowWorkerService.WorkerServiceState()
     canvas_subscriptions::Dict{String,Any} = Dict{String,Any}()
     dashboard_subscriptions::Dict{String,Any} = Dict{String,Any}()
@@ -5384,6 +5387,12 @@ function local_artifact_checksum(path::AbstractString)
     return JuliaFlowDataScienceProjectLocalSources.local_artifact_checksum(path)
 end
 
+function resolve_local_artifact_ref_path(local_ref::AbstractString)
+    home = local_appliance_home()
+    return JuliaFlowDataScienceProjectLocalSources.resolve_local_artifact_ref_path(local_ref;
+        local_home = home, data_root = local_data_estate_root(home), validate_local_ref = validate_project_local_ref!)
+end
+
 function write_local_artifact!(path::AbstractString, content::AbstractString)
     return JuliaFlowDataScienceProjectLocalSources.write_local_artifact!(path, content)
 end
@@ -5464,13 +5473,14 @@ function persist_statistical_analysis_artifacts!(
     dataset_id::AbstractString,
     methods::AbstractVector,
     body::AbstractDict,
-    evidence,
+    evidence;
+    replay_code = nothing,
 )
     code_ref = String(analysis_run["generatedCodeRef"])
     result_ref = String(analysis_run["resultRef"])
     code_path = local_data_ref_path_for_write(code_ref)
     result_path = local_data_ref_path_for_write(result_ref)
-    code = statistical_analysis_code_artifact(dataset_id, methods, body)
+    code = replay_code === nothing ? statistical_analysis_code_artifact(dataset_id, methods, body) : replay_code
     result_payload = Dict{String,Any}(
         "analysisRunId" => String(analysis_run["analysisRunId"]),
         "datasetId" => dataset_id,
@@ -5515,12 +5525,18 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
     dataset_id = statistical_analysis_dataset(project, body)
     dataset = data_science_project_dataset(project, dataset_id)
     methods = statistical_analysis_methods(body)
+    if haskey(body, "scope")
+        validator = JuliaFlowGatewayRepository.JuliaFlowProjectPayloadValidation
+        request_schema = validator.contract_schema(Dict("\$ref" => "#/components/schemas/RunStatisticalAnalysisRequest"))
+        validator.JSONSchema.validate(request_schema, validator.contract_value(body)) === nothing || error("analysis run invalid contract payload")
+    end
     run_id = "stats-" * replace(string(uuid4()), "-" => "")
     fixture = data_profile_fixture(dataset_id, "local://data/$(dataset_id)")
+    schema = analysis_schema(project, dataset_id)
     evidence = JuliaFlowDataScienceProjectEvidence.read_result(
-        () -> local_csv_statistical_evidence(dataset, body, methods), juliaflow_runtime_mode(), "statistical analysis")
-    warnings = String[]
-    haskey(body, "targetColumn") || push!(warnings, "No targetColumn supplied; inferential tests are recorded as exploratory evidence.")
+        () -> haskey(body, "scope") ? JuliaFlowProjectAnalysis.scoped_evidence(dataset, resolve_local_data_ref_path(dataset["sourceUri"]), body, schema) : local_csv_statistical_evidence(dataset, body, methods), juliaflow_runtime_mode(), "statistical analysis")
+    warnings = evidence === nothing ? String[] : String.(get(evidence, "warnings", String[]))
+    haskey(body, "scope") || haskey(body, "targetColumn") || push!(warnings, "No targetColumn supplied; inferential tests are recorded as exploratory evidence.")
     evidence === nothing && push!(warnings, "Managed local CSV source was not available; fixture profile evidence was used for this statistical EDA run.")
     analysis_run = Dict{String,Any}(
         "analysisRunId" => run_id,
@@ -5534,7 +5550,23 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
         "createdAt" => JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp(),
     )
     evidence === nothing || (analysis_run["resultSummary"] = evidence)
-    artifact_refs = persist_statistical_analysis_artifacts!(analysis_run, dataset_id, methods, body, evidence)
+    replay = nothing
+    if haskey(body, "scope")
+        replay = JuliaFlowProjectAnalysis.replay_code(dataset, body, schema)
+        distribution = evidence["distribution"]
+        push!(analysis_run["charts"], plotly_chart_spec("$(run_id)-distribution", "$(distribution["column"]) distribution", "histogram",
+            [Dict("type" => "histogram", "x" => distribution["values"], "name" => String(distribution["column"]))];
+            layout = Dict("xaxis" => Dict("title" => distribution["label"]), "yaxis" => Dict("title" => "Valid row count")),
+            source_label = "$(evidence["rowCount"]) selected original rows", summary = "Measured nonmissing numeric values; counts computed from the selected scope", evidence_ref = analysis_run["resultRef"]))
+        if haskey(evidence, "scatter")
+            scatter = evidence["scatter"]
+            push!(analysis_run["charts"], plotly_chart_spec("$(run_id)-scatter", "$(scatter["xColumn"]) and $(scatter["yColumn"])", "scatter",
+                [Dict("type" => "scatter", "mode" => "markers", "x" => scatter["x"], "y" => scatter["y"], "name" => "Selected complete pairs")];
+                layout = Dict("xaxis" => Dict("title" => scatter["xLabel"]), "yaxis" => Dict("title" => scatter["yLabel"])),
+                source_label = "$(evidence["rowCount"]) selected original rows", summary = "$(scatter["count"]) complete pairs; association is not causation", evidence_ref = analysis_run["resultRef"]))
+        end
+    end
+    artifact_refs = persist_statistical_analysis_artifacts!(analysis_run, dataset_id, methods, body, evidence; replay_code = replay)
     project.statistical_analysis_runs = [analysis_run, project.statistical_analysis_runs...]
     timestamp = String(analysis_run["createdAt"])
     resource_evidence = data_science_project_job_resource_evidence(state; execution_mode = "statistical_analysis")
@@ -5549,7 +5581,7 @@ function run_statistical_analysis_response!(state::GatewayState, project_id::Abs
         started_at = timestamp,
         finished_at = timestamp,
         plan = ["load_local_dataset_profile", "compute_statistical_tests", "materialize_statistical_analysis_artifacts"],
-        worker_backed = true,
+        worker_backed = !haskey(body, "scope"),
     )
     analysis_run["executionEvidence"] = execution_evidence
     record_data_science_project_job!(
@@ -6699,6 +6731,10 @@ function classify_gateway_error(err)
         return 409, message
     elseif occursin("model lifecycle ", message)
         return 400, message
+    elseif startswith(message, "data science project mutation in progress")
+        return 409, message
+    elseif startswith(message, "analysis ") || startswith(message, "scoped analysis ")
+        return 400, message
     elseif occursin("route not found", message)
         return 404, message
     elseif occursin("Artifact ", message) && occursin(" missing from artifact store", message)
@@ -7680,7 +7716,83 @@ function route_request(state::GatewayState, request::HTTP.Request)
     end
 end
 
+function analysis_schema(project, dataset_id)
+    index = findfirst(s -> get(s, "datasetId", "") == dataset_id, project.schema_contracts)
+    index === nothing && error("analysis schema unavailable")
+    return project.schema_contracts[index]
+end
+
+function analysis_action_response!(state, project_id, action, body)
+    haskey(state.data_science_projects, project_id) || error("data science project not found")
+    project = deepcopy(state.data_science_projects[project_id])
+    if action == :analysis_export
+        # Export verifies the persisted result/code bytes, not only stored reference labels.
+        workspace = project.analysis_workspace
+        isempty(workspace) && error("analysis save a workspace before exporting")
+        dataset = data_science_project_dataset(project, workspace["datasetId"])
+        schema = analysis_schema(project, workspace["datasetId"])
+        JuliaFlowProjectAnalysis.check_scope(workspace["scope"], dataset, schema)
+        JuliaFlowProjectAnalysis.verified_table(dataset, resolve_local_data_ref_path(dataset["sourceUri"]))
+        ids = unique([get(workspace, "analysisRunId", ""); [get(f,"analysisRunId", "") for f in get(workspace,"findings",Any[])]])
+        selected = [r for r in project.statistical_analysis_runs if get(r,"analysisRunId", "") in ids]
+        for run in selected, ref in get(run, "artifactRefs", Any[])
+            path = resolve_local_artifact_ref_path(ref["path"])
+            path !== nothing && isfile(path) && local_artifact_checksum(path) == ref["checksumSha256"] || error("analysis report evidence artifact unavailable or changed")
+            if get(ref, "kind", "") == "statistical_analysis_results"
+                result = JSON3.read(read(path, String), Dict{String,Any})
+                all(key -> get(result, key, nothing) == get(run, key, nothing),
+                    ("analysisRunId", "datasetId", "method", "status", "resultSummary", "warnings", "createdAt")) ||
+                    error("analysis report stored evidence differs from its verified result artifact")
+            end
+        end
+        return JSON3.write(JuliaFlowProjectAnalysis.report_response(project, selected))
+    end
+    validator = JuliaFlowGatewayRepository.JuliaFlowProjectPayloadValidation
+    request_contract = action == :analysis_profile ? Dict("type" => "object", "additionalProperties" => false,
+        "required" => ["datasetId"], "properties" => Dict("datasetId" => Dict("type" => "string", "minLength" => 1))) :
+        Dict("\$ref" => "#/components/schemas/SaveAnalysisWorkspaceRequest")
+    request_schema = validator.contract_schema(request_contract)
+    validator.JSONSchema.validate(request_schema, validator.contract_value(body)) === nothing || error("analysis request invalid contract payload")
+    dataset_id = action == :analysis_profile ? String(body["datasetId"]) : String(body["workspace"]["datasetId"])
+    dataset = data_science_project_dataset(project, dataset_id)
+    schema = analysis_schema(project, dataset_id)
+    path = resolve_local_data_ref_path(dataset["sourceUri"])
+    path === nothing && error("analysis source evidence unavailable")
+    if action == :analysis_profile
+        return JSON3.write(JuliaFlowProjectAnalysis.measured_profile(dataset, path, schema))
+    end
+    JuliaFlowProjectAnalysis.verified_table(dataset, path)
+    project.analysis_workspace = JuliaFlowProjectAnalysis.validate_workspace(body, project, dataset, schema)
+    project.updated_at = JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()
+    saved = JuliaFlowGatewayRepository.save_data_science_project!(state.repository, project; producer = "api-gateway")
+    state.data_science_projects[project_id] = saved
+    return JSON3.write(JuliaFlowGatewayRepository.data_science_project_payload(saved))
+end
+
+"""Claim one project mutation; reject overlaps without holding a mutex during I/O."""
+function with_project_mutation(action::Function, state::GatewayState, project_id::AbstractString)
+    lock(state.project_mutation_lock) do
+        project_id in state.mutating_projects && error("data science project mutation in progress; retry after it completes")
+        push!(state.mutating_projects, project_id)
+    end
+    try
+        return action()
+    finally
+        lock(state.project_mutation_lock) do
+            delete!(state.mutating_projects, project_id)
+        end
+    end
+end
+
 function data_science_project_route_response(state::GatewayState, request::HTTP.Request, route)
+    route.action in (:list, :get, :create, :analysis_profile, :analysis_export) && return data_science_project_route_response_owned(state, request, route)
+    require_permission!(state, request, "workflow:write"; resource_type = "data_science_project", resource_id = route.project_id)
+    return with_project_mutation(state, route.project_id) do
+        data_science_project_route_response_owned(state, request, route)
+    end
+end
+
+function data_science_project_route_response_owned(state::GatewayState, request::HTTP.Request, route)
     action = route.action
     project_id = route.project_id
     if action == :list
@@ -7702,6 +7814,8 @@ function data_science_project_route_response(state::GatewayState, request::HTTP.
     body = parse_request_body(request)
     response, audit_action, status = if action == :update
         (update_data_science_project_response!(state, project_id, body), "data_science_project.update", 200)
+    elseif action in (:analysis_profile, :analysis_workspace, :analysis_export)
+        (analysis_action_response!(state, project_id, action, body), "data_science_project.$(action)", 200)
     elseif action == :transform_fit_apply
         (run_transform_fit_apply_response!(state, project_id, body), "data_science_project.transform.fit_apply", 201)
     elseif action == :statistical_analysis
@@ -7877,7 +7991,14 @@ function route_request_inner(state::GatewayState, request::HTTP.Request)
             body = parse_request_body(request)
             target_id = haskey(body, "datasetId") ? String(body["datasetId"]) : "workflow-dataset"
             try
-                response = data_import_profile_response!(state, body; auth_context = context)
+                response = if haskey(body, "projectId")
+                    enforce_resource_policy!(state, context, "workflow:write", "data_science_project", String(body["projectId"]))
+                    with_project_mutation(state, String(body["projectId"])) do
+                        data_import_profile_response!(state, body; auth_context = context)
+                    end
+                else
+                    data_import_profile_response!(state, body; auth_context = context)
+                end
                 append_audit_event!(
                     state,
                     request,

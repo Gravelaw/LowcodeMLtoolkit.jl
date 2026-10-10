@@ -411,13 +411,47 @@ function requested_feature_columns(body::AbstractDict)
     return [String(feature) for feature in raw_features if !isempty(strip(String(feature)))]
 end
 
+"""Select complete cases by original row, never by independently compacted columns."""
+function paired_numeric_values(table::AbstractDict, left::AbstractString, right::AbstractString)
+    headers = table["headers"]
+    li, ri = findfirst(==(left), headers), findfirst(==(right), headers)
+    x, y = Float64[], Float64[]
+    for row in table["rows"]
+        a, b = tryparse(Float64, row[li]), tryparse(Float64, row[ri])
+        if a !== nothing && b !== nothing && isfinite(a) && isfinite(b)
+            push!(x, a); push!(y, b)
+        end
+    end
+    return x, y
+end
+
+function paired_correlation(table, left, right; ranked = false)
+    x, y = paired_numeric_values(table, left, right)
+    length(x) >= 2 && sample_std(x) > 0 && sample_std(y) > 0 || return nothing
+    return ranked ? spearman_correlation(x, y) : pearson_correlation(x, y)
+end
+
+function paired_group_values(table, target, group)
+    headers = table["headers"]
+    ti, gi = findfirst(==(target), headers), findfirst(==(group), headers)
+    numbers, groups = Float64[], String[]
+    for row in table["rows"]
+        value = tryparse(Float64, row[ti])
+        if value !== nothing && isfinite(value) && !(lowercase(row[gi]) in ("", "missing", "na", "null", "nothing"))
+            push!(numbers, value); push!(groups, row[gi])
+        end
+    end
+    return numbers, groups
+end
+
 function local_csv_statistical_evidence_from_path(
     dataset::AbstractDict,
     source_path::AbstractString,
     body::AbstractDict,
-    methods::AbstractVector,
+    methods::AbstractVector;
+    table = nothing,
 )
-    table = parse_simple_csv(source_path)
+    table = table === nothing ? parse_simple_csv(source_path) : table
     table === nothing && return nothing
     numeric_columns, missing_counts = simple_numeric_columns(table)
     isempty(numeric_columns) && return nothing
@@ -434,11 +468,11 @@ function local_csv_statistical_evidence_from_path(
     ]
     ordered_columns = [String(summary["column"]) for summary in summaries]
     correlations = [
-        [left == right ? 1.0 : pearson_correlation(numeric_columns[left], numeric_columns[right]) for right in ordered_columns]
+        [paired_correlation(table, left, right) for right in ordered_columns]
         for left in ordered_columns
     ]
     spearman = [
-        [left == right ? 1.0 : spearman_correlation(numeric_columns[left], numeric_columns[right]) for right in ordered_columns]
+        [paired_correlation(table, left, right; ranked = true) for right in ordered_columns]
         for left in ordered_columns
     ]
     target_column = haskey(body, "targetColumn") ? String(body["targetColumn"]) : ""
@@ -448,15 +482,18 @@ function local_csv_statistical_evidence_from_path(
     if !isempty(target_column) && haskey(numeric_columns, target_column)
         numeric_features = [feature for feature in feature_columns if haskey(numeric_columns, feature) && feature != target_column]
         if "ols" in methods && !isempty(numeric_features)
-            ols = simple_linear_ols(numeric_columns[target_column], numeric_columns[first(numeric_features)])
+            x, y = paired_numeric_values(table, first(numeric_features), target_column)
+            ols = simple_linear_ols(y, x)
             ols === nothing || (inferential["ols"] = merge(ols, Dict("targetColumn" => target_column, "featureColumn" => first(numeric_features))))
         end
         if "anova" in methods && !isempty(categorical_features)
-            anova = one_way_anova(numeric_columns[target_column], simple_column_values(table, first(categorical_features)))
+            values, groups = paired_group_values(table, target_column, first(categorical_features))
+            anova = one_way_anova(values, groups)
             anova === nothing || (inferential["anova"] = merge(anova, Dict("targetColumn" => target_column, "groupColumn" => first(categorical_features))))
         end
         if "t_test" in methods && !isempty(categorical_features)
-            t_test = two_sample_t_test(numeric_columns[target_column], simple_column_values(table, first(categorical_features)))
+            values, groups = paired_group_values(table, target_column, first(categorical_features))
+            t_test = two_sample_t_test(values, groups)
             t_test === nothing || (inferential["tTest"] = merge(t_test, Dict("targetColumn" => target_column, "groupColumn" => first(categorical_features))))
         end
     end
@@ -479,6 +516,8 @@ function local_csv_statistical_evidence_from_path(
         "numericColumns" => ordered_columns,
         "summaries" => summaries,
         "correlationMatrix" => correlations,
+        "correlationPairCounts" => [[length(first(paired_numeric_values(table, left, right))) for right in ordered_columns] for left in ordered_columns],
+        "missingValuePolicy" => "pairwise_complete_original_rows",
         "spearmanCorrelationMatrix" => spearman,
         "inferentialTests" => inferential,
     )

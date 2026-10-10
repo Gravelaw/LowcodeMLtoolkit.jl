@@ -1967,6 +1967,166 @@
           }
         }
       }
+    },
+    "/api/v1/data-science-projects/{projectId}/analysis/profile": {
+      "post": {
+        "operationId": "getAnalysisProfile",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "datasetId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "datasetId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized local analysis response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid, stale or unavailable evidence"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Project access denied"
+          },
+          "409": {
+            "description": "Another mutation of this project is in progress; retry after completion."
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}/analysis/workspace": {
+      "post": {
+        "operationId": "saveAnalysisWorkspace",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAnalysisWorkspaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized local analysis response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataScienceProject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid, stale or unavailable evidence"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Project access denied"
+          },
+          "409": {
+            "description": "Another mutation of this project is in progress; retry after completion."
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}/analysis/export": {
+      "post": {
+        "operationId": "exportAnalysisReport",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized local analysis response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid, stale or unavailable evidence"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Project access denied"
+          },
+          "409": {
+            "description": "Another mutation of this project is in progress; retry after completion."
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2366,7 +2526,9 @@
         "properties": {
           "evidenceVersion": {
             "type": "integer",
-            "enum": [2]
+            "enum": [
+              2
+            ]
           },
           "executionMode": {
             "type": "string"
@@ -2428,7 +2590,12 @@
           },
           "gpuProbeStatus": {
             "type": "string",
-            "enum": ["unprobed", "passed", "failed", "skipped"]
+            "enum": [
+              "unprobed",
+              "passed",
+              "failed",
+              "skipped"
+            ]
           },
           "requestedDeviceId": {
             "type": "string"
@@ -2441,7 +2608,11 @@
           },
           "actualExecutionBackend": {
             "type": "string",
-            "enum": ["cpu", "cuda", "unavailable"]
+            "enum": [
+              "cpu",
+              "cuda",
+              "unavailable"
+            ]
           }
         }
       },
@@ -2605,6 +2776,9 @@
             "items": {
               "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
             }
+          },
+          "analysisWorkspace": {
+            "$ref": "#/components/schemas/AnalysisWorkspace"
           }
         }
       },
@@ -2686,6 +2860,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AnalysisScopeRequest"
           }
         }
       },
@@ -4064,7 +4241,11 @@
           },
           "hardwareRequestedBackend": {
             "type": "string",
-            "enum": ["cpu", "cuda", "simulated_cuda"]
+            "enum": [
+              "cpu",
+              "cuda",
+              "simulated_cuda"
+            ]
           },
           "cpuSchedulerPolicy": {
             "type": "string",
@@ -4878,11 +5059,18 @@
           },
           "gpuEvidenceVersion": {
             "type": "integer",
-            "enum": [2]
+            "enum": [
+              2
+            ]
           },
           "gpuProbeStatus": {
             "type": "string",
-            "enum": ["unprobed", "passed", "failed", "skipped"]
+            "enum": [
+              "unprobed",
+              "passed",
+              "failed",
+              "skipped"
+            ]
           },
           "gpuPlannedDevice": {
             "type": "string"
@@ -7592,7 +7780,12 @@
           },
           "probeStatus": {
             "type": "string",
-            "enum": ["unprobed", "passed", "failed", "skipped"]
+            "enum": [
+              "unprobed",
+              "passed",
+              "failed",
+              "skipped"
+            ]
           }
         }
       },
@@ -7655,12 +7848,26 @@
           },
           "numericSummary": {
             "type": "object",
-            "required": ["count", "minimum", "maximum", "mean"],
+            "required": [
+              "count",
+              "minimum",
+              "maximum",
+              "mean"
+            ],
             "properties": {
-              "count": { "type": "integer", "minimum": 1 },
-              "minimum": { "type": "number" },
-              "maximum": { "type": "number" },
-              "mean": { "type": "number" }
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minimum": {
+                "type": "number"
+              },
+              "maximum": {
+                "type": "number"
+              },
+              "mean": {
+                "type": "number"
+              }
             }
           }
         }
@@ -7743,7 +7950,9 @@
           },
           "profileScope": {
             "type": "string",
-            "enum": ["complete_unquoted_csv_1000_rows"]
+            "enum": [
+              "complete_unquoted_csv_1000_rows"
+            ]
           },
           "manifestReady": {
             "type": "boolean"
@@ -9754,6 +9963,195 @@
               "sourceBytes"
             ]
           }
+        ]
+      },
+      "AnalysisFilter": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "operator": {
+            "type": "string",
+            "enum": [
+              "eq",
+              "gte",
+              "lte"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "column",
+          "operator",
+          "value"
+        ]
+      },
+      "AnalysisScopeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "datasetChecksum": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "schemaFingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "filters": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "$ref": "#/components/schemas/AnalysisFilter"
+            }
+          },
+          "question": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "xColumn": {
+            "type": "string"
+          },
+          "yColumn": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "datasetChecksum",
+          "schemaFingerprint",
+          "filters",
+          "question"
+        ]
+      },
+      "AnalysisFinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "findingId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "analysisRunId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "findingId",
+          "analysisRunId",
+          "title",
+          "notes"
+        ]
+      },
+      "AnalysisWorkspace": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AnalysisScopeRequest"
+          },
+          "analysisRunId": {
+            "type": "string"
+          },
+          "findings": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/AnalysisFinding"
+            }
+          }
+        },
+        "required": [
+          "revision",
+          "datasetId",
+          "scope",
+          "findings"
+        ]
+      },
+      "SaveAnalysisWorkspaceRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/AnalysisWorkspace"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "workspace"
+        ]
+      },
+      "AnalysisProfileResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/DataImportProfile"
+          },
+          "schemaFingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "numericColumns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "profile",
+          "schemaFingerprint",
+          "numericColumns"
+        ]
+      },
+      "AnalysisReportResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fileName": {
+            "type": "string"
+          },
+          "html": {
+            "type": "string"
+          },
+          "csv": {
+            "type": "string"
+          },
+          "checksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "fileName",
+          "html",
+          "csv",
+          "checksumSha256"
         ]
       }
     }

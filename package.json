@@ -59,7 +59,8 @@
     "test:local-ci": "node --test tests/ci/*.test.mjs",
     "cd:local": "node scripts/ci/delivery.mjs",
     "ci:hosted-policy": "node scripts/ci/hosted-policy.mjs",
-    "smoke:create-project": "node scripts/smoke-create-project.mjs"
+    "smoke:create-project": "node scripts/smoke-create-project.mjs",
+    "smoke:durable-analysis": "node scripts/smoke-durable-analysis.mjs"
   },
   "dependencies": {
     "smol-toml": "^1.7.1"

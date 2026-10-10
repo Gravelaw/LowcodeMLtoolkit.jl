@@ -8,7 +8,7 @@ import { inventory, writeJson } from './evidence.mjs';
 const phases = ['npm-install', 'doctor-host', 'julia-instantiate', 'validate-contracts', 'build', 'test',
   'julia-repo-tests', 'julia-base-extension-tests', 'smoke-local-bootstrap', 'smoke-local-data-estate',
   'smoke-local-metadata', 'smoke-local-hardware', 'smoke-local-explainability', 'smoke-local-offline-hub',
-  'smoke-local-reproducibility', 'smoke-local-migration', 'smoke-live-backend-browser', 'smoke-create-project',
+  'smoke-local-reproducibility', 'smoke-local-migration', 'smoke-live-backend-browser', 'smoke-create-project', 'smoke-durable-analysis',
   'validate-control-doc-sync', 'validate-brd-traceability', 'git-diff-check'];
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const hash = path => createHash('sha256').update(readFileSync(path)).digest('hex');

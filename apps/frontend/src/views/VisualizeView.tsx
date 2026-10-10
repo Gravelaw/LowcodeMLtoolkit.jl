@@ -1,3 +1,5 @@
+import { AnalyseDataPanel } from "./AnalyseDataPanel";
+import type { ComponentProps } from "react";
 import { useState } from "react";
 import type { KeyboardEvent } from "react";
 import { Card, DataTable, StatusPill } from "../components/ui";
@@ -70,11 +72,13 @@ function statusTone(status?: string): "green" | "blue" | "orange" | "neutral" {
 export function VisualizeView({
   data,
   onExport,
-  feedback
+  feedback, analysisActions, onBuildModel = () => {}
 }: {
   data: AppData;
   onExport: () => void;
   feedback?: ActionFeedback;
+  analysisActions?: ComponentProps<typeof AnalyseDataPanel>["actions"];
+  onBuildModel?: () => void;
 }) {
   const [mode, setMode] = useState<VisualizeMode>("eda");
   const rows = datasetRows(data);
@@ -95,7 +99,7 @@ export function VisualizeView({
           <h1>Visualize</h1>
           <p>Explore datasets, inspect model diagnostics, compare experiments, and checkpoint dashboards locally.</p>
         </div>
-        <button type="button" className="jf-button primary" onClick={onExport}>Save Local Checkpoint</button>
+        {mode !== "eda" || data.runtimeMode === "demo" || data.runtimeMode === "development" ? <button type="button" className="jf-button primary" onClick={onExport}>Save Local Checkpoint</button> : null}
       </section>
       {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
 
@@ -126,7 +130,19 @@ export function VisualizeView({
         ) : null}
       </Card>
 
-      {mode === "eda" ? (
+      {mode === "eda" && data.runtimeMode !== "demo" && data.runtimeMode !== "development" ? <AnalyseDataPanel key={data.dataScienceProject.projectId} project={data.dataScienceProject} actions={analysisActions} onBuildModel={onBuildModel} /> : null}
+      {mode === "eda" && data.runtimeMode !== "demo" && data.runtimeMode !== "development" ? <Card title="Project Statistical Analysis Evidence" className="wide">
+        <p>Historical runs remain read-only. Missing scope or provenance is unavailable.</p>
+        <DataTable columns={[
+          { key: "analysisRunId", label: "Run", render: (row) => row.analysisRunId ?? "unavailable" },
+          { key: "method", label: "Method", render: (row) => row.method ?? "unavailable" },
+          { key: "status", label: "Status", render: (row) => row.status ?? "unavailable" },
+          { key: "resultRef", label: "Result", render: (row) => evidenceRefLabel(row) },
+          { key: "generatedCodeRef", label: "Code", render: (row) => row.generatedCodeRef ?? "No code ref" },
+          { key: "checksum", label: "Checksum", render: (row) => checksumLabel(row) }
+        ]} rows={projectAnalysisRuns} getRowKey={(row,index) => row.analysisRunId ?? `historical-analysis-${index}`} />
+      </Card> : null}
+      {mode === "eda" && (data.runtimeMode === "demo" || data.runtimeMode === "development") ? (
         <>
           <Card title="EDA Overview" className="wide">
             <div className="profile-cards">

@@ -47,6 +47,10 @@ function protect_execution_evidence!(existing, body)
         normalize(before) == normalize(body[key]) ||
             error("data science project $(key) is server-owned execution evidence; use the project action")
     end
+    if haskey(body, "analysisWorkspace")
+        before = existing === nothing ? Dict{String,Any}() : existing.analysis_workspace
+        normalize(before) == normalize(body["analysisWorkspace"]) || error("analysis workspace must be saved through its project action")
+    end
     existing === nothing && return nothing
     # Plans remain declarative until a server-produced result binds them.
     protected = Set(get(record, "trainingPlanId", "") for record in
@@ -157,6 +161,7 @@ function materialize_project_record(
         local_only = Bool(get(body, "localOnly", existing === nothing ? true : existing.local_only)),
         created_at = existing === nothing ? timestamp : existing.created_at,
         updated_at = timestamp,
+        analysis_workspace = existing === nothing ? Dict{String,Any}() : deepcopy(existing.analysis_workspace),
     )
 
     for (json_key, field_name) in DATA_SCIENCE_PROJECT_ARRAY_FIELDS

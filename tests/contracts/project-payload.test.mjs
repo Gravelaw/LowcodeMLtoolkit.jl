@@ -59,3 +59,21 @@ test("typed project client propagates malformed-payload rejection", async () => 
   const client = createGatewayApiClient({ baseUrl: "http://localhost:8088", fetch: async () => new Response(JSON.stringify({ error: "data science project projectJobs invalid contract payload" }), { status: 400 }) });
   await assert.rejects(client.updateDataScienceProject("contract-project", cases.invalid[0].payload), /invalid contract payload/);
 });
+
+test("analysis actions bind the encoded project and preserve scope and save revision", async () => {
+  const requests = [];
+  const client = createGatewayApiClient({ baseUrl: "http://localhost:8088", fetch: async (url, init) => {
+    requests.push({ path: new URL(url).pathname, method: init.method, body: JSON.parse(init.body) });
+    return new Response("{}", { status: 200 });
+  } });
+  const scope = { datasetChecksum: "a".repeat(64), schemaFingerprint: "b".repeat(64), question: "Which rows?", filters: [{column:"amount",operator:"gte",value:"2"}] };
+  await client.getAnalysisProfile("project/name", "data");
+  await client.saveAnalysisWorkspace("project/name", { expectedRevision: 3, workspace: { revision:3,datasetId:"data",scope,findings:[] } });
+  await client.exportAnalysisReport("project/name");
+  assert.deepEqual(requests.map(r => r.path), ["profile","workspace","export"].map(action => `/api/v1/data-science-projects/project%2Fname/analysis/${action}`));
+  assert.deepEqual(requests.map(r => r.method), ["POST","POST","POST"]);
+  assert.deepEqual(requests[0].body, {datasetId:"data"});
+  assert.deepEqual(requests[1].body.workspace.scope, scope);
+  assert.equal(requests[1].body.expectedRevision, 3);
+  assert.deepEqual(requests[2].body, {});
+});

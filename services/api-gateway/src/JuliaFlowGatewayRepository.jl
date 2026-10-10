@@ -149,6 +149,7 @@ Base.@kwdef mutable struct DataScienceProjectRecord
     project_jobs::Vector{Dict{String,Any}} = Dict{String,Any}[]
     transform_fit_apply_records::Vector{Dict{String,Any}} = Dict{String,Any}[]
     statistical_analysis_runs::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    analysis_workspace::Dict{String,Any} = Dict{String,Any}()
     training_plans::Vector{Dict{String,Any}} = Dict{String,Any}[]
     tuning_studies::Vector{Dict{String,Any}} = Dict{String,Any}[]
     evaluation_reports::Vector{Dict{String,Any}} = Dict{String,Any}[]
@@ -936,6 +937,7 @@ function data_science_project_payload(project::DataScienceProjectRecord)
         "driftReports" => project.drift_reports,
         "reproducibilityEvidence" => project.reproducibility_evidence,
     )
+    isempty(project.analysis_workspace) || (payload["analysisWorkspace"] = project.analysis_workspace)
     project.description === nothing || (payload["description"] = project.description)
     JuliaFlowProjectPayloadValidation.validate_project_children!(payload)
     return payload
@@ -1375,6 +1377,7 @@ function gateway_data_science_project(item)
         project_jobs = dict_vector(get(item, "projectJobs", Any[])),
         transform_fit_apply_records = dict_vector(get(item, "transformFitApplyRecords", Any[])),
         statistical_analysis_runs = dict_vector(get(item, "statisticalAnalysisRuns", Any[])),
+        analysis_workspace = Dict{String,Any}(get(item, "analysisWorkspace", Dict{String,Any}())),
         training_plans = dict_vector(get(item, "trainingPlans", Any[])),
         tuning_studies = dict_vector(get(item, "tuningStudies", Any[])),
         evaluation_reports = dict_vector(get(item, "evaluationReports", Any[])),

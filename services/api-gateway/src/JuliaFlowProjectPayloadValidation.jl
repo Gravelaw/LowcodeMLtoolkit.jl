@@ -72,6 +72,10 @@ function validate_project_children!(payload::AbstractDict)
         issue = JSONSchema.validate(schema, contract_value(payload[field]))
         issue === nothing || error("data science project $(field) invalid contract payload ($(issue.reason))")
     end
+    if haskey(payload, "analysisWorkspace")
+        schema = contract_schema(Dict("\$ref" => "#/components/schemas/AnalysisWorkspace"))
+        JSONSchema.validate(schema, contract_value(payload["analysisWorkspace"])) === nothing || error("analysisWorkspace invalid contract payload")
+    end
     if haskey(payload, "projectId")
         for job in get(payload, "projectJobs", Any[])
             job["projectId"] == payload["projectId"] || error("data science project projectJobs projectId mismatch")

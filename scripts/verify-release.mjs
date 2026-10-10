@@ -79,6 +79,7 @@ const commands = [
   { phase: "local-smoke", kind: "runtime", name: "smoke-local-migration", command: npmBin, args: ["run", "smoke:local-migration"], skip: skipped.smokes },
   { phase: "browser", kind: "runtime", name: "smoke-live-backend-browser", command: npmBin, args: ["run", "smoke:live-backend-browser"], skip: skipped.browser },
   { phase: "browser", kind: "runtime", name: "smoke-create-project", command: npmBin, args: ["run", "smoke:create-project"], skip: skipped.browser },
+  { phase: "browser", kind: "runtime", name: "smoke-durable-analysis", command: npmBin, args: ["run", "smoke:durable-analysis"], skip: skipped.browser },
   { phase: "control-docs", kind: "control-docs", name: "validate-control-doc-sync", command: npmBin, args: ["run", "validate:control-doc-sync"], skip: skipped.controlDocs },
   { phase: "control-docs", kind: "control-docs", name: "validate-brd-traceability", command: npmBin, args: ["run", "validate:brd-traceability"], skip: skipped.controlDocs },
   { phase: "diff", kind: "product", name: "git-diff-check", command: gitBin, args: ["diff", "--check"] }

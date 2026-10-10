@@ -13,6 +13,7 @@ export local_data_import_audit_source_details,
     confined_data_estate_path,
     path_within_root,
     resolve_local_data_ref_path,
+    resolve_local_artifact_ref_path,
     sensitive_import_path,
     split_env_paths,
     validate_local_data_import_file!,
@@ -359,6 +360,17 @@ function local_data_ref_path_for_write(
     mkpath(data_root)
     candidate = confined_data_estate_path(data_root, relative)
     return candidate
+end
+
+"""Resolve an existing confined local artifact without creating directories."""
+function resolve_local_artifact_ref_path(local_ref::AbstractString; local_home::AbstractString, data_root::AbstractString, validate_local_ref::Function)
+    normalized = replace(strip(String(local_ref)), "\\" => "/")
+    startswith(lowercase(normalized), "local://") || return nothing
+    validate_local_ref(normalized, "artifactRef")
+    isdir(data_root) || return nothing
+    relative = normalized[nextind(normalized, firstindex(normalized), length("local://")):end]
+    candidate = confined_data_estate_path(data_root, relative)
+    return isfile(candidate) ? candidate : nothing
 end
 
 end

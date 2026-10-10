@@ -1220,6 +1220,37 @@ function App() {
           <VisualizeView
             data={data}
             feedback={feedback.visualize}
+            onBuildModel={() => navigate("ml-studio")}
+            analysisActions={client && data.dataScienceProject.projectId && !projectLoading ? {
+              load: async (datasetId) => {
+                const generation = selectionGeneration.current;
+                const result = await client.getAnalysisProfile(data.dataScienceProject.projectId, datasetId);
+                if (generation !== selectionGeneration.current) throw new Error("Project selection changed; retry for the active project.");
+                if (!result.profile || result.profile.datasetId !== datasetId || !Array.isArray(result.profile.previewRows) || !Array.isArray(result.numericColumns) || !/^[a-f0-9]{64}$/.test(result.schemaFingerprint)) throw new Error("Measured analysis profile is unavailable. Refresh or reopen the project.");
+                setData((current) => ({ ...current, dataProfile: result.profile, dataProfiles: upsertDataProfile(current.dataProfiles, result.profile) }));
+                return result;
+              },
+              run: async (request) => {
+                const generation = selectionGeneration.current;
+                const result = await client.runDataScienceProjectStatisticalAnalysis(data.dataScienceProject.projectId, request);
+                if (generation !== selectionGeneration.current) throw new Error("Project selection changed; completed evidence remains in its original project.");
+                applyDataScienceProjectUpdate(result.project);
+                return result;
+              },
+              save: async (workspace, expectedRevision) => {
+                const generation = selectionGeneration.current;
+                const result = await client.saveAnalysisWorkspace(data.dataScienceProject.projectId, { workspace, expectedRevision });
+                if (generation !== selectionGeneration.current) throw new Error("Project selection changed; saved work remains in its original project.");
+                applyDataScienceProjectUpdate(result);
+                return result;
+              },
+              export: async () => {
+                const generation = selectionGeneration.current;
+                const result = await client.exportAnalysisReport(data.dataScienceProject.projectId);
+                if (generation !== selectionGeneration.current) throw new Error("Project selection changed; export was cancelled.");
+                return result;
+              }
+            } : undefined}
             onExport={() =>
               withGatewayFallback(
                 "visualize",

@@ -715,6 +715,54 @@ export interface TransformFitApplyRecord {
   createdAt: string;
 }
 
+export interface AnalysisFilter {
+  column: string;
+  operator: "eq" | "gte" | "lte";
+  value: string;
+}
+
+export interface AnalysisScopeRequest {
+  datasetChecksum: string;
+  schemaFingerprint: string;
+  filters: AnalysisFilter[];
+  question: string;
+  xColumn?: string;
+  yColumn?: string;
+}
+
+export interface AnalysisFinding {
+  findingId: string;
+  analysisRunId: string;
+  title: string;
+  notes: string;
+}
+
+export interface AnalysisWorkspace {
+  revision: number;
+  datasetId: string;
+  scope: AnalysisScopeRequest;
+  analysisRunId?: string;
+  findings: AnalysisFinding[];
+}
+
+export interface SaveAnalysisWorkspaceRequest {
+  expectedRevision: number;
+  workspace: AnalysisWorkspace;
+}
+
+export interface AnalysisProfileResponse {
+  profile: GatewayDataImportProfile;
+  schemaFingerprint: string;
+  numericColumns: string[];
+}
+
+export interface AnalysisReportResponse {
+  fileName: string;
+  html: string;
+  csv: string;
+  checksumSha256: string;
+}
+
 export interface StatisticalAnalysisRun {
   analysisRunId: string;
   datasetId: string;
@@ -731,6 +779,7 @@ export interface StatisticalAnalysisRun {
 
 export interface RunStatisticalAnalysisRequest {
   datasetId?: string;
+  scope?: AnalysisScopeRequest;
   methods?: Array<"summary" | "correlation" | "t_test" | "chi_square" | "anova" | string>;
   targetColumn?: string;
   featureColumns?: string[];
@@ -1048,6 +1097,7 @@ export interface DataScienceProject {
   projectJobs: DataScienceProjectJobRecord[];
   transformFitApplyRecords: TransformFitApplyRecord[];
   statisticalAnalysisRuns: StatisticalAnalysisRun[];
+  analysisWorkspace?: AnalysisWorkspace;
   trainingPlans: TrainingPlan[];
   tuningStudies: TuningStudy[];
   evaluationReports: EvaluationReport[];
@@ -2566,6 +2616,9 @@ export interface GatewayApiClient {
     request?: RunTransformFitApplyRequest,
     options?: GatewayRequestOptions
   ): Promise<RunTransformFitApplyResponse>;
+  getAnalysisProfile(projectId: string, datasetId: string): Promise<AnalysisProfileResponse>;
+  saveAnalysisWorkspace(projectId: string, request: SaveAnalysisWorkspaceRequest): Promise<DataScienceProject>;
+  exportAnalysisReport(projectId: string): Promise<AnalysisReportResponse>;
   runDataScienceProjectStatisticalAnalysis(
     projectId: string,
     request?: RunStatisticalAnalysisRequest,
@@ -2955,6 +3008,9 @@ export function createGatewayApiClient(options: GatewayClientOptions): GatewayAp
         transformRequest ?? {},
         requestOptions
       ),
+    getAnalysisProfile: (projectId, datasetId) => request<AnalysisProfileResponse>("POST", `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/analysis/profile`, { datasetId }),
+    saveAnalysisWorkspace: (projectId, body) => request<DataScienceProject>("POST", `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/analysis/workspace`, body),
+    exportAnalysisReport: (projectId) => request<AnalysisReportResponse>("POST", `/api/v1/data-science-projects/${encodeURIComponent(projectId)}/analysis/export`, {}),
     runDataScienceProjectStatisticalAnalysis: (projectId, analysisRequest, requestOptions) =>
       request<RunStatisticalAnalysisResponse>(
         "POST",
