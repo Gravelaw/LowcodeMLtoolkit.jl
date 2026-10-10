@@ -241,6 +241,10 @@ function csv_cell(value)
     return "\"" * replace(text, "\"" => "\"\"") * "\""
 end
 
+const CHART_TABLE_LABEL_BYTES = 64 * 1024
+const CHART_TABLE_ROWS = 5000
+const PRESENTATION_EXPORT_BYTES = 8 * 1024 * 1024
+
 report_value(value) = value === nothing ? "unavailable" : escape_html(value)
 
 function report_table(caption, headers, rows)
@@ -251,14 +255,23 @@ end
 
 function report_chart_tables(evidence)
     columns = get(evidence, "numericColumns", String[])
+    scatter, distribution = get(evidence, "scatter", nothing), get(evidence, "distribution", nothing)
+    labels = String.(columns)
+    scatter === nothing || append!(labels, [String(get(scatter,"xLabel",scatter["xColumn"])), String(get(scatter,"yLabel",scatter["yColumn"]))])
+    distribution === nothing || push!(labels, String(get(distribution,"label",distribution["column"])))
+    row_count = length(columns) + length(columns) * (length(columns) + 1) ÷ 2 + (scatter === nothing ? 0 : length(scatter["x"])) + (distribution === nothing ? 0 : length(distribution["values"]))
+    if sum(ncodeunits, labels; init=0) > CHART_TABLE_LABEL_BYTES || row_count > CHART_TABLE_ROWS
+        return "<p>Structured chart tables unavailable: this saved evidence exceeds the presentation limit of 64 KiB of UTF-8 labels or 5,000 rows. Immutable chart data is retained in the provenance section.</p>"
+    end
     matrix, counts = get(evidence, "correlationMatrix", Any[]), get(evidence, "correlationPairCounts", Any[])
     rows = Any[]
     for i in eachindex(columns), j in i:length(columns)
         r = i <= length(matrix) && j <= length(matrix[i]) ? matrix[i][j] : nothing
         n = i <= length(counts) && j <= length(counts[i]) ? counts[i][j] : nothing
-        push!(rows, [columns[i], columns[j], r, n])
+        push!(rows, ["Column $(i)", "Column $(j)", r, n])
     end
-    html = report_table("Pearson correlations and complete-pair counts", ["Column", "Compared column", "Pearson r", "Valid pairs"], rows)
+    html = report_table("Correlation column key", ["Key", "Saved column name"], [["Column $(i)",name] for (i,name) in enumerate(columns)])
+    html *= report_table("Pearson correlations and complete-pair counts", ["Column", "Compared column", "Pearson r", "Valid pairs"], rows)
     scatter = get(evidence, "scatter", nothing)
     if scatter !== nothing
         rows = [[i, scatter["x"][i], scatter["y"][i]] for i in eachindex(scatter["x"])]
@@ -277,6 +290,7 @@ function report_scatter(evidence)
     scatter === nothing && return ""
     x, y = scatter["x"], scatter["y"]
     isempty(x) && return "<p>No complete chart pairs.</p>"
+    sum(ncodeunits, [String(get(scatter,"xLabel",scatter["xColumn"])),String(get(scatter,"yLabel",scatter["yColumn"]))]) <= CHART_TABLE_LABEL_BYTES || return "<p>Scatter rendering unavailable: axis labels exceed the presentation limit. Immutable chart data is retained in the provenance section.</p>"
     xmin, xmax, ymin, ymax = minimum(x), maximum(x), minimum(y), maximum(y)
     dx, dy = xmax - xmin, ymax - ymin
     isfinite(dx) && isfinite(dy) || return "<p>Scatter rendering unavailable at this numeric range; accessible chart values are retained below.</p>"
@@ -299,18 +313,27 @@ function report_response(project, runs)
     isempty(selected) && error("analysis report needs saved analysis evidence")
     sections = String[]
     csv = ["run,column,count,missing,mean,std,min,max"]
+    csv_bytes = ncodeunits(first(csv)) + 2
+    section_bytes = 0
     for run in selected
         evidence = run["resultSummary"]
         table = "<table><caption>Numeric summaries</caption><thead><tr>" * join(["<th>$(escape_html(k))</th>" for k in ("column","count","missingCount","mean","std","min","max")]) * "</tr></thead><tbody>"
         for row in evidence["summaries"]
             keys = ("column","count","missingCount","mean","std","min","max")
             table *= "<tr>" * join(["<td>$(escape_html(get(row,k,"unavailable")))</td>" for k in keys]) * "</tr>"
-            push!(csv, join(csv_cell.([run["analysisRunId"]; [get(row,k, "unavailable") for k in keys]]), ","))
+            line = join(csv_cell.([run["analysisRunId"]; [get(row,k, "unavailable") for k in keys]]), ",")
+            csv_bytes += ncodeunits(line) + 2
+            csv_bytes <= PRESENTATION_EXPORT_BYTES || error("analysis presentation CSV exceeds 8 MiB; immutable evidence is unchanged")
+            push!(csv, line)
         end
-        push!(sections, "<h2>Dataset: $(escape_html(run["datasetId"])) · Run: $(escape_html(run["analysisRunId"]))</h2>" * table * "</tbody></table>" * report_scatter(evidence) * report_chart_tables(evidence) * "<h3>Scope, correlation, chart data and provenance</h3><pre>$(escape_html(JSON3.write(evidence)))</pre><p>$(escape_html(join(run["warnings"], " ")))</p>")
+        section = "<h2>Dataset: $(escape_html(run["datasetId"])) · Run: $(escape_html(run["analysisRunId"]))</h2>" * table * "</tbody></table>" * report_scatter(evidence) * report_chart_tables(evidence) * "<h3>Scope, correlation, chart data and provenance</h3><pre>$(escape_html(JSON3.write(evidence)))</pre><p>$(escape_html(join(run["warnings"], " ")))</p>"
+        section_bytes += ncodeunits(section)
+        section_bytes <= PRESENTATION_EXPORT_BYTES || error("analysis presentation HTML exceeds 8 MiB; immutable evidence is unchanged")
+        push!(sections, section)
     end
     notes = join(["<h3>$(escape_html(f["title"]))</h3><p>$(escape_html(f["notes"]))</p><p>Evidence: $(escape_html(f["analysisRunId"]))</p>" for f in workspace["findings"]])
     html = "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>JuliaFlow analysis report</title><style>body{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:1rem;color:#202333}table{border-collapse:collapse;width:100%}.table-wrap{overflow:auto}.table-wrap:focus-visible{outline:3px solid #40456A}caption{text-align:left;font-weight:bold}svg{width:100%;height:auto}th,td{border:1px solid #ccc;padding:.5rem;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}p{white-space:pre-wrap}</style><body><h1>$(escape_html(workspace["scope"]["question"]))</h1><p>Project: $(escape_html(project.name)); dataset: $(escape_html(workspace["datasetId"])); saved revision: $(workspace["revision"])</p><p>Presentation report. Source CSV file is not included. Reopenable project packages are a separate export.</p>" * notes * join(sections) * "</body></html>"
+    ncodeunits(html) <= PRESENTATION_EXPORT_BYTES || error("analysis presentation HTML exceeds 8 MiB; immutable evidence is unchanged")
     return Dict("fileName" => "juliaflow-analysis-report", "html" => html, "csv" => join(csv,"\r\n") * "\r\n", "checksumSha256" => bytes2hex(sha256(html)))
 end
 

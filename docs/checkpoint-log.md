@@ -1,5 +1,13 @@
 # JuliaFlow checkpoint log
 
+2026-10-10 — independent SEC-A11Y-1 review of9a155ef found quadratic label
+amplification; approval withheld. Corrected presentation tables use a single full
+column-name key plus compact pair references, with explicit64KiB UTF-8-label /
+5,000-row display limits and8MiB HTML/CSV export limits. Oversized views report
+unavailability/rejection without changing immutable evidence. Release history
+caption also corrected. Failed preliminary browser/harness and original9a review
+remain retained; corrected exact-candidate rereviews/browser/fullgate required.
+
 2026-10-10 — authorized AKS-44/AKS-64 accessibility follow-up: strengthen light
 status and dark avatar/ready-badge contrast without replacing Wada83 tokens;
 use interactive Plotly group semantics and named keyboard-focusable table regions.

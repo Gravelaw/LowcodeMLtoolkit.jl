@@ -85,6 +85,17 @@ using .JuliaFlowApiGateway
             chart_evidence["scatter"]["x"] = [-floatmax(Float64), floatmax(Float64)]
             @test occursin("rendering unavailable", JuliaFlowApiGateway.JuliaFlowProjectAnalysis.report_scatter(chart_evidence))
             @test occursin(string(floatmax(Float64)), JuliaFlowApiGateway.JuliaFlowProjectAnalysis.report_chart_tables(chart_evidence))
+            oversized = deepcopy(chart_evidence)
+            oversized["numericColumns"] = ["$(i)-" * repeat("x",8192) for i in 1:16]
+            @test occursin("presentation limit", JuliaFlowApiGateway.JuliaFlowProjectAnalysis.report_chart_tables(oversized))
+            @test occursin("Correlation column key", JuliaFlowApiGateway.JuliaFlowProjectAnalysis.report_chart_tables(chart_evidence))
+            @test occursin("Column 1", JuliaFlowApiGateway.JuliaFlowProjectAnalysis.report_chart_tables(chart_evidence))
+            oversized["scatter"]["xLabel"] = repeat("x",65537)
+            @test occursin("presentation limit", JuliaFlowApiGateway.JuliaFlowProjectAnalysis.report_scatter(oversized))
+            oversized_project = deepcopy(reloaded.data_science_projects["homes"])
+            oversized_runs = deepcopy(oversized_project.statistical_analysis_runs)
+            oversized_runs[1]["resultSummary"]["summaries"][1]["column"] = repeat("x",8 * 1024 * 1024)
+            @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowProjectAnalysis.report_response(oversized_project, oversized_runs)
             @test JuliaFlowApiGateway.JuliaFlowProjectAnalysis.csv_cell("=SUM(A1:A2)") == "\"'=SUM(A1:A2)\""
             bad = deepcopy(request);bad["scope"]["datasetChecksum"] = repeat("0",64)
             @test send(base*"/statistical-analysis/run",bad).status == 400

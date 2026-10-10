@@ -133,7 +133,7 @@ export function VisualizeView({
       {mode === "eda" && data.runtimeMode !== "demo" && data.runtimeMode !== "development" ? <AnalyseDataPanel key={data.dataScienceProject.projectId} project={data.dataScienceProject} actions={analysisActions} onBuildModel={onBuildModel} /> : null}
       {mode === "eda" && data.runtimeMode !== "demo" && data.runtimeMode !== "development" ? <Card title="Project Statistical Analysis Evidence" className="wide">
         <p>Historical runs remain read-only. Missing scope or provenance is unavailable.</p>
-        <DataTable columns={[
+        <DataTable caption="Saved analysis run history" columns={[
           { key: "analysisRunId", label: "Run", render: (row) => row.analysisRunId ?? "unavailable" },
           { key: "method", label: "Method", render: (row) => row.method ?? "unavailable" },
           { key: "status", label: "Status", render: (row) => row.status ?? "unavailable" },
