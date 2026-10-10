@@ -147,7 +147,7 @@ describe("JuliaFlow local-only app redesign", () => {
     window.__JULIAFLOW_CONFIG__ = undefined;
   });
 
-  it("renders the mock-aligned local shell and navigates routes", () => {
+  it("renders the mock-aligned local shell and utility controls", () => {
     render(<App />);
 
     expect(screen.getByRole("status", { name: /100% local status/i })).toHaveTextContent("100% Local");
@@ -183,7 +183,13 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByRole("dialog", { name: "Local Profile" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Data" }));
+  });
+
+  it("navigates all local workspace routes", () => {
+    render(<App />);
+    const navigation = within(screen.getByRole("complementary", { name: "JuliaFlow Local navigation" }));
+
+    fireEvent.click(navigation.getByRole("button", { name: "Data" }));
     expect(screen.getByRole("heading", { name: "Data" })).toBeInTheDocument();
     expect(screen.getByText("C-1001")).toBeInTheDocument();
     expect(screen.getByText("Dataset Catalog")).toBeInTheDocument();
@@ -197,19 +203,19 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("Synthetic duckdb profile loaded from fixture.")).toBeInTheDocument();
     expect(screen.getByText("Generated Julia Code")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Transform" }));
+    fireEvent.click(navigation.getByRole("button", { name: "Transform" }));
     expect(screen.getByRole("heading", { name: "Transform" })).toBeInTheDocument();
     expect(screen.getByText("Visual Transform Pipeline")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "ML Studio" }));
+    fireEvent.click(navigation.getByRole("button", { name: "ML Studio" }));
     expect(screen.getByRole("heading", { name: "ML Studio" })).toBeInTheDocument();
     expect(screen.getByText("Experiment Tracker")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Models" }));
+    fireEvent.click(navigation.getByRole("button", { name: "Models" }));
     expect(screen.getByRole("heading", { name: "Models" })).toBeInTheDocument();
     expect(screen.getAllByText("Churn Prediction").length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: "Visualize" }));
+    fireEvent.click(navigation.getByRole("button", { name: "Visualize" }));
     expect(screen.getByRole("heading", { name: "Visualize" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "EDA" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("EDA Overview")).toBeInTheDocument();
@@ -225,18 +231,18 @@ describe("JuliaFlow local-only app redesign", () => {
     expect(screen.getByText("Artifact Rows")).toBeInTheDocument();
     expect(screen.getByText("C-1001")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
+    fireEvent.click(navigation.getByRole("button", { name: "Deploy" }));
     expect(screen.getByRole("heading", { name: "Deploy" })).toBeInTheDocument();
     expect(screen.getByText("Generated Julia API Code")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Monitor" }));
+    fireEvent.click(navigation.getByRole("button", { name: "Monitor" }));
     expect(screen.getByRole("heading", { name: "Execution Monitor" })).toBeInTheDocument();
     expect(screen.getAllByText("exec-local-churn-001").length).toBeGreaterThan(0);
     expect(screen.getByText("Executed Explainability Evidence")).toBeInTheDocument();
     expect(screen.getByText("bbbbbbbbbbbb")).toBeInTheDocument();
     expect(screen.getByText("data/models/churn_model_v1.jls")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(navigation.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByText("Security And API Keys")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Worker concurrency"), { target: { value: "2" } });
