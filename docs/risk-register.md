@@ -1,5 +1,13 @@
 # JuliaFlow risk register
 
+2026-10-11 — AKS-69 local consolidation: preserve tested `5de9f799`; record
+PR59’s five already-retained patches and integrate current main `7e725eb`. PR19
+is a deliberate stale exclusion with branch/evidence retained. Product/workflow
+content is unchanged; exact new-candidate reviews and full verification are pending.
+Publication, GitHub merge, retirement and deployment remain on hold. GPU/Windows,
+original-board and participant acceptance remain open. See the
+[integration reconciliation](integration-consolidation-2026-10-11.md).
+
 2026-10-10 — bounded final UI reconciliation: dark utility header now uses the
 approved #202333 surface token; light theme and header/navigation layout unchanged.
 Over-limit chart guidance names saved project evidence, avoiding a false promise
