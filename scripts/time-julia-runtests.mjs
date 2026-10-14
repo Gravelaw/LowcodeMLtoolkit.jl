@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { executeJuliaTestPhases, juliaTestPhases } from "./lib/julia-test-policy.mjs";
 
 const ROOT_DIR = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SOURCE = join(ROOT_DIR, "tests", "julia", "runtests.jl");
@@ -176,24 +177,19 @@ console.log(`[JF-TIME] temp file: ${tempFile}`);
 let status = 0;
 try {
   if (!dryRun) {
-    const result = spawnSync(
+    const phases = juliaTestPhases({
+      cudaRequested: process.env.JULIAFLOW_CUDA_SMOKE === "1",
+      workerSelected: !selectedLabels || selectedLabels.has("Worker Service")
+    });
+    status = executeJuliaTestPhases(phases, (phase) => spawnSync(
       process.execPath,
-      ["scripts/run-julia.mjs", "--compiled-modules=no", "--project=.", tempFile],
-      {
-        cwd: ROOT_DIR,
-        env: process.env,
-        stdio: "inherit",
-        shell: false
-      }
-    );
-
-    if (result.error) {
-      console.error(result.error.stack ?? result.error.message);
-      status = 1;
-    } else {
-      status = result.status ?? 1;
-    }
+      ["scripts/run-julia.mjs", `--compiled-modules=${phase.compiledModules}`, "--project=.", tempFile],
+      { cwd: ROOT_DIR, env: { ...process.env, JULIAFLOW_CUDA_SMOKE: phase.cudaSmoke }, stdio: "inherit", shell: false }
+    ), (phase) => console.log(`[JF-TIME] required phase=${phase.name} compiledModules=${phase.compiledModules} cudaSmoke=${phase.cudaSmoke}`));
   }
+} catch (error) {
+  console.error(error.stack ?? error.message);
+  status = 1;
 } finally {
   if (!keepTemp) {
     rmSync(tempDir, { recursive: true, force: true });

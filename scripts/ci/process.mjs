@@ -6,7 +6,7 @@ import { captureStartupOutput, redactStartup } from '../lib/startup-diagnostics.
 
 // Stream complete, redacted lines; never buffer an entire compiler/test phase.
 export function runProcess(command, args, { cwd = process.cwd(), env = process.env, logPath,
-  timeoutMs = 0, signal, onEvent = () => {}, echo = true, graceMs = 3000 } = {}) {
+  timeoutMs = 0, signal, onEvent = () => {}, echo = true, graceMs = 3000, terminate } = {}) {
   return new Promise(resolve => {
     const started = Date.now();
     let reason, error, timer, escalation, pipeDeadline, cleanupIncomplete = false, closed = false;
@@ -19,7 +19,11 @@ export function runProcess(command, args, { cwd = process.cwd(), env = process.e
     function kill(force) {
       if (!child.pid) return;
       try {
-        if (process.platform === 'win32') spawnSync('taskkill.exe', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, timeout: 5000, stdio: 'ignore' });
+        if (terminate) terminate(child.pid, force);
+        else if (process.platform === 'win32') {
+          const result = spawnSync('taskkill.exe', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, timeout: 5000, stdio: 'ignore' });
+          if (result.status !== 0) write(redact(`cleanup: taskkill failed (status=${result.status}): ${result.error?.message ?? 'termination unverified'}\n`));
+        }
         else process.kill(-child.pid, force ? 'SIGKILL' : 'SIGTERM');
       } catch (e) { if (e.code !== 'ESRCH') write(redact(`cleanup: ${e.message}\n`)); }
     }
@@ -38,6 +42,8 @@ export function runProcess(command, args, { cwd = process.cwd(), env = process.e
         reason ??= 'failed';
         write('Process pipes remained open after cleanup; descendant cleanup is unverified.\n');
         child.stdout.destroy(); child.stderr.destroy();
+        child.unref();
+        finish(null, null);
       }, graceMs + 1000);
     }
     const abort = () => stop('cancelled');
@@ -47,6 +53,7 @@ export function runProcess(command, args, { cwd = process.cwd(), env = process.e
     captureStartupOutput(child.stdout, write, redact);
     captureStartupOutput(child.stderr, write, redact);
     child.once('exit', (code, sig) => {
+      if (closed) return;
       clearTimeout(timer);
       onEvent({ event: 'exit', pid: child.pid, code, signal: sig });
       // A descendant retaining stdio must not keep a completed command alive.
@@ -60,13 +67,15 @@ export function runProcess(command, args, { cwd = process.cwd(), env = process.e
       }
       boundPipes();
     });
-    child.once('close', (code, sig) => {
+    function finish(code, sig) {
+      if (closed) return;
       if (process.platform !== 'win32') kill(true);
       closed = true; clearTimeout(timer); clearTimeout(escalation); clearTimeout(pipeDeadline); signal?.removeEventListener('abort', abort);
       const result = { status: reason ?? (code === 0 && !error ? 'passed' : 'failed'), exitCode: code, signal: sig,
-        error, cleanupIncomplete, durationMs: Date.now() - started };
+        error, cleanupIncomplete, pid: child.pid, durationMs: Date.now() - started };
       onEvent({ event: 'close', ...result }); resolve(result);
-    });
+    }
+    child.once('close', finish);
     if (timeoutMs) timer = setTimeout(() => stop('timed_out'), timeoutMs);
   });
 }

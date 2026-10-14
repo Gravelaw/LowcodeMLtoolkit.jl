@@ -1172,6 +1172,8 @@ export interface GatewayWorkspaceSummary {
 export interface GatewayHealthcheck {
   service: "api-gateway";
   status: "ok";
+  /** Measured gateway runtime version; absent on older gateways. */
+  juliaVersion?: string;
   runtime: JuliaFlowRuntimeContract;
   runtimeMode: JuliaFlowRuntimeMode;
   fixtureProvenance: JuliaFlowFixtureProvenance;

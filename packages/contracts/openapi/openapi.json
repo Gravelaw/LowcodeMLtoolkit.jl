@@ -3829,6 +3829,10 @@
             "type": "string",
             "const": "api-gateway"
           },
+          "juliaVersion": {
+            "type": "string",
+            "description": "Measured gateway Julia version; absent on older gateways."
+          },
           "status": {
             "type": "string",
             "const": "ok"

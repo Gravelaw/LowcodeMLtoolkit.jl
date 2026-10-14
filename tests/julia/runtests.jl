@@ -3357,6 +3357,7 @@ end
         @test occursin("\"status\":\"ok\"", healthcheck(state))
         @test occursin("\"localProfile\":\"single-user\"", healthcheck(state))
         health_payload = JSON3.read(healthcheck(state), Dict{String,Any})
+        @test health_payload["juliaVersion"] == string(VERSION)
         @test health_payload["runtimeMode"] == "development"
         @test health_payload["runtime"]["mode"] == "development"
         @test health_payload["runtime"]["fixtureProvenance"] == "backend"

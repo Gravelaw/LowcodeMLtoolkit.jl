@@ -47,6 +47,8 @@ export function viewFromPath(pathname: string): AppView {
 
 export function Shell({
   activeView,
+  juliaVersion,
+  runtimeStale,
   theme, onToggleTheme,
   children,
   onNavigate,
@@ -57,6 +59,8 @@ export function Shell({
   onProfileAction
 }: {
   activeView: AppView;
+  juliaVersion?: string;
+  runtimeStale?: boolean;
   theme?: "light" | "dark";
   onToggleTheme?: () => void;
   children: React.ReactNode;
@@ -102,7 +106,9 @@ export function Shell({
           <p>100% local. Your data stays on your device. Always.</p>
         </div>
         <div className="sidebar-foot">
-          <StatusPill tone="green">Julia 1.10.2 Local</StatusPill>
+          <StatusPill tone={juliaVersion && !runtimeStale ? "green" : "purple"}>
+            {juliaVersion ? `Julia ${juliaVersion}${runtimeStale ? " (last reported)" : " Local"}` : "Julia version unavailable"}
+          </StatusPill>
           <StatusPill tone="purple">Offline Mode</StatusPill>
         </div>
       </aside>

@@ -1345,6 +1345,8 @@ function App() {
   return (
     <Shell
       activeView={activeView}
+      juliaVersion={data.mode === "live" ? data.health.juliaVersion : undefined}
+      runtimeStale={data.healthStale}
       theme={theme}
       onToggleTheme={() => setTheme((current) => current === "light" ? "dark" : "light")}
       onNavigate={navigate}

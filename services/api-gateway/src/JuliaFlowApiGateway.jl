@@ -1015,6 +1015,7 @@ function healthcheck(state::GatewayState)
         Dict(
             "service" => "api-gateway",
             "status" => "ok",
+            "juliaVersion" => string(VERSION),
             "runtime" => runtime,
             "runtimeMode" => runtime["mode"],
             "fixtureProvenance" => runtime["fixtureProvenance"],

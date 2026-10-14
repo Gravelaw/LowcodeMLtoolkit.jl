@@ -13,6 +13,7 @@ const doctorScript = process.platform === "win32" ? "doctor:windows" : "doctor:d
 const localJulia = join(root, ".juliaup", "bin", "julia");
 const juliaBin = process.env.JULIAFLOW_JULIA_CMD ?? (existsSync(localJulia) ? localJulia : "julia");
 const gitBin = "git";
+const requiredGpuTests = process.env.JULIAFLOW_CUDA_SMOKE === "1";
 const juliaEnv = {
   JULIAUP_DEPOT_PATH: process.env.JULIAUP_DEPOT_PATH ?? join(root, ".juliaup"),
   JULIA_DEPOT_PATH: process.env.JULIA_DEPOT_PATH ?? join(root, ".julia-depot")
@@ -67,7 +68,8 @@ const commands = [
   { phase: "contracts", kind: "product", name: "validate-contracts", command: npmBin, args: ["run", "validate:contracts"] },
   { phase: "frontend", kind: "product", name: "build", command: npmBin, args: ["run", "build"] },
   { phase: "frontend", kind: "product", name: "test", command: npmBin, args: ["run", "test"] },
-  { phase: "julia", kind: "product", name: "julia-repo-tests", command: juliaBin, args: ["--compiled-modules=no", "--project=.", "tests/julia/runtests.jl"], skip: skipped.julia },
+  { phase: "julia", kind: "product", name: "julia-repo-tests", command: requiredGpuTests ? process.execPath : juliaBin,
+    args: requiredGpuTests ? ["scripts/time-julia-runtests.mjs"] : ["--compiled-modules=no", "--project=.", "tests/julia/runtests.jl"], skip: skipped.julia },
   { phase: "julia", kind: "product", name: "julia-base-extension-tests", command: juliaBin, args: ["--compiled-modules=no", "--project=.", "extensions/base/test/runtests.jl"], skip: skipped.julia },
   { phase: "local-smoke", kind: "runtime", name: "smoke-local-bootstrap", command: npmBin, args: ["run", "smoke:local-bootstrap"], skip: skipped.smokes },
   { phase: "local-smoke", kind: "runtime", name: "smoke-local-data-estate", command: npmBin, args: ["run", "smoke:local-data-estate"], skip: skipped.smokes },

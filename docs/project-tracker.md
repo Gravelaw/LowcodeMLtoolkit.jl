@@ -1,5 +1,16 @@
 # JuliaFlow project tracker
 
+2026-10-14 - AKS-69 / AKS-58 Windows runtime follow-up: separate bounded strict
+Julia preparation from endpoint readiness, retain source-loading tests and require
+physical CUDA assertions in normal compiled mode, and report measured live Julia
+versions with honest stale/unavailable states. Original cold-start and raw CUDA
+failures remain retained. Focused tests pass; exact aggregate and final independent
+reviews are pending. Docker daemon absence blocks local container parity; CUDA
+runtime/toolkit warning remains unresolved. JF-RT-002/JF-HW-001-002 evidence is
+partial; native zoom, human, full fitting and wider platform acceptance remain
+open. No release readiness follows. Rolling is deferred until October 19.
+See [Windows runtime verification](verification-windows-runtime-2026-10-14.md).
+
 2026-10-11 — AKS-69 local consolidation: preserve tested `5de9f799`; record
 PR59’s five already-retained patches and integrate current main `7e725eb`. PR19
 is a deliberate stale exclusion with branch/evidence retained. Product/workflow

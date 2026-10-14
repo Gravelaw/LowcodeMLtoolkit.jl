@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 import { localAuthEnv } from "./lib/local-auth.mjs";
 import { startDiagnosticProcess, waitForStartupJson, startupFailure } from "./lib/startup-diagnostics.mjs";
+import { prepareJuliaRuntime } from "./lib/julia-runtime-bootstrap.mjs";
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PROFILES = new Set(["single-user", "lab-team", "s3-compatible-local", "developer"]);
@@ -245,7 +246,7 @@ function ensureJuliaDependencies(env, options) {
     console.log("[dev:local] skipping Julia dependency instantiation");
     return;
   }
-  // Disabling compiled modules here also disables Pkg automatic precompilation.
+  // Install declared dependencies before the separately bounded preparation phase.
   console.log("[dev:local] ensuring Julia dependencies");
   const result = spawnSync(
     juliaCommand(),
@@ -440,6 +441,17 @@ async function main() {
 
   await startDeps(options.profile, options.startDeps);
   ensureJuliaDependencies(env, options);
+  console.log("[dev:local] preparing Julia runtime before service startup");
+  const preparation = new AbortController();
+  const cancelPreparation = () => preparation.abort();
+  process.once("SIGINT", cancelPreparation);
+  process.once("SIGTERM", cancelPreparation);
+  try {
+    await prepareJuliaRuntime({ command: juliaCommand(), cwd: ROOT_DIR, env: withJuliaEnv(env), signal: preparation.signal });
+  } finally {
+    process.removeListener("SIGINT", cancelPreparation);
+    process.removeListener("SIGTERM", cancelPreparation);
+  }
 
   if (options.smoke) {
     await runSmoke(config, env);

@@ -1,5 +1,16 @@
 # JuliaFlow BRD traceability
 
+2026-10-14 - AKS-69 / AKS-58 Windows runtime follow-up: separate bounded strict
+Julia preparation from endpoint readiness, retain source-loading tests and require
+physical CUDA assertions in normal compiled mode, and report measured live Julia
+versions with honest stale/unavailable states. Original cold-start and raw CUDA
+failures remain retained. Focused tests pass; exact aggregate and final independent
+reviews are pending. Docker daemon absence blocks local container parity; CUDA
+runtime/toolkit warning remains unresolved. JF-RT-002/JF-HW-001-002 evidence is
+partial; native zoom, human, full fitting and wider platform acceptance remain
+open. No release readiness follows. Rolling is deferred until October 19.
+See [Windows runtime verification](verification-windows-runtime-2026-10-14.md).
+
 2026-10-10 bounded capability evidence: JF-EXP-001 / AC-06 and JF-UX-001–004 / AC-07–10 have an additive Durable Analyse Data implementation in `services/api-gateway/src/JuliaFlowProjectAnalysis.jl`, shared contracts, repository mappings and `apps/frontend/src/views/AnalyseDataPanel.tsx`. `tests/julia/durable_analysis_tests.jl`, `tests/julia/statistics_alignment_tests.jl`, frontend workspace tests and `npm run smoke:durable-analysis` cover source/scope identity, paired missingness, independent editable findings, save/restart/reopen and presentation export. See [exact verification and remaining acceptance](verification-durable-analysis.md). These tests do not close JF-ACC-001–003 GPU requirements, JF-REL-001 persona/platform acceptance or the broader AKS-44/47/48/49 issues. Historical mappings below remain historical.
 
 Reconciled 2026-09-20 for [AKS-57](https://linear.app/gravelaw/issue/AKS-57/0-juliaflow-brd-v050-and-first-release-roadmap-coordination). [Canonical BRD v0.5.0](../business-requirements-v0.3.0.md), [roadmap](product-roadmap.md), [acceptance scenarios](acceptance-v0.5.0.md) and [source record](source-reconciliation-2026-09-20.md).
