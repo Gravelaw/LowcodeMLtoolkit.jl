@@ -1,5 +1,31 @@
 # Windows runtime follow-up (AKS-69 / AKS-58)
 
+## Subsequent Windows verification findings
+
+The first committed candidate, 941f6fb, completed both full Julia modes and ten
+aggregate phases, then failed real PostgreSQL metadata verification because the
+isolated profile could not discover installed Compose and Docker was stopped.
+Read-only inspection subsequently found Docker Desktop/Compose in its per-user
+installation. The user approved task-contained PostgreSQL 16, using the existing
+supported external endpoint path with a loopback-only instance, private random
+credentials and no global service/settings changes. The failure is retained.
+
+Supplemental live-browser tests passed four cases and timed out waiting for the
+schema-role PUT in grouped-split editing. Project hydration enabled Data controls
+while application data was still unavailable; the existing mutation guard correctly
+rejected that early action. DataView now uses that same guard for control readiness
+and submission. It preserves project/dataset identity checks and keeps edits
+disabled until data becomes available. A negative/legitimate-control regression
+and the frontend suite pass (72 tests); no timeout or browser assertion was relaxed.
+New exact-candidate browser, aggregate and independent review remain required.
+
+The unchanged Arrow/DataFrames extension fixture logged ENOTEMPTY while cleaning
+its temporary directory after all 13 fixture assertions passed. The extension
+process exited 0 and subsequent tests continued. Independent inspection found
+Arrow.Table(path) memory maps files; delayed release is plausible but not proven.
+Report assertions passed/exit 0/cleanup error logged, not a clean phase pass.
+The diagnostic is retained as unresolved Windows cleanup evidence.
+
 This increment starts from `fbaae563380e7906e37414edcaf53f626b5d1911`.
 The retained October 14 qualification failures belong to that revision and are
 not overwritten by these fixes. This is development evidence, not release or

@@ -1,5 +1,17 @@
 # JuliaFlow risk register
 
+2026-10-14 - Windows verification follow-up: preserve 941f6fb's failed PostgreSQL
+aggregate and live-browser hydration trace. Dataset controls now share the existing
+mutation readiness/identity guard, so project hydration cannot enable schema/split
+edits while application data is unavailable. Frontend 72 tests and build passed;
+actual browser, exact-candidate aggregate and independent rereview remain required.
+User-approved task-contained PostgreSQL 16 supports real database verification;
+existing Docker/Compose were found under a per-user path, hidden by the isolated
+profile, with Docker stopped. Arrow fixture cleanup logged ENOTEMPTY despite
+assertions/exit 0; retain as unresolved Windows cleanup evidence. No publication,
+release or human acceptance claim; Rolling remains deferred to October 19.
+See [Windows runtime verification](verification-windows-runtime-2026-10-14.md).
+
 2026-10-14 - AKS-69 / AKS-58 Windows runtime follow-up: separate bounded strict
 Julia preparation from endpoint readiness, retain source-loading tests and require
 physical CUDA assertions in normal compiled mode, and report measured live Julia

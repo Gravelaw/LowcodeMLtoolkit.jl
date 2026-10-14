@@ -48,6 +48,27 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("dataset edit identity", () => {
+  it("keeps hydrated schema controls disabled until application data is available", () => {
+    const data = viewData();
+    const update = vi.fn();
+    const view = (mode: AppData["mode"]) => <DataView data={{ ...data, mode }} onImport={vi.fn()} onSelectProfile={vi.fn()} onProjectUpdate={update} />;
+    const { rerender } = render(view("unavailable"));
+    fireEvent.click(screen.getByRole("tab", { name: "schema" }));
+    const role = () => screen.getByLabelText("Column role for monthly_charges");
+    expect(role()).toBeDisabled();
+    expect(screen.getByLabelText("Validation strategy")).toBeDisabled();
+    fireEvent.change(role(), { target: { value: "target" } });
+    expect(update).not.toHaveBeenCalled();
+    rerender(view("live"));
+    expect(role()).toBeEnabled();
+    expect(screen.getByLabelText("Validation strategy")).toBeEnabled();
+    fireEvent.change(role(), { target: { value: "target" } });
+    expect(update).toHaveBeenCalledOnce();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ schemaContracts: expect.any(Array) }), {
+      projectId: data.dataScienceProject.projectId, datasetId: data.dataProfile.datasetId
+    });
+  });
+
   it("rejects stale project and displayed dataset identities but allows matching edits", () => {
     const data = viewData();
     const identity = { projectId: data.dataScienceProject.projectId, datasetId: data.dataProfile.datasetId };

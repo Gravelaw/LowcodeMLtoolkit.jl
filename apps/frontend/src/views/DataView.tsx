@@ -4,7 +4,7 @@ import { Card, CodeBlock, DataTable, StatusPill } from "../components/ui";
 import { InteractiveChart } from "../components/InteractiveChart";
 import { localCode } from "../fixtures/local-fixtures";
 import type { ActionFeedback, AppData } from "../types";
-import type { DatasetEditIdentity } from "../dataset-edit-boundary";
+import { canEditDisplayedDataset, type DatasetEditIdentity } from "../dataset-edit-boundary";
 import type {
   DataScienceColumnRole,
   DataScienceProjectDatasetRole,
@@ -136,7 +136,7 @@ export function DataView({
   const projectDataset = project.datasets.find((dataset) => dataset.datasetId === activeProfile.datasetId);
   const schemaContract = project.schemaContracts.find((schema) => schema.datasetId === activeProfile.datasetId);
   const schemaColumns = schemaContract?.columns ?? [];
-  const canEditDataset = Boolean(projectDataset && schemaContract);
+  const canEditDataset = canEditDisplayedDataset(data, { projectId: project.projectId, datasetId: activeProfile.datasetId });
   function submitProjectUpdate(request: UpdateDataScienceProjectRequest) {
     if (!canEditDataset) return;
     onProjectUpdate(request, { projectId: project.projectId, datasetId: activeProfile.datasetId });
