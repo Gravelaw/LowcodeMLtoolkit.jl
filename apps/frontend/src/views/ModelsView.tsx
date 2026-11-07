@@ -1,6 +1,23 @@
 import { Card, DataTable, MetricCard, StatusPill } from "../components/ui";
 import type { ActionFeedback, AppData } from "../types";
 
+function lifecycleGateReason(state?: string, hasEvaluation?: boolean, hasEndpoint?: boolean) {
+  if (!state) return "No lifecycle record is attached to this model.";
+  if ((state === "candidate" || state === "validated") && !hasEvaluation) return "Approval is blocked until final evaluation evidence is attached.";
+  if (state === "approved") return "Deployment can proceed after local package evidence is created.";
+  if (state === "deployed" && !hasEndpoint) return "Rollback review is blocked until a deployed endpoint id is attached.";
+  if (state === "deprecated") return "Archive is available after deprecation review.";
+  if (state === "archived") return "Lifecycle actions are closed for this archived model.";
+  return "Next lifecycle action is available when the matching review evidence is present.";
+}
+
+function latestLifecycleJob(data: AppData, modelId?: string) {
+  return [...data.dataScienceProject.projectJobs]
+    .filter((job) => job.jobType === "model_lifecycle")
+    .filter((job) => !modelId || !job.sourceRecordId || job.sourceRecordId === modelId)
+    .sort((left, right) => (right.startedAt ?? "").localeCompare(left.startedAt ?? ""))[0];
+}
+
 export function ModelsView({
   data,
   onRegister,
@@ -10,8 +27,14 @@ export function ModelsView({
   onRegister: () => void;
   feedback?: ActionFeedback;
 }) {
-  const selected = data.modelRegistry[0];
+  const registryRows = data.modelRegistry.length > 0 ? data.modelRegistry : data.dataScienceProject.modelRegistryRecords;
+  const registrySource = data.modelRegistry.length > 0 ? "Workflow registry endpoint" : "Project-backed registry records";
+  const selected = registryRows[0];
   const artifactEvidence = selected?.artifactEvidence ?? [];
+  const lifecycle = selected ? data.dataScienceProject.modelLifecycleRecords.find((record) => record.modelId === selected.modelId) : undefined;
+  const lifecycleState = lifecycle?.state ?? selected?.status;
+  const lifecycleJob = latestLifecycleJob(data, selected?.modelId);
+  const gateReason = lifecycleGateReason(lifecycleState, Boolean(lifecycle?.evaluationReportId), Boolean(lifecycle?.deployedEndpointId));
   return (
     <div className="route-grid models-route">
       <section className="page-title">
@@ -24,6 +47,7 @@ export function ModelsView({
       {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
 
       <Card title="Model Registry" className="wide">
+        <p className="card-note">Source: {registrySource}</p>
         <DataTable
           columns={[
             { key: "modelId", label: "Model Name" },
@@ -33,7 +57,7 @@ export function ModelsView({
             { key: "primaryMetricValue", label: "Primary Metric" },
             { key: "deploymentStatus", label: "Deployment", render: (row) => <StatusPill tone="green">{String(row.deploymentStatus)}</StatusPill> }
           ]}
-          rows={data.modelRegistry}
+          rows={registryRows}
           getRowKey={(row) => String(row.registryId)}
         />
       </Card>
@@ -55,6 +79,9 @@ export function ModelsView({
               <span>Framework</span><strong>MLJ.jl</strong>
               <span>Training Data</span><strong>25.1 GB local</strong>
               <span>Model Path</span><strong>{artifactEvidence[0]?.artifactRef ?? "No local model artifact"}</strong>
+              <span>Lifecycle</span><strong>{lifecycleState ?? "No lifecycle evidence"}</strong>
+              <span>Registry Source</span><strong>{registrySource}</strong>
+              <span>Gate</span><strong>{gateReason}</strong>
             </div>
             <h3>Artifacts (Stored on Disk)</h3>
             {artifactEvidence.length === 0 ? (
@@ -85,6 +112,31 @@ export function ModelsView({
           ]}
           getRowKey={(row) => String(row.metric)}
         />
+      </Card>
+
+      <Card title="Lifecycle Review" className="wide">
+        {lifecycle ? (
+          <DataTable
+            columns={[
+              { key: "state", label: "State", render: (row) => <StatusPill tone="blue">{String(row.state)}</StatusPill> },
+              { key: "lifecycleAction", label: "Action" },
+              { key: "rollbackModelId", label: "Rollback Model" },
+              { key: "retrainingJobId", label: "Retraining Job" },
+              { key: "reason", label: "Reason" },
+              { key: "job", label: "Project Job" },
+              { key: "execution", label: "Execution" }
+            ]}
+            rows={[{
+              ...lifecycle,
+              reason: lifecycle.rollbackReason ?? lifecycle.retrainingReason ?? lifecycle.deprecationReason ?? lifecycle.archiveReason ?? lifecycle.validationEvidence?.reason ?? "No review reason attached",
+              job: lifecycleJob?.jobId ?? "No lifecycle job linked",
+              execution: lifecycleJob?.executionEvidence?.executionId ?? lifecycle.validationEvidence?.retrainingJobId ?? "pending"
+            }]}
+            getRowKey={(row) => `${String(row.modelId)}-${String(row.updatedAt)}`}
+          />
+        ) : (
+          <p className="empty-state">No project lifecycle record is attached to this model yet. Approve, deploy, rollback, deprecate, archive, or request retraining through the local gateway to capture lifecycle evidence.</p>
+        )}
       </Card>
 
       <Card title="Version Performance">

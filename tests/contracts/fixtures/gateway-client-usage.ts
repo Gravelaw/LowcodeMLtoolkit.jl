@@ -3,6 +3,7 @@ import {
   gatewayEndpointPaths,
   gatewayExecutionStatuses,
   milestoneCheckpoints,
+  type CreateDataScienceProjectRequest,
   type CreateCheckpointRequest,
   type CreateWorkflowRequest,
   type GatewayDataImportProfileRequest,
@@ -12,6 +13,14 @@ import {
   type GatewayModelRegistryRequest,
   type GatewayTransformRunRequest,
   type GatewayVisualizeCheckpointExportRequest,
+  type RunDriftReportRequest,
+  type RunFinalEvaluationRequest,
+  type RunModelLifecycleActionRequest,
+  type RunPredictionExportRequest,
+  type RunStatisticalAnalysisRequest,
+  type RunTransformFitApplyRequest,
+  type RunTuningStudyRequest,
+  type UpdateDataScienceProjectRequest,
   type MilestoneCheckpointTag,
   type TransitionExecutionStatusRequest
 } from "../../../packages/contracts/src/index";
@@ -34,10 +43,100 @@ const transitionRequest: TransitionExecutionStatusRequest = {
   metadata: { lane: "contracts" }
 };
 const dataProfileRequest: GatewayDataImportProfileRequest = {
+  projectId: "contracts-project",
   datasetId: "contracts-profile",
   sourceUri: "local://data/raw/contracts.csv",
   targetZone: "raw",
   readMode: "duckdb"
+};
+const dataScienceProjectRequest: CreateDataScienceProjectRequest = {
+  projectId: "contracts-project",
+  name: "Contracts Project",
+  description: "Typed client fixture",
+  datasets: [
+    {
+      datasetId: "contracts-train",
+      name: "Contracts train",
+      role: "train",
+      sourceUri: "local://data/raw/contracts.csv",
+      localOnly: true,
+      rowCount: 12,
+      columnCount: 3
+    }
+  ]
+};
+const dataScienceProjectUpdateRequest: UpdateDataScienceProjectRequest = {
+  splitPlans: [
+    {
+      splitPlanId: "split-contracts",
+      datasetId: "contracts-train",
+      strategy: "stratified",
+      trainFraction: 0.7,
+      validationFraction: 0.15,
+      testFraction: 0.15,
+      seed: 42,
+      locked: true,
+      createdAt: "2026-06-21T00:00:00Z"
+    }
+  ]
+};
+const statisticalAnalysisRequest: RunStatisticalAnalysisRequest = {
+  datasetId: "contracts-train",
+  methods: ["summary", "pearson_correlation", "anova"],
+  targetColumn: "amount",
+  featureColumns: ["region", "discount"]
+};
+const transformFitApplyRequest: RunTransformFitApplyRequest = {
+  datasetId: "contracts-train",
+  splitPlanId: "split-contracts",
+  transformRef: "local://transforms/contracts/fit-apply.jl",
+  fitSplit: "train",
+  applySplits: ["validation", "test"]
+};
+const tuningStudyRequest: RunTuningStudyRequest = {
+  datasetId: "contracts-train",
+  splitPlanId: "split-contracts",
+  targetColumn: "amount",
+  taskType: "regression",
+  algorithm: "MLJ.EvoTreesRegressor",
+  metricNames: ["rmse", "mae"],
+  maxTrials: 3,
+  finalTestPolicy: "forbid_final_test"
+};
+const finalEvaluationRequest: RunFinalEvaluationRequest = {
+  datasetId: "contracts-train",
+  splitPlanId: "split-contracts",
+  trainingPlanId: "training-contracts",
+  tuningStudyId: "tuning-contracts",
+  metricNames: ["rmse", "mae"],
+  approvalThreshold: 0.8,
+  finalTestPolicy: "use_final_test"
+};
+const predictionExportRequest: RunPredictionExportRequest = {
+  datasetId: "contracts-train",
+  evaluationReportId: "eval-contracts",
+  outputContractRef: "contract://outputs/churn-predictions",
+  outputContractImport: {
+    sourceUri: "local://contracts/churn-predictions.json",
+    connector: "managed_local",
+    format: "json"
+  },
+  format: "csv",
+  rowCount: 12,
+  outputColumns: ["prediction_id", "dataset_id", "evaluation_report_id", "output_contract_ref", "prediction"]
+};
+const driftReportRequest: RunDriftReportRequest = {
+  datasetId: "contracts-train",
+  predictionExportId: "pred-contracts",
+  baselineId: "baseline-contracts",
+  metricNames: ["psi", "ks"],
+  threshold: 0.2
+};
+const modelLifecycleActionRequest: RunModelLifecycleActionRequest = {
+  modelId: "contracts-model-v2",
+  action: "mark_rollback_ready",
+  rollbackModelId: "contracts-model-v1",
+  reason: "Validation drift exceeded the local review threshold"
 };
 const transformRunRequest: GatewayTransformRunRequest = {
   executionMode: "cpu_only",
@@ -45,7 +144,10 @@ const transformRunRequest: GatewayTransformRunRequest = {
 };
 const mlExperimentRunRequest: GatewayMlExperimentRunRequest = {
   executionMode: "gpu_preferred",
+  projectId: "foundation-project",
   datasetId: "foundation-sales-sample",
+  splitPlanId: "split-foundation-stratified",
+  finalTestPolicy: "forbid_final_test",
   target: "amount",
   algorithm: "deterministic_linear_baseline",
   flowVariables: { JULIAFLOW_GPU_DEVICE: "cpu" }
@@ -95,7 +197,28 @@ client.createWorkflow(workflowRequest);
 client.createCheckpoint(checkpointRequest);
 client.transitionExecutionStatus("exec-1", transitionRequest);
 client.importDataProfile(dataProfileRequest);
+client.listDataScienceProjects();
+client.createDataScienceProject(dataScienceProjectRequest);
+client.getDataScienceProject("contracts-project");
+client.updateDataScienceProject("contracts-project", dataScienceProjectUpdateRequest);
+client.runDataScienceProjectTransformFitApply("contracts-project", transformFitApplyRequest);
+client.runDataScienceProjectStatisticalAnalysis("contracts-project", statisticalAnalysisRequest);
+client.runDataScienceProjectTuningStudy("contracts-project", tuningStudyRequest);
+client.runDataScienceProjectFinalEvaluation("contracts-project", finalEvaluationRequest);
+client.runDataScienceProjectPredictionExport("contracts-project", predictionExportRequest);
+client.runDataScienceProjectPredictionExport("contracts-project", predictionExportRequest).then((response) => {
+  response.predictionExport.artifactRefs?.forEach((artifactRef) => artifactRef.checksumSha256?.toLowerCase());
+});
+client.runDataScienceProjectDriftReport("contracts-project", driftReportRequest);
+client.runDataScienceProjectModelLifecycleAction("contracts-project", modelLifecycleActionRequest);
+client.runDataScienceProjectModelLifecycleAction("contracts-project", modelLifecycleActionRequest).then((response) => {
+  response.lifecycleRecord.state.toUpperCase();
+});
 client.runWorkflowTransform("wf-foundation", transformRunRequest);
+client.getAnalysisProfile("contracts-project", "data").then(response => response.numericColumns.map(column => column.toUpperCase()));
+client.saveAnalysisWorkspace("contracts-project", { expectedRevision: 0, workspace: { revision: 0, datasetId: "data",
+  scope: { datasetChecksum: "a".repeat(64), schemaFingerprint: "b".repeat(64), question: "How do values vary?", filters: [] }, findings: [] } });
+client.exportAnalysisReport("contracts-project").then(response => response.checksumSha256.toLowerCase());
 client.getWorkflowTransformHistory("wf-foundation");
 client.runWorkflowMlExperiment("wf-foundation", mlExperimentRunRequest);
 client.getWorkflowMlExperimentHistory("wf-foundation");
@@ -108,6 +231,15 @@ client.listWorkflowDeployPackages("wf-foundation");
 gatewayEndpointPaths.workflowDetail("foundation/workflow");
 gatewayEndpointPaths.executionStatus("exec-1");
 gatewayEndpointPaths.localDataImport;
+gatewayEndpointPaths.dataScienceProjects;
+gatewayEndpointPaths.dataScienceProject("contracts-project");
+gatewayEndpointPaths.dataScienceProjectTransformFitApply("contracts-project");
+gatewayEndpointPaths.dataScienceProjectStatisticalAnalysisRun("contracts-project");
+gatewayEndpointPaths.dataScienceProjectTuningRun("contracts-project");
+gatewayEndpointPaths.dataScienceProjectFinalEvaluationRun("contracts-project");
+gatewayEndpointPaths.dataScienceProjectPredictionExport("contracts-project");
+gatewayEndpointPaths.dataScienceProjectDriftRun("contracts-project");
+gatewayEndpointPaths.dataScienceProjectModelLifecycle("contracts-project");
 gatewayEndpointPaths.workflowTransformRun("wf-foundation");
 gatewayEndpointPaths.workflowTransformHistory("wf-foundation");
 gatewayEndpointPaths.workflowMlExperimentRun("wf-foundation");

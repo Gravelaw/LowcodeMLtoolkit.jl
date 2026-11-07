@@ -1,10 +1,11 @@
-import { Component, useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { GatewayClientError, createGatewayClient } from "@juliaflow/contracts";
 import { Shell, pathForView, viewFromPath } from "./components/Shell";
 import {
   checkpoints,
   dashboardId,
   dataProfile,
+  dataScienceProject,
   deployPackages,
   executionRecords,
   localHealth,
@@ -18,8 +19,9 @@ import {
   visualizeExports,
   workflowSummary
 } from "./fixtures/local-fixtures";
-import type { ActionFeedback, AppData, AppView, LocalProjectArtifact } from "./types";
+import type { ActionFeedback, AppData, AppView } from "./types";
 import type {
+  DataScienceProject,
   GatewayDataImportProfile,
   GatewayDataImportProfileRequest,
   GatewayHealthcheck,
@@ -29,10 +31,13 @@ import type {
   JuliaFlowUnavailableCapability,
   JuliaFlowUnavailableState,
   PublishedDashboardDefinition,
+  UpdateDataScienceProjectRequest,
   UpdateGatewayComputeSettingsRequest,
   WorkflowDefinition,
   WorkspaceRole
 } from "@juliaflow/contracts";
+import { emptyProject, emptyProfile, savedDatasetProfiles } from "./project-workspace";
+import { canEditDisplayedDataset, type DatasetEditIdentity } from "./dataset-edit-boundary";
 import { DataView } from "./views/DataView";
 import { DeployView } from "./views/DeployView";
 import { ExplorerView } from "./views/ExplorerView";
@@ -186,6 +191,7 @@ function buildDemoData(runtimeMode: JuliaFlowRuntimeMode = "demo"): AppData {
     workflowSummary,
     dataProfile,
     dataProfiles: [dataProfile, superstoreDataProfile],
+    dataScienceProject,
     transformRuns,
     executions: executionRecords,
     mlExperiments,
@@ -220,7 +226,7 @@ function workflowUnavailableDefinition(summary: typeof workflowSummary = workflo
 function buildUnavailableData(
   runtimeMode: JuliaFlowRuntimeMode,
   unavailable: JuliaFlowUnavailableState[],
-  summary: typeof workflowSummary = workflowSummary
+  summary: typeof workflowSummary = { ...workflowSummary, workflowId: "", name: "No workflow", version: "" }
 ): AppData {
   const runtime = runtimeContract(runtimeMode, unavailable);
   const base = buildDemoData(runtimeMode);
@@ -230,11 +236,16 @@ function buildUnavailableData(
     mode: "unavailable",
     runtime,
     unavailable,
-    health: withRuntimeHealth(localHealth, runtime),
+    health: withRuntimeHealth({ ...localHealth, workspaceSummary: undefined, charts: [] }, runtime),
     healthLastUpdatedAt: undefined,
     healthStale: true,
     workflow,
     workflowSummary: summary,
+    dataScienceProject: emptyProject(),
+    dataProfile: emptyProfile(),
+    dataProfiles: [],
+    projectFiles: [],
+    checkpoints: [],
     executions: [],
     transformRuns: [],
     mlExperiments: [],
@@ -358,8 +369,6 @@ const moduleLaunchItems: Array<{ id: AppView; label: string; summary: string }> 
   { id: "settings", label: "Settings", summary: "Runtime, auth, and local appliance settings" }
 ];
 
-const invalidProjectNamePattern = /[<>:"/\\|?*]/;
-
 function projectRoot(health: GatewayHealthcheck): string {
   const localHome = String(health.localHome ?? "").trim();
   return localHome ? `${localHome.replace(/[\\/]$/, "")}/Projects` : "~/JuliaFlowLocal/Projects";
@@ -384,58 +393,6 @@ function isLocalPath(path: string): boolean {
 
 function normalizeProjectPath(path: string): string {
   return path.trim().replace(/[\\/]+$/, "");
-}
-
-function validateProjectForm(form: ProjectFormState, data: AppData): string | null {
-  const name = form.name.trim();
-  const folderPath = normalizeProjectPath(form.folderPath);
-  if (name.length < 3) return "Project name must be at least 3 characters.";
-  if (invalidProjectNamePattern.test(name)) return "Project name cannot include path or reserved filename characters.";
-  if (!form.description.trim()) return "Project description is required.";
-  if (!folderPath) return "Folder path is required.";
-  if (!isLocalPath(folderPath)) return "Folder path must be an absolute local path or a home-relative path.";
-  if (/\.\.(?:[\\/]|$)/.test(folderPath)) return "Folder path cannot contain parent-directory traversal.";
-  const normalizedTarget = folderPath.replace(/\\/g, "/").toLowerCase();
-  const existingRoots = new Set((data.projectFiles ?? []).map((file) => String(file.path).split(/[\\/]/)[0].toLowerCase()));
-  const targetParts = normalizedTarget.split("/");
-  const targetFolderName = targetParts[targetParts.length - 1] ?? "";
-  if (existingRoots.has(slugifyProjectName(name).toLowerCase()) || existingRoots.has(targetFolderName)) {
-    return "A project with this folder name already exists in the local project browser.";
-  }
-  return null;
-}
-
-function scaffoldProjectFiles(form: ProjectFormState, workflowId: string): LocalProjectArtifact[] {
-  const root = slugifyProjectName(form.name);
-  return [
-    { path: `${root}/Project.toml`, size: "scaffold", status: "created" },
-    { path: `${root}/README.md`, size: "description", status: "created" },
-    { path: `${root}/workflows/${workflowId}.toml`, size: "template", status: "created" },
-    { path: `${root}/data/raw/.gitkeep`, size: "0 B", status: "ready" }
-  ];
-}
-
-function scaffoldProjectFileContents(form: ProjectFormState, workflowId: string): ProjectScaffoldFile[] {
-  const projectName = form.name.trim();
-  const projectDescription = form.description.trim();
-  return [
-    {
-      path: ["Project.toml"],
-      content: `name = "${slugifyProjectName(projectName)}"\nversion = "0.1.0"\ndescription = "${projectDescription.replace(/"/g, "\\\"")}"\n`
-    },
-    {
-      path: ["README.md"],
-      content: `# ${projectName}\n\n${projectDescription}\n\nGenerated by JuliaFlow Local.\n`
-    },
-    {
-      path: ["workflows", `${workflowId}.toml`],
-      content: `workflow_id = "${workflowId}"\nname = "${projectName.replace(/"/g, "\\\"")}"\nversion = "0.1.0"\n\n[nodes]\n`
-    },
-    {
-      path: ["data", "raw", ".gitkeep"],
-      content: ""
-    }
-  ];
 }
 
 async function writeProjectScaffold(
@@ -472,8 +429,80 @@ function upsertDataProfile(
   return [profile, ...(profiles ?? []).filter((item) => item.datasetId !== profile.datasetId)];
 }
 
+function isAbsoluteLocalPath(value: string): boolean {
+  return /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith("/") || value.startsWith("\\\\");
+}
+
+function gatewayImportSourceUri(
+  profile: GatewayDataImportProfile,
+  fixtureSubstitutionAllowed: boolean,
+  request?: GatewayDataImportProfileRequest
+): string {
+  const sourceUri = String(request?.sourceUri ?? profile.sourceUri).trim();
+  if (fixtureSubstitutionAllowed || sourceUri.toLowerCase().startsWith("local://") || isAbsoluteLocalPath(sourceUri)) {
+    return sourceUri;
+  }
+  const datasetId = String(request?.datasetId ?? profile.datasetId);
+  const sourceFormat = String(request?.format ?? profile.sourceFormat ?? "csv");
+  const targetZone = String(request?.targetZone ?? profile.targetZone ?? "raw");
+  return `local://data/${targetZone}/${datasetId}.${sourceFormat}`;
+}
+
 function isGatewayAuthError(error: unknown): boolean {
   return error instanceof GatewayClientError && (error.status === 401 || error.status === 403);
+}
+
+function isDataScienceProject(value: unknown): value is DataScienceProject {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    "projectId" in value &&
+    typeof (value as DataScienceProject).projectId === "string" &&
+    Array.isArray((value as DataScienceProject).datasets) &&
+    Array.isArray((value as DataScienceProject).schemaContracts) &&
+    Array.isArray((value as DataScienceProject).projectJobs)
+  );
+}
+
+const dialogFocusableSelector = [
+  "button:not([disabled])",
+  "[href]",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])"
+].join(",");
+
+function manageDialogFocus(dialog: HTMLElement | null, close: () => void) {
+  if (!dialog) return;
+  const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(dialogFocusableSelector))
+    .filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+  (focusable()[0] ?? dialog).focus();
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const elements = focusable();
+    if (elements.length === 0) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+    const first = elements[0];
+    const last = elements[elements.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+  dialog.addEventListener("keydown", onKeyDown);
+  return () => dialog.removeEventListener("keydown", onKeyDown);
 }
 
 function authUnavailableState(error: unknown): JuliaFlowUnavailableState {
@@ -493,6 +522,10 @@ function App() {
   const [activeView, setActiveView] = useState<AppView>(() => getInitialView());
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [utilityDialog, setUtilityDialog] = useState<UtilityDialog>(null);
+  const projectDialogRef = useRef<HTMLElement | null>(null);
+  const utilityDialogRef = useRef<HTMLElement | null>(null);
+  const projectDialogTriggerRef = useRef<HTMLElement | null>(null);
+  const utilityDialogTriggerRef = useRef<HTMLElement | null>(null);
   const [data, setData] = useState<AppData>(() =>
     fixtureSubstitutionAllowed
       ? buildDemoData(runtimeMode)
@@ -500,14 +533,33 @@ function App() {
           unavailableState("workflows", "Release mode is waiting for backend workflow metadata before rendering live workspace data.")
         ])
   );
+  const currentDataRef = useRef(data);
+  currentDataRef.current = data;
   const [projectForm, setProjectForm] = useState<ProjectFormState>(() => ({
     name: workflowSummary.name,
     description: "Creates a local workspace scaffold using the current appliance profile and sample workflow template.",
     folderPath: projectPathFor(projectRoot(localHealth), workflowSummary.name)
   }));
   const [projectDirectoryHandle, setProjectDirectoryHandle] = useState<LocalFileSystemDirectoryHandle | null>(null);
-  const [projectDirectoryLabel, setProjectDirectoryLabel] = useState("");
   const [projectFormError, setProjectFormError] = useState("");
+  const [projects, setProjects] = useState<DataScienceProject[]>([]);
+  const [inventoryError, setInventoryError] = useState("");
+  const [projectLoading, setProjectLoading] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const creationInFlight = useRef(false);
+  const [pendingCreatedId, setPendingCreatedId] = useState("");
+  const [creationUncertain, setCreationUncertain] = useState(false);
+  const selectionGeneration = useRef(0);
+  const deliberateSelection = useRef(false);
+  const inventoryGeneration = useRef(0);
+  const [inventoryLoading, setInventoryLoading] = useState(Boolean(gatewayBaseUrl));
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    try { return localStorage.getItem("juliaflow.theme") === "dark" ? "dark" : "light"; } catch { return "light"; }
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem("juliaflow.theme", theme); } catch { /* Storage is optional. */ }
+  }, [theme]);
   const [feedback, setFeedback] = useState<Partial<Record<AppView, ActionFeedback>>>({});
 
   useEffect(() => {
@@ -515,6 +567,22 @@ function App() {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+
+  useEffect(() => {
+    if (!projectDialogOpen) {
+      projectDialogTriggerRef.current?.focus();
+      return;
+    }
+    return manageDialogFocus(projectDialogRef.current, () => setProjectDialogOpen(false));
+  }, [projectDialogOpen]);
+
+  useEffect(() => {
+    if (!utilityDialog) {
+      utilityDialogTriggerRef.current?.focus();
+      return;
+    }
+    return manageDialogFocus(utilityDialogRef.current, () => setUtilityDialog(null));
+  }, [utilityDialog]);
 
   useEffect(() => {
     if (!gatewayBaseUrl) {
@@ -531,36 +599,40 @@ function App() {
 
     async function loadGatewayState() {
       try {
-        const fallbackList = <TItem,>(items: TItem[]) =>
-          fixtureSubstitutionAllowed ? { items, count: items.length } : Promise.reject(new Error("backend data required in release mode"));
-        const fallbackValue = <TValue,>(value: TValue) =>
-          fixtureSubstitutionAllowed ? value : Promise.reject(new Error("backend data required in release mode"));
+        const requiredFailure = (label: string, error: unknown) =>
+          new Error(`${label}: ${error instanceof Error ? error.message : "backend data required in release mode"}`);
+        const fallbackList = <TItem,>(items: TItem[], label: string, error: unknown) =>
+          fixtureSubstitutionAllowed ? { items, count: items.length } : Promise.reject(requiredFailure(label, error));
+        const fallbackValue = <TValue,>(value: TValue, label: string, error: unknown) =>
+          fixtureSubstitutionAllowed ? value : Promise.reject(requiredFailure(label, error));
         const [health, workflows, executions] = await Promise.all([
           client.healthcheck(requestOptions(abort.signal)),
           client.listWorkflows(requestOptions(abort.signal)),
-          client.listExecutions(requestOptions(abort.signal)).catch(() => fallbackList(executionRecords))
+          client.listExecutions(requestOptions(abort.signal)).catch((error) => fallbackList(executionRecords, "execution history", error))
         ]);
         if (!fixtureSubstitutionAllowed && workflows.items.length === 0) {
-          setData(buildUnavailableData(runtimeMode, [
-            unavailableState("workflows", "The release gateway returned no workflows.", "Create or import a workflow through the gateway, then reload.")
-          ]));
+          const liveRuntime = health.runtime ?? runtimeContract(runtimeMode);
+          setData((current) => ({ ...current, mode: "live", unavailable: [],
+            health: withRuntimeHealth(health, liveRuntime), healthStale: false,
+            healthLastUpdatedAt: new Date().toISOString(), runtime: liveRuntime,
+            workflow: workflowUnavailableDefinition({ ...workflowSummary, workflowId: "", name: "No workflow", version: "" }),
+            workflowSummary: { ...workflowSummary, workflowId: "", name: "No workflow", version: "" },
+            executions: executions.items, projectFiles: health.workspaceSummary?.artifacts ?? [] }));
           return;
         }
         const summary = workflows.items[0] ?? workflowSummary;
-        const metadata = await client.getWorkflow(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackValue(localWorkflow));
+        const metadata = await client.getWorkflow(summary.workflowId, requestOptions(abort.signal)).catch((error) => fallbackValue(localWorkflow, "workflow metadata", error));
         const workflowResult = workflowMetadataToDefinition(metadata, summary.workflowId);
         if (!workflowResult.ok && !fixtureSubstitutionAllowed) {
-          setData(buildUnavailableData(runtimeMode, [
-            unavailableState("workflows", workflowResult.reason, workflowResult.recovery)
-          ], summary));
+          setData((current) => ({ ...buildUnavailableData(runtimeMode, [unavailableState("workflows", workflowResult.reason, workflowResult.recovery)], summary), dataScienceProject: current.dataScienceProject, dataProfile: current.dataProfile, dataProfiles: current.dataProfiles }));
           return;
         }
         const workflow = workflowResult.ok ? workflowResult.workflow : localWorkflow;
         const [transforms, experiments, models, packages, dashboards] = await Promise.all([
-          client.getWorkflowTransformHistory(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(transformRuns)),
-          client.getWorkflowMlExperimentHistory(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(mlExperiments)),
-          client.listWorkflowModels(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(modelRegistry)),
-          client.listWorkflowDeployPackages(summary.workflowId, requestOptions(abort.signal)).catch(() => fallbackList(deployPackages)),
+          client.getWorkflowTransformHistory(summary.workflowId, requestOptions(abort.signal)).catch((error) => fallbackList(transformRuns, "transform history", error)),
+          client.getWorkflowMlExperimentHistory(summary.workflowId, requestOptions(abort.signal)).catch((error) => fallbackList(mlExperiments, "experiment history", error)),
+          client.listWorkflowModels(summary.workflowId, requestOptions(abort.signal)).catch((error) => fallbackList(modelRegistry, "model registry", error)),
+          client.listWorkflowDeployPackages(summary.workflowId, requestOptions(abort.signal)).catch((error) => fallbackList(deployPackages, "deploy package history", error)),
           client.listPublishedDashboards(summary.workflowId, requestOptions(abort.signal)).catch(() =>
             fixtureSubstitutionAllowed
               ? { items: [publishedDashboard] }
@@ -569,11 +641,10 @@ function App() {
         ]);
         const dashboard =
           dashboards.items[0] ??
-          (fixtureSubstitutionAllowed
-            ? await client.getPublishedDashboard(dashboardId, undefined, requestOptions(abort.signal)).catch(() => fallbackValue(publishedDashboard))
-            : dashboardFromWorkflow(workflow, summary));
+          dashboardFromWorkflow(workflow, summary);
         const liveRuntime = health.runtime ?? runtimeContract(runtimeMode);
-        setData({
+        setData((current) => ({
+          ...current,
           mode: "live",
           runtimeMode: liveRuntime.mode,
           runtime: liveRuntime,
@@ -583,8 +654,9 @@ function App() {
           healthStale: false,
           workflow,
           workflowSummary: summary,
-          dataProfile,
-          dataProfiles: [dataProfile, superstoreDataProfile],
+          dataProfile: current.dataProfile,
+          dataProfiles: current.dataProfiles,
+          dataScienceProject: current.dataScienceProject,
           executions: executions.items.length > 0 || !fixtureSubstitutionAllowed ? executions.items : executionRecords,
           transformRuns: transforms.items.length > 0 || !fixtureSubstitutionAllowed ? transforms.items : transformRuns,
           mlExperiments: experiments.items.length > 0 || !fixtureSubstitutionAllowed ? experiments.items : mlExperiments,
@@ -593,19 +665,22 @@ function App() {
           visualizeExports,
           checkpoints,
           dashboard,
-          projectFiles: health.workspaceSummary?.artifacts?.length ? health.workspaceSummary.artifacts : projectFiles
-        });
+          projectFiles: health.workspaceSummary?.artifacts?.length
+            ? health.workspaceSummary.artifacts
+            : fixtureSubstitutionAllowed ? projectFiles : []
+        }));
       } catch (error) {
         if (!abort.signal.aborted) {
-          setData(
+          const gatewayReason = error instanceof Error ? error.message : "unknown gateway error";
+          setData((current) => ({ ...(
             isGatewayAuthError(error)
               ? buildUnavailableData(runtimeMode, [authUnavailableState(error)])
               : fixtureSubstitutionAllowed
               ? { ...buildDemoData(runtimeMode), mode: "fallback" }
               : buildUnavailableData(runtimeMode, [
-                  unavailableState("workflows", "The release gateway could not provide required live workspace data.")
+                  unavailableState("workflows", `The release gateway could not provide required live workspace data: ${gatewayReason}`)
                 ])
-          );
+          ), dataScienceProject: current.dataScienceProject, dataProfile: current.dataProfile, dataProfiles: current.dataProfiles }));
         }
       }
     }
@@ -620,7 +695,7 @@ function App() {
           mode: current.mode === "unavailable" ? current.mode : "live",
           runtimeMode: liveRuntime.mode,
           runtime: liveRuntime,
-          unavailable: liveRuntime.unavailable,
+          unavailable: current.mode === "unavailable" ? current.unavailable : liveRuntime.unavailable,
           health: withRuntimeHealth(health, liveRuntime),
           healthLastUpdatedAt: new Date().toISOString(),
           healthStale: false
@@ -637,6 +712,73 @@ function App() {
     };
   }, [fixtureSubstitutionAllowed, gatewayAuthHeaders, gatewayBaseUrl, runtimeMode]);
 
+  useEffect(() => {
+    if (!client) return;
+    const abort = new AbortController();
+    const generation = selectionGeneration.current;
+    const inventoryVersion = ++inventoryGeneration.current;
+    void client.listDataScienceProjects({ signal: abort.signal }).then(async (inventory) => {
+      if (abort.signal.aborted || inventoryVersion !== inventoryGeneration.current) return;
+      setInventoryLoading(false);
+      setProjects(inventory.items);
+      setInventoryError("");
+      if (deliberateSelection.current || generation !== selectionGeneration.current) return;
+      let remembered = "";
+      try { remembered = localStorage.getItem("juliaflow.projectId") ?? ""; } catch { /* Storage is optional. */ }
+      const selected = inventory.items.find((item) => item.projectId === remembered) ?? inventory.items[0];
+      if (selected) await openSavedProject(selected.projectId, false);
+    }).catch(() => {
+      if (!abort.signal.aborted && inventoryVersion === inventoryGeneration.current) { setInventoryLoading(false); setInventoryError("Project inventory could not be loaded. Retry inventory."); }
+    });
+    return () => abort.abort();
+  }, [gatewayBaseUrl, gatewayAuthHeaders]);
+
+  async function refreshProjectInventory() {
+    if (!client) { setInventoryError("Connect the local gateway to list saved projects."); return; }
+    const inventoryVersion = ++inventoryGeneration.current;
+    setInventoryLoading(true);
+    try {
+      const inventory = await client.listDataScienceProjects();
+      if (inventoryVersion !== inventoryGeneration.current) return;
+      setInventoryLoading(false);
+      setProjects(inventory.items);
+      setInventoryError("");
+    } catch { if (inventoryVersion !== inventoryGeneration.current) return; setInventoryLoading(false); setInventoryError("Project inventory could not be loaded. Retry inventory."); }
+  }
+
+  async function openSavedProject(projectId: string, deliberate = true): Promise<boolean> {
+    if (!client) return false;
+    if (!projectId) {
+      deliberateSelection.current = true;
+      ++selectionGeneration.current;
+      setProjectLoading(false);
+      setData((current) => ({ ...current, dataScienceProject: emptyProject(), dataProfile: emptyProfile(), dataProfiles: [] }));
+      try { localStorage.removeItem("juliaflow.projectId"); } catch { /* Storage is optional. */ }
+      return true;
+    }
+    if (deliberate) deliberateSelection.current = true;
+    const generation = ++selectionGeneration.current;
+    setProjectDirectoryHandle(null);
+    setFeedback({});
+    setProjectLoading(true);
+    setData((current) => ({ ...current, dataScienceProject: emptyProject(), dataProfile: emptyProfile(), dataProfiles: [] }));
+    try {
+      const project = await client.getDataScienceProject(projectId);
+      if (generation !== selectionGeneration.current) return false;
+      if (!isDataScienceProject(project) || project.projectId !== projectId) throw new Error("Project readback identity mismatch");
+      const profiles = savedDatasetProfiles(project);
+      setData((current) => ({ ...current, dataScienceProject: project, dataProfiles: profiles, dataProfile: profiles[0] ?? emptyProfile() }));
+      try { localStorage.setItem("juliaflow.projectId", projectId); } catch { /* Storage is optional. */ }
+      setInventoryError("");
+      return true;
+    } catch {
+      if (generation === selectionGeneration.current) setInventoryError("Project could not be opened. Retry opening this saved project.");
+      return false;
+    } finally {
+      if (generation === selectionGeneration.current) setProjectLoading(false);
+    }
+  }
+
   function navigate(view: AppView) {
     setActiveView(view);
     const nextPath = pathForView(view);
@@ -650,78 +792,96 @@ function App() {
   }
 
   function openProjectDialog() {
+    if (pendingCreatedId || creationUncertain || creationInFlight.current) { setProjectDialogOpen(true); return; }
+    projectDialogTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setProjectForm({
-      name: data.workflowSummary.name,
-      description: "Creates a local workspace scaffold using the current appliance profile and sample workflow template.",
+      name: "",
+      description: "",
       folderPath: projectPathFor(projectRoot(data.health), data.workflowSummary.name)
     });
     setProjectDirectoryHandle(null);
-    setProjectDirectoryLabel("");
     setProjectFormError("");
+    if (!pendingCreatedId && !creationUncertain) setProjectFormError("");
     setProjectDialogOpen(true);
   }
 
-  async function chooseProjectFolder() {
-    if (!window.showDirectoryPicker) {
-      setProjectFormError("Native folder picking is not available in this browser. Type a local path or use Chromium/Edge to grant write access.");
-      return;
-    }
-    try {
-      const directoryHandle = await window.showDirectoryPicker({ mode: "readwrite" });
-      setProjectDirectoryHandle(directoryHandle);
-      setProjectDirectoryLabel(directoryHandle.name);
-      setProjectFormError("");
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setProjectFormError("JuliaFlow could not access the selected folder. Choose a writable local folder and retry.");
-    }
+  function openUtilityDialog(dialog: Exclude<UtilityDialog, null>) {
+    utilityDialogTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setUtilityDialog(dialog);
   }
 
   async function createLocalProject() {
-    const validationError = validateProjectForm(projectForm, data);
-    if (validationError) {
-      setProjectFormError(validationError);
-      return;
-    }
-    const name = projectForm.name.trim();
-    const projectSlug = slugifyProjectName(name);
-    const workflowId = `wf-${projectSlug.toLowerCase().replace(/_/g, "-")}`;
-    const targetPath = normalizeProjectPath(projectForm.folderPath);
-    const createdFiles = scaffoldProjectFiles(projectForm, workflowId);
+    if (creationInFlight.current || creationUncertain) return;
+    if (!client) { setProjectFormError("Connect the local gateway before creating a saved project."); return; }
+    if (!projectForm.name.trim()) { setProjectFormError("Project name is required."); return; }
+    creationInFlight.current = true;
+    setCreatingProject(true);
+    setProjectFormError("");
+    deliberateSelection.current = true;
+    ++inventoryGeneration.current;
+    setInventoryLoading(false);
+    const startedGeneration = ++selectionGeneration.current;
+    setProjectLoading(false);
+    let createdId = pendingCreatedId;
     try {
-      if (projectDirectoryHandle) {
-        await writeProjectScaffold(projectDirectoryHandle, scaffoldProjectFileContents(projectForm, workflowId));
+      if (!createdId) {
+        try {
+          const project = await client.createDataScienceProject({ name: projectForm.name.trim(), description: projectForm.description.trim() || undefined });
+          if (!isDataScienceProject(project) || !project.projectId) throw new Error("Missing returned project identity");
+          ++inventoryGeneration.current;
+          setInventoryLoading(false);
+          createdId = project.projectId;
+          setPendingCreatedId(createdId);
+          setProjects((current) => [project, ...current.filter((item) => item.projectId !== project.projectId)]);
+        } catch (error) {
+          const rejected = error instanceof GatewayClientError && error.status >= 400 && error.status < 500;
+          setCreationUncertain(!rejected);
+          setProjectFormError(rejected ? error.message : "Creation outcome is uncertain. Inspect saved projects and open the exact project ID; this form will not retry creation.");
+          if (!rejected) await refreshProjectInventory();
+          return;
+        }
       }
-    } catch (error) {
-      setProjectFormError("JuliaFlow could not write the scaffold files. Confirm folder write permission and retry.");
+      if (startedGeneration !== selectionGeneration.current) {
+        setProjectFormError(`Project ${createdId} was created. Your current selection was preserved; retry opening when ready.`);
+        return;
+      }
+      if (!await openSavedProject(createdId)) {
+        setProjectFormError(`Project ${createdId} was created, but could not be opened. Retry opening; do not create again.`);
+        return;
+      }
+      setPendingCreatedId("");
+      setCreationUncertain(false);
+      setProjectDialogOpen(false);
+      navigate("explorer");
+      setViewFeedback("explorer", `Project saved and opened: ${createdId}.`);
+    } finally {
+      creationInFlight.current = false;
+      setCreatingProject(false);
+    }
+  }
+
+  async function createOptionalFolder() {
+    const generation = selectionGeneration.current;
+    const project = currentDataRef.current.dataScienceProject;
+    if (!project.projectId) return;
+    if (!projectDirectoryHandle) {
+      if (!window.showDirectoryPicker) { setViewFeedback("explorer", "Folder picker unavailable. Saved project metadata is unaffected.", "error"); return; }
+      try {
+        const handle = await window.showDirectoryPicker({ mode: "readwrite" });
+        if (generation !== selectionGeneration.current) return;
+        setProjectDirectoryHandle(handle);
+        setViewFeedback("explorer", "Folder selected. Click Write optional folder to write its README.", "info");
+      } catch (error) {
+        if (generation !== selectionGeneration.current) return;
+        if (!(error instanceof DOMException && error.name === "AbortError")) setViewFeedback("explorer", "Optional folder permission failed. Retry folder selection; saved project is unchanged.", "error");
+      }
       return;
     }
-    setData((current) => ({
-      ...current,
-      workflow: {
-        ...current.workflow,
-        workflowId,
-        name
-      },
-      workflowSummary: {
-        ...current.workflowSummary,
-        workflowId,
-        name,
-        version: "0.1.0"
-      },
-      projectFiles: [...createdFiles, ...(current.projectFiles ?? [])]
-    }));
-    setProjectDialogOpen(false);
-    navigate("explorer");
-    setProjectDirectoryHandle(null);
-    setProjectDirectoryLabel("");
-    setViewFeedback(
-      "explorer",
-      projectDirectoryHandle
-        ? `Local project scaffold written to ${projectDirectoryLabel || targetPath}.`
-        : `Local project scaffold created at ${targetPath}.`,
-      "success"
-    );
+    try {
+      await writeProjectScaffold(projectDirectoryHandle, [{ path: ["README.md"], content: `# ${project.name}\n\n${project.description ?? ""}\n` }]);
+      if (generation !== selectionGeneration.current) return;
+      setViewFeedback("explorer", "Optional folder README written. Saved project metadata is independent of this folder.");
+    } catch { if (generation !== selectionGeneration.current) return; setViewFeedback("explorer", "Optional folder write failed. Saved project is unchanged; retry folder writing separately.", "error"); }
   }
 
   function setUtilityFeedback(label: string, tone: ActionFeedback["tone"] = "success") {
@@ -803,17 +963,113 @@ function App() {
       );
       return;
     }
+    const generation = selectionGeneration.current;
     try {
       const result = await action();
+      if (generation !== selectionGeneration.current) return;
       onSuccess(result);
       setViewFeedback(view, "Gateway action completed locally.");
     } catch (error) {
+      if (generation !== selectionGeneration.current) return;
       setViewFeedback(
         view,
         isGatewayAuthError(error)
           ? "Gateway authentication failed. Configure the local gateway token in Settings and retry."
           : fixtureSubstitutionAllowed ? fallbackLabel : "Release mode did not substitute fixture results for this failed gateway action.",
         isGatewayAuthError(error) ? "error" : fixtureSubstitutionAllowed ? "info" : "error"
+      );
+    }
+  }
+
+  function applyDataScienceProjectUpdate(project: DataScienceProject) {
+    setData((current) => ({
+      ...current,
+      dataScienceProject: project,
+      mode: current.mode === "unavailable" ? current.mode : current.mode
+    }));
+  }
+
+  async function refreshDataScienceProject(projectId: string) {
+    if (!client) return;
+    const generation = selectionGeneration.current;
+    try {
+      const project = await client.getDataScienceProject(projectId);
+      if (generation !== selectionGeneration.current) return;
+      if (isDataScienceProject(project)) {
+        if (currentDataRef.current.dataScienceProject.projectId === projectId) applyDataScienceProjectUpdate(project);
+      }
+    } catch (error) {
+      if (generation !== selectionGeneration.current) return;
+      setViewFeedback(
+        activeView,
+        isGatewayAuthError(error)
+          ? "Gateway authentication failed while refreshing project evidence."
+          : "Project evidence refresh could not be completed by the local gateway.",
+        "error"
+      );
+    }
+  }
+
+  async function updateDataScienceProject(request: UpdateDataScienceProjectRequest, identity: DatasetEditIdentity) {
+    if (!canEditDisplayedDataset(currentDataRef.current, identity)) {
+      setViewFeedback("data", "The displayed dataset no longer matches the active project. Select or import a matching dataset before saving.", "error");
+      return;
+    }
+    const projectId = data.dataScienceProject.projectId;
+    const generation = selectionGeneration.current;
+    const localProject: DataScienceProject = {
+      ...data.dataScienceProject,
+      ...request,
+      projectId,
+      schemaVersion: "1.0",
+      localOnly: true,
+      updatedAt: new Date().toISOString(),
+      datasets: request.datasets ?? data.dataScienceProject.datasets,
+      schemaContracts: request.schemaContracts ?? data.dataScienceProject.schemaContracts,
+      splitPlans: request.splitPlans ?? data.dataScienceProject.splitPlans,
+      splitAssignments: request.splitAssignments ?? data.dataScienceProject.splitAssignments,
+      validationFolds: request.validationFolds ?? data.dataScienceProject.validationFolds,
+      finalTestLocks: request.finalTestLocks ?? data.dataScienceProject.finalTestLocks,
+      projectJobs: request.projectJobs ?? data.dataScienceProject.projectJobs,
+      transformFitApplyRecords: request.transformFitApplyRecords ?? data.dataScienceProject.transformFitApplyRecords,
+      statisticalAnalysisRuns: request.statisticalAnalysisRuns ?? data.dataScienceProject.statisticalAnalysisRuns,
+      trainingPlans: request.trainingPlans ?? data.dataScienceProject.trainingPlans,
+      tuningStudies: request.tuningStudies ?? data.dataScienceProject.tuningStudies,
+      evaluationReports: request.evaluationReports ?? data.dataScienceProject.evaluationReports,
+      predictionExports: request.predictionExports ?? data.dataScienceProject.predictionExports,
+      modelRegistryRecords: request.modelRegistryRecords ?? data.dataScienceProject.modelRegistryRecords,
+      modelLifecycleRecords: request.modelLifecycleRecords ?? data.dataScienceProject.modelLifecycleRecords,
+      monitoringBaselines: request.monitoringBaselines ?? data.dataScienceProject.monitoringBaselines,
+      driftReports: request.driftReports ?? data.dataScienceProject.driftReports,
+      reproducibilityEvidence: request.reproducibilityEvidence ?? data.dataScienceProject.reproducibilityEvidence
+    };
+    if (!gatewayBaseUrl) {
+      if (fixtureSubstitutionAllowed) {
+        applyDataScienceProjectUpdate(localProject);
+        setViewFeedback("data", "Project schema and validation choices updated in demo workspace.", "success");
+      } else {
+        setViewFeedback("data", "Release mode requires the local gateway before project schema changes can be saved.", "error");
+      }
+      return;
+    }
+    try {
+      const project = await client!.updateDataScienceProject(projectId, request);
+      if (generation !== selectionGeneration.current) return;
+      applyDataScienceProjectUpdate(project);
+      setViewFeedback("data", "Project schema and validation choices saved to the local gateway.");
+    } catch (error) {
+      if (generation !== selectionGeneration.current) return;
+      if (fixtureSubstitutionAllowed && !isGatewayAuthError(error)) {
+        applyDataScienceProjectUpdate(localProject);
+        setViewFeedback("data", "Gateway project update failed; deterministic demo project state was updated locally.", "info");
+        return;
+      }
+      setViewFeedback(
+        "data",
+        isGatewayAuthError(error)
+          ? "Gateway authentication failed. Configure the local gateway token and retry."
+          : "Project schema and validation choices could not be saved by the local gateway.",
+        "error"
       );
     }
   }
@@ -825,22 +1081,34 @@ function App() {
       case "data":
         return (
           <DataView
+            key={data.dataScienceProject.projectId}
             data={data}
             feedback={feedback.data}
-            onSelectProfile={(profile) =>
+            onSelectProfile={(profile) => {
+              if (data.dataScienceProject.projectId !== currentDataRef.current.dataScienceProject.projectId) return;
               setData((current) => ({
                 ...current,
                 dataProfile: profile,
                 dataProfiles: upsertDataProfile(current.dataProfiles, profile)
-              }))
-            }
+              }));
+            }}
+            onProjectUpdate={updateDataScienceProject}
             onImport={(request?: GatewayDataImportProfileRequest) => {
-              const nextRequest = request ?? {
+              if (!data.dataScienceProject.projectId || data.dataScienceProject.projectId !== currentDataRef.current.dataScienceProject.projectId || projectLoading) {
+                setViewFeedback("data", "Open a saved project before importing.", "error");
+                return;
+              }
+              const baseRequest = request ?? {
                 datasetId: data.dataProfile.datasetId,
                 sourceUri: data.dataProfile.sourceUri,
                 format: data.dataProfile.activeReadMode ?? data.dataProfile.sourceFormat,
                 targetZone: data.dataProfile.targetZone,
                 readMode: data.dataProfile.activeReadMode ?? data.dataProfile.sourceFormat
+              };
+              const nextRequest: GatewayDataImportProfileRequest = {
+                ...baseRequest,
+                projectId: data.dataScienceProject.projectId,
+                sourceUri: gatewayImportSourceUri(data.dataProfile, fixtureSubstitutionAllowed, baseRequest)
               };
               if (!gatewayBaseUrl && fixtureSubstitutionAllowed && nextRequest.readMode) {
                 setData((current) => {
@@ -867,6 +1135,7 @@ function App() {
                   ...current,
                   dataProfile: response.profile,
                   dataProfiles: upsertDataProfile(current.dataProfiles, response.profile),
+                  dataScienceProject: response.project ?? current.dataScienceProject,
                   mode: "live"
                 })),
                 `Synthetic ${nextRequest.readMode ?? data.dataProfile.activeReadMode ?? "csv"} profile loaded from fixture.`
@@ -901,12 +1170,24 @@ function App() {
             onRun={() =>
               withGatewayFallback(
                 "ml-studio",
-                () => client!.runWorkflowMlExperiment(activeWorkflowId(data), { datasetId: "customer-churn-local", target: "churn", algorithm: "MLJ.XGBoostClassifier" }),
-                (response) => setData((current) => ({
-                  ...current,
-                  mlExperiments: prependUnique(current.mlExperiments, response.experiment, (item) => item.experimentId),
-                  mode: "live"
-                })),
+                () => client!.runWorkflowMlExperiment(activeWorkflowId(data), {
+                  projectId: data.dataScienceProject.projectId,
+                  datasetId: data.dataProfile.datasetId,
+                  splitPlanId: data.dataScienceProject.splitPlans.find((plan) => plan.datasetId === data.dataProfile.datasetId)?.splitPlanId,
+                  finalTestPolicy: "forbid_final_test",
+                  target: data.dataProfile.workflowReadiness?.targetColumn ?? "churn",
+                  algorithm: "MLJ.XGBoostClassifier"
+                }),
+                (response) => {
+                  setData((current) => ({
+                    ...current,
+                    mlExperiments: prependUnique(current.mlExperiments, response.experiment, (item) => item.experimentId),
+                    mode: "live"
+                  }));
+                  if (response.experiment.validationEvidence?.projectId) {
+                    void refreshDataScienceProject(response.experiment.validationEvidence.projectId);
+                  }
+                },
                 "Synthetic ML experiment metrics displayed."
               )
             }
@@ -921,11 +1202,14 @@ function App() {
               withGatewayFallback(
                 "models",
                 () => client!.registerWorkflowModel(activeWorkflowId(data), { modelId: "Churn Prediction", owner: "julia_user", tags: ["churn", "local"] }),
-                (response) => setData((current) => ({
-                  ...current,
-                  modelRegistry: prependUnique(current.modelRegistry, response.model, (item) => item.registryId),
-                  mode: "live"
-                })),
+                (response) => {
+                  setData((current) => ({
+                    ...current,
+                    modelRegistry: prependUnique(current.modelRegistry, response.model, (item) => item.registryId),
+                    mode: "live"
+                  }));
+                  void refreshDataScienceProject(data.dataScienceProject.projectId);
+                },
                 "Synthetic model registry detail displayed."
               )
             }
@@ -936,6 +1220,37 @@ function App() {
           <VisualizeView
             data={data}
             feedback={feedback.visualize}
+            onBuildModel={() => navigate("ml-studio")}
+            analysisActions={client && data.dataScienceProject.projectId && !projectLoading ? {
+              load: async (datasetId) => {
+                const generation = selectionGeneration.current;
+                const result = await client.getAnalysisProfile(data.dataScienceProject.projectId, datasetId);
+                if (generation !== selectionGeneration.current) throw new Error("Project selection changed; retry for the active project.");
+                if (!result.profile || result.profile.datasetId !== datasetId || !Array.isArray(result.profile.previewRows) || !Array.isArray(result.numericColumns) || !/^[a-f0-9]{64}$/.test(result.schemaFingerprint)) throw new Error("Measured analysis profile is unavailable. Refresh or reopen the project.");
+                setData((current) => ({ ...current, dataProfile: result.profile, dataProfiles: upsertDataProfile(current.dataProfiles, result.profile) }));
+                return result;
+              },
+              run: async (request) => {
+                const generation = selectionGeneration.current;
+                const result = await client.runDataScienceProjectStatisticalAnalysis(data.dataScienceProject.projectId, request);
+                if (generation !== selectionGeneration.current) throw new Error("Project selection changed; completed evidence remains in its original project.");
+                applyDataScienceProjectUpdate(result.project);
+                return result;
+              },
+              save: async (workspace, expectedRevision) => {
+                const generation = selectionGeneration.current;
+                const result = await client.saveAnalysisWorkspace(data.dataScienceProject.projectId, { workspace, expectedRevision });
+                if (generation !== selectionGeneration.current) throw new Error("Project selection changed; saved work remains in its original project.");
+                applyDataScienceProjectUpdate(result);
+                return result;
+              },
+              export: async () => {
+                const generation = selectionGeneration.current;
+                const result = await client.exportAnalysisReport(data.dataScienceProject.projectId);
+                if (generation !== selectionGeneration.current) throw new Error("Project selection changed; export was cancelled.");
+                return result;
+              }
+            } : undefined}
             onExport={() =>
               withGatewayFallback(
                 "visualize",
@@ -960,11 +1275,14 @@ function App() {
               withGatewayFallback(
                 "deploy",
                 () => client!.packageWorkflowDeploy(activeWorkflowId(data), { modelId: "Churn Prediction", endpointPath: "/predict/churn", host: "127.0.0.1", port: 8099 }),
-                (response) => setData((current) => ({
-                  ...current,
-                  deployPackages: prependUnique(current.deployPackages, response.package, (item) => item.packageId),
-                  mode: "live"
-                })),
+                (response) => {
+                  setData((current) => ({
+                    ...current,
+                    deployPackages: prependUnique(current.deployPackages, response.package, (item) => item.packageId),
+                    mode: "live"
+                  }));
+                  void refreshDataScienceProject(data.dataScienceProject.projectId);
+                },
                 "Synthetic local deploy package displayed."
               )
             }
@@ -980,6 +1298,14 @@ function App() {
           <ExplorerView
             data={data}
             feedback={feedback.explorer}
+            projects={projects}
+            inventoryLoading={inventoryLoading}
+            projectLoading={projectLoading}
+            inventoryError={inventoryError}
+            onCreateProject={openProjectDialog}
+            onOpenProject={(id) => void openSavedProject(id)}
+            onRefreshProjects={() => void refreshProjectInventory()}
+            onCreateFolder={() => void createOptionalFolder()}
             onSave={() =>
               withGatewayFallback(
                 "explorer",
@@ -1019,12 +1345,16 @@ function App() {
   return (
     <Shell
       activeView={activeView}
+      juliaVersion={data.mode === "live" ? data.health.juliaVersion : undefined}
+      runtimeStale={data.healthStale}
+      theme={theme}
+      onToggleTheme={() => setTheme((current) => current === "light" ? "dark" : "light")}
       onNavigate={navigate}
       onPrimaryAction={openProjectDialog}
-      onGridAction={() => setUtilityDialog("grid")}
-      onShareAction={() => setUtilityDialog("share")}
-      onHelpAction={() => setUtilityDialog("help")}
-      onProfileAction={() => setUtilityDialog("profile")}
+      onGridAction={() => openUtilityDialog("grid")}
+      onShareAction={() => openUtilityDialog("share")}
+      onHelpAction={() => openUtilityDialog("help")}
+      onProfileAction={() => openUtilityDialog("profile")}
     >
       {data.mode === "fallback" ? (
         <p className="feedback info">Gateway unavailable. Running deterministic local demo fallback.</p>
@@ -1039,7 +1369,7 @@ function App() {
       ) : null}
       {projectDialogOpen ? (
         <div className="modal-backdrop" role="presentation">
-          <section className="project-dialog" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
+          <section ref={projectDialogRef} className="project-dialog" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
             <div className="project-dialog-head">
               <div>
                 <p className="jf-eyebrow">Local project</p>
@@ -1049,16 +1379,17 @@ function App() {
                 x
               </button>
             </div>
-            <div className="project-template">
-              <strong>{data.workflowSummary.name}</strong>
-              <span>{data.workflowSummary.workflowId}</span>
-              <p>Creates a local workspace scaffold using the current appliance profile and sample workflow template.</p>
-            </div>
             <div className="form-grid">
               <label>
                 <span>Project name</span>
                 <input
                   value={projectForm.name}
+                  required
+                  aria-required="true"
+                  aria-invalid={projectFormError === "Project name is required."}
+                  aria-describedby={projectFormError ? "project-create-error" : undefined}
+                  disabled={creatingProject || Boolean(pendingCreatedId) || creationUncertain}
+                  onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void createLocalProject(); } }}
                   onChange={(event) => setProjectForm((current) => ({
                     ...current,
                     name: event.target.value,
@@ -1067,52 +1398,28 @@ function App() {
                 />
               </label>
               <label>
-                <span>Description</span>
+                <span>Description (optional)</span>
                 <textarea
                   value={projectForm.description}
+                  disabled={creatingProject || Boolean(pendingCreatedId) || creationUncertain}
                   rows={3}
                   onChange={(event) => setProjectForm((current) => ({ ...current, description: event.target.value }))}
                 />
               </label>
-              <label>
-                <span>Folder path</span>
-                <input
-                  value={projectForm.folderPath}
-                  onChange={(event) => {
-                    setProjectDirectoryHandle(null);
-                    setProjectDirectoryLabel("");
-                    setProjectForm((current) => ({ ...current, folderPath: event.target.value }));
-                  }}
-                />
-              </label>
             </div>
-            <div className="folder-access-row">
-              <button type="button" className="jf-button secondary" onClick={chooseProjectFolder}>Choose Target Folder</button>
-              <span>
-                {projectDirectoryLabel
-                  ? `Write access granted: ${projectDirectoryLabel}`
-                  : window.showDirectoryPicker
-                  ? "Optional: grant write access to create files in the selected folder."
-                  : "Native folder write access is unavailable in this browser; the typed path will be staged in the workspace."}
-              </span>
-            </div>
-            {projectFormError ? <p className="feedback error">{projectFormError}</p> : null}
-            <div className="key-values">
-              <span>Workspace</span><strong>{data.health.localHome ?? "Configured local home"}</strong>
-              <span>Profile</span><strong>{data.health.localProfile ?? data.runtimeMode}</strong>
-              <span>Metadata</span><strong>{data.health.metadataBackend ?? "file"}</strong>
-              <span>Workflow</span><strong>{data.workflowSummary.version}</strong>
-            </div>
+            <p>Save project metadata to the local gateway. Optional folder writing is separate.</p>
+            {projectFormError ? <p id="project-create-error" role="alert" className="feedback error">{projectFormError}</p> : null}
             <div className="dialog-actions">
               <button type="button" className="jf-button secondary" onClick={() => setProjectDialogOpen(false)}>Cancel</button>
-              <button type="button" className="jf-button primary" onClick={createLocalProject}>Create Local Project</button>
+              {creationUncertain ? <button type="button" className="jf-button secondary" onClick={() => void refreshProjectInventory()}>Inspect saved projects</button> : null}
+              <button type="button" className="jf-button primary" disabled={creatingProject || creationUncertain} onClick={createLocalProject}>{creatingProject ? "Saving…" : pendingCreatedId ? "Retry opening project" : "Create project"}</button>
             </div>
           </section>
         </div>
       ) : null}
       {utilityDialog ? (
         <div className="modal-backdrop" role="presentation">
-          <section className="project-dialog utility-dialog" role="dialog" aria-modal="true" aria-labelledby="utility-dialog-title">
+          <section ref={utilityDialogRef} className="project-dialog utility-dialog" role="dialog" aria-modal="true" aria-labelledby="utility-dialog-title">
             <div className="project-dialog-head">
               <div>
                 <p className="jf-eyebrow">Local workspace</p>

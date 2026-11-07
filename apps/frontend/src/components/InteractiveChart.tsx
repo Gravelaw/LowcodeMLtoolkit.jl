@@ -41,6 +41,12 @@ export function InteractiveChart({
   const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [error, setError] = useState("");
   const readiness = chartReadiness(spec);
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? "light");
+  useEffect(() => {
+    const observer = new MutationObserver(() => setTheme(document.documentElement.dataset.theme ?? "light"));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
 
   const config = useMemo(
     () => ({
@@ -69,7 +75,20 @@ export function InteractiveChart({
         if (canceled || !chartRef.current) return;
         const runtime = ((module as { default?: PlotlyRuntime }).default ?? module) as PlotlyRuntime;
         plotlyRef.current = runtime;
-        return runtime.newPlot(chartRef.current, activeSpec.data, activeSpec.layout, config);
+        const styles = getComputedStyle(document.documentElement);
+        const text = styles.getPropertyValue("--text").trim();
+        const surface = styles.getPropertyValue("--card").trim();
+        const border = styles.getPropertyValue("--border").trim();
+        const axisTheme = { color: text, gridcolor: border, linecolor: border, tickfont: { color: text } };
+        const traces = activeSpec.data.map((trace, index) => ({ ...trace, name: trace.name ?? `${activeSpec.title} · series ${index + 1}` }));
+        const layout = {
+          ...activeSpec.layout, paper_bgcolor: surface, plot_bgcolor: surface,
+          font: { ...(activeSpec.layout.font as Record<string, unknown> ?? {}), family: "Inter, sans-serif", color: text },
+          xaxis: { ...(activeSpec.layout.xaxis as Record<string, unknown> ?? {}), ...axisTheme },
+          yaxis: { ...(activeSpec.layout.yaxis as Record<string, unknown> ?? {}), ...axisTheme },
+          legend: { ...(activeSpec.layout.legend as Record<string, unknown> ?? {}), font: { color: text } }
+        };
+        return runtime.newPlot(chartRef.current, traces, layout, config);
       })
       .then(() => {
         if (!canceled) setState("ready");
@@ -86,7 +105,7 @@ export function InteractiveChart({
         plotlyRef.current.purge(chartRef.current);
       }
     };
-  }, [config, spec]);
+  }, [config, spec, theme]);
 
   async function exportPng() {
     if (!chartRef.current || !plotlyRef.current || !spec || spec.export?.png === false) return;
@@ -155,7 +174,7 @@ export function InteractiveChart({
       <div
         ref={chartRef}
         className="plotly-mount"
-        role="img"
+        role="group"
         aria-label={spec.summary}
         data-chart-id={spec.chartId}
       >

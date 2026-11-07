@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Background,
   Controls,
@@ -23,6 +23,14 @@ const paletteGroups = [
   { group: "Combine", items: ["Join Tables", "Union", "Append"] },
   { group: "Aggregate", items: ["Group And Aggregate", "Pivot", "Window Aggregate"] }
 ];
+
+type PaletteNodeMetadata = {
+  id: string;
+  name: string;
+  type: string;
+  executionHint: string;
+  config?: Record<string, unknown>;
+};
 
 function workflowNodesToFlowNodes(data: AppData): Node[] {
   return data.workflow.nodes.map((node, index) => ({
@@ -60,6 +68,16 @@ function afterPreviewRows(rows: Array<Record<string, unknown>>) {
   }));
 }
 
+function latestProjectTransformEvidence(data: AppData) {
+  const record = [...data.dataScienceProject.transformFitApplyRecords]
+    .sort((left, right) => (right.createdAt ?? "").localeCompare(left.createdAt ?? ""))[0];
+  const job = [...data.dataScienceProject.projectJobs]
+    .filter((item) => item.jobType === "transform_fit_apply")
+    .filter((item) => !record || !item.sourceRecordId || item.sourceRecordId === record.transformRunId)
+    .sort((left, right) => (right.startedAt ?? "").localeCompare(left.startedAt ?? ""))[0];
+  return { record, job };
+}
+
 export function TransformView({
   data,
   onRun,
@@ -77,18 +95,30 @@ export function TransformView({
   const [query, setQuery] = useState("");
   const [validationStatus, setValidationStatus] = useState<"valid" | "warning">("valid");
   const [nodeConfigs, setNodeConfigs] = useState<Record<string, { strategy: string; output: string }>>({});
+  const [paletteNodes, setPaletteNodes] = useState<Record<string, PaletteNodeMetadata>>({});
   const latest = data.transformRuns[0];
-  const selectedNode = data.workflow.nodes.find((node) => node.id === selectedNodeId) ?? data.workflow.nodes[0];
+  const workflowIdentity = `${data.workflow.workflowId}:${data.workflow.nodes.map((node) => node.id).join(",")}:${data.workflow.connections.map((connection) => `${connection.sourceNodeId}->${connection.targetNodeId}`).join(",")}`;
+  const selectedNode = data.workflow.nodes.find((node) => node.id === selectedNodeId) ?? paletteNodes[selectedNodeId];
   const selectedConfig = nodeConfigs[selectedNodeId] ?? {
     strategy: String(selectedNode?.config?.strategy ?? "median"),
     output: String(selectedNode?.config?.output ?? "features")
   };
   const beforeRows = data.dataProfile.previewRows ?? [];
   const afterRows = afterPreviewRows(beforeRows);
+  const projectEvidence = latestProjectTransformEvidence(data);
   const filteredPalette = paletteGroups.map((group) => ({
     ...group,
     items: group.items.filter((item) => item.toLowerCase().includes(query.toLowerCase()) || group.group.toLowerCase().includes(query.toLowerCase()))
   })).filter((group) => group.items.length > 0);
+
+  useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+    setPaletteNodes({});
+    setNodeConfigs({});
+    setSelectedNodeId(data.workflow.nodes.find((node) => node.id === "features")?.id ?? data.workflow.nodes[0]?.id ?? "");
+    setValidationStatus("valid");
+  }, [workflowIdentity, initialNodes, initialEdges, setEdges, setNodes, data.workflow.nodes]);
 
   function onConnect(connection: Connection) {
     setEdges((current) => addEdge({ ...connection, animated: true }, current));
@@ -118,6 +148,16 @@ export function TransformView({
 
   function addPaletteNode(label: string, group: string) {
     const id = `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${nodes.length + 1}`;
+    const metadata: PaletteNodeMetadata = {
+      id,
+      name: label,
+      type: "custom.palette_node",
+      executionHint: "cpu_only",
+      config: {
+        strategy: group,
+        output: label.toLowerCase().replace(/[^a-z0-9]+/g, "_")
+      }
+    };
     setNodes((current) => [
       ...current,
       {
@@ -134,6 +174,14 @@ export function TransformView({
         }
       }
     ]);
+    setPaletteNodes((current) => ({ ...current, [id]: metadata }));
+    setNodeConfigs((current) => ({
+      ...current,
+      [id]: {
+        strategy: String(metadata.config?.strategy ?? "custom"),
+        output: String(metadata.config?.output ?? "features")
+      }
+    }));
     setSelectedNodeId(id);
     setValidationStatus("warning");
   }
@@ -195,9 +243,37 @@ export function TransformView({
         )}
       </Card>
 
+      <Card title="Pipeline Keyboard Outline" eyebrow="Non-pointer transform navigation">
+        <div className="keyboard-outline" role="list" aria-label="Keyboard-accessible transform nodes">
+          {nodes.map((node) => {
+            const isSelected = node.id === selectedNodeId;
+            const label = data.workflow.nodes.find((workflowNode) => workflowNode.id === node.id)?.name
+              ?? paletteNodes[node.id]?.name
+              ?? node.id;
+            const outgoing = edges.filter((edge) => edge.source === node.id).map((edge) => edge.target);
+            return (
+              <button
+                type="button"
+                role="listitem"
+                key={node.id}
+                className={isSelected ? "active" : ""}
+                aria-pressed={isSelected}
+                onClick={() => setSelectedNodeId(node.id)}
+              >
+                <strong>{label}</strong>
+                <span>{outgoing.length > 0 ? `Next: ${outgoing.join(", ")}` : "No outgoing edge"}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="workflow-guidance" aria-live="polite">
+          Selected node: {selectedNode?.name ?? (selectedNodeId || "none")}. Use the outline to inspect or edit pipeline settings without pointer interaction.
+        </p>
+      </Card>
+
       <Card title="Transform Settings" className="right-panel">
         <div className="key-values wrap-values">
-          <span>Node</span><strong>{selectedNode?.name ?? selectedNodeId}</strong>
+          <span>Node</span><strong>{selectedNode?.name ?? (selectedNodeId || "No node selected")}</strong>
           <span>Type</span><strong>{selectedNode?.type ?? "custom.palette_node"}</strong>
           <span>Execution</span><strong>{selectedNode?.executionHint ?? "cpu_only"}</strong>
           <span>Strategy</span><strong>{selectedConfig.strategy}</strong>
@@ -233,6 +309,23 @@ export function TransformView({
             <span>{latest ? `${latest.stageCount} stages, ${latest.nodeResults.length} node results` : "Run the transform pipeline to create local artifacts."}</span>
           </div>
         </div>
+      </Card>
+
+      <Card title="Project Transform Evidence" className="right-panel">
+        {projectEvidence.record ? (
+          <div className="key-values wrap-values">
+            <span>Transform Run</span><strong>{projectEvidence.record.transformRunId ?? "unavailable"}</strong>
+            <span>Fit Split</span><strong>{projectEvidence.record.fitSplit ?? "unavailable"}</strong>
+            <span>Apply Splits</span><strong>{projectEvidence.record.applySplits?.join(", ") || "unavailable"}</strong>
+            <span>Leakage Checks</span><strong>{projectEvidence.record.leakageChecks?.map((check) => check.status ?? "unavailable").join(", ") || "unavailable"}</strong>
+            <span>Job</span><strong>{projectEvidence.job?.jobId ?? "No project job linked"}</strong>
+            <span>Execution</span><strong>{projectEvidence.job?.executionEvidence?.executionId ?? "pending"}</strong>
+          </div>
+        ) : (
+          <p className="empty-state">
+            No project-backed transform fit/apply evidence is attached yet. Run the project transform workflow through the local gateway to record train-only fitting and held-out split application.
+          </p>
+        )}
       </Card>
 
       <Card title="Pipeline Metrics" eyebrow="Julia-generated Plotly specs" className="right-panel">

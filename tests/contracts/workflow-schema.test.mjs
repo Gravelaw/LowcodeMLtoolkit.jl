@@ -58,6 +58,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(spec.paths["/api/v1/local-backups"]);
   assert.ok(spec.paths["/api/v1/local-backups/import"]);
   assert.ok(spec.paths["/api/v1/local-data/import"]);
+  assert.ok(spec.paths["/api/v1/data-science-projects"]);
+  assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/transforms/run"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/transforms/history"]);
   assert.ok(spec.paths["/api/v1/workflows/{workflowId}/ml/experiments/run"]);
@@ -259,17 +261,136 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.DataImportProfile.properties.workflowReadiness);
   assert.ok(schemas.DataImportProfile.properties.quickPlots);
   assert.ok(schemas.DataImportProfile.properties.previewRows);
+  assert.ok(schemas.DataScienceProject);
+  assert.ok(schemas.DataScienceProject.properties.schemaVersion);
+  assert.deepEqual(schemas.DataScienceProject.properties.schemaVersion.enum, ["1.0"]);
+  assert.ok(schemas.ProjectDataset);
+  assert.deepEqual(schemas.ProjectDataset.properties.role.enum, [
+    "train",
+    "validation",
+    "test",
+    "evaluation",
+    "output",
+    "reference"
+  ]);
+  assert.ok(schemas.SchemaContract);
+  assert.ok(schemas.DatasetSplitPlan);
+  assert.ok(schemas.DataScienceProjectListResponse);
+  assert.ok(schemas.CreateDataScienceProjectRequest.required.includes("name"));
+  assert.equal(schemas.UpdateDataScienceProjectRequest.additionalProperties, false);
+  assert.ok(schemas.UpdateDataScienceProjectRequest.properties.schemaContracts);
+  assert.ok(schemas.UpdateDataScienceProjectRequest.properties.splitPlans);
+  assert.ok(schemas.UpdateDataScienceProjectRequest.properties.finalTestLocks);
+  assert.ok(schemas.DataScienceProject.properties.projectJobs);
+  assert.ok(schemas.DataScienceProjectJobRecord);
+  assert.deepEqual(schemas.DataScienceProjectJobRecord.properties.status.enum, ["queued", "running", "completed", "failed", "cancelled"]);
+  assert.ok(!schemas.DataScienceProjectJobRecord.required.includes("resourceEvidence"));
+  assert.equal(
+    schemas.DataScienceProjectJobRecord.properties.resourceEvidence.anyOf[0].$ref,
+    "#/components/schemas/DataScienceProjectJobResourceEvidence",
+  );
+  assert.equal(
+    schemas.DataScienceProjectJobRecord.properties.executionEvidence.$ref,
+    "#/components/schemas/DataScienceProjectJobExecutionEvidence",
+  );
+  assert.deepEqual(schemas.DataScienceProjectJobExecutionEvidence.required, [
+    "executionId",
+    "workflowId",
+    "status",
+    "mode",
+  ]);
+  assert.deepEqual(schemas.DataScienceProjectJobResourceEvidence.properties.dispatchLane.enum, ["cpu", "gpu"]);
+  assert.equal(schemas.DataScienceProjectJobResourceEvidence.properties.cpuWorkerConcurrency.minimum, 1);
+  assert.ok(schemas.UpdateDataScienceProjectRequest.properties.projectJobs);
+  assert.ok(schemas.DataScienceProject.properties.modelRegistryRecords);
+  assert.equal(
+    schemas.DataScienceProject.properties.modelRegistryRecords.items.$ref,
+    "#/components/schemas/ModelRegistryRecord",
+  );
+  assert.ok(schemas.UpdateDataScienceProjectRequest.properties.modelRegistryRecords);
+  assert.equal(
+    schemas.DataScienceProject.properties.modelLifecycleRecords.items.$ref,
+    "#/components/schemas/ModelLifecycleRecord",
+  );
+  assert.ok(schemas.UpdateDataScienceProjectRequest.properties.modelLifecycleRecords);
+  assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/models/lifecycle"]);
+  assert.deepEqual(schemas.RunModelLifecycleActionRequest.properties.action.enum, [
+    "approve_model",
+    "deprecate_model",
+    "archive_model",
+    "mark_rollback_ready",
+    "mark_rolled_back",
+    "request_retraining",
+  ]);
+  assert.ok(schemas.RunModelLifecycleActionResponse.properties.lifecycleRecord);
+  assert.ok(schemas.DataScienceProjectJobRecord.properties.jobType.enum.includes("data_profile"));
+  assert.ok(schemas.DataScienceProjectJobRecord.properties.jobType.enum.includes("training"));
+  assert.ok(schemas.DataScienceProjectJobRecord.properties.jobType.enum.includes("batch_scoring"));
+  assert.ok(schemas.DataScienceProjectJobRecord.properties.jobType.enum.includes("prediction_export"));
+  assert.ok(schemas.DataScienceProjectJobRecord.properties.jobType.enum.includes("deploy_package"));
+  assert.ok(schemas.DataScienceProjectJobRecord.properties.jobType.enum.includes("model_lifecycle"));
+  assert.ok(schemas.MlExperimentRecord.properties.executionEvidence);
+  assert.ok(schemas.MlExperimentRecord.properties.validationEvidence.properties.trainingExecutionId);
+  assert.ok(schemas.DeployPackageRecord.properties.executionEvidence);
+  assert.ok(schemas.DeployPackageRecord.properties.validationEvidence.properties.deployPackageExecutionId);
+  assert.ok(schemas.DataImportProfileRequest.properties.projectId);
+  assert.ok(schemas.DataImportProfileResponse.properties.project);
+  assert.ok(schemas.DataScienceProject.properties.transformFitApplyRecords);
+  assert.ok(schemas.UpdateDataScienceProjectRequest.properties.transformFitApplyRecords);
+  assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/transforms/fit-apply"]);
+  assert.deepEqual(schemas.RunTransformFitApplyRequest.properties.fitSplit.enum, ["train"]);
+  assert.ok(schemas.RunTransformFitApplyResponse.properties.transformRun);
+  assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/statistical-analysis/run"]);
+  assert.ok(schemas.StatisticalAnalysisRun.properties.charts);
+  assert.ok(schemas.StatisticalAnalysisRun.properties.resultSummary);
+  assert.ok(schemas.StatisticalAnalysisRun.properties.artifactRefs);
+  assert.ok(schemas.RunStatisticalAnalysisRequest.properties.methods);
+  assert.ok(schemas.RunStatisticalAnalysisResponse.properties.analysisRun);
+  assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/tuning/run"]);
+  assert.deepEqual(schemas.RunTuningStudyRequest.properties.finalTestPolicy.enum, ["forbid_final_test", "use_final_test"]);
+  assert.ok(schemas.RunTuningStudyResponse.properties.tuningStudy);
+  assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/evaluation/run"]);
+  assert.deepEqual(schemas.RunFinalEvaluationRequest.properties.finalTestPolicy.enum, ["use_final_test"]);
+  assert.ok(schemas.RunFinalEvaluationResponse.properties.evaluationReport);
+  assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/predictions/export"]);
+  assert.deepEqual(schemas.RunPredictionExportRequest.properties.format.enum, ["csv", "parquet", "jsonl"]);
+  assert.equal(schemas.RunPredictionExportRequest.properties.outputColumns.items.type, "string");
+  assert.equal(
+    schemas.RunPredictionExportRequest.properties.outputContract.$ref,
+    "#/components/schemas/PredictionOutputContract",
+  );
+  assert.equal(
+    schemas.RunPredictionExportRequest.properties.outputContractImport.$ref,
+    "#/components/schemas/PredictionOutputContractImport",
+  );
+  assert.equal(
+    schemas.RunPredictionExportRequest.properties.outputMappings.items.$ref,
+    "#/components/schemas/PredictionOutputMapping",
+  );
+  assert.deepEqual(schemas.PredictionOutputContract.required, ["contractId", "columns"]);
+  assert.deepEqual(schemas.PredictionOutputContractImport.required, ["sourceUri"]);
+  assert.deepEqual(schemas.PredictionOutputContractImport.properties.connector.enum, ["managed_local", "local_file"]);
+  assert.deepEqual(schemas.PredictionOutputMapping.required, ["outputColumn", "sourceColumn"]);
+  assert.ok(schemas.RunPredictionExportResponse.properties.predictionExport);
+  assert.ok(spec.paths["/api/v1/data-science-projects/{projectId}/drift/run"]);
+  assert.equal(schemas.RunDriftReportRequest.properties.threshold.minimum, 0);
+  assert.ok(schemas.RunDriftReportResponse.properties.driftReport);
   assert.ok(schemas.TransformRunResponse);
   assert.ok(schemas.TransformRunRecord.properties.artifactEvidence);
   assert.ok(schemas.TransformHistoryResponse);
   assert.ok(schemas.MlExperimentRunResponse);
+  assert.ok(schemas.MlExperimentRunRequest.properties.projectId);
+  assert.ok(schemas.MlExperimentRunRequest.properties.splitPlanId);
+  assert.deepEqual(schemas.MlExperimentRunRequest.properties.finalTestPolicy.enum, ["forbid_final_test", "use_final_test"]);
   assert.ok(schemas.MlExperimentRecord.properties.metrics);
   assert.ok(schemas.MlExperimentRecord.properties.featureImportance);
   assert.ok(schemas.MlExperimentRecord.properties.artifactEvidence);
+  assert.ok(schemas.MlExperimentRecord.properties.validationEvidence);
   assert.ok(schemas.MlExperimentHistoryResponse);
   assert.ok(schemas.ModelRegistryResponse);
   assert.ok(schemas.ModelRegistryRecord.properties.primaryMetricName);
   assert.ok(schemas.ModelRegistryRecord.properties.artifactEvidence);
+  assert.ok(schemas.ModelRegistryRecord.properties.validationEvidence);
   assert.ok(schemas.ModelRegistryListResponse);
   assert.ok(schemas.GatewayAuthContext);
   assert.deepEqual(schemas.GatewayAuthContext.properties.role.enum, ["owner", "editor", "viewer"]);
@@ -377,6 +498,7 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.DeployPackageRequest.properties.endpointPath);
   assert.ok(schemas.DeployPackageRecord.properties.packageChecksumSha256);
   assert.ok(schemas.DeployPackageRecord.properties.artifactEvidence);
+  assert.ok(schemas.DeployPackageRecord.properties.validationEvidence);
   assert.ok(schemas.DeployPackageResponse.properties.package);
   assert.ok(schemas.DeployPackageHistoryResponse.properties.items);
   assert.ok(schemas.LocalBackupBundle);
@@ -384,6 +506,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.LocalBackupBundle.properties.workflows);
   assert.ok(schemas.LocalBackupBundle.properties.checkpoints);
   assert.ok(schemas.LocalBackupBundle.properties.executions);
+  assert.ok(schemas.LocalBackupBundle.properties.dataScienceProjects);
+  assert.ok(schemas.LocalBackupBundle.properties.modelRegistryRecords);
   assert.ok(schemas.LocalBackupBundle.properties.publishedDashboards);
   assert.ok(schemas.LocalBackupBundle.properties.hubExtensions);
   assert.ok(schemas.LocalBackupBundle.properties.authPolicy);
@@ -393,6 +517,8 @@ test("openapi spec exposes workflow and checkpoint surfaces", async () => {
   assert.ok(schemas.LocalBackupExportRequest.properties.includeExecutions);
   assert.ok(schemas.LocalBackupExportResponse.properties.backup);
   assert.ok(schemas.LocalBackupImportRequest.properties.backup);
+  assert.ok(schemas.LocalBackupRestoredSummary.properties.dataScienceProjects);
+  assert.ok(schemas.LocalBackupRestoredSummary.properties.modelRegistryRecords);
   assert.ok(schemas.LocalBackupImportResponse.properties.missingArtifacts);
   assert.ok(schemas.LocalBackupImportResponse.properties.checkedArtifacts);
   assert.ok(schemas.LocalBackupImportResponse.properties.checksumMismatches);

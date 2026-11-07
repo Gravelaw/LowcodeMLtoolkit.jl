@@ -6,7 +6,8 @@ using .JuliaFlowExecutionService
 using Dates
 using JSON3
 using UUIDs
-import LibPQ
+
+include(joinpath(@__DIR__, "JuliaFlowProjectPayloadValidation.jl"))
 
 export GatewayCheckpoint,
     GatewayExecution,
@@ -17,6 +18,7 @@ export GatewayCheckpoint,
     GatewayUserRecord,
     GatewayWorkspaceRecord,
     GatewayAuthDirectory,
+    DataScienceProjectRecord,
     HubExtensionRecord,
     PublishedDashboardRecord,
     AbstractGatewayRepository,
@@ -29,6 +31,8 @@ export GatewayCheckpoint,
     load_events,
     load_auth_policy,
     load_auth_directory,
+    load_data_science_projects,
+    load_model_registry_records,
     load_hub_extensions,
     load_published_dashboards,
     save_workflow!,
@@ -36,12 +40,15 @@ export GatewayCheckpoint,
     save_execution!,
     save_auth_policy!,
     save_auth_directory!,
+    save_data_science_project!,
+    save_model_registry_record!,
     save_hub_extension!,
     save_published_dashboard!,
     append_event!,
     list_events_after,
     load_consumer_cursor,
     save_consumer_cursor!,
+    validate_postgres_identifier!,
     create_postgres_schema!,
     load_repository
 
@@ -123,6 +130,35 @@ Base.@kwdef mutable struct GatewayAuthDirectory
     users::Vector{GatewayUserRecord} = GatewayUserRecord[]
     workspaces::Vector{GatewayWorkspaceRecord} = GatewayWorkspaceRecord[]
     updated_at::String = JuliaFlowExecutionService.iso8601_timestamp()
+end
+
+Base.@kwdef mutable struct DataScienceProjectRecord
+    project_id::String
+    schema_version::String = "1.0"
+    name::String
+    description::Union{Nothing,String} = nothing
+    local_only::Bool = true
+    created_at::String = JuliaFlowExecutionService.iso8601_timestamp()
+    updated_at::String = created_at
+    datasets::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    schema_contracts::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    split_plans::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    split_assignments::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    validation_folds::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    final_test_locks::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    project_jobs::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    transform_fit_apply_records::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    statistical_analysis_runs::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    analysis_workspace::Dict{String,Any} = Dict{String,Any}()
+    training_plans::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    tuning_studies::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    evaluation_reports::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    prediction_exports::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    model_registry_records::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    model_lifecycle_records::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    monitoring_baselines::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    drift_reports::Vector{Dict{String,Any}} = Dict{String,Any}[]
+    reproducibility_evidence::Vector{Dict{String,Any}} = Dict{String,Any}[]
 end
 
 function hub_verification_check(status::AbstractString, details::AbstractString; blockers::Vector{String} = String[])
@@ -214,12 +250,43 @@ Base.@kwdef struct PostgreSQLGatewayRepository <: AbstractGatewayRepository
     schema::String = "public"
 end
 
+const LIBPQ_MODULE = Ref{Any}(nothing)
+
+function validate_postgres_identifier!(value::AbstractString, label::AbstractString = "PostgreSQL identifier")
+    identifier = String(value)
+    isempty(identifier) && error("$(label) cannot be empty")
+    ncodeunits(identifier) <= 63 || error("$(label) must be 63 bytes or fewer")
+    occursin(r"^[A-Za-z_][A-Za-z0-9_]*$", identifier) || error("$(label) must use only letters, numbers, and underscores, and must not start with a number")
+    return identifier
+end
+
 function libpq()
-    return LibPQ
+    if LIBPQ_MODULE[] === nothing
+        LIBPQ_MODULE[] = Base.require(Base.PkgId(Base.UUID("194296ae-ab2e-5f79-8cd4-7183a0a5a0d1"), "LibPQ"))
+    end
+    return LIBPQ_MODULE[]
 end
 
 function execute(conn, statement::AbstractString, args...; kwargs...)
     return Base.invokelatest(libpq().execute, conn, statement, args...; kwargs...)
+end
+
+function materialize_result_rows(result)
+    rows = Vector{Any}()
+    for row in result
+        push!(rows, [row[index] for index in 1:length(row)])
+    end
+    return rows
+end
+
+function result_rows(result)
+    return Base.invokelatest(materialize_result_rows, result)
+end
+
+function first_result_row(result)
+    rows = result_rows(result)
+    isempty(rows) && return nothing
+    return first(rows)
 end
 
 function close_connection(conn)
@@ -724,6 +791,14 @@ function execution_payload(execution::GatewayExecution)
                 payload["workerId"] = String(value)
             elseif string_key == "gpu_execution_path"
                 payload["gpuExecutionPath"] = String(value)
+            elseif string_key == "gpu_evidence_version"
+                payload["gpuEvidenceVersion"] = Int(value)
+            elseif string_key == "gpu_probe_status"
+                payload["gpuProbeStatus"] = String(value)
+            elseif string_key == "gpu_planned_device"
+                payload["gpuPlannedDevice"] = String(value)
+            elseif string_key == "gpu_actual_device"
+                payload["gpuActualDevice"] = String(value)
             elseif string_key == "gpu_device_id"
                 payload["gpuDeviceId"] = String(value)
             elseif string_key == "gpu_accelerator"
@@ -833,6 +908,39 @@ function auth_directory_payload(directory::GatewayAuthDirectory)
         "workspaces" => [workspace_record_payload(workspace) for workspace in directory.workspaces],
         "updatedAt" => directory.updated_at,
     )
+end
+
+function data_science_project_payload(project::DataScienceProjectRecord)
+    payload = Dict{String,Any}(
+        "schemaVersion" => project.schema_version,
+        "projectId" => project.project_id,
+        "name" => project.name,
+        "localOnly" => project.local_only,
+        "createdAt" => project.created_at,
+        "updatedAt" => project.updated_at,
+        "datasets" => project.datasets,
+        "schemaContracts" => project.schema_contracts,
+        "splitPlans" => project.split_plans,
+        "splitAssignments" => project.split_assignments,
+        "validationFolds" => project.validation_folds,
+        "finalTestLocks" => project.final_test_locks,
+        "projectJobs" => project.project_jobs,
+        "transformFitApplyRecords" => project.transform_fit_apply_records,
+        "statisticalAnalysisRuns" => project.statistical_analysis_runs,
+        "trainingPlans" => project.training_plans,
+        "tuningStudies" => project.tuning_studies,
+        "evaluationReports" => project.evaluation_reports,
+        "predictionExports" => project.prediction_exports,
+        "modelRegistryRecords" => project.model_registry_records,
+        "modelLifecycleRecords" => project.model_lifecycle_records,
+        "monitoringBaselines" => project.monitoring_baselines,
+        "driftReports" => project.drift_reports,
+        "reproducibilityEvidence" => project.reproducibility_evidence,
+    )
+    isempty(project.analysis_workspace) || (payload["analysisWorkspace"] = project.analysis_workspace)
+    project.description === nothing || (payload["description"] = project.description)
+    JuliaFlowProjectPayloadValidation.validate_project_children!(payload)
+    return payload
 end
 
 function published_dashboard_payload(dashboard::PublishedDashboardRecord)
@@ -1100,6 +1208,14 @@ function gateway_execution(item)
             metadata["worker_id"] = value
         elseif string_key == "gpuExecutionPath"
             metadata["gpu_execution_path"] = value
+        elseif string_key == "gpuEvidenceVersion"
+            metadata["gpu_evidence_version"] = value
+        elseif string_key == "gpuProbeStatus"
+            metadata["gpu_probe_status"] = value
+        elseif string_key == "gpuPlannedDevice"
+            metadata["gpu_planned_device"] = value
+        elseif string_key == "gpuActualDevice"
+            metadata["gpu_actual_device"] = value
         elseif string_key == "gpuDeviceId"
             metadata["gpu_device_id"] = value
         elseif string_key == "gpuAccelerator"
@@ -1237,6 +1353,43 @@ function gateway_auth_directory(item)
     )
 end
 
+function dict_vector(value)
+    return [Dict{String,Any}(String(key) => item for (key, item) in pairs(entry)) for entry in value]
+end
+
+function gateway_data_science_project(item)
+    item = JuliaFlowProjectPayloadValidation.stored_project_payload(item)
+    created_at = String(get(item, "createdAt", JuliaFlowExecutionService.iso8601_timestamp()))
+    return DataScienceProjectRecord(
+        project_id = String(item["projectId"]),
+        schema_version = String(get(item, "schemaVersion", "1.0")),
+        name = String(item["name"]),
+        description = haskey(item, "description") && item["description"] !== nothing ? String(item["description"]) : nothing,
+        local_only = Bool(get(item, "localOnly", true)),
+        created_at = created_at,
+        updated_at = String(get(item, "updatedAt", created_at)),
+        datasets = dict_vector(get(item, "datasets", Any[])),
+        schema_contracts = dict_vector(get(item, "schemaContracts", Any[])),
+        split_plans = dict_vector(get(item, "splitPlans", Any[])),
+        split_assignments = dict_vector(get(item, "splitAssignments", Any[])),
+        validation_folds = dict_vector(get(item, "validationFolds", Any[])),
+        final_test_locks = dict_vector(get(item, "finalTestLocks", Any[])),
+        project_jobs = dict_vector(get(item, "projectJobs", Any[])),
+        transform_fit_apply_records = dict_vector(get(item, "transformFitApplyRecords", Any[])),
+        statistical_analysis_runs = dict_vector(get(item, "statisticalAnalysisRuns", Any[])),
+        analysis_workspace = Dict{String,Any}(get(item, "analysisWorkspace", Dict{String,Any}())),
+        training_plans = dict_vector(get(item, "trainingPlans", Any[])),
+        tuning_studies = dict_vector(get(item, "tuningStudies", Any[])),
+        evaluation_reports = dict_vector(get(item, "evaluationReports", Any[])),
+        prediction_exports = dict_vector(get(item, "predictionExports", Any[])),
+        model_registry_records = dict_vector(get(item, "modelRegistryRecords", Any[])),
+        model_lifecycle_records = dict_vector(get(item, "modelLifecycleRecords", Any[])),
+        monitoring_baselines = dict_vector(get(item, "monitoringBaselines", Any[])),
+        drift_reports = dict_vector(get(item, "driftReports", Any[])),
+        reproducibility_evidence = dict_vector(get(item, "reproducibilityEvidence", Any[])),
+    )
+end
+
 function gateway_published_dashboard(item)
     return PublishedDashboardRecord(
         dashboard_id = String(item["dashboardId"]),
@@ -1317,7 +1470,7 @@ function FileGatewayRepository(root::AbstractString)
 end
 
 function PostgreSQLGatewayRepository(connection_string::AbstractString; schema::AbstractString = "public")
-    return PostgreSQLGatewayRepository(connection_string = String(connection_string), schema = String(schema))
+    return PostgreSQLGatewayRepository(connection_string = String(connection_string), schema = validate_postgres_identifier!(schema, "PostgreSQL schema"))
 end
 
 function workflows_dir(repo::FileGatewayRepository)
@@ -1346,6 +1499,14 @@ end
 
 function auth_directory_file(repo::FileGatewayRepository)
     return joinpath(repo.root, "auth-directory.json")
+end
+
+function data_science_projects_file(repo::FileGatewayRepository)
+    return joinpath(repo.root, "data-science-projects.json")
+end
+
+function model_registry_file(repo::FileGatewayRepository)
+    return joinpath(repo.root, "model-registry.json")
 end
 
 function hub_extensions_file(repo::FileGatewayRepository)
@@ -1439,6 +1600,7 @@ function ensure_repository!(repo::FileGatewayRepository)
 end
 
 function connect(repo::PostgreSQLGatewayRepository)
+    validate_postgres_identifier!(repo.schema, "PostgreSQL schema")
     return Base.invokelatest(libpq().Connection, repo.connection_string)
 end
 
@@ -1558,6 +1720,36 @@ function create_postgres_schema!(repo::PostgreSQLGatewayRepository)
             );
             """,
         )
+        execute(
+            conn,
+            """
+            CREATE TABLE IF NOT EXISTS $(repo.schema).data_science_projects (
+                project_id TEXT PRIMARY KEY,
+                project_payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            """,
+        )
+        execute(
+            conn,
+            """
+            CREATE TABLE IF NOT EXISTS $(repo.schema).model_registry (
+                model_id TEXT PRIMARY KEY,
+                workflow_id TEXT NOT NULL DEFAULT '',
+                project_id TEXT NOT NULL DEFAULT '',
+                registry_payload JSONB NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            """,
+        )
+        execute(
+            conn,
+            "CREATE INDEX IF NOT EXISTS $(repo.schema)_model_registry_workflow_idx ON $(repo.schema).model_registry (workflow_id);",
+        )
+        execute(
+            conn,
+            "CREATE INDEX IF NOT EXISTS $(repo.schema)_model_registry_project_idx ON $(repo.schema).model_registry (project_id);",
+        )
     finally
         close_connection(conn)
     end
@@ -1616,6 +1808,62 @@ function load_auth_directory(repo::FileGatewayRepository)
     isfile(auth_directory_file(repo)) || return GatewayAuthDirectory()
     raw = JSON3.read(read(auth_directory_file(repo), String), Dict{String,Any})
     return gateway_auth_directory(raw)
+end
+
+function load_data_science_projects(repo::FileGatewayRepository)
+    isfile(data_science_projects_file(repo)) || return DataScienceProjectRecord[]
+    raw = JSON3.read(read(data_science_projects_file(repo), String))
+    projects = DataScienceProjectRecord[]
+    for item in raw
+        push!(projects, gateway_data_science_project(item))
+    end
+    sort!(projects; by = project -> project.project_id)
+    return projects
+end
+
+function load_project_embedded_model_registry_records(
+    projects::AbstractVector;
+    workflow_id::Union{Nothing,AbstractString} = nothing,
+)
+    records = Dict{String,Any}[]
+    for project in projects
+        for record in project.model_registry_records
+            normalized = Dict{String,Any}(String(key) => value for (key, value) in pairs(record))
+            isempty(strip(String(get(normalized, "modelId", "")))) && continue
+            if workflow_id === nothing || String(get(normalized, "workflowId", "")) == String(workflow_id)
+                push!(records, normalized)
+            end
+        end
+    end
+    return records
+end
+
+function load_model_registry_records(
+    repo::FileGatewayRepository;
+    workflow_id::Union{Nothing,AbstractString} = nothing,
+)
+    projects = load_data_science_projects(repo)
+    if isfile(model_registry_file(repo))
+        raw = JSON3.read(read(model_registry_file(repo), String))
+        records = Dict{String,Any}[]
+        for item in raw
+            normalized = Dict{String,Any}(String(key) => value for (key, value) in pairs(item))
+            isempty(strip(String(get(normalized, "modelId", "")))) && continue
+            if workflow_id === nothing || String(get(normalized, "workflowId", "")) == String(workflow_id)
+                push!(records, normalized)
+            end
+        end
+        embedded_records = load_project_embedded_model_registry_records(projects; workflow_id = workflow_id)
+        seen = Set(String(get(record, "modelId", "")) for record in records)
+        for record in embedded_records
+            model_id = String(get(record, "modelId", ""))
+            model_id in seen && continue
+            push!(seen, model_id)
+            push!(records, record)
+        end
+        return records
+    end
+    return load_project_embedded_model_registry_records(projects; workflow_id = workflow_id)
 end
 
 function load_hub_extensions(repo::FileGatewayRepository)
@@ -1754,6 +2002,71 @@ function save_auth_directory!(repo::FileGatewayRepository, directory::GatewayAut
     return normalized
 end
 
+function save_data_science_project!(
+    repo::FileGatewayRepository,
+    project::DataScienceProjectRecord;
+    producer::AbstractString = "api-gateway",
+)
+    projects = load_data_science_projects(repo)
+    filtered = [item for item in projects if item.project_id != project.project_id]
+    push!(filtered, project)
+    sort!(filtered; by = item -> item.project_id)
+    persist_json_file!(data_science_projects_file(repo), [data_science_project_payload(item) for item in filtered])
+    append_event!(
+        repo,
+        "data_science_project.changed";
+        aggregate_type = "data_science_project",
+        aggregate_id = project.project_id,
+        payload = data_science_project_payload(project),
+        producer = producer,
+    )
+    return project
+end
+
+function model_registry_project_id(record::AbstractDict)
+    validation_evidence = get(record, "validationEvidence", Dict{String,Any}())
+    project_id = validation_evidence isa AbstractDict ? String(get(validation_evidence, "projectId", "")) : ""
+    isempty(strip(project_id)) && error("model registry validationEvidence.projectId required")
+    return project_id
+end
+
+function normalized_model_registry_record(record::AbstractDict)
+    normalized = Dict{String,Any}(String(key) => value for (key, value) in pairs(record))
+    model_id = String(get(normalized, "modelId", ""))
+    isempty(strip(model_id)) && error("model registry modelId required")
+    return normalized
+end
+
+function save_model_registry_record!(
+    repo::FileGatewayRepository,
+    model_record::AbstractDict;
+    producer::AbstractString = "api-gateway",
+)
+    record = normalized_model_registry_record(model_record)
+    JuliaFlowProjectPayloadValidation.validate_project_children!(Dict("modelRegistryRecords" => [record]))
+    project_id = model_registry_project_id(record)
+    projects = load_data_science_projects(repo)
+    project_index = findfirst(project -> project.project_id == project_id, projects)
+    project_index === nothing && error("model registry project not found: $(project_id)")
+    project = projects[project_index]
+    registry_records = isfile(model_registry_file(repo)) ?
+        load_model_registry_records(repo) :
+        load_project_embedded_model_registry_records(projects)
+    remaining = [
+        item for item in registry_records
+        if String(get(item, "modelId", "")) != String(record["modelId"])
+    ]
+    persist_json_file!(model_registry_file(repo), [record, remaining...])
+    project_remaining = [
+        item for item in project.model_registry_records
+        if String(get(item, "modelId", "")) != String(record["modelId"])
+    ]
+    project.model_registry_records = [record, project_remaining...]
+    project.updated_at = String(get(record, "updatedAt", JuliaFlowExecutionService.iso8601_timestamp()))
+    save_data_science_project!(repo, project; producer)
+    return record
+end
+
 function save_hub_extension!(repo::FileGatewayRepository, extension::HubExtensionRecord; producer::AbstractString = "api-gateway")
     extensions = load_hub_extensions(repo)
     filtered = [item for item in extensions if item.extension_id != extension.extension_id]
@@ -1845,7 +2158,7 @@ function load_checkpoints(repo::PostgreSQLGatewayRepository)
     checkpoints = GatewayCheckpoint[]
     try
         result = execute(conn, "SELECT tag, summary, created_at::text FROM $(repo.schema).checkpoints ORDER BY created_at ASC;")
-        for row in result
+        for row in result_rows(result)
             push!(
                 checkpoints,
                 GatewayCheckpoint(
@@ -1867,7 +2180,7 @@ function load_executions(repo::PostgreSQLGatewayRepository)
     executions = GatewayExecution[]
     try
         result = execute(conn, "SELECT execution_payload FROM $(repo.schema).executions ORDER BY created_at ASC;")
-        for row in result
+        for row in result_rows(result)
             item = JSON3.read(String(row[1]))
             push!(executions, gateway_execution(item))
         end
@@ -1890,7 +2203,7 @@ function load_events(repo::PostgreSQLGatewayRepository)
             ORDER BY sequence ASC;
             """,
         )
-        for row in result
+        for row in result_rows(result)
             push!(
                 events,
                 GatewayEvent(
@@ -1917,9 +2230,9 @@ function load_auth_policy(repo::PostgreSQLGatewayRepository)
     conn = connect(repo)
     try
         result = execute(conn, "SELECT policy_payload FROM $(repo.schema).auth_policy WHERE policy_id = 'default';")
-        row = iterate(result)
+        row = first_result_row(result)
         row === nothing && return GatewayAuthPolicy()
-        return gateway_auth_policy(JSON3.read(String(row[1][1]), Dict{String,Any}))
+        return gateway_auth_policy(JSON3.read(String(row[1]), Dict{String,Any}))
     finally
         close_connection(conn)
     end
@@ -1930,9 +2243,9 @@ function load_auth_directory(repo::PostgreSQLGatewayRepository)
     conn = connect(repo)
     try
         result = execute(conn, "SELECT directory_payload FROM $(repo.schema).auth_directory WHERE directory_id = 'default';")
-        row = iterate(result)
+        row = first_result_row(result)
         row === nothing && return GatewayAuthDirectory()
-        return gateway_auth_directory(JSON3.read(String(row[1][1]), Dict{String,Any}))
+        return gateway_auth_directory(JSON3.read(String(row[1]), Dict{String,Any}))
     finally
         close_connection(conn)
     end
@@ -1944,7 +2257,7 @@ function load_hub_extensions(repo::PostgreSQLGatewayRepository)
     extensions = HubExtensionRecord[]
     try
         result = execute(conn, "SELECT extension_payload FROM $(repo.schema).hub_extensions ORDER BY extension_id ASC;")
-        for row in result
+        for row in result_rows(result)
             item = JSON3.read(String(row[1]))
             push!(extensions, gateway_hub_extension(item))
         end
@@ -1961,7 +2274,7 @@ function load_published_dashboards(repo::PostgreSQLGatewayRepository)
     dashboards = PublishedDashboardRecord[]
     try
         result = execute(conn, "SELECT dashboard_payload FROM $(repo.schema).published_dashboards ORDER BY dashboard_id ASC;")
-        for row in result
+        for row in result_rows(result)
             item = JSON3.read(String(row[1]))
             push!(dashboards, gateway_published_dashboard(item))
         end
@@ -1971,13 +2284,59 @@ function load_published_dashboards(repo::PostgreSQLGatewayRepository)
     return dashboards
 end
 
+function load_data_science_projects(repo::PostgreSQLGatewayRepository)
+    ensure_repository!(repo)
+    conn = connect(repo)
+    projects = DataScienceProjectRecord[]
+    try
+        result = execute(conn, "SELECT project_payload FROM $(repo.schema).data_science_projects ORDER BY project_id ASC;")
+        for row in result_rows(result)
+            item = JSON3.read(String(row[1]))
+            push!(projects, gateway_data_science_project(item))
+        end
+    finally
+        close_connection(conn)
+    end
+    return projects
+end
+
+function load_model_registry_records(
+    repo::PostgreSQLGatewayRepository;
+    workflow_id::Union{Nothing,AbstractString} = nothing,
+)
+    ensure_repository!(repo)
+    conn = connect(repo)
+    records = Dict{String,Any}[]
+    try
+        if workflow_id === nothing
+            result = execute(conn, "SELECT registry_payload FROM $(repo.schema).model_registry ORDER BY updated_at DESC, model_id ASC;")
+        else
+            result = execute(conn, "SELECT registry_payload FROM $(repo.schema).model_registry WHERE workflow_id = \$1 ORDER BY updated_at DESC, model_id ASC;", [String(workflow_id)])
+        end
+        for row in result_rows(result)
+            push!(records, Dict{String,Any}(String(key) => value for (key, value) in pairs(JSON3.read(String(row[1]), Dict{String,Any}))))
+        end
+    finally
+        close_connection(conn)
+    end
+    embedded_records = load_project_embedded_model_registry_records(load_data_science_projects(repo); workflow_id = workflow_id)
+    seen = Set(String(get(record, "modelId", "")) for record in records)
+    for record in embedded_records
+        model_id = String(get(record, "modelId", ""))
+        model_id in seen && continue
+        push!(seen, model_id)
+        push!(records, record)
+    end
+    return records
+end
+
 function load_workflows(repo::PostgreSQLGatewayRepository)
     ensure_repository!(repo)
     conn = connect(repo)
     workflows = Dict{String,WorkflowDefinition}()
     try
         result = execute(conn, "SELECT workflow_toml FROM $(repo.schema).workflows ORDER BY workflow_id ASC;")
-        for row in result
+        for row in result_rows(result)
             workflow = load_workflow_definition_text(String(row[1]))
             workflows[workflow.id] = workflow
         end
@@ -2183,6 +2542,86 @@ function save_auth_directory!(repo::PostgreSQLGatewayRepository, directory::Gate
     return normalized
 end
 
+function save_data_science_project!(
+    repo::PostgreSQLGatewayRepository,
+    project::DataScienceProjectRecord;
+    producer::AbstractString = "api-gateway",
+)
+    payload = data_science_project_payload(project)
+    ensure_repository!(repo)
+    conn = connect(repo)
+    try
+        execute(
+            conn,
+            """
+            INSERT INTO $(repo.schema).data_science_projects (project_id, project_payload, updated_at)
+            VALUES (\$1, \$2::jsonb, NOW())
+            ON CONFLICT (project_id) DO UPDATE
+            SET project_payload = EXCLUDED.project_payload,
+                updated_at = NOW();
+            """,
+            [project.project_id, JSON3.write(payload)],
+        )
+    finally
+        close_connection(conn)
+    end
+    append_event!(
+        repo,
+        "data_science_project.changed";
+        aggregate_type = "data_science_project",
+        aggregate_id = project.project_id,
+        payload = data_science_project_payload(project),
+        producer = producer,
+    )
+    return project
+end
+
+function save_model_registry_record!(
+    repo::PostgreSQLGatewayRepository,
+    model_record::AbstractDict;
+    producer::AbstractString = "api-gateway",
+)
+    record = normalized_model_registry_record(model_record)
+    JuliaFlowProjectPayloadValidation.validate_project_children!(Dict("modelRegistryRecords" => [record]))
+    project_id = model_registry_project_id(record)
+    projects = load_data_science_projects(repo)
+    project_index = findfirst(project -> project.project_id == project_id, projects)
+    project_index === nothing && error("model registry project not found: $(project_id)")
+    project = projects[project_index]
+    ensure_repository!(repo)
+    conn = connect(repo)
+    try
+        execute(
+            conn,
+            """
+            INSERT INTO $(repo.schema).model_registry (model_id, workflow_id, project_id, registry_payload, updated_at)
+            VALUES (\$1, \$2, \$3, \$4::jsonb, NOW())
+            ON CONFLICT (model_id) DO UPDATE
+            SET workflow_id = EXCLUDED.workflow_id,
+                project_id = EXCLUDED.project_id,
+                registry_payload = EXCLUDED.registry_payload,
+                updated_at = NOW();
+            """,
+            [
+                String(record["modelId"]),
+                String(get(record, "workflowId", "")),
+                project_id,
+                JSON3.write(record),
+            ],
+        )
+    finally
+        close_connection(conn)
+    end
+    project_remaining = [
+        item for item in project.model_registry_records
+        if String(get(item, "modelId", "")) != String(record["modelId"])
+    ]
+    project.model_registry_records = [record, project_remaining...]
+    project.updated_at = String(get(record, "updatedAt", JuliaFlowExecutionService.iso8601_timestamp()))
+    save_data_science_project!(repo, project; producer)
+    return record
+end
+
 function save_hub_extension!(repo::PostgreSQLGatewayRepository, extension::HubExtensionRecord; producer::AbstractString = "api-gateway")
     ensure_repository!(repo)
     conn = connect(repo)
@@ -2273,9 +2712,9 @@ function append_event!(
             """,
             [String(event_id), String(event_type), String(aggregate_type), String(aggregate_id), String(occurred_at), String(producer), Int(payload_version), JSON3.write(payload)],
         )
-        row = iterate(result)
+        row = first_result_row(result)
         row === nothing && error("failed to append event")
-        sequence = Int(row[1][1])
+        sequence = Int(row[1])
         return GatewayEvent(
             event_id = String(event_id),
             event_type = String(event_type),
@@ -2306,7 +2745,7 @@ function list_events_after(repo::PostgreSQLGatewayRepository, after_sequence::In
     events = GatewayEvent[]
     try
         result = execute(conn, query, [Int(after_sequence)])
-        for row in result
+        for row in result_rows(result)
             push!(
                 events,
                 GatewayEvent(
@@ -2337,9 +2776,9 @@ function load_consumer_cursor(repo::PostgreSQLGatewayRepository, consumer_id::Ab
             "SELECT last_sequence FROM $(repo.schema).event_cursors WHERE consumer_id = \$1;",
             [String(consumer_id)],
         )
-        row = iterate(result)
+        row = first_result_row(result)
         row === nothing && return 0
-        return Int(row[1][1])
+        return Int(row[1])
     finally
         close_connection(conn)
     end

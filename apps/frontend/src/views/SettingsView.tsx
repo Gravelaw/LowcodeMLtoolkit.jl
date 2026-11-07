@@ -80,10 +80,10 @@ export function SettingsView({
           columns={[
             { key: "name", label: "Area" },
             { key: "value", label: "Value" },
-            { key: "status", label: "Status", render: (row) => <StatusPill tone="green">{String(row.status)}</StatusPill> }
+            { key: "status", label: "Status", render: (row) => <StatusPill tone={row.status === "unavailable" || row.status === "last reported" ? "purple" : "green"}>{String(row.status)}</StatusPill> }
           ]}
           rows={[
-            { name: "Julia", value: "1.10.2", status: "up to date" },
+            { name: "Julia", value: data.mode === "live" ? data.health.juliaVersion ?? "unavailable" : "unavailable", status: data.mode !== "live" || !data.health.juliaVersion ? "unavailable" : data.healthStale ? "last reported" : "reported by gateway" },
             { name: "Packages", value: "142 installed", status: "offline cache ready" },
             { name: "Manifest", value: "Manifest.toml", status: "locked" },
             { name: "Offline Hub", value: data.health.hubCacheRoot, status: data.health.hubCacheStatus }

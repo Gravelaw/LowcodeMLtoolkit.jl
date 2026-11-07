@@ -20,11 +20,18 @@ function modelArtifactRefs(data: AppData): string[] {
   return nodeRefs.length > 0 ? nodeRefs : data.modelRegistry[0]?.artifactEvidence.map((artifact) => artifact.artifactRef) ?? [];
 }
 
+function latestProjectJobs(data: AppData) {
+  return [...data.dataScienceProject.projectJobs]
+    .sort((left, right) => (right.startedAt ?? "").localeCompare(left.startedAt ?? ""))
+    .slice(0, 8);
+}
+
 export function MonitorView({ data }: { data: AppData }) {
   const latestExecution = data.executions[0];
   const nodeResults = latestExecution?.executorState?.nodeResults ?? [];
   const explainability = latestExecution?.explainabilityEvidence;
   const artifactRefs = modelArtifactRefs(data);
+  const projectJobs = latestProjectJobs(data);
   const primaryMetric = explainability
     ? Object.entries(explainability.modelCard.metrics)[0]
     : undefined;
@@ -48,7 +55,7 @@ export function MonitorView({ data }: { data: AppData }) {
             columns={[
               { key: "executionId", label: "Execution" },
               { key: "workflowId", label: "Workflow" },
-              { key: "status", label: "Status", render: (row) => <StatusPill tone={statusTone(String(row.status))}>{String(row.status)}</StatusPill> },
+              { key: "status", label: "Status", render: (row) => <StatusPill tone={statusTone(String(row.status ?? "unavailable"))}>{String(row.status ?? "unavailable")}</StatusPill> },
               { key: "mode", label: "Mode" },
               { key: "updatedAt", label: "Updated" }
             ]}
@@ -83,6 +90,24 @@ export function MonitorView({ data }: { data: AppData }) {
               </li>
             ))}
           </ul>
+        )}
+      </Card>
+
+      <Card title="Project Job Ledger" className="wide">
+        {projectJobs.length === 0 ? (
+          <p className="empty-state">No project-backed job records are available yet. Run Data, Transform, ML Studio, Models, or Deploy actions through the local gateway to attach job evidence.</p>
+        ) : (
+          <DataTable
+            columns={[
+              { key: "jobType", label: "Job Type" },
+              { key: "status", label: "Status", render: (row) => <StatusPill tone={statusTone(String(row.status ?? "unavailable"))}>{String(row.status ?? "unavailable")}</StatusPill> },
+              { key: "sourceRecordId", label: "Source" },
+              { key: "execution", label: "Execution", render: (row) => String(row.executionEvidence?.executionId ?? "pending") },
+              { key: "dispatch", label: "Dispatch", render: (row) => String(row.executionEvidence?.dispatchStatus ?? row.executionEvidence?.status ?? "pending") }
+            ]}
+            rows={projectJobs}
+            getRowKey={(row, index) => row.jobId ?? `historical-job-${index}`}
+          />
         )}
       </Card>
 

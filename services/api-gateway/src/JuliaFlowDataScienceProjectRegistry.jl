@@ -1,0 +1,234 @@
+module JuliaFlowDataScienceProjectRegistry
+
+using ..JuliaFlowGatewayRepository
+
+export project_for_validation_context,
+    project_model_registry_records_for_workflow,
+    dedupe_model_registry_records,
+    upsert_model_registry_record!,
+    update_model_registry_lifecycle_status!,
+    upsert_model_lifecycle_record!,
+    model_lifecycle_action_state,
+    model_lifecycle_action_record
+
+function normalized_dict(value)
+    return Dict{String,Any}(String(key) => item for (key, item) in pairs(value))
+end
+
+function project_for_validation_context(
+    projects::AbstractDict,
+    validation_context::AbstractDict,
+    action::AbstractString,
+)
+    project_id = String(get(validation_context, "projectId", ""))
+    isempty(strip(project_id)) && return nothing
+    haskey(projects, project_id) || error("$(String(action)) project not found: $(project_id)")
+    return projects[project_id]
+end
+
+function project_model_registry_records_for_workflow(projects::AbstractDict, workflow_id::AbstractString)
+    records = Dict{String,Any}[]
+    for project in values(projects)
+        append!(
+            records,
+            [
+                normalized_dict(record)
+                for record in project.model_registry_records
+                if String(get(record, "workflowId", "")) == String(workflow_id)
+            ],
+        )
+    end
+    return records
+end
+
+function dedupe_model_registry_records(records::AbstractVector)
+    seen = Set{String}()
+    deduped = Dict{String,Any}[]
+    for record in records
+        normalized = normalized_dict(record)
+        model_id = String(get(normalized, "modelId", ""))
+        isempty(strip(model_id)) && continue
+        model_id in seen && continue
+        push!(seen, model_id)
+        push!(deduped, normalized)
+    end
+    return deduped
+end
+
+function upsert_model_registry_record!(
+    project::JuliaFlowGatewayRepository.DataScienceProjectRecord,
+    model_record::AbstractDict,
+)
+    record = normalized_dict(model_record)
+    model_id = String(get(record, "modelId", ""))
+    isempty(strip(model_id)) && error("model registry modelId required")
+    index = findfirst(item -> String(get(item, "modelId", "")) == model_id, project.model_registry_records)
+    remaining = index === nothing ? project.model_registry_records : [
+        item for (item_index, item) in enumerate(project.model_registry_records) if item_index != index
+    ]
+    project.model_registry_records = [record, remaining...]
+    project.updated_at = String(get(record, "updatedAt", JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp()))
+    return record
+end
+
+function update_model_registry_lifecycle_status!(
+    project::JuliaFlowGatewayRepository.DataScienceProjectRecord,
+    model_id::AbstractString,
+    status::AbstractString,
+    timestamp::AbstractString;
+    validation_evidence::AbstractDict = Dict{String,Any}(),
+)
+    index = findfirst(item -> String(get(item, "modelId", "")) == String(model_id), project.model_registry_records)
+    index === nothing && error("model registry record not found: $(String(model_id))")
+    record = normalized_dict(project.model_registry_records[index])
+    record["status"] = String(status)
+    record["updatedAt"] = String(timestamp)
+    if !isempty(validation_evidence)
+        existing_evidence = get(record, "validationEvidence", Dict{String,Any}())
+        merged = existing_evidence isa AbstractDict ? normalized_dict(existing_evidence) : Dict{String,Any}()
+        for (key, value) in pairs(validation_evidence)
+            merged[String(key)] = value
+        end
+        record["validationEvidence"] = merged
+    end
+    remaining = [
+        item for (item_index, item) in enumerate(project.model_registry_records) if item_index != index
+    ]
+    project.model_registry_records = [record, remaining...]
+    project.updated_at = String(timestamp)
+    return record
+end
+
+function upsert_model_lifecycle_record!(
+    project::JuliaFlowGatewayRepository.DataScienceProjectRecord,
+    validation_context::AbstractDict,
+    model_id::AbstractString,
+    lifecycle_state::AbstractString;
+    evaluation_report_id::Union{Nothing,AbstractString} = nothing,
+    deployed_endpoint_id::Union{Nothing,AbstractString} = nothing,
+    updated_at::Union{Nothing,AbstractString} = nothing,
+)
+    timestamp = updated_at === nothing ? JuliaFlowGatewayRepository.JuliaFlowExecutionService.iso8601_timestamp() : String(updated_at)
+    index = findfirst(record -> String(get(record, "modelId", "")) == String(model_id), project.model_lifecycle_records)
+    existing = index === nothing ? Dict{String,Any}() : normalized_dict(project.model_lifecycle_records[index])
+    record = Dict{String,Any}(
+        "modelId" => String(model_id),
+        "state" => String(lifecycle_state),
+        "updatedAt" => timestamp,
+    )
+
+    report_id = evaluation_report_id === nothing ? String(get(validation_context, "evaluationReportId", get(existing, "evaluationReportId", ""))) : String(evaluation_report_id)
+    isempty(strip(report_id)) || (record["evaluationReportId"] = report_id)
+    endpoint_id = deployed_endpoint_id === nothing ? String(get(existing, "deployedEndpointId", "")) : String(deployed_endpoint_id)
+    isempty(strip(endpoint_id)) || (record["deployedEndpointId"] = endpoint_id)
+    haskey(existing, "rollbackModelId") && (record["rollbackModelId"] = String(existing["rollbackModelId"]))
+
+    remaining = index === nothing ? project.model_lifecycle_records : [
+        item for (item_index, item) in enumerate(project.model_lifecycle_records) if item_index != index
+    ]
+    project.model_lifecycle_records = [record, remaining...]
+    project.updated_at = timestamp
+    return record
+end
+
+function model_lifecycle_action_state(action::AbstractString)
+    action == "approve_model" && return "approved"
+    action == "deprecate_model" && return "deprecated"
+    action == "archive_model" && return "archived"
+    action == "mark_rollback_ready" && return "rollback_ready"
+    action == "mark_rolled_back" && return "rolled_back"
+    action == "request_retraining" && return "retraining_requested"
+    error("model lifecycle action must be approve_model, deprecate_model, archive_model, mark_rollback_ready, mark_rolled_back, or request_retraining")
+end
+
+function approved_evaluation_report_id(project::JuliaFlowGatewayRepository.DataScienceProjectRecord)
+    for report in project.evaluation_reports
+        normalized = normalized_dict(report)
+        Bool(get(normalized, "approved", false)) || continue
+        report_id = String(get(normalized, "evaluationReportId", ""))
+        isempty(strip(report_id)) || return report_id
+    end
+    return ""
+end
+
+function model_lifecycle_action_record(
+    project::JuliaFlowGatewayRepository.DataScienceProjectRecord,
+    body::AbstractDict,
+    timestamp::AbstractString,
+)
+    model_id = haskey(body, "modelId") ? strip(String(body["modelId"])) : ""
+    !isempty(model_id) || error("model lifecycle modelId required")
+    action = haskey(body, "action") ? strip(String(body["action"])) : ""
+    lifecycle_state = model_lifecycle_action_state(action)
+
+    index = findfirst(record -> String(get(record, "modelId", "")) == model_id, project.model_lifecycle_records)
+    index === nothing && error("model lifecycle record not found: $(model_id)")
+    existing = normalized_dict(project.model_lifecycle_records[index])
+    previous_state = String(get(existing, "state", ""))
+    deployed_endpoint_id = String(get(existing, "deployedEndpointId", ""))
+    evaluation_report_id = String(get(existing, "evaluationReportId", ""))
+    if action == "approve_model"
+        previous_state in ("validated", "candidate") || error("model lifecycle approval requires validated or candidate model state")
+        if isempty(strip(evaluation_report_id))
+            evaluation_report_id = approved_evaluation_report_id(project)
+        end
+        !isempty(strip(evaluation_report_id)) || error("model lifecycle approval requires approved evaluationReportId")
+    elseif action == "deprecate_model"
+        previous_state in ("approved", "deployed", "rollback_ready", "rolled_back", "retraining_requested") || error("model lifecycle deprecation requires approved, deployed, rollback_ready, rolled_back, or retraining_requested model state")
+    elseif action == "archive_model"
+        previous_state == "deprecated" || error("model lifecycle archive requires deprecated model state")
+    elseif action == "mark_rollback_ready"
+        previous_state == "deployed" || error("model lifecycle action requires deployed model state")
+        !isempty(strip(deployed_endpoint_id)) || error("model lifecycle deployedEndpointId required")
+    elseif action == "request_retraining"
+        previous_state in ("deployed", "rollback_ready", "rolled_back") || error("model lifecycle retraining requires deployed, rollback_ready, or rolled_back model state")
+        !isempty(strip(deployed_endpoint_id)) || error("model lifecycle deployedEndpointId required")
+    elseif action == "mark_rolled_back"
+        previous_state == "rollback_ready" || error("model lifecycle rollback requires rollback_ready state")
+    end
+
+    rollback_model_id = haskey(body, "rollbackModelId") ? strip(String(body["rollbackModelId"])) : String(get(existing, "rollbackModelId", ""))
+    if action in ("mark_rollback_ready", "mark_rolled_back")
+        !isempty(rollback_model_id) || error("model lifecycle rollbackModelId required")
+        rollback_model_id != model_id || error("model lifecycle rollbackModelId must differ from modelId")
+    end
+
+    drift_report_id = haskey(body, "driftReportId") ? strip(String(body["driftReportId"])) : ""
+    if !isempty(drift_report_id)
+        drift_index = findfirst(report -> String(get(report, "driftReportId", "")) == drift_report_id, project.drift_reports)
+        drift_index === nothing && error("model lifecycle driftReportId not found: $(drift_report_id)")
+    end
+
+    reason = haskey(body, "reason") ? strip(String(body["reason"])) : ""
+    record = Dict{String,Any}(
+        "modelId" => model_id,
+        "state" => lifecycle_state,
+        "updatedAt" => String(timestamp),
+        "lifecycleAction" => action,
+        "validationEvidence" => Dict{String,Any}(
+            "projectId" => project.project_id,
+            "modelId" => model_id,
+            "previousState" => previous_state,
+            "lifecycleAction" => action,
+        ),
+    )
+    isempty(strip(evaluation_report_id)) || (record["evaluationReportId"] = evaluation_report_id)
+    isempty(strip(deployed_endpoint_id)) || (record["deployedEndpointId"] = deployed_endpoint_id)
+    isempty(rollback_model_id) || (record["rollbackModelId"] = rollback_model_id)
+    isempty(drift_report_id) || (record["validationEvidence"]["driftReportId"] = drift_report_id)
+    isempty(rollback_model_id) || (record["validationEvidence"]["rollbackModelId"] = rollback_model_id)
+    isempty(deployed_endpoint_id) || (record["validationEvidence"]["deployedEndpointId"] = deployed_endpoint_id)
+    isempty(reason) || (record["validationEvidence"]["reason"] = reason)
+    if action in ("mark_rollback_ready", "mark_rolled_back") && !isempty(reason)
+        record["rollbackReason"] = reason
+    elseif action == "request_retraining" && !isempty(reason)
+        record["retrainingReason"] = reason
+    elseif action == "deprecate_model" && !isempty(reason)
+        record["deprecationReason"] = reason
+    elseif action == "archive_model" && !isempty(reason)
+        record["archiveReason"] = reason
+    end
+    return record, index
+end
+
+end

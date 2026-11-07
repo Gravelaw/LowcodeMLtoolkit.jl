@@ -1,2858 +1,379 @@
-# Checkpoint Log
+# JuliaFlow checkpoint log
+
+2026-11-07 - Repository sync and hygiene (untracked in Linear): adopt
+`codex/aks-69-consolidated-candidate` (03f19e1) as the single proposed `main`
+state via branch `claude/sync-consolidated-main`. Every `codex/*` branch and
+open Codex PR head is an ancestor of it. Hygiene only: remove the accidental
+1-byte `mockdesigns/juliaflow` web commit file, replace 15 machine-specific
+`known_hosts` paths in brd-traceability with `%USERPROFILE%`, enable the
+project-scoped `caveman` Claude Code plugin in `.claude/settings.json`, and add
+the [restart audit](restart-audit-2026-11-07.md) plus the previously untracked GPU runtime
+assessment. No product behavior, requirement or acceptance status changes.
+Hosted CI remains in local execution mode; no release readiness follows.
+
+2026-10-14 - Windows verification follow-up: preserve 941f6fb's failed PostgreSQL
+aggregate and live-browser hydration trace. Dataset controls now share the existing
+mutation readiness/identity guard, so project hydration cannot enable schema/split
+edits while application data is unavailable. Frontend 72 tests and build passed;
+actual browser, exact-candidate aggregate and independent rereview remain required.
+User-approved task-contained PostgreSQL 16 supports real database verification;
+existing Docker/Compose were found under a per-user path, hidden by the isolated
+profile, with Docker stopped. Arrow fixture cleanup logged ENOTEMPTY despite
+assertions/exit 0; retain as unresolved Windows cleanup evidence. No publication,
+release or human acceptance claim; Rolling remains deferred to October 19.
+See [Windows runtime verification](verification-windows-runtime-2026-10-14.md).
+
+2026-10-14 - AKS-69 / AKS-58 Windows runtime follow-up: separate bounded strict
+Julia preparation from endpoint readiness, retain source-loading tests and require
+physical CUDA assertions in normal compiled mode, and report measured live Julia
+versions with honest stale/unavailable states. Original cold-start and raw CUDA
+failures remain retained. Focused tests pass; exact aggregate and final independent
+reviews are pending. Docker daemon absence blocks local container parity; CUDA
+runtime/toolkit warning remains unresolved. JF-RT-002/JF-HW-001-002 evidence is
+partial; native zoom, human, full fitting and wider platform acceptance remain
+open. No release readiness follows. Rolling is deferred until October 19.
+See [Windows runtime verification](verification-windows-runtime-2026-10-14.md).
+
+2026-10-11 — AKS-69 local consolidation: preserve tested `5de9f799`; record
+PR59’s five already-retained patches and integrate current main `7e725eb`. PR19
+is a deliberate stale exclusion with branch/evidence retained. Product/workflow
+content is unchanged; exact new-candidate reviews and full verification are pending.
+Publication, GitHub merge, retirement and deployment remain on hold. GPU/Windows,
+original-board and participant acceptance remain open. See the
+[integration reconciliation](integration-consolidation-2026-10-11.md).
+
+2026-10-10 — bounded final UI reconciliation: dark utility header now uses the
+approved #202333 surface token; light theme and header/navigation layout unchanged.
+Over-limit chart guidance names saved project evidence, avoiding a false promise
+that older selected runs appear in the latest-four history view. Final exact
+candidate browser/review/fullgate still required; no full-board/human acceptance.
+
+2026-10-10 — independent SEC-A11Y-1 review of9a155ef found quadratic label
+amplification; approval withheld. Corrected presentation tables use a single full
+column-name key plus compact pair references, with explicit64KiB UTF-8-label /
+5,000-row display limits and8MiB HTML/CSV export limits. Oversized views report
+unavailability/rejection without changing immutable evidence. Release history
+caption also corrected. Failed preliminary browser/harness and original9a review
+remain retained; corrected exact-candidate rereviews/browser/fullgate required.
+
+2026-10-10 — authorized AKS-44/AKS-64 accessibility follow-up: strengthen light
+status and dark avatar/ready-badge contrast without replacing Wada83 tokens;
+use interactive Plotly group semantics and named keyboard-focusable table regions.
+Progressive structured tables show immutable Pearson/pair counts, complete scatter
+pairs and finite distribution observations with captured axis units; report HTML
+adds escaped equivalents and labeled numeric scatter scales. Sequence numbers are
+not source row IDs, and renderer-chosen histogram bins are not claimed as stored.
+No analysis algorithm, source identity, API payload or nine-section layout changes.
+Focused regressions, actual browser zoom/axe/keyboard checks, affected independent
+reviews and exact clean-candidate full local gate remain required. Prior866c335
+22-phase pass and unexplained original timeout are preserved separately. Human
+DA/DS/assistive-technology, full design, physicalGPU/widerplatform acceptance remain
+open. No push/PR/hosted/billing change under the account cost pause.
+
+2026-10-10 — adjacent NUM-1 scoped-summary correction: independent review
+confirmed that a checksum-bound CSV `[1e-200,2e-200,3e-200]` persisted false zero
+mean/std. The finding was recorded and read back on AKS-44 before remediation.
+Scoped means use compensated summation to retain finite cancellation terms
+(`[1e300,1,-1e300]` now retains 1/3), with unrounded results; summaries calculate standard
+deviation using shifted, scaled deviations; genuine constant/cancellation zeros
+remain valid and unrepresentable results remain explicitly unavailable. Legacy
+unscoped helper semantics remain unchanged. New checksum-bound precision
+regressions and independent rereview are required. Prior f4de42a correctness
+clearance is superseded. Its aggregate run was canceled after six passed phases
+and retained as canceled evidence, not a full pass. Earlier 3165022 results remain
+revision-bound. No publication or readiness claim follows from these changes.
+
+2026-10-10 — user-authorized independent review: separate read-only correctness,
+UI and local security reviewers examined the fixed product/policy patch. NUM-1
+reproduced Pearson 1.008264 for finite tiny values; numerical rereview of the first
+fix exposed near-constant cancellation (0.852803 instead of 1). The final algorithm
+shifts before scaling and handles overflowing opposite-extrema subtraction.
+UI-1 reproduced failed-refresh question loss and partial-axis loss; drafts now
+retain text independently of measured identity, and partial axes block run/save.
+UI-2 rendered unavailable numbers as blanks; the UI now labels them unavailable.
+Recorded/read-back AKS-44 scope precedes remediation, status remains In Progress.
+
+The parent browser probe on the prior product completed all existing durable
+checks plus Tab/Enter measured refresh, visible focus, clean console/page identity,
+and 720 CSS-pixel reflow. Actual 200% browser zoom and screen-reader participant
+acceptance are not claimed. Source regressions, independent delta review and full
+clean-candidate aggregate verification are separate from this prior browser result;
+earlier failed review/probe evidence is retained, not converted into approval.
 
-## Purpose
+Independent rereview accepted the revised source: numerical focused 31/31 and
+seeded BigFloat reference 726/726 (maximum error within six-decimal rounding),
+UI external regressions 6/6 plus workspace tests 8/8, local security helper/replay
+35/35, durable routes 53/53 and authorization 15/15. An initial security-probe
+viewer-header mistake was corrected in the external harness and retained; no
+product guard was weakened. Build, contracts (66 pass/one Windows skip), control
+sync, BRD traceability and whitespace passed. Final clean-candidate aggregate
+verification remains the next publication gate; these are independent local
+reviews, not canonical plugin scans or submitted GitHub approvals.
 
-This file tracks milestone snapshots in compact form.
-Agent must read newest checkpoint entry before starting work.
-Agent must append/update checkpoint entry after major work block.
+## 2026-10-10 — approved review-routing instruction change
 
-Each checkpoint entry must contain:
+The user instructed implementation of the proposed capability-aware project
+instructions. Updated AGENTS/tooling, current Plan/TODO/risks/tracker, and durable
+analysis verification to permit a separate independent local security-review
+method when the canonical tool is unavailable. That method requires a scoped
+threat model, complete changed-source coverage and relevant supporting-code
+inspection, reproducible negative/legitimate controls, independent reviewer
+identity, final-candidate verdict, and tracked finding dispositions. It does not
+authorize delegation on its own or claim canonical plugin clearance.
 
-1. Work done till date at checkpoint
-2. Gaps pending at checkpoint
-3. Next items to implement after checkpoint
+Canonical diff scan cannot obtain required scan ownership because discovery did
+not expose `start_codex_security_prompt_only_scan`; its actual preflight/storage
+instructions were retrieved and are preserved. Signed Julia integrity was checked
+again: status ok/signed true, unchanged catalog 2.1.0 manifest/release identities.
+No vendor runtime, trust/configuration, product source, test assertion, CI workflow,
+or immutable archive was changed.
 
-## Active Checkpoint Chain
+Retained clean product commit `3165022` passed 22/22 local release phases, with
+physical GPU and optional platform skips explicitly retained. All 55 retained
+handoff/browser/release evidence files matched their checksums in follow-up review.
+These historical results do not certify a new documentation commit. Required
+independent correctness/UI/security review and final publication checks remain
+pending; participant/accessibility, full board fidelity and wider GPU/platform
+acceptance remain milestone tasks. This update grants no merge/deploy/tag/release
+permission and changes no external delivery state. Documentation validation is
+reported separately from product runtime verification.
 
-- `cp/00-foundation`
-- `cp/01-contracts-frozen`
-- `cp/02-alpha-core` in progress
+Documentation checks passed: `npm run validate:control-doc-sync -- --base
+62d626b599bc49671a6b9f2e7a620b7660b2d7b5` (36 baseline-plus-working-tree paths),
+`npm run validate:brd-traceability` (46 P0/P1/P2 TODO mappings), and
+`git diff --check`. Eight documentation/instruction files changed; no new product
+runtime suite or canonical security scan was run for this policy-only update.
 
----
+2026-10-10 final preservation correction: selecting another dataset retains saved and unsaved findings linked to their original project-owned runs, clears dataset-specific filters/axes, and prevents selecting a run from another dataset as current evidence. Reports identify each result dataset and verify every referenced source snapshot. Focused frontend/real-route regressions and the new clean-candidate gate must cover this correction; the earlier candidate gate was canceled, not passed.
 
-## Checkpoint: `cp/02-alpha-core` AKS-29 Through AKS-35 Parity Hardening - 2026-06-20
+2026-10-10 — user-authorized Durable Analyse Data implementation (AKS-44, related AKS-47/48/49 and AKS-53 evidence rules), based on unmerged PR #60 at `62d626b599bc49671a6b9f2e7a620b7660b2d7b5`. This is the next product increment after Create Project; release-roadmap M2 hardware and the full BRD local-v1/GPU/compiler/platform requirements remain unchanged. The user's implementation instruction authorizes this bounded Analyse Data UI within the existing nine-section shell.
 
-### Work Done Till Date
+Measured-source refresh, explicit question/filters/axes, pairwise original-row numeric evidence, immutable checksummed run artifacts and executable replay, separately editable findings, revision-checked saving, and presentation HTML/summary CSV exports are implemented. Saved metadata remains compatible with historical projects; absent historical scope/provenance is not invented. Source/schema changes invalidate current views; modeling still requires separate population/target/split choices. Overlapping project mutations reject explicitly before ownership transfer; no mutex is held during file I/O. Unsaved drafts survive route changes within the current browser session; gateway saves are required for restart durability.
 
-- Merged PR #37 and started the AKS-29 through AKS-35 follow-up branch from updated `main`.
-- Added `docs/aks-30-35-implementation-plan.md` with per-task plans for AKS-30, AKS-31, AKS-32, AKS-33, AKS-34, and AKS-35.
-- Added shared chart readiness/export utilities and updated the Plotly renderer for ready/stale/empty/error states.
-- Added stale chart fixture evidence and coverage.
-- Hardened Explorer with workspace source state, artifact count/locality, and no-artifact empty state.
-- Hardened Data with active source state, disabled-source reasons, sample-size preview mutation, and readiness text wrapping evidence.
-- Hardened Transform with editable node strategy/output settings, unsaved-edit warning state, validation recovery, and config logging.
-- Added focused unit and browser coverage for chart readiness, stale chart evidence, Data sampling, and Transform config validation.
+The qualified analysis path remains unquoted CSV ≤1,000 rows / 8 MiB and summary/Pearson correlation on schema-enabled numeric columns. Actual computation is CPU in the gateway, with workerComputed=false; no GPU success is inferred. The signed Julia plugin passed unchanged integrity checks; implementation/debugging/concurrency and React/browser guidance are in use. See [implementation and verification](verification-durable-analysis.md). Exact-candidate gates, independent review, original-board comparison and real user/Data Analyst/Data Scientist acceptance remain distinct requirements; no issue is marked Done and no merge/deployment is claimed.
 
-### Gaps Pending
+2026-10-09 — user-approved bounded Create Project increment (AKS-49 hydration acceptance; related AKS-47/48). The explicit task approval permits this Explorer/Data increment while preserving unrelated frontend freeze. Explorer retains its nine sections and adds saved-project selection, Create project and independent optional-folder writing. Project inventory loads independently of workflows, creation uses the existing gateway API and exact returned-ID readback, and uncertain POST outcomes inspect inventory without blind retry or name-only reconciliation. Selection generations reject late opening/import/update results. Reopening uses only saved dataset metadata and states that full profile/preview details are unavailable; it never automatically reimports. Wada #83 light/dark variables, locally bundled Inter, numeric typography and theme-aware labeled charts retain the specified design boundary.
 
-- Real Data connector handlers for SQLite/PostgreSQL/MySQL/USB/drop remain future gateway work.
-- Persisted Transform pipeline editing beyond local UI state remains future contract/gateway work.
-- Final live-backend smoke, control-doc validators, PR publication, and Linear updates remain pending.
+Focused frontend tests and the real empty-repository smoke verify duplicate prevention, failure/readback retry, remembered/explicit selection, bounded CSV profiling, optional-folder rejection, lost POST responses, late import isolation and browser-plus-gateway restart against the same isolated data root. Existing CSV 1,000-row / 8 MiB / unquoted / unique-header / checksum guards are unchanged. Playwright is pinned to 1.64.0 with its compatible managed Chromium; system Chromium is not substituted. The new smoke is a required release phase and local delivery rejects its absence. Final exact-candidate aggregate verification and independent review evidence must pass before any push. User/Data Analyst/Data Scientist acceptance, wider local-v1/GPU qualification, native Windows/Docker certification, merge and deployment remain open. Original approved board images were unavailable; no board comparison is claimed. See [bounded implementation evidence](verification-create-project.md).
 
-### Next Items To Implement
 
-- Run the final verification set, including live-backend smoke and control-doc validators.
-- Push the branch, open a draft PR, update Linear AKS-28 through AKS-35, and link the PR evidence.
+2026-10-02 live-browser failure diagnosis: inspected retained trace from `035d51526f59` / `jfci-1790938118881-73bbc357`. The completed final evaluation has AUC 1.0, F1 0.0 and approved=false, a supported native centroid model, a canonical report checksum and one completed producer job. Export 409 follows the required approval check; no model/provenance guard was loosened. Authorized fixture-only correction makes monthly charges separable by the existing churn label and adds explicit approval/F1 assertions before export. Row count, group identities, membership coverage, 0.1 approval threshold and all negative checks are preserved. Diff check remains required; runtime verification of the revised candidate is pending with the coordinator. No service/test process, commit or external write by this repair worker.
 
-## Checkpoint: `cp/02-alpha-core` Explorer/Data/Transform Mock Parity - 2026-06-20
+2026-10-02 scoped regression repair: mapped web checks on `f009ff0` passed contracts/build then exposed three frontend fixture/assertion-placement failures. Moved mismatch/reselection/no-PUT checks into the authenticated gateway scenario, restored demo matching-edit behavior and supplied required graph node layouts/revision in the appliance mock. Product guards are unchanged. New Julia evidence test uses ProjectCore alias. First committed WSL snapshot continues Julia validation independently; host test fixes cannot change its evidence. Runtime verification of the revised tree and fresh final-patch review remain pending.
 
-### Work Done Till Date
+2026-10-02 manual remediation checkpoint: user approved all eight findings, including limited frontend identity/sparse-history/live-inventory changes. Fresh read-only boundary investigation completed before edits; legitimate inference, normalized evidence echoes, sparse historical loading and public readiness must remain. AKS-41/53/48/56 were updated/read back In Progress; AKS-69 records preserved exact baseline release evidence. Signed Julia catalog 2.1.0 verified unchanged; routed write-maintain-code 2.0.0. Four disjoint implementation owners coordinate shared gateway changes; focused regressions, one fresh independent final review and a full new exact-candidate gate remain required. Ordinary manual workflow is explicitly approved; no canonical scan artifact or clearance is fabricated. No product acceptance/publication/promotion/merge/deployment yet.
 
-- Implemented the focused Explorer/Data/Transform mock-parity product-depth slice.
-- Created the Linear parent/child backlog under AKS-28 through AKS-35 for shared chart foundation, Explorer/Data/Transform parity, gateway/contracts, visual QA, and the Data ML Readiness text-overlap bug.
-- Added reusable local interactive chart contracts, Julia/gateway Plotly-compatible chart spec helpers, and a lazy local Plotly renderer with accessible summaries and export hooks.
-- Explorer now renders gateway-backed workspace summaries, artifact evidence, local activity/package/runtime data, and Plotly mini charts with proper sidebar icons.
-- Data now exposes local source/read-mode/tabs/filter/sort/profile/lineage behavior, disabled unsupported sources with reasons, Plotly EDA charts, and wrapped readiness text.
-- Transform now uses React Flow for node-edge editing and shows grouped palette search, selected-node settings, validation/run/history evidence, before/after preview, generated Julia code, logs, artifacts, and Plotly metrics.
-- Verification passed: `npm run validate:contracts`, `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run build`, `node scripts/run-julia.mjs --project=. tests/julia/runtests.jl`, `npm run test:browser -- tests/browser/local-ui.spec.ts`, and `npm run smoke:live-backend-browser`.
+2026-10-02 corrected canonical gate preparation: preserved exact `3872be2` failed release evidence and the original promoted `099bb56` package. Independent manual substitute review covered the 133-commit/154-path main comparison, with product findings still unresolved. Test repair removes reliance on fixture-inferred target semantics by selecting `churn` through the real persisted schema control. Focused source snapshot: committed `3872be2` plus patched-spec SHA-256 `e6f11d0e58f7e1180c51b440f14d66ab8f0fe842d61fc30770730053de2274b0`; full five-browser run `jfci-1790923131805-a84b4022` passed 5/5 and cleanup passed. The initial coordinator failed before WSL on a PowerShell 5.1 JSON option; logs preserved, no duplicate test process, compatible coordinator succeeded. AKS-69 fixture scope recorded before committing. User cleared idle Docker/Jenkins coexistence; do not stop/reconfigure them. Full clean corrected-candidate release validation remains pending; no acceptance/publication/promotion/merge inference.
 
-### Gaps Pending
+2026-10-02 authorized publication preparation: checked no duplicate AKS-48 profiling follow-up, posted the exact approved comment (`08c4e330-3cf1-4823-9b40-cb213cb1c952`) and verified its body/status In Progress. Rechecked accepted eight source hashes, replay HEAD `89ef23a`, live PR #58 `6618d19`, and absent remote target branch. Prepare only profiling/contracts/tests/control changes on preserved five-commit replay; no source/runtime edits or merge/deploy/force push.
 
-- Unsupported Data connectors remain disabled until real gateway/source handlers are implemented.
-- The Plotly renderer is lazy-loaded, but bundle-size monitoring remains important for future chart-heavy slices.
-- Persisted Transform pipeline editing depth and broader visual QA remain tracked in the AKS-28 child backlog.
+2026-10-01 final candidate checks after CI owner released slot: independent rereview accepted four source findings; all eight hashes match before/after. Dedicated HTTP 65/65 (53.3 seconds test time); standalone parser/request validation 97/97 (4.5 seconds); complete affected gateway slice exit zero in 674.38 seconds: API 1,089; local browser boundary 37; real evidence 229 plus two root-permission skips; split membership 122; profiling 97; HTTP route 65. Total 1,639 pass / zero fail / two skips. Full contracts 63 pass / three platform skips, both frontend no-emit typechecks passed. Escalated document check failed Git discovery; normal-workspace rerun passed. No code/test edits, CI restart, commit/push/merge/deploy.
 
-### Next Items To Implement
+2026-10-01 second review follow-up: read the rereview confirming original findings resolved and identifying malformed datasetName after copy creation. Added import-string normalization ahead of side effects, project deepcopy before updates, explicit retention of shared copies on later storage/job failure, standalone validation cases and HTTP invalid-name rejection snapshots. Final lightweight Julia 97/97 (5.1 seconds), selected contracts 9/9, doc-sync (27 paths), BRD (46 mappings) and diff check passed. Heavy suites remain deferred pending CI clearance; no commit or push.
 
-- Run control-doc sync, BRD traceability, and diff checks after this checkpoint update.
-- Commit, push, and open the draft PR for the current branch.
+2026-10-01 independent review follow-up: read the review and source inventory, reverified the installed signed Julia runtime and routed code maintenance (`79a2e1c4-d638-4b0f-8f7d-f9ca99311c16`). Added verified confined managed CSV materialization with preserved external provenance, typed/null previews and distinct missing-category identity. Standalone stdlib Julia tests 32/32, selected contracts 9/9, frontend no-emit typecheck and diff check pass. Added import -> role update -> wizard array resubmission -> reload -> actual CSV analysis plus rejection-state tests; runtime execution waits for the CI owner. Existing 1,501-pass gateway evidence predates these edits. No commit/push/CI restart.
 
-## Checkpoint: `cp/02-alpha-core` AKS-13 Live Workflow Metadata Recovery - 2026-06-20
+2026-10-01 read-only-source reconciliation and isolated profiling implementation: branched from `6618d19`, replayed `846ae73`, `a9ca43d`, `9520979`, `584ec6b`, `099bb56` with both planning prefaces retained. Corrected import provenance on a <=1,000-row / 8 MiB unquoted CSV envelope. Delivery 6/6 and BRD traceability passed; full Node contracts 63 pass / three platform skips using a lockfile-matched existing cache. The initial gateway 1,086 pass / two fail was preserved and corrected. Corrected WSL Julia 1.12.7 affected slice exited zero in 709.85 seconds: API Gateway 1,087; local browser boundary 37; real evidence boundary 229 plus two root-permission skips; split membership 122; parser 14; strict HTTP 12. Total 1,501 pass / zero fail / two skips. Review, tracker ownership and full release gates remain open; no push, merge or release occurred.
 
-### Work Done Till Date
 
-- Completed the AKS-13 frontend recovery slice after PR #25 release verification closure.
-- Release/local-appliance workflow loading now validates backend workflow detail before rendering live canvas/pipeline state.
-- Incomplete workflow metadata now reports an unavailable workflow state with recovery guidance instead of substituting fixture workflow nodes.
-- Demo/development fixture fallback remains available for offline demos and local development.
-- Transform renders explicit workflow metadata recovery guidance when required-mode workflow nodes are unavailable.
-- Verification passed: `npm --workspace @juliaflow/frontend run test -- --run src/App.test.tsx`, `npm run test`, `npm run build`, `npm run validate:contracts`, and `npm run smoke:live-backend-browser`.
+2026-09-30 resource lifecycle repair: WSL idle shutdown removed the earlier
+manual swap activation. During the `584ec6b` aggregate run the default swap
+filled; the verified temporary reserve was reactivated without changing tests.
+The runner now provisions 3 GiB inside each Julia job's owned directory and
+deactivates it before directory removal. A real 64 MiB fixture proved UUID
+mismatch rejection preserves active storage and matching cleanup deactivates
+and removes the owned job. This does not yet establish a full-run pass.
 
-### Gaps Pending
+2026-09-30 AKS-69/55: release run `jfci-1790783265022-9992c09c` at `9520979`
+finished with 16 passing release phases and browser 4 passed / 1 failed
+(`ECONNRESET` on rejected cross-origin upgrade). Cleanup and evidence passed;
+last three gates not run. CD rejected it with exit 1, no current pointer.
+HTTP.jl 1.11.0 minimal probe reproduced 401 then ECONNRESET; adding a close
+response header yielded 401 then 403, exit 0. The patched browser suite passed
+5/5 tests in 49.6 seconds, exit 0, with automatic process cleanup and the new
+close-header assertion. Aggregate same-candidate validation remains pending.
+No auth/origin assertion, timeout or retry changed. Automatic review
+rejected the Linear diagnosis update; the local record is preserved pending
+permission to disclose. The user explicitly authorized continuing the local
+repair and aggregate rerun; no alternate external write is authorized.
 
-- Provider/cloud deployment and hardware-gated GPU proof remain optional compatibility work unless reprioritized.
-- The live smoke exits successfully but still prints Julia HTTP connection-cancel teardown noise after Playwright completes.
+2026-09-30 AKS-69 resource diagnosis: cold release-candidate `jfci-1790781620409-a973c060` at `846ae73` passed six release phases and repository (100) / worker (221) assertions before the WSL service stopped responding (`0x8007274c`) during gateway tests. The VM reached its configured 4 GiB resident limit; no kernel OOM record was found, so memory pressure is suspected, not proven. Scoped termination of the dedicated distro recovered it. Run status failed, cleanup failed, evidence finalization passed; database storage remains. WSL jobs now use Julia's verified CLI `--heap-size-hint=1500M` and one precompile worker, recorded in job summaries. No tests, skips or deadlines change; recovery needs full rerun.
 
-### Next Items To Implement
+2026-09-30 AKS-69 follow-up: archive round-trip found Windows tar output uses CRLF; normalize archive entries before checking required files. Regression exercises a real Git archive, built-web copy and extraction. Delivery validates explicit no-skip flags and exact release job commands. Focused delivery tests pass; full product run remains pending.
 
-- Open the AKS-13 draft PR and link `artifacts/release-verification/live-backend-browser` as live UI evidence.
-- Run `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check` before final PR handoff.
+## 2026-09-30 - local CI/CD continuation (AKS-69)
 
-## Checkpoint: `cp/02-alpha-core` AKS-5 Stage 5 Release Verification Implementation - 2026-06-19
+The user selected local CI with hosted quality jobs skipped while local mode is active, superseding the earlier unchanged-workflow boundary. A tracked execution policy selects local or hosted execution; mapped local quality commands remain mandatory. Local CD means a versioned source-and-built-web package promoted only after a complete clean same-candidate release-candidate run, checksummed evidence and successful cleanup. It is not an offline installer, native Windows/Docker certification, external deployment or permission to merge. No product or hardware gate is waived. Original planning edits and historical evidence are preserved. Full execution results remain pending; see [local CI](local-ci.md).
 
-### Work Done Till Date
 
-- Added the Stage 5 release verification entrypoint `npm run verify:release` with deterministic summary/log artifacts and phase/failure classification.
-- Added `npm run smoke:live-backend-browser`, `playwright.live.config.ts`, and live-backend Playwright coverage for local-appliance release behavior.
-- Proved live gateway/frontend browser QA for no demo substitution, Data import, Explorer save/run, Monitor execution evidence, dashboard artifact rows/export, Settings/auth state, Offline Hub install, and reproducibility export.
-- Made the file-backed gateway path avoid Windows Application Control failures by disabling Julia package images/compiled modules in the live smoke and lazy-loading `LibPQ` only for PostgreSQL repositories.
-- Fixed frontend live state to use backend workflow/dashboard ids and de-duplicate dynamic dashboard table columns.
+AKS-58 implementation checkpoint, 2026-09-25: after a bounded AKS-41/56 Codex review and partial AKS-69 local web pass, opened scoped draft PR #58. Automatic PR #57 CI at `890d820` later passed web, Julia and Debian release; conditional CUDA skipped. Additive v2 evidence and selected-device worker binding are under test; after repairing a Julia dynamic-load world-age failure, a native Windows RTX 5080 passed the bounded physical CUDA probe and affine operation with output/device verification. CUDA.jl still warns of a 13.2 precompile versus 13.4 runtime mismatch. Latest ordinary worker 271 assertions passed, while the opt-in full worker process failed two physical-probe assertions on GPUCompiler InvalidIRError. Project contracts 347, helpers 558, repository 53 plus one existing broken PostgreSQL case and 279 payload assertions, local API gateway 1,078 plus 37 boundary, 261 project-evidence and 122 split-membership assertions, Node contracts 63 passes / three platform skips, and CPU hardware smoke passed with CUDA skipped. The opt-in local hardware smoke passed its separate physical probe. Exact-head PR #58 web, Julia and Debian jobs did not start because GitHub reported an account payment or spending-limit condition. Mapped WSL and full platform qualification remain pending. No AKS-58 Done, M1/M2 exit, merge or release claim. [Evidence](verification-m2-hardware.md).
 
-### Gaps Pending
+AKS-69 WSL full cold diagnostic, 2026-09-23: run `jfci-1790185465769-088b455a` at `f912cc7` passed web, Julia, release, PostgreSQL and five live-backend browser tests; bootstrap health became ready in 6.282 seconds after fresh-depot precompilation. The run was manually assisted only after browser assertions passed: an owned Vite descendant survived npm-parent termination and held a pipe open. Verified its command and run-owned working directory, sent targeted SIGTERM, and observed release/control validators finish. The smoke script now signals POSIX process groups. Preserve this assisted outcome as diagnosis and rerun the final candidate unattended. [Hashes and phase boundaries](verification-local-ci-aks69.md).
 
-- Full no-skip fresh-checkout `npm run verify:release` is still required before AKS-5 closure.
-- Stage 5 PR publication and CI evidence remain pending.
+AKS-69 reliability checkpoint, 2026-09-23: from `ec4d021`, reproduced the completed-summary-before-manifest retention race in code review and added a cross-process finalization lock. A six-finalizer test retained three complete manifests; Windows focused runner tests passed 17 with two platform skips. WSL cleanup now verifies PostgreSQL shutdown and preserves evidence and owned storage on failure. Next: isolated-depot precompile diagnosis, then freeze a candidate for full cold/warm PR, push and validation-only release-candidate profiles. No hosted Debian run or publication.
 
-### Next Items To Implement
+AKS-69 local retention, 2026-09-23: added shared three-completed-run evidence retention for WSL and Docker. Pass/fail/partial summaries remain available for the next two runs; older verified local run directories are removed after a run finalizes. Windows runner tests passed 16 with two platform skips; WSL tests passed 17 with one Windows-only skip. Focused WSL web run `jfci-1790184607879-059e23a7` at `a1c0379` passed as a partial profile and purged nine older completed runs, retaining the current run, prior partial run and prior failed run. One legacy unfinalized `running` directory remains reported as unverified. A direct recursive removal of that directory was rejected by automatic approval review, so it was preserved.
 
-- Run full release verification after this control-doc update.
-- Push/open the focused Stage 5 PR and link final passing artifacts.
+AKS-69 WSL pivot, 2026-09-23: imported a separate verified Ubuntu 24.04.5 WSL distro and installed Node 25.9.0, Julia 1.12.7 and PostgreSQL 16; existing `ubn` was left intact. Added a WSL backend that uses the same mapped commands with per-job clean checkout, PostgreSQL state and evidence. At candidate `af1f87b`, cold PR run `jfci-1790180924900-2f46c765` passed web and Julia, including PostgreSQL-backed tests. Its release job reached `smoke-local-bootstrap` but Julia dependency precompilation ceased making progress and the run was manually terminated after more than eight idle minutes. Later smoke/browser phases were not run. The retained artifact shows no established bootstrap readiness defect. Full WSL release, Windows, Docker and hosted checks remain open.
 
----
+AKS-69 follow-up: bounded pipe draining and creation-time-scoped Windows descendant cleanup pass focused Windows and WSL tests. Docker cold/warm attempts stop at preflight with all jobs not_run; these are retained infrastructure failures, not release verification.
 
-## Checkpoint: `cp/02-alpha-core` AKS-5 Stage 3 Dashboard/Explainability Evidence Binding - 2026-06-19
+## 2026-09-22 — AKS-69 local-first CI; hosted Debian paused
 
-### Work Done Till Date
+The user approved complete local CI execution while keeping hosted Debian diagnosis paused. AKS-69 owns isolated Docker PR/push/release-candidate profiles, workflow parity, streaming logs and durable evidence. GitHub workflows/check/review requirements remain unchanged; PR #56 at e436a7c is unmerged. Its latest hosted Debian result is cancelled, not passed. See [local CI](local-ci.md).
 
-- Bound Visualize dashboard rows to the published dashboard binding dataset instead of direct local fixture rows.
-- Added explicit no-artifact-row states for release/local-appliance dashboards without persisted dataset rows.
-- Added Monitor executed-run explainability evidence tied to the latest execution id, workflow id, dataset checksum prefix, model artifact ref, metric, and explanation method.
-- Added focused frontend tests for artifact-backed dashboard rows, local-appliance no-data behavior, and execution-tied explainability evidence.
+Docker Desktop currently cannot start its Windows inference socket. Non-destructive runtime-directory preservation did not resolve it; no volumes were deleted or factory reset performed. The user subsequently uninstalled Docker; reinstall currently reports MSI detection, with only a reboot-required Docker registry marker found in inspected registrations. Local runner unit/process checks can proceed, but container cold/warm and PostgreSQL-backed platform gates remain unverified. Failures stay visible; no Done or release claim.
 
-### Gaps Pending
+After local infrastructure, obtain scoped AKS-41/56 backend review clearance and reconcile AKS-68 evidence, then implement AKS-58. Full AKS-38 persona/release completion is not a prerequisite for bounded hardware work. Continue AKS-59/61, then AKS-60/62/63 in dependency order. Revision 3 design approval is already recorded; participant/accessibility acceptance remains open and frontend implementation frozen.
 
-- Stage 5 live-backend browser QA remains pending.
-- Fresh-checkout release verification script/CI job remains pending.
 
-### Next Items To Implement
+## 2026-09-21 — resumed AKS-50 request-compilation repair
 
-- Implement the AKS-5 Stage 5 release verification pipeline.
-- Add live-backend browser QA for setup/import, authoring, run, Monitor, dashboard publish/view/export, Hub install, Settings/auth state, reproducibility export, and no false demo-backed UI.
+The user resumed Debian remediation using the TypeSafe AI skill. Hosted f113e909 run 35527192291 disproved sufficiency of the earlier compilation-policy repair: modules loaded at 10.631 s, state initialized at 19.428 s, and the listener started at 19.434 s, but the first health request still exceeded 60 s. The retained termination stack enters LLVM compilation through healthcheck and route_request. The last ECONNREFUSED predates the listening milestone; it does not establish that the listener never opened.
 
----
+The bounded repair loads the existing JuliaFlowMonorepo package from the gateway entrypoint and precompiles the request dispatcher during dependency preparation. It executes no warmup request, creates no appliance state at package import, and preserves health payloads, authentication, assertions and deadlines. Fresh Windows package routing improved from 28.7 s to 6.8 s through the first successful response; actual npm run smoke:local-bootstrap passed at 11.346 s readiness. Contracts: 46 pass, one POSIX-only Windows skip. Hosted verification and required reviews remain pending; this is not a release or merge clearance. See [retained diagnosis and evidence](verification-m1-integration.md).
 
-## Checkpoint: `cp/02-alpha-core` AKS-5 Stage 3 Save/Run/Monitor Lifecycle - 2026-06-19
+## 2026-09-20 — candidate f113e90 gate failure and Revision 3 handoff
 
-### Work Done Till Date
+Clean Windows `verify:release` at `f113e909` passed setup, contracts, build and workspace tests, then stopped in the Julia repository suite: 100 checks passed, but PostgreSQL test cleanup invoked dynamically loaded LibPQ methods directly and raised world-age errors. Eight artifact files remain retained; summary SHA-256 `2fa3732d7564dbd2b3cf542b37e7819003a23cf578d766f277d4f1e8462f959d`, Julia log SHA-256 `a1c9d6224e4a0d6feb0dece2771dda913c5fa57efdd1503da03956361fbd7122`. Later phases did not run. Separate AKS-68 owns the two-line helper correction to existing world-age-safe repository wrappers, followed by focused real-PostgreSQL and clean full-candidate reruns. No assertions or deadlines are relaxed. Focused real-PostgreSQL verification passed 100 repository and 275 payload checks (375 total); both schema cleanup and connection cleanup completed. Log SHA-256 `4e33f47ebd6ca741b943ebd965342a399ef749ca0fbbcef437fa9a6905aa072d`.
 
-- Added the first Stage 3 workflow lifecycle slice to the modular frontend.
-- Explorer now exposes Save Workflow and Run Workflow actions backed by gateway workflow update and execution APIs.
-- Frontend state loads execution records from the gateway and appends returned run execution ids without inventing release-mode placeholders.
-- Added a Monitor route for backend execution records, latest execution status, completed-node evidence, and explicit no-execution states.
-- Added focused frontend coverage for route navigation, demo fallback lifecycle labels, gateway save/run calls, and local-appliance empty execution records.
+AKS-64 delivered [Revision 3 design and its review package](verification-design-r3.md). All nine routes and both 1,000-row journeys are reviewable; heuristic/prototype checks passed, participant sessions remain zero, final design approval was explicitly granted by the user after reviewability. Frontend implementation stays frozen. Integration review and matching Windows/Debian gates remain open; no merge or release claim.
 
-### Gaps Pending
+## AKS-50 bounded repair ready for candidate verification
 
-- Dashboard chart/export data still needs persisted execution artifact dataset binding.
-- Explainability evidence still needs executed workflow, dataset checksum, model artifact, metric, and generated explanation output binding.
-- Full AKS-5 release verification and live-backend browser QA remain pending.
+Normal dependency and gateway compilation fixes the reproduced Windows bootstrap with original MLJ code: module load 9.807 s, state ready 18.328 s, health ready 57.891 s; all existing smoke assertions pass within unchanged deadlines. Source compilation previously exceeded 60 s before state initialization. The smaller two-invocation policy correction is retained; optional-import experiments remain only in evidence. Startup diagnostic regressions pass 15 checks, with one explicit POSIX-only Windows skip. Docker/PostgreSQL is ready. Full same-candidate Windows/Debian gates and combined/required reviews remain pending and block merge. [Exact diagnosis and retained outcomes](verification-m1-integration.md).
 
-### Next Items To Implement
 
-- Implement artifact-backed dashboard datasets for Stage 3.
-- Bind explainability evidence to the executed workflow run before claiming Stage 3 complete.
+## 2026-09-20 — AKS-50 preserved integration and startup diagnostics
 
----
+Preserved separate AKS-57 commit `f3be33e` and created isolated `codex/aks-50-stabilize-integration` without rebasing/squashing. Retained PR #55 Debian artifact 10608053036 with verified SHA-256. Original Windows startup reproduces the 60-second failure. Diagnostics locate module loading, before state/listener milestones, with a live child and ECONNREFUSED; cleanup closes pipes and process. Underlying repair and hosted confirmation remain open.
 
-## Checkpoint: `cp/02-alpha-core` AKS-5 Native Windows Bootstrap Compatibility - 2026-06-18
+Contract suite: 43 pass, one explicit POSIX termination skip on Windows. Startup coverage includes success, spawn/early-exit failures, refusal, invalid/non-ready responses, deadline, redaction and cleanup. Snapshot-scoped Git attributes repair Windows CRLF conversion without changing the original BRD snapshot or its manifest; all nine archive hashes pass. Candidate dependencies instantiated after retaining a stale-manifest failure. Existing npm CLI verified with task-local launchers; no global repair. Docker engine restored, metadata gates pending.
 
-### Work Done Till Date
+Hosted diagnostic run 35526439547 failed the new malformed-JSON assertion because its final deadline abort replaced the earlier SyntaxError. Preserve the earlier diagnosis on abort; add a hanging-retry regression without changing assertions/timeouts. The artifact is retained under SHA-256 `bf78852c2e72660b62820769b238dfa30d17cd0d4d15a2d43a67db368f12ee1f`. Startup rerun: 13 passed, one POSIX-only Windows skip. Next: confirm hosted bootstrap diagnosis, establish the smallest repair, run full clean same-candidate Windows/Debian verification and combined review. AKS-64 design proceeds independently; frontend frozen. No merge/release claim. [Verification](verification-m1-integration.md).
 
-- Restored the release baseline from `Gravelaw/LowcodeMLtoolkit.jl` in a temp clone after confirming the active Documents folder is stale and lacks `.git`.
-- Confirmed the GitHub baseline contains the modular frontend views/components, Playwright browser test assets, Offline Hub, reproducibility, backup/restore, and migration scripts.
-- Updated the toolchain guard so native Windows Node is accepted alongside Debian-native Node, while WSL `/mnt/c` Windows Node interop remains rejected.
-- Added `doctor:windows`, `julia:instantiate`, and explicit `dev-local --skip-instantiate` behavior.
-- Documented the generated Julia manifest policy and Windows/Debian bootstrap commands.
+## 2026-09-20 — AKS-57 BRD v0.5.0 and roadmap/tracker implementation
 
-### Gaps Pending
+Started clean at approved `c363e0086552334fc2268222550ea031c548b4f9` in an isolated worktree; branch `codex/aks-57-brd-v050-roadmap`. Scope is documents and authorized Linear updates only. BRD internal v0.5.0 keeps its canonical filename; the exact v0.4.1 Git blob is retained in a new dated SHA-256 snapshot. Existing archives, source artifacts, signed tooling, inherited product files and 46 historical mappings remain preserved.
 
-- In-place restoration of `C:\Users\aksha\Documents\LowCodeJulia` is blocked in this session because shell-level file and directory creation fails under that path; the staged branch work is happening from the verified temp clone.
-- Later AKS-5 child issues for release-mode separation, real vertical workflow proof, and full release pipeline remain queued.
+Reconciled the three source tasks, source/design artifacts, official Reactant/CUDA/Docker constraints and live GitHub/Linear. All PRs #40/#47–55 are open drafts with zero submitted reviews and web/Julia success; Debian #47–51 cancelled, #40/#52–55 failed. Latest #55 run 35518798354 fails verify:release; root cause is not diagnosed here. Prior 1,492 gateway/boundary assertions and five browser scenarios remain historical with PostgreSQL skipped. No fresh product pass is claimed.
 
-### Next Items To Implement
+Implemented 32 stable requirements, M1–M7 roadmap with parallel M5 design, bounded next action and success/rejection acceptance. Added AKS-57 High/In Progress coordination and AKS-58–66 High/Todo release requirements plus AKS-67 Medium/Todo deferred compatibility, all Akshay. Existing work reused and owners/priorities/statuses preserved. Project context retained with v0.5.0 appendix; readback verifies issues/dependencies and project. No product Done transitions or messages/comments to people.
 
-- Push the staged AKS-5 branch and open the draft PR against `main`.
-- Continue with release/demo mode boundaries and live-backend browser verification.
+Frontend remains frozen until explicit final design approval. GPU preparation/EDA/chart-data/fitting/inference/evaluation and meaningful CPU-oriented compiler integration are mandatory first-release gates; unsupported regions keep CPU reasons and required-GPU rejection. Windows EXE/Linux-Docker, native NVIDIA plus opt-in authenticated/confined local Windows compiler worker are selected platforms. Current 1,000-row/immutable-plan safeguards stay; AKS-49 hydration remains unfixed.
 
----
+Documentation checks, archive/link/mapping integrity and final readback: [verification](verification-brd-v0.5.0.md). Direct Node repository validators are authorized because npm launcher points to a missing CLI; no system repair/install. Product tests, browser/Julia/hardware/compiler/packaging and full release gates are not run. No publication, merge, tag, release, deployment or destructive cleanup.
 
-## Checkpoint: `cp/02-alpha-core` Backend-Backed Deploy Packaging Actions — 2026-06-17
+Next bounded action: AKS-50 exact-head Debian diagnosis, then bounded M1 review/integration/verification; AKS-64 design may progress in parallel. Rollback is a scoped documentation revision using the retained snapshot and explicit tracker correction, no data migration.
 
-### Work Done Till Date
+## Earlier checkpoint records
 
-- Continued the mock-aligned local product-depth sequence after Visualize checkpoint/export actions.
-- Added workflow deploy package contracts, OpenAPI schemas, and typed gateway client support.
-- Added gateway routes that generate and list local-only deployment package records from workflow/model/checkpoint evidence.
-- Returned Deploy package records with endpoint URL, service/package refs, package checksum, generated Julia service code, run command, deployment status, local-only flag, and artifact evidence.
-- Persisted Deploy package history into local execution metadata and marked the related model registry record `local_ready`.
-- Wired Deploy to run the backend action when a gateway is configured and deterministic demo fallback when offline.
-- Added visible package history and artifact evidence in Deploy.
-- Added focused Julia route assertions, contract/OpenAPI assertions, typed-client fixture coverage, and frontend demo smoke coverage.
+Entries below are retained unchanged from the baseline and retain their original revisions, outcomes and temporal meaning.
 
-### Gaps Pending
+## 2026-09-20 - AKS-56 migration smoke fixture correction
 
-- Current local product-depth sequence is closed for Data, Transform, ML Studio, Models, Visualize, and Deploy actions.
-- Provider/cloud deployment remains optional compatibility work outside this local-first package slice.
-- Downloadable package archives and process supervision can be future local UX depth if prioritized.
+Base `7e89658` / draft PR #54. Debian run `35515125167` reached local migration smoke and rejected its incomplete registry seed under the existing contract. The seed now supplies the required fields with explicit storage-fixture model/metric labels; no production validation, backup assertion or timeout is changed. `npm run smoke:local-migration` passes on Windows: one workflow and one model-registry record restored, with the expected missing artifact reported. Control-document and BRD checks accompany the separate maintenance PR. Fresh hosted release results, review and merge remain open.
 
-### Next Items To Implement
 
-- Finish PR verification/CI/review and merge once green.
-- After merge, audit the BRD/control set for the next local-first gap rather than treating provider deployment as the default next item.
+## 2026-09-20 - AKS-54 persisted split membership locally verified
 
----
+Base `142f3eb` / draft PR #53. New checksummed Arrow membership artifacts bind the source and locked plan to concrete train/validation/test rows. Training, tuning, evaluation and built-in numeric standardization reuse those rows; train-only feature eligibility and estimator decisions do not inspect final-test labels. Grouped, time and depth strategies preserve group/order boundaries. Incomplete locks/folds, altered membership, changed source bytes and unsupported strategies reject before successful result jobs. Historical unproven membership is not backfilled. Final verification passes 1,072 API, 37 authority, 261 real-evidence and 122 split assertions in 588.88 seconds, including real route and existing-UI grouped selection, repository round trips and fixed-membership counterfactuals. Five live-browser scenarios pass. Focused helper/contract/frontend checks, build and control validators pass; one PostgreSQL integration skip remains explicit. Draft PR #54 at `7e89658` is In Review; hosted Julia/Debian checks and human review remain open. Frontend application files remain frozen.
 
-## Checkpoint: `cp/02-alpha-core` Backend-Backed Visualize Checkpoint/Export Actions — 2026-06-17
+AKS-53 is now In Review in draft PR #53. Hosted web/Julia checks pass for #50-#53. The exact-head Debian #52 release gate failed during local-bootstrap startup; logs/artifacts are retained and AKS-50 has the follow-up. No release claim or merge authorization.
 
-### Work Done Till Date
+## 2026-09-20 — AKS-53 real evidence guards locally verified
 
-- Continued the mock-aligned local product-depth sequence after Models registry actions.
-- Added dashboard checkpoint-export contracts, OpenAPI schemas, and typed gateway client support.
-- Added a gateway route that composes dashboard publish, checkpoint creation, and reproducibility bundle export into one local evidence action.
-- Returned Visualize export records with workflow/dashboard IDs, dashboard version, checkpoint tag/summary, bundle ID/checksum, artifact refs/checksums, created timestamp, and local-only flag.
-- Wired Visualize to run the backend action when a gateway is configured and deterministic demo fallback when offline.
-- Added visible export history in Visualize for checkpoint tags, bundle IDs, artifact counts, and checksum prefixes.
-- Added focused Julia route assertions, contract/OpenAPI assertions, and frontend demo smoke coverage.
+Base `3308a87` / draft PR #52. Strict release/local-appliance actions reject missing, unsuitable and synthetic result evidence before saving completed jobs or result artifacts. Project changes are staged on copies. Stored fallback approvals cannot enable export, registration, lifecycle approval or deployment. Retraining uses measured local trials; training preflight rejects unavailable sources before execution acceptance and strict metrics contain measured values only. Browser verification exposed and corrected native-classifier dispatch that previously hid behind baseline evaluation and synthetic drift. Final verification passes: gateway 1,069, authority 37, real-evidence boundary 261 (including unreadable-file checks), tuning 152, repository 53 plus one explicit PostgreSQL integration skip, project contract boundary 275, Node contracts 30, frontend tests 27 and build. All four browser scenarios pass in 28.4 seconds. Control-document sync, BRD traceability and diff checks pass. CUDA cache/runtime and world-age warnings are retained; no GPU hardware-success claim. No frontend source edits. AKS-54 membership/fit-state design has started; implementation follows on a separate branch.
 
-### Gaps Pending
 
-- Local Deploy packaging remains the last product-depth slice before claiming full mock-aligned product readiness.
-- Downloadable bundle UX can be deepened later; current evidence exposes local artifact refs/checksums and bundle IDs.
+## 2026-09-20 — AKS-56 compatible project contracts locally verified
 
-### Next Items To Implement
+Base `268561d` / draft PR #51. Runtime project children use the local OpenAPI reference closure; populated resource evidence is strict, historical missing/empty evidence remains unavailable, and new execution producers require evidence. Request and file/PostgreSQL write boundaries reject malformed records before mutation. A mixed native/JSON3 persistence round-trip failure was found and corrected without weakening validation. Julia dependency instantiation, TypeScript client/compiler tests and build pass. Final checks: gateway 1,069 plus 37 authority assertions; project boundary 275; repository 53 plus one explicit PostgreSQL integration skip; worker 221; jobs 51; core 13; contracts 30; frontend 27; live browser 3/3. Redacted prediction-contract response evidence is distinct from the private input URI. Control-document, BRD and diff checks pass. Hosted candidate checks and review remain open. No frontend edits or storage migration.
 
-- Implement backend-backed local Deploy packaging actions.
-- Keep `npm run validate:contracts`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, control-doc validators, and `git diff --check` in the PR gate.
+## 2026-09-20 � AKS-41 managed path confinement under verification
 
----
+Baseline `ea765a7` / draft PR #50. AKS-55 is In Review with local checks passing. The next issue-specific branch confines managed source/output paths, backup checks and appliance metadata bootstrap through one canonical boundary. Existing root aliases and missing ordinary outputs remain valid. Local sources pass 36 existing + 87 boundary checks with no skips; tuning passes 152 checks; appliance bootstrap passes. The single candidate review completed; both confirmed findings have passing regressions. Full gateway verification passes 1,069 API and 37 authority assertions; control-document sync, BRD traceability and diff checks pass; draft publication and hosted review remain open; see the [remediation report](blocker-remediation-2026-09-20.md). No merge or release.
 
-## Checkpoint: `cp/02-alpha-core` Backend-Backed Models Registry Actions — 2026-06-17
+## 2026-09-20 — AKS-55 browser authority locally verified
 
-### Work Done Till Date
+Started from `87aa8166` on a new issue-specific branch. Baseline local-appliance probe accepted an untrusted-origin, unauthenticated project creation (201). Launcher token/bootstrap and gateway REST/realtime boundaries are patched without frontend application edits. API gateway: 1,069 pass; boundary: 37 pass; realtime: 73 pass; audit/OIDC: 46 pass; cleanup: 5 pass; contracts: 26 pass; frontend: 27 pass. Bootstrap and runtime-config checks pass. The independent candidate review completed and its confirmed findings were fixed; all three final live-browser scenarios pass, including log checks for connection errors and leaked credentials. Control-document sync against `87aa8166`, BRD traceability and diff checks pass. Draft PR publication and hosted review remain open. [Remediation report](blocker-remediation-2026-09-20.md) records compatibility and remaining gates. No merge, release, dependency change or destructive migration.
 
-- Implemented the next backend-backed product-depth slice after ML Studio experiment actions.
-- Added workflow model register/list routes, contracts, OpenAPI schemas, typed client methods, and client fixture coverage.
-- Gateway model registry records persist into local execution metadata with checkpoint, model, dataset checksum, primary metric, tags, owner, deployment status, and local artifact references.
-- Models now registers models through the gateway when configured and preserves deterministic demo fallback with accessible action coverage.
-- Added Julia gateway assertions and frontend demo-mode coverage for the Models registry action.
+Separate Astra Extra High task created for editable Figma concepts from the same snapshot; current development uses Astra Medium. Direction selection permits only further design work; frontend implementation requires explicit final design approval.
 
-### Gaps Pending
+## 2026-09-20 — AKS-38 current-code review and restart backlog
 
-- Visualize checkpoint/export depth and local Deploy packaging remain open product-depth slices.
-- Richer registry filtering/search and deployment promotion UX remain future depth after the core local workflow actions close.
+Reviewed dependency candidate `f9e10f3a3e5fd3c48e601e9252047de49c8bf2df` (draft PR #48), stacked on #47/#40. [Current review](restart-review-2026-09-20.md) supersedes June 21 current-state conclusions without editing historical documents; [threat model](restart-threat-model-2026-09-20.md) distinguishes configured controls from default startup and managed-reference gaps. This is a sequential agent review, not independent human approval.
 
-### Next Items To Implement
+Recorded blockers AKS-53 (synthetic evidence), AKS-54 (split execution/final-test isolation), AKS-55 (default browser authority), AKS-56 (resource-evidence contract consistency). Existing AKS-41/45/46/48/49/50 criteria retain managed-path, provenance, baseline-identity, real-file onboarding, accessibility and release gaps. No product repairs are included. AKS-37/39 corrected from Done to In Review after reading their July 4 completion comments and confirming PR #40 is unmerged and substrate commit `dd80817` is not in main.
 
-- Continue local product-depth with Visualize checkpoint/export before local Deploy packaging.
-- Keep `npm run validate:contracts`, Julia tests, frontend tests, `npm run test`, `npm run build`, control-doc sync, BRD traceability, and `git diff --check` in the gate set.
+Windows Julia 1.12.6 (explicit binary), Node 26.3.0/npm 12.0.0: instantiate passes; local-sources 36/36; tuning 152/152 (CUDA 13.4/13.2 runtime/precompile mismatch warning, no GPU success claim); repository 53 pass plus one explicit PostgreSQL integration skip because no test database URL was supplied. API gateway slice completed with 1,069 passes, zero skips (420.29 seconds including load). Live-backend browser smoke passes one scenario (25.8s, summary 2026-09-20T10:47:43.801Z). Its prepared managed-data positive path does not cover the new negative-path findings. Raw logs and summary remain in external task evidence. An initial worktree-local Juliaup 1.13 probe was stopped; its results are excluded.
 
----
+Draft review PR #49 is stacked on dependency PR #48; AKS-40–50 received individual acceptance reconciliation comments with readback. AKS-36 retains In Progress status with explicit blocked-by relations to AKS-53–56. Its deeper-readiness gate remains blocked; this does not prevent bounded remediation. The final local results apply to product/dependency/test tree `f9e10f3`; the review branch only changes documentation.
 
-## Checkpoint: `cp/02-alpha-core` Backend-Backed ML Studio Experiment Actions — 2026-06-17
+Review control checks pass against explicit base `f9e10f3`; BRD validator passes with historical 46-item inventory; whitespace passes. No archive bytes changed. Dependency PR #48 web check passed in run 35505962100; Julia/Debian remain pending. Parent run 35501646027 has web/Julia passed and Debian still running, with no final artifact yet. No check was rerun or interrupted. Full Windows/Debian release closeout remains outside scope.
 
-### Work Done Till Date
+Decision: restart only bounded remediation and review; deeper persona features await blocker resolution/explicit acceptance. Review order and eventual authorized integration order are recorded in the review. Retain PR #39, PRs #41–#46, user edits, all worktrees and signed tooling. No storage cleanup or blocked deletion retry. Rollback is a scoped documentation revert; no migration.
 
-- Implemented the next backend-backed product-depth slice after Data import/profile and Transform run/history.
-- Added workflow ML experiment run/history routes, contracts, OpenAPI schemas, typed client methods, and client fixture coverage.
-- Gateway experiment records reuse local execution/checkpoint and explainability evidence to return dataset/model IDs, dataset checksum, metrics, feature importance, hardware backend, GPU readiness, and local artifact references.
-- ML Studio now runs experiments through the gateway when configured and preserves deterministic demo fallback with accessible action coverage.
-- Added Julia gateway assertions and frontend demo-mode coverage for the ML Studio action.
+## 2026-09-20 — AKS-52 dependency remediation and verification repairs
 
-### Gaps Pending
+Baseline `ebeebfeb26357414e8243d216885cfb577001730`; isolated AKS-52 branch. [Dependency report](dependency-remediation-2026-09-20.md) maps all ten GitHub alerts/eight npm package entries and PRs #41–#46 to compatible fixed versions. Audit after clean locked install is zero. Vitest and coverage are aligned at 4.1.11; npm executable resolution repairs the reproduced hard-coded launcher failure. Five meaningful tests repair baseline coverage gaps without lowering any gate.
 
-- Models registry mutation, Visualize checkpoint/export depth, and local Deploy packaging remain open product-depth slices.
-- Richer MLJ training execution is still future depth beyond this deterministic local-evidence action.
+Windows Node 26.3.0/npm 12.0.0: clean install, contract tests (21), workspace tests (27 frontend plus 21 contracts), build, coverage (79.68% statements / 73.21% branches), and ten mocked-gateway desktop/mobile browser tests pass. Initial baseline/candidate coverage failures and launcher failure are retained in external task logs. Both control validators use the explicit cleanup baseline; whitespace is checked before and after commit. Full release verification is not run or claimed. Julia review slices and live-backend evidence belong to the separate AKS-38 review.
 
-### Next Items To Implement
+Signed Julia catalog verification passed against external trust: version 2.1.0, manifest `996753585e98ac66877932c1569ee2301c9a19cd3e763a3a34860498c837fc6e`; route `e82600b0-6b90-4ed3-af3c-932803660873` selected debug/workflow skills. No signed files changed. A local Juliaup wrapper initially selected 1.13.0 during environment preparation; that probe was stopped and retained, and review tests explicitly select the existing 1.12.6 binary. No Julia dependency or tracked manifest change.
 
-- Continue local product-depth with Models registry mutation or Visualize checkpoint/export before local Deploy packaging.
-- Keep `npm run validate:contracts`, Julia tests, frontend tests, `npm run test`, `npm run build`, control-doc sync, BRD traceability, and `git diff --check` in the gate set.
+PR #47 hosted run 35501646027 remains in progress at the last read; web/Julia passed. Larger source-confirmed gaps are recorded as AKS-53/54, not silently repaired. Rollback is scoped maintenance revert, with no migration. No merges, releases, tags, deployment reruns, retained-worktree or storage cleanup.
 
----
+## 2026-09-20 — AKS-51 repository housekeeping and governance repair
 
-## Checkpoint: `cp/02-alpha-core` Mock-Aligned Local Product Workflow Vertical First Slice — 2026-06-17
+Implementation baseline: `a70ea67eda343655f70fe336c294f8ec9e638889` from draft PR #40. The original checkout and pre-existing edits are preserved; implementation uses a separate AKS-51 worktree/branch.
 
-### Work Done Till Date
+### Completed changes
 
-- Implemented the first frontend-shell slice of the mock-aligned local product workflow vertical.
-- Route shell now exposes Explorer, Data, Transform, ML Studio, Models, Visualize, Deploy, Hub, Monitor, and Settings.
-- Explorer remains the workspace/canvas entry point, while Visualize carries the existing BI dashboard authoring/viewer behavior and preserves `/dashboard` deep-link compatibility.
-- Data, Transform, ML Studio, Models, and Deploy render shared local state from health, data-estate, workflow, checkpoint, execution, explainability/model, dashboard, and runtime endpoint evidence.
-- Added frontend coverage for the route shell and a demo-mode walk through the local workflow vertical.
+- Fresh GitHub comparisons allowed removal of 15 already-merged branches; deletion readback succeeded. Recovery SHAs are in the local maintenance inventory. Automatic merged-branch deletion is now enabled.
+- Removed five obsolete local branches after exact merged-head/tree-equivalence checks and main containment of their merge commits; recovery bundle retains the refs. Pruned stale remote-tracking refs.
+- Removed volatile/stale skill routing and repeated policies from AGENTS; current planning/risk/tracker guidance links historical snapshots instead of repeating them.
+- Preserved eight source blobs with SHA-256 and byte-size evidence under `docs/archive/2026-09-20/`. Concept BRDs moved into that archive; the active governed BRD retains its path.
+- Added baseline-aware control-document checks and real-Git regression tests. Product and dependency changes keep the five-document requirement; maintenance requires tracker/checkpoint evidence; documentation-only edits no longer require fabricated status churn.
+- Added narrow tooling/cache ignores, preserving visibility of user-owned documentation images and all tracked paths.
+- Installed project-locked JavaScript dependencies before browser binaries in both hosted release workflows; history and an explicit tag-workflow baseline support committed-diff validation.
 
-### Gaps Pending
+### Local verification
 
-- This slice is frontend/product integration only; backend-backed import/profile, transform run/history, experiment tracking, model registry mutation, and deploy packaging actions remain open.
-- Full product readiness still needs deeper module behavior and final PR review after PR #11 lands.
+- Git integrity check before housekeeping: passed, no corrupt/missing objects; dangling history was retained. Recovery bundle verification passed.
+- Signed staged and installed Julia runtime: external-trust verification passed before use; no signed files were modified.
+- `npm ci`: passed; npm audit reported eight existing affected package entries, tracked separately in AKS-52 (Todo).
+- `node --test tests/contracts/control-doc-sync.test.mjs`: 11 passed, zero skipped.
+- `node --test tests/contracts/control-doc-archive.test.mjs`: 3 passed, zero skipped; all 46 original checked titles and original risk IDs retained.
+- `npm run test`: passed 22 frontend tests and 21 contract/maintenance tests, zero skips.
+- `npm run build`: passed; existing large Plotly bundle warning remains.
+- Project-local `npx playwright install chromium` followed by `npm run test:browser`: all 10 desktop/mobile Chromium tests passed. This fixture-backed UI gate is not the live-backend release smoke.
+- `actionlint .github/workflows/ci.yml .github/workflows/release-candidate.yml`: passed.
+- `npm run validate:control-doc-sync -- --base a70ea67eda343655f70fe336c294f8ec9e638889`: passed.
+- `npm run validate:brd-traceability`: passed for 46 historical checked items.
+- `node --check scripts/validate-control-doc-sync.mjs`: passed.
+- `git diff --check`: passed after removing a trailing blank line from the compact TODO.
 
-### Next Items To Implement
+### Remaining work and constraints
 
-- Rebase this vertical branch after PR #11 lands, then add backend-backed product actions starting with Data import/profile and Transform history if product depth remains the selected lane.
-- Keep `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check` in the gate set.
+Publish the locally verified stacked PR and read hosted status. Final staged whitespace/archive-byte checks run before commit. The authoritative Julia suite, base-extension suite, Docker/local-runtime smokes, live-backend browser smoke, and full no-skip release verifier were not rerun locally for this maintenance-only change. These release gates are not replaced by the checks above. Exact-head no-skip Windows/Debian evidence remains an AKS-36/AKS-50 acceptance gate.
 
----
+Forced removal of the 19 read-only Git temporary objects was rejected by automatic approval review (`blocked by policy`); no reclamation is claimed. Retain tooling custody/source, signed packages, ignored runtime/evidence worktrees, PR #39, and unmerged PR #19's branch. No merge, tag, release, deployment, or protection changes.
 
-## Checkpoint: `cp/02-alpha-core` Backup/Restore And Migration Proof Complete — 2026-06-17
+## Earlier checkpoints
 
-### Work Done Till Date
+[Full pre-cleanup checkpoint history](archive/2026-09-20/checkpoint-log.md) is preserved byte-for-byte with [source and hash manifest](archive/2026-09-20/manifest.json). Historical success belongs to its recorded commit/platform and is not evidence for the current candidate.
 
-- Landed PR #10 and restarted from updated `main` on `codex-local-backup-restore-proof`.
-- Added local appliance backup export/import routes for checksum-protected migration bundles.
-- Bundles cover workflows, checkpoints, executions, published dashboards, Hub records, auth policy/directory, package/runtime metadata, local settings, and data-estate artifact references/checksums.
-- Restore validates the signed backup checksum, reports missing local artifacts and checksum mismatches, rehydrates metadata into a fresh local repository, and rejects tampered bundles.
-- Added `npm run smoke:local-migration` with an in-process gateway smoke that proves export, restore, missing artifact reporting, and tamper rejection.
+## October 2 remediation fixture validation follow-up
 
-### Gaps Pending
+The first mapped warm push at f009ff0 failed frontend fixture assertions and new gateway policy setup. Main gateway 1089/1089, repository 100/100 and worker 216/216 passed; new policy tests had 41 passes, 11 failures and 2 errors after three create fixtures omitted required splitPlans.createdAt. Corrected the schema-complete policy and server-owned-evidence fixtures and added creation diagnostics, preserving rejection and legitimate-control assertions. No product guard changed. Cleanup and evidence finalization passed; all 33 retained hashes verified. AKS-69 records the defect and regression repair scope; issue remains In Progress. Focused new tests, final independent patch review and a complete exact-candidate release gate remain pending. No promotion or publication.
 
-- Backup bundles do not embed local binary artifact bytes; they provide manifest-style references/checksums for migration validation.
-- Mock-derived product modules remain open implementation work.
+## October 2 evidence regression correction
 
-### Next Items To Implement
+Focused f17cd58 metric/code-generation checks passed 131/131. Policy checks passed 85 assertions; one test expected 400 for the unchanged baseline 500 ambiguity mapping, corrected to assert the exact existing error and unchanged state. Server-owned aggregate admission passed 35/35; strict genuine producer tests exposed source resolver mismatch: artifact resolution added a data/ directory to local://data/raw references. Use the existing confined dataset reader for the original-source checksum check at all three consumers while retaining report/model artifact resolvers and every identity, producer and digest check. Map the new server-owned execution evidence and executed-training-plan admission errors to HTTP400. AKS-53 records the regression correction; required focused rerun, full profile, final independent review and exact release remain pending. Failed diagnostics and cleanup receipts retained; no promotion/publication.
 
-- Start the mock-aligned local product workflow vertical: Explorer/Workspace -> Data -> Transform -> ML Studio/Models -> Visualize -> checkpoint/export.
-- Keep `npm run smoke:local-migration`, `npm run validate:contracts`, Julia tests, control-doc sync, BRD traceability, and `git diff --check` in the PR gate set.
+## October 2 independent review closure correction
 
----
+The fresh read-only final review traced all eight boundaries on 786e817 and found no confirmed surviving MAN-1 through MAN-7 bypass. Its one remaining Low MAN-8 finding was independently confirmed: optional historical split fractions rendered invented zero percentages. Data now renders unavailable for omitted/nonfinite fractions and preserves recorded values including genuine0%. Added rendered missing, nonfinite and75%/25%/0% controls. AKS-56 records this bounded correction within the approved frontend exception. The earlier786e817 mapped push continues from its isolated snapshot; it cannot certify this changed candidate. Independent delta readback, required exact-candidate checks and full20-phase release remain pending. No acceptance, promotion or publication.
 
-## Checkpoint: `cp/02-alpha-core` Mock-Aligned BRD Product Surface Refresh Complete — 2026-06-16
-
-### Work Done Till Date
-
-- Compared the eight `mockdesigns/` screens against the BRD and current repo state.
-- Updated the BRD to capture Explorer, Data, Transform, ML Studio, Models, Deploy, Visualize, and Settings as required local-first product modules.
-- Added requirements for local workspace health/activity, local data import/profile/lineage, transform canvas/code/history, MLJ training/experiments, model registry/drift/lineage, local deployment targets/endpoints, dashboard builder/export, local package/Julia settings, API keys, autosave, and snapshots.
-- Removed stale core-product emphasis on cloud/provider paths by keeping hosted SaaS collaboration, remote managed inference, cloud telemetry, cloud model registries, cloud deployment, external connectors, and external registries optional.
-
-### Gaps Pending
-
-- This checkpoint closes the BRD/control-doc refresh only; mock-derived module implementation remains open.
-- Academic reproducibility and backup/restore remain open local-first lanes.
-
-### Next Items To Implement
-
-- Start academic reproducibility workflow unless the next selected slice is a mock-derived local module implementation pass.
-- Keep `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check` as required evidence for doc/control slices.
-
----
-
-## Checkpoint: `cp/02-alpha-core` Debian Toolchain / Offline Hub Proof Complete — 2026-06-16
-
-### Work Done Till Date
-
-- Rectified the active development shell for Debian: `npm run doctor:debian` verifies native Linux/nvm Node and repo-local Juliaup LTS with workspace-local Julia depots.
-- Implemented and verified the offline Hub proof after explainability/model evidence closure.
-- Gateway `/health` exposes local Hub cache readiness, artifact-store path, mirror-registry path, artifact cache root, bundled extension count, installed local extension count, and offline install readiness.
-- Local bootstrap initializes offline Hub artifact and mirror registry files under the local appliance cache.
-- `npm run smoke:local-offline-hub` runs through the in-process gateway router, registers/enables a local official extension from local artifact/mirror registries, and verifies unsafe sandbox commands remain blocked.
-- Frontend Monitor, TypeScript/OpenAPI contracts, Julia health assertions, frontend tests, and contract tests cover the expanded Offline Hub evidence surface.
-
-### Gaps Pending
-
-- Offline Hub proof is closed for the current local-first slice.
-- Socket-bound gateway smoke remains unavailable in the current sandbox because TCP bind fails with `EPERM`; the in-process router smoke verifies the install path without network binding.
-- The Babel/esbuild/Vite dependency advisories are resolved in this PR branch; `npm audit --audit-level=moderate` now reports zero vulnerabilities after the Vite 8 lockfile upgrade.
-- Academic reproducibility bundles and backup/restore integrity remain queued for the next local-first lanes.
-
-### Next Items To Implement
-
-- Start academic reproducibility workflow: offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport with package, seed, checksum, metric, model, explanation, dashboard, and notes evidence.
-- Keep `npm run doctor:debian` and `npm run smoke:local-offline-hub` in the local-first gate set.
-
----
-
-## Checkpoint: `cp/02-alpha-core` Explainability / Model Evidence Proof Complete — 2026-06-06
-
-### Work Done Till Date
-
-- Implemented and verified the explainability/model evidence slice after local hardware runtime closure.
-- Gateway `/health`, checkpoint payloads, and accepted execution payloads expose deterministic dataset-card, model-card, feature-importance, local-explanation, limitations/warnings, and reproducibility-bundle readiness evidence.
-- `scripts/dev-local.mjs` smoke checks verify explainability evidence and `npm run smoke:local-explainability` runs the bounded local proof.
-- Frontend Monitor renders explainability evidence in health and execution surfaces.
-- Contracts, OpenAPI, Julia gateway tests, frontend tests, and contract tests cover the expanded evidence surface.
-
-### Gaps Pending
-
-- Current explainability/model evidence proof is closed for deterministic local evidence wiring.
-- Broader export/reimport reproducibility bundles remain queued for the academic reproducibility lane.
-- Backup/restore integrity remains queued for the backup/restore lane.
-
-### Next Items To Implement
-
-- Start offline Hub proof: bundled/local extension install without external registry dependency, checksum verification, sandbox tests, local artifact cache, and unsafe-extension blocking.
-- Keep `npm run smoke:local-explainability` in the local-first gate set.
-
----
-
-
-## Checkpoint: `cp/02-alpha-core` Local Hardware Runtime Proof Complete — 2026-06-03
-
-### Work Done Till Date
-
-- Implemented and verified the local hardware runtime slice after local metadata/database closure.
-- Gateway `/health` now exposes hardware profile status, selected backend, bounded CPU scheduler policy, CPU worker concurrency, CPU memory limit, CUDA probe status, hardware/simulated GPU counts, VRAM totals, and GPU device summaries.
-- `scripts/dev-local.mjs` smoke checks verify the hardware profile evidence for local profiles.
-- Added `scripts/smoke-local-hardware.mjs` behind `npm run smoke:local-hardware`; the smoke proves CPU fallback with an empty GPU registry and deterministic CUDA-smoke skip behavior when CUDA is not requested.
-- Frontend Monitor renders hardware profile, CPU scheduler/memory limit, GPU probe, and VRAM evidence.
-- TypeScript/OpenAPI contracts, Julia gateway tests, frontend tests, and contract tests cover the expanded health surface.
-
-### Gaps Pending
-
-- Current hardware runtime proof is closed for CPU/RAM/disk profiling, bounded CPU scheduling, memory-aware CPU limits, selected backend evidence, GPU probe summaries, and explicit CPU fallback.
-- Hardware-backed CUDA smoke remains optional and conditional on a host with CUDA packages/runtime available.
-- Multi-GPU evidence remains optional compatibility/final hardware-gated scope, not a local-first GA blocker.
-
-### Next Items To Implement
-
-- Start explainability/model evidence proof: dataset cards, model cards, feature importance, local/global explanations, limitations/warnings, and checkpoint/reproducibility-bundle export.
-- Keep `npm run smoke:local-bootstrap`, `npm run smoke:local-data-estate`, `npm run smoke:local-metadata`, and `npm run smoke:local-hardware` in the local-first gate set.
-
----
-
-## Checkpoint: `cp/02-alpha-core` Local Metadata / Database Proof Complete — 2026-05-31
-
-### Work Done Till Date
-
-- Implemented and verified the local metadata/database slice after local data-estate closure.
-- Gateway `/health` now exposes metadata mode/backend/root/readiness/schema/concurrency/capability evidence for file and PostgreSQL repository backends.
-- `scripts/dev-local.mjs` smoke checks now verify metadata evidence for `single-user` and `lab-team` profiles.
-- Added `scripts/smoke-local-metadata.mjs` and `scripts/smoke-local-metadata.jl` behind `npm run smoke:local-metadata`; the smoke proves single-user file metadata, live Docker Postgres lab-team metadata, repository contracts, shared Postgres catalog/cursor visibility, and smoke-schema cleanup.
-- Frontend Monitor renders metadata evidence alongside local profile, data estate, Postgres profile, and worker health.
-- TypeScript/OpenAPI contracts, Julia gateway/repository tests, frontend tests, and contract tests cover the expanded health surface.
-
-### Gaps Pending
-
-- Current metadata/database proof is closed for single-user file mode and lab/team local PostgreSQL mode.
-- Metadata backup/restore and migration integrity remain queued for the later backup/restore lane.
-- Provider-managed database proof remains optional compatibility scope, not a core local-first GA gate.
-
-### Next Items To Implement
-
-- Start local hardware runtime proof: CPU/RAM/disk/GPU profiler, CPU scheduling, memory-aware worker limits, CUDA smoke when available, and explicit CPU fallback evidence.
-- Keep `npm run smoke:local-bootstrap`, `npm run smoke:local-data-estate`, and `npm run smoke:local-metadata` in the local-first gate set.
-
----
-
-## Checkpoint: `cp/02-alpha-core` Local Data Estate Proof Complete — 2026-05-30
-
-### Work Done Till Date
-
-- Implemented and verified the managed local data-estate slice after bootstrap closure.
-- Gateway `/health` now exposes manifest/checksum evidence, Arrow IPC and Parquet artifact-format support, quota and used-byte reporting, cleanup hook readiness, backup root/status, and DuckDB query binding path/status.
-- `scripts/dev-local.mjs` smoke checks now reject incomplete managed-estate evidence, and `scripts/smoke-local-data-estate.mjs` provides a bounded temporary-home proof command through `npm run smoke:local-data-estate`.
-- Frontend Monitor renders estate manifests, quota, DuckDB query binding, and cleanup/backup readiness.
-- TypeScript/OpenAPI contracts, Julia gateway tests, frontend tests, and contract tests cover the expanded health surface.
-
-### Gaps Pending
-
-- Current data-estate product proof is closed for manifests, artifact-format evidence, quotas, cleanup/backup hooks, and DuckDB query binding.
-- This slice records a DuckDB query binding file and managed readiness, not a full analytical query execution benchmark.
-- Full backup/restore integrity remains queued for the later backup/restore and migration proof lane.
-
-### Next Items To Implement
-
-- Start local metadata/database proof: single-user metadata mode plus PostgreSQL lab/team mode for concurrent metadata, RBAC, audit, execution history, and shared workflow catalog.
-- Keep `npm run smoke:local-bootstrap` and `npm run smoke:local-data-estate` in the gate set for local-first follow-up slices.
-
----
-
-## Checkpoint: `cp/02-alpha-core` Local Appliance Bootstrap Proof Complete — 2026-05-30
-
-### Work Done Till Date
-
-- Implemented and verified the local-first bootstrap slice:
-  - `scripts/dev-local.mjs` one-command runner with default `single-user` profile and support for `lab-team`, `s3-compatible-local`, and `developer`.
-  - `scripts/smoke-local-bootstrap.mjs` bounded temporary-home smoke wrapper.
-  - `package.json` scripts `dev:local` and `smoke:local-bootstrap`.
-- Local appliance home/data-estate initialization creates `raw`, `processed`, `features`, `models`, `runs`, `checkpoints`, `dashboards`, `logs`, and `extensions`.
-- Gateway `/health` exposes local appliance evidence across Julia + contracts/OpenAPI + frontend Monitor:
-  - profile/home/data-estate and zone readiness
-  - writable/disk status
-  - local service URLs
-  - Postgres/MinIO profile status
-  - CPU/GPU readiness and fallback reason
-  - cloud credentials not required for local bootstrap mode
-- Updated focused tests for Julia gateway health fields, contract schema expectations, frontend Monitor rendering, and Windows/WSL-safe Node tool invocation.
-- Verified this session:
-  - `npm run smoke:local-bootstrap` passed with `single-user`, gateway health, and `wf-foundation` sample workflow availability.
-  - `julia --project=. tests/julia/runtests.jl` passed.
-  - `npm run test` passed.
-  - `npm run validate:contracts` passed.
-  - Direct frontend TypeScript checks passed: `node ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json` and `node ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.node.json`.
-  - Direct Vite production build passed: `node ../../node_modules/vite/bin/vite.js build --configLoader runner`.
-  - `npm run validate:control-doc-sync` and `npm run validate:brd-traceability` passed after final control-doc updates.
-
-### Gaps Pending
-
-- Local appliance bootstrap product proof is closed for the current slice.
-- Residual toolchain caveat: `npm run build` reaches Vite transform in this Windows npm/WSL interop shell, then the npm wrapper can hang after Vite exits; direct Node/TypeScript/Vite build commands pass. Native WSL Node/npm should be preferred for future repeatable build-wrapper evidence.
-- Lab-team PostgreSQL and S3-compatible local dependency startup profiles are wired but not yet smoke-closed with live Postgres/MinIO dependencies; those belong with local metadata/database and optional S3-compatible-local follow-up evidence.
-
-### Next Items To Implement
-
-- Start local data estate proof: managed filesystem manifests, durable Arrow/Parquet artifacts, DuckDB query acceleration, quotas, cleanup, and backup/restore hooks.
-- Keep `single-user` bootstrap smoke in the gate set for every local-first follow-up.
-- Revisit native `npm run build` wrapper behavior after native WSL Node/npm is available or CI provides a single-runtime shell.
-
----
-
-## Checkpoint: `cp/00-foundation`
-
-### Work Done Till Date
-
-- Monorepo scaffold created
-- Core docs, CI scaffold, local infra scaffold added
-- Contracts and initial frontend/backend shells created
-
-### Gaps Pending
-
-- Contract freeze not complete yet at this point
-- Persistence/runtime/editor still shallow
-
-### Next Items To Implement
-
-- freeze contracts
-- harden gateway
-- deepen execution and frontend shell
-
----
-
-## Checkpoint: `cp/01-contracts-frozen`
-
-### Work Done Till Date
-
-- Workflow schema, OpenAPI, JSON-RPC, TS contract exports, Julia node/runtime seam stabilized
-- Gateway persistence paths and route coverage expanded
-- Contract tests and Julia tests broadened
-
-### Gaps Pending
-
-- Alpha workspace still mostly shell
-- No real persisted graph editing loop
-- No meaningful Phase 1 user workflows yet
-
-### Next Items To Implement
-
-- authoring-first frontend
-- save/update loop
-- runtime action loop
-- base node pack growth
-
----
-
-## Checkpoint: `cp/02-alpha-core` In Progress
-
-### Work Done Till Date
-
-- Repository canvas refreshed against current tree, docs, frontend, Julia services, contracts, and infra
-- Repo onboarding summary added in `docs/repo-onboarding.md`
-- `AGENTS.md` updated to reflect current monorepo structure and active commands
-- `AGENTS.md` updated again to make `caveman:caveman` the default session communication mode for this repo
-- Authoring-first frontend layout delivered
-- Editable draft workflow graph delivered
-- Flow variable editing delivered
-- Inspector config editing delivered
-- Save/update workflow loop delivered
-- Run workflow loop delivered
-- Gateway execute path accepts runtime inputs
-- Frontend realtime websocket subscription delivered for live gateway mode
-- Canvas node runtime/status overlay now reacts to realtime node state events
-- Gateway realtime path now emits full node state notifications for subscribe and execute flows
-- Realtime execution-state notifications now update live execution rail
-- Manual connection authoring/removal delivered in inspector
-- Compatibility preview now blocks invalid edge types, duplicate edges, and occupied target inputs
-- Canvas drag/drop positioning now persists through shared workflow graph metadata
-- Shared workflow contracts now carry:
-  - graph revision
-  - node layouts
-  - viewport
-  - selected node
-  - dashboards
-  - node capabilities
-  - runtime/streaming metadata
-- Frontend save/update now uses contract-first workflow JSON payloads
-- Gateway workflow detail/summary payloads now expose graph revision, dashboards, and run mode
-- Realtime gateway now keeps subscriber state and broadcasts workflow save/execution changes beyond request-scoped replies
-- Execution records now expose CPU/GPU resource-plan metadata and starter stream lifecycle metadata
-- Frontend now renders thin dashboard v0 summary from workflow-bound dashboard definitions
-- Frontend dashboard v0 composer now supports direct draft editing of dashboard bindings and chart definitions
-- Starter Alpha node catalog expanded across source/transform/aggregate/control/stream/BI/sink categories
-- Streaming MVP execution path now activates stream workflows through gateway/runtime and supports pause/resume/stop over JSON-RPC
-- Stream stop now emits a `streaming.checkpoint.completed` notification payload for subscribed canvases
-- Execution records now also expose dispatch plans with lane, worker pool, isolation mode, and accelerator metadata
-- Batch GPU workflows now auto-transition into a queued isolated GPU lane with worker identity metadata
-- Frontend execution rail now renders GPU dispatch context from live gateway payloads
-- Docker Compose now includes an optional `gpu` profile hook for local isolated worker experiments
-- Hub v0 skeleton now exists across contracts, gateway persistence/routes, frontend catalog shell, and install/enable flow scaffolding
-- Test suite green after gateway regression fixes
-- OpenAPI artifact refreshed to document current workflow, execution, checkpoint, and Hub REST surfaces
-- README and repo-onboarding docs reconciled with current Alpha-core implementation
-- New `services/worker-service/` module now owns stream/GPU worker-lifecycle transitions as a dedicated service seam
-- API gateway now delegates stream/GPU activation and stream pause/resume/stop through worker-service while preserving existing API behavior
-- New `scripts/run-stream-worker.jl` now supports out-of-process promotion of queued stream executions from persisted store state
-- Docker Compose dev stack now includes a `stream-worker` service entry for local multi-process streaming experiments
-- Gateway legacy polling path was added for worker-driven stream state rebroadcast before durable event consumer existed
-- Execution payload deserialization now restores worker metadata into internal keys needed by worker-service and gateway sync logic
-- New `scripts/run-gpu-worker.jl` now supports out-of-process promotion of queued GPU executions from persisted store state
-- Docker Compose `gpu-worker` profile now runs the real GPU worker script rather than a placeholder sleep container
-- Gateway legacy polling path also covered worker-driven GPU state rebroadcast before durable event consumer existed
-- Worker-runtime Phase B slice is now complete across both stream and GPU lanes
-- Milestone A thin event backbone slice now added:
-  - durable event envelope/types added in contracts
-  - append-only event log and consumer cursor persistence added for file/PostgreSQL repos
-  - workflow/execution/Hub writes now dual-write durable events
-  - stream checkpoint completion now emits durable event entries
-  - gateway consumer path can replay events into existing websocket notifications without polling
-  - legacy sync entrypoint now routes through durable consumer when backbone mode is enabled
-  - worker-originated execution updates now carry producer identity through durable events
-- Hub hardening slice now added:
-  - manifest fields now include engine compatibility, contract version, supported checkpoints, dependencies, publisher identity, and release metadata
-  - compatibility evaluator now emits warnings/blockers and blocks incompatible enable requests
-  - Hub register endpoint now persists new extension catalog entries with evaluated compatibility
-  - frontend Hub shell now surfaces compatibility status, blockers, warnings, and richer lifecycle controls
-- BI publish/layout thin slice now added:
-  - dashboard draft charts now persist panel layout metadata
-  - published dashboard artifact store now exists separately from workflow draft state
-  - gateway now supports publish/get published dashboard routes
-  - frontend now supports publish button and published-vs-draft preview
-- BI viewer/share slice now added:
-  - frontend can now open URL-driven published dashboard viewer state
-  - published dashboard surface now renders read-only cards with version/dataset metadata
-  - share link action now emits viewer URL
-- UI shell + UX foundation slice now added:
-  - frontend now uses route-based product shell with dedicated Canvas, Dashboard, Hub, Monitor, and Settings views
-  - canvas view remains authoring-first and removes roadmap/checkpoint clutter from primary screen
-  - dashboard authoring and published viewer now live in dedicated BI workspace
-  - Hub now has dedicated marketplace surface
-  - runtime/checkpoint evidence moved into dedicated monitor surface
-  - roadmap/checkpoint context moved into settings surface
-- Contract/backend additions for UI/UX upgrade now added:
-  - health payload now exposes realtime transport, event backbone mode, consumer poll interval, and worker modes
-  - published dashboards now carry `visibility` and optional `shareToken`
-  - workflow-scoped published dashboard listing route now exists
-  - durable event schema now includes `dashboard.published`
-  - Hub records now carry trust result, upgrade info, and installed version
-  - Hub lifecycle now supports `upgrade`
-  - gateway now blocks enabling unsigned partner extensions
-- Canvas repository UX now groups starter nodes by family
-- Access + diagnostics + provenance hardening slice now added:
-  - published dashboard read route now enforces `shareToken` for public snapshots
-  - workspace published dashboard read route now enforces `workspaceToken` via env-backed server gate
-  - workspace published dashboard read route now also supports `Authorization: Bearer <workspace-token>`
-  - contracts/OpenAPI/gateway client now include `shareToken` read parameter for published dashboard fetch
-  - contracts/OpenAPI/gateway client now include `workspaceToken` read parameter for published dashboard fetch
-  - OpenAPI now includes optional dashboard authorization header parameter for published-dashboard read route
-  - frontend viewer now forwards URL share token when loading published dashboard
-  - frontend viewer now forwards URL workspace token when loading workspace published dashboard
-  - frontend viewer now supports env-configured workspace bearer token for workspace published-dashboard reads
-  - health payload now adds event-log size + latest sequence, consumer cursor/lag, active stream count, queued stream count, active GPU count, queued GPU count, and worker-owned GPU count
-  - health payload now also adds event-consumer catch-up percent and total queued/running execution counts
-  - monitor surface now renders those additional runtime diagnostics
-  - partner provenance now requires `sig:` signature format, signature identity binding, `https://` release-notes reference, and `hub://` package-ref scheme
-  - Hub marketplace cards now display package reference and release notes provenance fields
-  - BI dashboard draft workspace now supports duplicate/remove controls with single-draft guard, in addition to create/edit/publish/view flows
-  - base extension now also includes `base.aggregate_rows` with direct extension tests
-  - base extension now includes `base.filter_rows` node with extension tests
-  - Julia gateway tests now explicitly cover release-notes URL trust blocker, partner-identity suffix blocker, signature identity binding blocker, package-ref scheme blocker, workspace token gate (missing/invalid/valid), and workspace bearer gate (invalid/valid)
-  - Frontend BI workspace test now explicitly covers duplicate/remove dashboard composition flow
-  - Frontend viewer tests now explicitly cover workspace bearer-auth fetch path
-  - Contracts/frontend/julia tests now explicitly cover event-consumer catch-up and total queued/running execution diagnostics
-
-### Gaps Pending
-
-- BRD gap review on 2026-04-24 confirms Alpha shell is strong, but Phase 1 / Alpha is not complete yet
-- Base node pack depth remains far below BRD target and several nodes still behave as placeholders
-- BI publish/viewer exists, but chart-data service, semantic layer, live binding, and richer sharing/RBAC are pending
-- Stream/GPU workers queue and promote execution state, but real Kafka/window/checkpoint runtime and GPU compute path are pending
-- Hub trust/provenance gates exist, but publish UX, package hash verification, sandbox compatibility tests, and private mirror are pending
-- Auth/RBAC, observability/performance gates, and production K8s/Helm manifests are still thin/scaffold-level
-
-### Next Items To Implement
-
-- follow `docs/TODO.md` P0 order
-- execute `.omx/plans/brd-gap-review-2026-04-24.md` beginning with base node pack reality pass
-- create `docs/brd-traceability.md` during first implementation slice
-- update tracker/checkpoint/TODO after each P0 milestone closes
-
----
-
-## Checkpoint: `cp/02-alpha-core` BRD Gap Review — 2026-04-24
-
-### Work Done Till Date
-
-- Reviewed current code/docs against `JuliaFlow_BRD_v1.0.docx`
-- Created detailed execution plan at `.omx/plans/brd-gap-review-2026-04-24.md`
-- Created/update TODO list at `docs/TODO.md`
-- Re-ranked remaining work around real Alpha readiness rather than UI shell presence
-- Verification passed for planning/doc update: `git diff --check`, `npm run test`, `npm run build`, `julia --project=. tests/julia/runtests.jl`, `julia --project=. extensions/base/test/runtests.jl`
-
-### Gaps Pending
-
-- Base node pack real behavior and breadth
-- BI chart-data/semantic/live binding path
-- Auth/RBAC and resource permission model
-- Streaming adapter/window/checkpoint/backpressure runtime
-- GPU compute execution path
-- Hub publish/install sandbox and mirror flow
-- Observability/performance/deployment hardening
-
-### Next Items To Implement
-
-- start with P0 base node pack reality pass
-- then BI v0 data path
-- then Auth/RBAC contract slice
-- keep tracker, checkpoint, TODO, contracts, code, and tests synchronized
-
----
-
-## Checkpoint: OMX Explore Tooling Fix — 2026-04-24
-
-### Work Done Till Date
-
-- Fixed `omx explore` startup on this machine after it failed because `cargo` was missing
-- Installed user-local Rust toolchain / `cargo` via rustup for the packaged explore harness path
-- Added `~/.codex/.omx-config.json` with `OMX_EXPLORE_SPARK_MODEL=gpt-5.4-mini` so explore no longer attempts unsupported `gpt-5.3-codex-spark` before fallback
-- Verified:
-  - `cargo --version` reports `cargo 1.95.0`
-  - `omx explore --prompt "smoke: answer exact word OK"` returns `OK` without spark fallback noise
-  - `omx doctor` reports Explore Harness ready; 13 passed, 1 warning, 0 failed
-
-### Gaps Pending
-
-- Product/BRD gaps remain unchanged: base node breadth, BI data path, Auth/RBAC, streaming runtime, GPU compute path, Hub hardening, observability/perf/deployment
-- Tooling warning remains: legacy `~/.agents/skills` coexists with canonical `~/.codex/skills`
-
-### Next Items To Implement
-
-- Resume `docs/TODO.md` P0 order, starting with base node pack reality pass
-- Cleanup legacy skill roots only if user explicitly wants duplicate-skill cleanup
-
----
-
-## Checkpoint: P0 Base Node Pack Reality Pass — 2026-04-24
-
-### Work Done Till Date
-
-- Implemented first P0 base node pack reality pass from `docs/TODO.md`
-- Base extension registry now exposes 25 Tier-1 nodes
-- Added `TabularPayload.jl` helpers for inline-row materialization while preserving Arrow IPC payload shape
-- Added `TierOneTableNodes.jl` with tested transform/combine/profile/BI nodes
-- Replaced placeholder forwarding behavior for select/filter/aggregate/trainer when inline rows are present
-- Added `docs/brd-traceability.md` as BRD evidence matrix
-- Updated `extensions/base/src/README.md` with current node registry behavior
-
-### Gaps Pending
-
-- Storage-backed Arrow/DataFrames materialization for external `ref` payloads remains pending
-- Node library still needs scale-up from 25 -> 75 -> 150+ BRD target
-- BI chart-data path, Auth/RBAC, streaming runtime, GPU compute, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Implement storage-backed Arrow/DataFrames materialization or continue to BI v0 chart-data path depending on chosen P0 lane
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: BI Chart-Data Seam — 2026-04-24
-
-### Work Done Till Date
-
-- Added published dashboard chart-data route `/api/v1/dashboards/{dashboardId}/charts/{chartId}/data`
-- Reused published-dashboard share/workspace token authorization for chart-data reads
-- Added typed contract/client response `GatewayDashboardChartDataResponse` and `getPublishedDashboardChartData`
-- Updated OpenAPI schema/path and contract tests
-- Frontend published dashboard viewer now fetches chart data and displays row count + fields per chart
-- Julia gateway tests cover authorized and unauthorized chart-data reads
-
-### Gaps Pending
-
-- Chart-data route currently returns deterministic seam data, not real outlet-backed datasets
-- Semantic layer is minimal dimensions/measures metadata only
-- Live outlet refresh/cache invalidation and richer renderers remain pending
-- Auth/RBAC, streaming runtime, GPU compute, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Replace seam data with real BI outlet-backed chart datasets and semantic measures
-- Then implement Auth/RBAC contract slice
-
----
-
-## Checkpoint: Auth/RBAC Thin Slice — 2026-04-24
-
-### Work Done Till Date
-
-- Added auth context, auth mode, workspace role, and resource permission types to contracts
-- Added OpenAPI `GatewayAuthContext` schema and auth health fields
-- Added gateway dev-token auth mode using `JULIAFLOW_DEV_AUTH_TOKEN` and `JULIAFLOW_AUTH_MODE`
-- Added owner/editor/viewer permission gates for workflow, execution, checkpoint, dashboard publish, and Hub mutation routes
-- Kept public share-token and workspace dashboard-token paths separate from RBAC bearer token gates
-- Added Julia gateway tests for token-required, viewer allowed read, viewer denied execute, editor allowed execute, and editor denied Hub install
-- Fresh verification evidence: `git diff --check`, `julia --project=. extensions/base/test/runtests.jl`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, and `npm run build` all pass
-
-### Gaps Pending
-
-- Production OIDC/JWT validation is not implemented
-- Persisted users/workspaces/roles and resource policies are not implemented
-- Audit events for auth-sensitive operations are still pending
-- Storage-backed node execution, real BI datasets/semantics, streaming runtime, GPU compute, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Add production OIDC/JWT + persisted policy/audit path or move to streaming runtime MVP depending P0 lane priority
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: External Ref Tabular Materialization Seam — 2026-04-24
-
-### Work Done Till Date
-
-- Added context-aware tabular materialization for external Arrow-shaped refs
-- `TabularPayload.jl` now resolves rows from metadata stores, loader callbacks, `tabular_ref_root`, and local `file://` JSON/JSONL fixtures
-- Select/filter/aggregate/trainer and Tier-1 table nodes now attempt external-ref materialization before returning non-materialized warnings
-- Base extension tests now cover metadata-store and file-ref materialization paths
-- Updated TODO, BRD traceability, extension README, tracker, and checkpoint state
-- Fresh verification evidence: `git diff --check`, `julia --project=. extensions/base/test/runtests.jl`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, and `npm run build` all pass
-
-### Gaps Pending
-
-- Production Arrow/DataFrames readers for object-storage refs are still pending
-- Node library still needs scale-up from 25 -> 75 -> 150+ BRD target
-- Real BI datasets/semantics, production OIDC/RBAC, streaming runtime, GPU compute, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Add production Arrow/DataFrames object-storage adapter path or move to BI data-backed semantic/live path depending P0 lane priority
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: BI Published Artifact Dataset Slice — 2026-04-24
-
-### Work Done Till Date
-
-- Added optional published-dashboard `datasets` persistence for BI outlet row snapshots
-- Publish path now snapshots rows from matching workflow `bi_outlets` entries
-- Chart-data route now returns stored dataset rows when present, with synthetic fallback kept for dashboards without data snapshots
-- Contracts/OpenAPI now expose `DashboardDatasetRow` and published dashboard dataset maps
-- Updated Julia and contract tests to cover artifact-backed chart data
-- Updated TODO, BRD traceability, tracker, and checkpoint state
-- Fresh verification evidence: `git diff --check`, `julia --project=. extensions/base/test/runtests.jl`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, and `npm run build` all pass
-
-### Gaps Pending
-
-- BI semantic measures/dimensions remain field-hint level
-- Live refresh/cache invalidation, drilldown/cross-filter, export, and full chart rendering remain pending
-- Production Arrow/DataFrames node execution, production OIDC/RBAC, streaming runtime, GPU compute, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Implement BI semantic/live hardening or move to streaming runtime MVP depending P0 lane priority
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: BI Semantic Cache Export Slice — 2026-04-24
-
-### Work Done Till Date
-
-- Added inferred BI semantic metadata to published chart-data responses
-- Added cache/live metadata: cache key, source version, snapshot time, refresh mode, live flag, stale flag
-- Added CSV export route for published dashboard chart data while preserving share/workspace token auth
-- Updated contracts/OpenAPI/client types and contract tests for semantic/cache/export surfaces
-- Updated Julia gateway tests for semantic ordering, cache metadata, and CSV body
-- Fresh verification evidence: `git diff --check`, `julia --project=. extensions/base/test/runtests.jl`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, and `npm run build` all pass
-
-### Gaps Pending
-
-- Live refresh/cache invalidation is not implemented
-- Drilldown/cross-filter, export UX, and full chart renderer behavior remain pending
-- Production Arrow/DataFrames node execution, production OIDC/RBAC, streaming runtime, GPU compute, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Implement live refresh/cache invalidation and renderer/export UX, or move to production OIDC/RBAC / streaming MVP depending active priority
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: Streaming Fixture Window Checkpoint MVP — 2026-04-24
-
-### Work Done Till Date
-
-- Added fixture streaming batch processor to worker service
-- Added bounded batch processing using stream policy `max_in_flight_batches`
-- Added window summaries using runtime window size and event timestamps/offsets
-- Added stream diagnostics: adapter, processed offset/rows, batch count, consumer lag, backpressure, watermark, checkpoint id, checkpoint offsets
-- Gateway checkpoint payloads now include replay offsets, watermark, consumer lag, and metadata-derived checkpoint id
-- Execution payloads/contracts expose stream diagnostics with camelCase fields
-- Added Julia tests and contract tests for fixture batch/window/checkpoint/diagnostic surfaces
-- Fresh verification evidence: `git diff --check`, `julia --project=. extensions/base/test/runtests.jl`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, and `npm run build` all pass
-
-### Gaps Pending
-
-- Kafka/NATS adapters are still pending
-- Durable replay runner and exactly-once proof are still pending
-- Production watermarking and sink transaction semantics are still pending
-- Production Arrow/DataFrames node execution, production OIDC/RBAC, GPU compute, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Implement production streaming adapters/replay/exactly-once hardening or move to GPU execution MVP depending active priority
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: GPU Registry Mock Fallback MVP — 2026-04-24
-
-### Work Done Till Date
-
-- Added GPU registry summary from env-configured worker devices
-- Added GPU compute tick so worker can complete mock workload execution instead of only promoting queued jobs
-- Added CPU fallback path for GPU-tagged jobs when GPU registry is empty
-- Added execution metadata for GPU path, selected device, workload, registry, and computed result
-- Added gateway health fields for GPU registry device count and fallback availability
-- Updated contracts/OpenAPI and tests for new GPU execution and health surfaces
-- Fresh verification evidence: `git diff --check`, `julia --project=. extensions/base/test/runtests.jl`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, and `npm run build` all pass
-
-### Gaps Pending
-
-- Real CUDA/KernelAbstractions kernels are still pending
-- Device memory operations, stronger worker isolation guarantees, and multi-GPU scheduling are still pending
-- Production Arrow/DataFrames node execution, production OIDC/RBAC, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Defer CUDA/multi-GPU hardening to the final hardware-gated GPU phase; continue unblocked production Arrow/DataFrames / OIDC work depending active priority
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: BI Live Render UX Slice — 2026-04-24
-
-### Work Done Till Date
-
-- Added differentiated frontend previews for line, bar, area, table, and metric published charts
-- Added viewer cross-filter selection across published charts
-- Added manual refresh action and live polling for live snapshot dashboards
-- Added per-chart CSV export action to published viewer
-- Viewer now surfaces semantic dimensions/measures and refresh summary per chart
-- Updated frontend tests for share/workspace viewer chart-data fetches and rendered controls
-- Updated AGENTS.md with session learnings on reasoning/model choice and bounded worker-script smoke tests
-- Fresh verification evidence: `git diff --check`, `julia --project=. extensions/base/test/runtests.jl`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, and `npm run build` all pass
-
-### Gaps Pending
-
-- Cache invalidation beyond polling is still pending
-- Drilldown/cross-filter and richer export/viewer polish are still pending
-- Production Arrow/DataFrames node execution, production OIDC/RBAC, streaming production hardening, GPU production hardening, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Implement BI interaction hardening or move to production Arrow/DataFrames / OIDC hardening depending active priority
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: Object-Store Source Sink Roundtrip Slice — 2026-04-25
-
-### Work Done Till Date
-
-- Added local object-store ref path resolution for `object://` and `warehouse://` refs
-- Arrow table source now materializes rows from local object-store-backed refs when store roots are present
-- Arrow table sink now persists materialized rows into local object-store-backed refs when store roots are present
-- Added base extension tests for source and sink object-store roundtrip behavior
-- Updated README, TODO, BRD traceability, tracker, and checkpoint state
-- Fresh verification evidence: `git diff --check`, `julia --project=. extensions/base/test/runtests.jl`, `julia --project=. tests/julia/runtests.jl`, `npm run test`, and `npm run build` all pass
-
-### Gaps Pending
-
-- Real Arrow/DataFrames readers/writers for object storage are still pending
-- Node library still needs scale-up from 25 -> 75 -> 150+ BRD target
-- Production OIDC/RBAC, streaming production hardening, GPU production hardening, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Implement real Arrow/DataFrames object-storage adapters or move to production OIDC/RBAC depending active priority
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: BI Realtime Invalidation Slice — 2026-04-25
-
-### Work Done Till Date
-
-- Added realtime viewer invalidation on `dashboard.published` and `dashboard.outlet.updated` notifications
-- Viewer now keeps selection summary visible after cross-filter interactions
-- CSV export now respects filtered viewer state
-- Updated TODO, BRD traceability, tracker, and tests to reflect interaction hardening progress
-
-### Gaps Pending
-
-- Deeper drilldown flows are still pending
-- Richer export/viewer polish is still pending
-- Production Arrow/DataFrames node execution, production OIDC/RBAC, streaming production hardening, GPU production hardening, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Implement deeper BI drilldown and richer viewer/export polish or move to production Arrow/DataFrames / OIDC hardening depending active priority
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: Auth Semantics And Protocol Drift Cleanup — 2026-04-25
-
-### Work Done Till Date
-
-- Gateway now maps common auth/share/workspace failures to clearer HTTP statuses:
-  - `401` for invalid auth/share/workspace tokens
-  - `403` for permission denials
-  - `409` for Hub install checkpoint conflict
-- Realtime protocol doc now includes `dashboard.published` to match current contracts and frontend behavior
-- `docs/repo-onboarding.md` now reflects implemented BI publish/share, worker-service paths, durable event backbone thin slice, and current remaining production-depth gaps
-- Fresh verification evidence:
-  - `julia --project=. tests/julia/runtests.jl`
-  - `node tests/contracts/workflow-schema.test.mjs`
-  - `npm run test`
-  - `npm run build`
-
-### Gaps Pending
-
-- Production OIDC/JWT validation, persisted roles/policy, and audit events are still pending
-- Production Arrow/DataFrames node execution, streaming production hardening, GPU production hardening, Hub hardening, observability/perf/deployment remain pending
-- Older plan artifacts still contain stale already-completed status for some P0 slices
-
-### Next Items To Implement
-
-- Implement real Arrow/DataFrames object-storage adapters or production OIDC/RBAC hardening depending active P0 priority
-- Refresh older BRD-plan artifact wording if it blocks future execution decisions
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: Audit Event Foundation — 2026-04-25
-
-### Work Done Till Date
-
-- Added durable `audit.action` events for current mutating control-plane routes:
-  - workflow create/import/update/execute
-  - execution status transition
-  - dashboard publish
-  - checkpoint create
-  - Hub register/install
-- Contracts and durable event schema now include `audit.action`
-- Added dedicated Julia test coverage confirming audit events persist with auth context and target metadata
-- Fresh verification evidence:
-  - `julia --project=. tests/julia/runtests.jl`
-  - `node tests/contracts/workflow-schema.test.mjs`
-  - `npm run test`
-  - `npm run build`
-
-### Gaps Pending
-
-- Audit log query surfaces and admin UI are still pending
-- Production OIDC/JWT validation and persisted workspace/user/role policy are still pending
-- Production Arrow/DataFrames node execution, streaming production hardening, GPU production hardening, Hub hardening, observability/perf/deployment remain pending
-
-### Next Items To Implement
-
-- Implement production OIDC/RBAC hardening or real Arrow/DataFrames object-storage adapters depending active P0 priority and dependency constraints
-- Refresh older BRD-plan artifact wording if it blocks future execution decisions
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized
-
----
-
-## Checkpoint: BRD Endgame Traceability Guard — 2026-04-25
-
-### Work Done Till Date
-
-- Analyzed JuliaFlow repo against BRD, tracker/checkpoint state, TODO, traceability, and markdown docs.
-- Created current endgame plan at `.omx/plans/repo-brd-endgame-2026-04-25.md`.
-- Updated `AGENTS.md` with JuliaFlow end-goal delivery rules and evidence-gated milestone completion requirements.
-- Added BRD traceability automation through `scripts/validate-brd-traceability.mjs`, `tests/contracts/brd-traceability.test.mjs`, and `npm run validate:brd-traceability`.
-- Reconciled `docs/brd-traceability.md` checked TODO evidence rows plus stale auth/GPU status.
-- Marked BRD traceability automation complete in `docs/TODO.md`.
-- Fresh verification evidence:
-  - `node scripts/validate-brd-traceability.mjs`
-  - `node --test tests/contracts/brd-traceability.test.mjs`
-  - `npm run validate:contracts`
-  - `npm run validate:brd-traceability`
-  - `npm run test`
-  - `npm run build`
-  - `git diff --check`
-  - `julia --project=. extensions/base/test/runtests.jl`
-  - `julia --project=. tests/julia/runtests.jl`
-
-### Gaps Pending
-
-- Production Arrow/DataFrames object-storage materialization and node scale-up remain the next P0 runtime blocker.
-- Deeper BI drilldown/viewer/export polish remains pending.
-- Production OIDC/JWT validation, persisted users/workspaces/roles, audit query/admin UI, and resource-policy UI remain pending.
-- Kafka/NATS adapters, durable replay runner, exactly-once proof, production watermarking, and sink transactions remain pending.
-- Real CUDA/KernelAbstractions kernels, device memory ops, worker isolation guarantees, and multi-GPU scheduling remain pending.
-- Hub hardening, components/control-flow, observability/perf gates, deployment hardening, and node-library scale roadmap remain P1/P2 work.
-
-### Next Items To Implement
-
-- Resume P0 order with production Arrow/DataFrames object-storage materialization and staged node scale-up.
-- Run `npm run validate:brd-traceability` whenever `docs/TODO.md` or `docs/brd-traceability.md` changes.
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized.
-
----
-
-## Checkpoint: BRD Reanalysis / Next-Step Plan — 2026-04-28
-
-### Work Done Till Date
-
-- Reanalyzed JuliaFlow against current tracker/checkpoint state, TODO, BRD traceability, and prior plans.
-- Confirmed Alpha P0 blockers remain production Arrow/DataFrames materialization, BI polish, production OIDC/RBAC, streaming production hardening, and GPU production hardening.
-- Created current next-step plan at `.omx/plans/repo-brd-next-steps-2026-04-28.md`.
-- Updated `docs/TODO.md` plan pointer and tracker state to reference the new plan.
-
-### Gaps Pending
-
-- Production Arrow/DataFrames object-storage materialization and staged node scale-up remain the next P0 runtime blocker.
-- Deeper BI drilldown/viewer/export polish remains pending.
-- Production OIDC/JWT validation, persisted users/workspaces/roles, audit query/admin UI, and resource-policy UI remain pending.
-- Kafka/NATS adapters, durable replay runner, exactly-once proof, production watermarking, and sink transactions remain pending.
-- Real CUDA/KernelAbstractions kernels, device memory ops, worker isolation guarantees, and multi-GPU scheduling remain pending.
-- Hub hardening, components/control-flow, observability/perf gates, deployment hardening, and node-library scale roadmap remain P1/P2 work.
-
-### Next Items To Implement
-
-- Start with Stage 1 in `.omx/plans/repo-brd-next-steps-2026-04-28.md`: production Arrow/DataFrames materialization behind adapter seams plus node scale roadmap.
-- Keep local/demo fallback paths while adding production-depth adapters and tests.
-- Run `npm run validate:brd-traceability` whenever TODO/traceability status changes.
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized.
-
----
-
-## Checkpoint: Production Materialization Adapter Seam — 2026-04-28
-
-### Work Done Till Date
-
-- `omx team` launch was attempted but blocked by dirty worktree guard (`leader_workspace_dirty_for_worktrees`), so implementation continued solo in the leader worktree to avoid stashing/reverting unrelated in-flight changes.
-- Added production table materialization adapter seam for base nodes without adding new dependencies.
-- Source/read callbacks now support `tabular_ref_reader`, `arrow_table_reader`, and `dataframe_reader` metadata entries.
-- Sink/write callbacks now support `tabular_ref_writer`, `arrow_table_writer`, and `dataframe_writer` metadata entries.
-- Source payloads preserve `format = :arrow_ipc` and `ref`, can propagate adapter-provided schema, and record `materialization_adapter` telemetry.
-- Sink writes prefer configured writer adapter, then fall back to local JSON object-store path, and record `persistence_adapter` telemetry.
-- Added extension tests for adapter-backed source read and sink write paths.
-- Added `docs/node-library-roadmap.md` with stable / adapter-required / experimental quality tiers and 25 -> 75 -> 150 -> 300+ scale plan.
-- Fresh verification:
-  - `git diff --check`
-  - `julia --project=. extensions/base/test/runtests.jl`
-  - `julia --project=. tests/julia/runtests.jl`
-  - `npm run validate:brd-traceability`
-  - `npm run test`
-  - `npm run build`
-
-### Gaps Pending
-
-- Package-backed Arrow/DataFrames object-storage adapter implementation remains pending.
-- Node library still needs scale from 25 -> 75 -> 150 with stable/adapter-required test evidence.
-- Deeper BI drilldown/viewer/export polish remains pending.
-- Production OIDC/JWT validation, persisted policy/audit query/admin UI, streaming production hardening, GPU production hardening, Hub hardening, observability/perf, and deployment hardening remain pending.
-
-### Next Items To Implement
-
-- Implement package-backed Arrow/DataFrames object-store adapter on top of the new reader/writer seam, or continue node scale roadmap if dependency decision is deferred.
-- Next slice should add package-backed Arrow/DataFrames object-store adapter or node-scale roadmap execution; full verification for this seam has passed.
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized.
-
----
-
-## Checkpoint: Base Node Scale 35 Stable Nodes — 2026-04-28
-
-### Work Done Till Date
-
-- Advanced base node scale from 25 to 35 stable Tier-1 nodes.
-- Added 10 stable cleanup/stat prep nodes: trim strings, normalize case, replace values, regex extract, validate schema, top-N rows, group filter, rolling mean, rank rows, and percentile rows.
-- Registered and exported the new node types and node keys from the base extension.
-- Added output-inspecting extension tests for all new nodes.
-- Hardened local file materialization: `file://` refs now require `allow_file_refs = true` and configured root confinement; input/output row, column, and ref-byte caps are enforced by metadata limits with defaults.
-- Updated base extension README, TODO, BRD traceability, and node-library roadmap for the 35-node baseline.
-- Fresh targeted verification:
-  - `julia --project=. extensions/base/test/runtests.jl`
-
-### Gaps Pending
-
-- Package-backed Arrow/DataFrames object-storage adapter implementation remains pending.
-- Node library still needs scale from 35 -> 75 -> 150 with stable/adapter-required test evidence.
-- Deeper BI drilldown/viewer/export polish remains pending.
-- Production OIDC/JWT validation, persisted policy/audit query/admin UI, streaming production hardening, GPU production hardening, Hub hardening, observability/perf, and deployment hardening remain pending.
-
-### Next Items To Implement
-
-- Continue node scale toward 75 stable/adapter-required nodes or implement package-backed Arrow/DataFrames object-store adapter if dependency decision is available.
-- Run full verification after integrated changes: `git diff --check`, extension tests, full Julia tests, `npm run validate:brd-traceability`, `npm run test`, and `npm run build`.
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized.
-
----
-
-## Checkpoint: Base Node Scale 50 Stable Nodes — 2026-04-29
-
-### Work Done Till Date
-
-- Advanced base node scale from 35 to 50 stable Tier-1 nodes.
-- Added 15 stable math/window/join/reshape nodes: coalesce columns, clip values, cumulative sum, rolling sum, lag column, string contains filter, column math, null-if, min-max scale, z-score, left join, anti join, union distinct, unpivot rows, and pivot rows.
-- Registered and exported the new node types and node keys from the base extension.
-- Added output-inspecting extension tests for all new nodes.
-- Hardened local file materialization: `file://` refs now require `allow_file_refs = true` and configured root confinement; input/output row, column, and ref-byte caps are enforced by metadata limits with defaults.
-- Updated base extension README, TODO, BRD traceability, node-library roadmap, tracker, and autopilot plan artifacts for the 50-node baseline.
-- Fresh targeted verification:
-  - `julia --project=. extensions/base/test/runtests.jl`
-
-### Gaps Pending
-
-- Package-backed Arrow/DataFrames object-storage adapter implementation remains pending.
-- Node library still needs scale from 50 -> 75 -> 150 with stable/adapter-required test evidence.
-- Deeper BI drilldown/viewer/export polish remains pending.
-- Production OIDC/JWT validation, persisted policy/audit query/admin UI, streaming production hardening, GPU production hardening, Hub hardening, observability/perf, and deployment hardening remain pending.
-
-### Next Items To Implement
-
-- Continue node scale toward 75 stable/adapter-required nodes or implement package-backed Arrow/DataFrames object-store adapter if dependency decision is available.
-- Run full verification after integrated changes: `git diff --check`, extension tests, full Julia tests, `npm run validate:brd-traceability`, `npm run test`, and `npm run build`.
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized.
-
----
-
-## Checkpoint: GitHub Push Prep And Next-Step Plan — 2026-04-29
-
-### Work Done Till Date
-
-- Added a future-session handoff for the post-50-node baseline; the standalone handoff file was later removed during documentation cleanup.
-- The handoff recorded sanity/repo cleanup, GitHub integration checks, production Arrow/DataFrames adapter work, node scale 50 -> 75, BI polish, and production hardening lanes.
-- Verified GitHub target with `gh repo view Gravelaw/LowcodeMLtoolkit.jl`; authenticated account has admin permission.
-- Merged existing remote BRD/license documents into local `main` instead of force-pushing over GitHub history.
-
-### Gaps Pending
-
-- Repo cleanup still needs a dedicated pass for generated tracked artifacts, binary/design assets, and release-tag/CI hygiene.
-- Package-backed Arrow/DataFrames object-storage adapter implementation remains pending.
-- Node library still needs scale from 50 -> 75 -> 150 with stable/adapter-required test evidence.
-- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming, production GPU, Hub hardening, observability/perf, and deployment hardening remain pending.
-
-### Next Items To Implement
-
-- Start next session from the active tracker/TODO/checkpoint set.
-- Run sanity checks after GitHub push and inspect remote CI/status if configured.
-- Execute cleanup first, then production Arrow/DataFrames adapter or node scale 50 -> 75 depending dependency decision.
-
----
-
-## Checkpoint: Base Node Scale 75 Stable Nodes — 2026-04-30
-
-### Work Done Till Date
-
-- Advanced base node scale from 50 to 75 stable Tier-1 nodes without adding dependencies.
-- Added 25 stable date/time, grouped/window, join/enrich, BI-prep, profile/hash, and whitespace nodes.
-- Registered/exported all new node keys and node types.
-- Added output-inspecting extension tests for all 25 new nodes.
-- Updated TODO, BRD traceability, node-library roadmap, base extension README, project tracker, and checkpoint log for the 75-node baseline.
-- Fresh targeted verification:
-  - `julia --project=. extensions/base/test/runtests.jl`
-
-### Gaps Pending
-
-- Package-backed Arrow/DataFrames object-storage adapter implementation remains pending.
-- Node library still needs scale from 75 -> 150 with stable/adapter-required test evidence.
-- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming, production GPU, Hub hardening, observability/perf, and deployment hardening remain pending.
-
-### Next Items To Implement
-
-- Implement package-backed/service-backed Arrow/DataFrames object-store adapter when dependency decision is available, or continue node scale 75 -> 150 with tested stable/adapter-required nodes.
-- Run full verification after integrated changes: `git diff --check`, extension tests, full Julia tests, `npm run validate:brd-traceability`, `npm run test`, and `npm run build`.
-- Keep `docs/TODO.md`, `docs/brd-traceability.md`, tracker, checkpoint, code, and tests synchronized.
-
-
----
-
-## Checkpoint: Materialization Risk Mitigation — 2026-04-30
-
-### Work Done Till Date
-
-- Added risk register and mitigation plan for the production materialization dependency-choice risk.
-- Implemented no-new-deps named service-backed adapter registry on top of `TabularPayload.jl`.
-- Added registry read/write tests for `object://` source and `warehouse://` sink paths.
-- Updated TODO, BRD traceability, node-library roadmap, base extension README, project tracker, and checkpoint log to distinguish risk mitigation from full package-backed completion.
-
-### Gaps Pending
-
-- Package-backed Arrow/DataFrames object-storage adapter implementation remains pending.
-- Node library still needs scale from 75 -> 150 with stable/adapter-required test evidence.
-- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming, production GPU, Hub hardening, observability/perf, and deployment hardening remain pending.
-
-### Next Items To Implement
-
-- Add package-backed Arrow/DataFrames object-store adapter when dependency approval is explicit, or collect deployment evidence for a production service adapter.
-- Continue node scale 75 -> 150 with tested stable/adapter-required nodes.
-- Keep BRD traceability evidence honest: service-backed registry mitigates risk; package-backed completion remains open.
-
----
-
-## Checkpoint: Base Node Scale 100 And Arrow/DataFrames Materialization — 2026-04-30
-
-### Work Done Till Date
-
-- Advanced base node scale from 75 to 100 stable Tier-1 nodes.
-- Added 25 deterministic column, string, numeric, grouped aggregate, bucket/encoding, BI metric, dashboard summary, and rows-to-columns nodes.
-- Registered/exported all new node keys and node types.
-- Added output-inspecting extension tests for all 25 new nodes.
-- Added package-backed local Arrow/DataFrames materialization for root-confined `.arrow`, `.feather`, and `.ipc` refs behind `enable_arrow_dataframe_adapter = true`.
-- Added root and base extension dependencies for `Arrow.jl`, `DataFrames.jl`, and `Tables.jl`.
-- Preserved JSON/JSONL fallback, direct callback adapters, and named service-backed adapter registry precedence.
-- Updated TODO, BRD traceability, node-library roadmap, base extension README, project tracker, and checkpoint log for the 100-node/package-backed baseline.
-
-### Gaps Pending
-
-- Base node library still needs scale from 100 -> 150 stable/adapter-required nodes.
-- Remote/cloud object-storage adapter integration remains pending beyond the current root-confined local object-store-style path.
-- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming, production GPU, Hub hardening, observability/perf, and deployment hardening remain pending.
-
-### Next Items To Implement
-
-- Continue node scale 100 -> 150 with tested stable/adapter-required nodes.
-- Add remote/cloud object-store service adapter evidence or cloud package integration for production stores.
-- Keep BRD traceability evidence honest: package-backed local Arrow/DataFrames materialization is complete; remote/cloud stores and node scale remain open.
-
----
-
-## Checkpoint: Base Node Scale 125 Stable Nodes — 2026-05-01
-
-### Work Done Till Date
-
-- Advanced base node scale from 100 to 125 stable Tier-1 nodes.
-- Added 25 deterministic advanced stats, ML scoring/evaluation, streaming prep, and Hub/package helper nodes.
-- Registered/exported all new node keys and node types.
-- Added output-inspecting extension tests for all 25 new nodes.
-- Updated TODO, BRD traceability, node-library roadmap, base extension README, project tracker, and checkpoint log for the 125-node baseline.
-
-### Gaps Pending
-
-- Base node library still needs scale from 125 -> 150 stable/adapter-required nodes.
-- Remote/cloud object-storage adapter integration remains pending beyond the current root-confined local object-store-style path.
-- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming, production GPU, Hub hardening, observability/perf, and deployment hardening remain pending.
-
-### Next Items To Implement
-
-- Continue node scale 125 -> 150 with tested stable/adapter-required nodes.
-- Add remote/cloud object-store service adapter evidence or cloud package integration once provider/credential decision exists.
-- Keep BRD traceability evidence honest: package-backed local Arrow/DataFrames materialization and 125 stable nodes exist; remote/cloud stores and 150-node target remain open.
-
----
-
-## Checkpoint: Remote Adapter And 150 Stable Nodes — 2026-05-01
-
-### Work Done Till Date
-
-- Added provider-neutral remote object-store adapter support for Arrow IPC base64 JSON envelopes on the `TabularPayload.jl` seam.
-- Preserved direct callbacks, named registry adapters, package-backed local Arrow/DataFrames refs, and JSON/JSONL fallbacks.
-- Advanced base node scale from 125 to 150 stable Tier-1 nodes.
-- Added 25 deterministic quality, governance, feature engineering, streaming, and GPU-helper nodes.
-- Registered/exported all new node keys and node types.
-- Added output-inspecting extension tests for the 25 new nodes plus remote adapter read/write tests.
-- Updated TODO, BRD traceability, node-library roadmap, base extension README, project tracker, and checkpoint log for the 150-node and remote-adapter baseline.
-
-### Gaps Pending
-
-- Provider-specific cloud object-store deployments/credentials and production manifests remain pending hardening work.
-- BI drilldown/viewer/export polish, production OIDC/RBAC, production streaming adapters, production GPU kernels, Hub hardening, observability/perf, and deployment hardening remain pending.
-- 300+ ecosystem breadth remains Beta/GA roadmap work after the 150-node Phase 1 baseline.
-
-### Next Items To Implement
-
-- Move to the next P0 BRD lane: BI drilldown/viewer/export polish or production OIDC/RBAC hardening.
-- Add provider-specific cloud deployment evidence for remote object-store adapters when target provider/credentials are available.
-- Keep BRD traceability evidence honest: 150 stable nodes and provider-neutral remote adapter are implemented; provider-specific deployments are hardening work.
-
----
-
-## Checkpoint: BI Drilldown And Export Polish — 2026-05-03
-
-### Work Done Till Date
-
-- Added published-dashboard drilldown panel for selected chart rows.
-- Preserved published snapshot read-only behavior and share/workspace token viewer compatibility.
-- Added filtered CSV, full CSV, and selected-row JSON export controls in the viewer.
-- Extended frontend tests for share-token viewer drilldown/export behavior.
-- Updated `docs/TODO.md`, `docs/brd-traceability.md`, and `docs/project-tracker.md` for the completed P0 BI viewer polish slice.
-
-### Gaps Pending
-
-- Richer chart visualizations, downloadable export files, and server-side drill paths remain future BI enhancements.
-- Production OIDC/RBAC, streaming, GPU, Hub, observability/perf, and deployment hardening remain open roadmap work.
-
-### Next Items To Implement
-
-- Start the next P0 hardening lane: production OIDC/JWT/RBAC or production streaming adapters/replay/exactly-once.
-- Continue full verification before any milestone claim.
-
----
-
-## Checkpoint: Next P0 Plan — Production OIDC/RBAC Hardening — 2026-05-03
-
-### Work Done Till Date
-
-- Confirmed BI drilldown/export polish is the latest completed P0 slice and production OIDC/RBAC is the next planned P0 lane.
-- Added a risk-aware production OIDC/RBAC execution plan and acceptance criteria; the standalone plan file was later removed during documentation cleanup after its history was preserved here and in the tracker.
-- Added `docs/risk-register.md` with active security, streaming, GPU, object-store, and Hub risks.
-- Updated TODO and BRD traceability wording to point at the current plan and risk register without marking new implementation complete.
-
-### Gaps Pending
-
-- OIDC/JWT validation, persisted users/workspaces/roles/resource policies, audit query/admin UI, and policy management remain unimplemented.
-- Streaming production hardening, GPU production hardening, provider-specific object-store deployment evidence, Hub hardening, observability/perf gates, and deployment hardening remain open roadmap gaps.
-
-### Next Items To Implement
-
-- Start production OIDC/RBAC hardening from contracts and OpenAPI, then gateway auth/repository seams, tests, and minimal UI/admin surfaces as needed.
-- Preserve dev-token/disabled-auth, share-token, and workspace-token flows with regression tests.
-- Burn down `R-SEC-001` through `R-SEC-004` in `docs/risk-register.md` before moving to streaming or GPU hardening.
-
----
-
-## Checkpoint: OIDC/RBAC First Production-Hardening Slice — 2026-05-03
-
-### Work Done Till Date
-
-- Implemented the first production-auth hardening slice: OIDC-style JWT auth mode, persisted role/resource policies, audit policy-change events, and bounded redacted audit query API.
-- Updated contracts/OpenAPI/event schema/client types and added Julia plus contract tests.
-- Updated TODO, BRD traceability, tracker, and risk register without marking P0 auth complete.
-
-### Gaps Pending
-
-- JWKS/RSA or selected live IdP validation remains pending beyond HS256 fixture validation.
-- Persisted users/workspaces admin model, resource-policy admin UI, broader security review, and PostgreSQL auth policy runtime evidence remain pending.
-- Streaming/GPU production hardening remain next roadmap lanes after auth/security depth.
-
-### Next Items To Implement
-
-- Add live-provider OIDC/JWKS validation seam and key-rotation tests.
-- Add minimal admin UI for users/workspaces/role bindings/resource policies and audit browsing.
-- Re-run full verification and only check TODO P0 item 11 after code/test evidence covers the remaining gaps.
-
-
----
-
-## Checkpoint: OIDC Discovery/JWKS Rotation Hardening — 2026-05-03
-
-### Work Done Till Date
-
-- Added mockable OIDC discovery/JWKS key resolution with `kid` lookup, HS256 JWKS fixture support, allowed-algorithm gating, and key-rotation tests.
-- Exposed non-secret OIDC configuration status in gateway healthcheck and contract/OpenAPI types.
-- Updated README, onboarding, TODO, traceability, tracker, and risk register.
-
-### Gaps Pending
-
-- RSA/live IdP validation, persisted users/workspaces admin model, resource-policy/audit admin UI, PostgreSQL runtime evidence, and broader security review remain pending.
-
-### Next Items To Implement
-
-- Implement selected-provider RSA/JWKS adapter or live IdP fixture path.
-- Build minimal admin UI for role/resource-policy management and audit browsing.
-- Keep full verification loop before any milestone claim.
-
-
----
-
-## Checkpoint: Security Admin Policy/Audit Visibility — 2026-05-04
-
-### Work Done Till Date
-
-- Added read-only Settings visibility for persisted auth policy and redacted audit query data.
-- Kept admin API calls optional so missing auth does not break live gateway loading.
-- Updated frontend test coverage, TODO, traceability, tracker, and risk register.
-
-### Gaps Pending
-
-- RSA/live IdP validation, editable users/workspaces/resource-policy admin UI, PostgreSQL runtime evidence, and broader security review remain pending.
-
-### Next Items To Implement
-
-- Build editable admin UX for users/workspaces/role bindings/resource policies.
-- Add selected-provider RSA/JWKS validation path.
-- Keep full verification loop before any P0 auth milestone claim.
-
-
-### Editable Auth Policy Admin UX (2026-05-04)
-
-### Work Done Till Date
-
-- Upgraded Settings security admin from read-only policy visibility to editable role-binding and resource-policy draft management.
-- Added validation for required principal/workspace/resource fields and known permission names.
-- Wired Save auth policy to the existing persisted auth-policy API in live mode and local state in demo mode.
-- Extended frontend gateway tests to prove policy mutations send role/resource-policy update payloads.
-
-### Gaps Pending
-
-- RSA/live IdP validation remains pending.
-- Persisted users/workspaces directory UI remains pending beyond free-form policy principal/workspace IDs.
-- PostgreSQL-backed auth policy runtime evidence and broader security review remain pending.
-
-### Next Items To Implement
-
-- Add selected-provider RSA/JWKS validation path or documented adapter fixture.
-- Add persisted users/workspaces directory admin surface and PostgreSQL auth-policy runtime evidence.
-- Keep P0 auth TODO unchecked until live-provider, directory/admin, and review evidence exist.
-
----
-
-## Checkpoint: Repo BRD Reanalysis And Pending Implementation Plan — 2026-05-05
-
-### Work Done Till Date
-
-- Analyzed current repo implementation against the BRD, `docs/TODO.md`, `docs/brd-traceability.md`, tracker/checkpoint docs, `.omx/plans`, `.omx/context`, `.omx/reviews`, and `.omx/state`.
-- Confirmed latest completed P0 slices: materialization/150-node baseline and BI viewer polish; confirmed auth hardening is partially complete but still open.
-- Created `.omx/plans/repo-brd-pending-implementation-plan-2026-05-05.md` with staged implementation order and acceptance/verification gates.
-
-### Gaps Pending
-
-- P0 auth: RSA/live IdP validation, users/workspaces directory admin model, PostgreSQL runtime evidence, and broader security review.
-- P0 streaming: Kafka/NATS adapters, replay/exactly-once proof, watermarking, and sink transactions.
-- Final hardware-gated GPU: real CUDA/KernelAbstractions kernels, device memory operations, isolation, and multi-GPU scheduling.
-- P1/P2: Hub publish/install hardening, components/control-flow, observability/perf gates, and deployment hardening.
-
-### Next Items To Implement
-
-- Implement Stage 1 auth completion plan first, preserving dev-token/disabled/share/workspace-token flows.
-- Use dependency-expert review before adding RSA/JWT, Kafka/NATS, or CUDA/KernelAbstractions dependencies.
-- Update TODO/traceability only with code/test/review evidence and run `npm run validate:brd-traceability` after any TODO/traceability status change.
-
----
-
-## Checkpoint: Auth Directory Admin Slice — 2026-05-05
-
-### Work Done Till Date
-
-- Implemented persisted user/workspace directory contracts, repository persistence, gateway admin routes, active directory runtime enforcement, directory self-lockout prevention, durable/audit events, Settings editing UX, and tests.
-- Preserved existing dev-token/disabled/OIDC HS256, share-token, workspace-token, role/resource-policy, and audit query paths.
-- Updated TODO, BRD traceability, tracker, checkpoint, and risk register without marking P0 auth complete.
-
-### Gaps Pending
-
-- RSA/live IdP validation, PostgreSQL runtime evidence, and broader security review remain before P0 auth completion.
-- Streaming production hardening and GPU production hardening remain next P0 lanes after auth/security depth.
-
-### Next Items To Implement
-
-- Complete full verification and code review for this slice.
-- Decide/implement RSA/JWKS live-provider validation path with security/dependency review.
-- Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
-
----
-
-## Checkpoint: Auth Directory Admin Verification And Review — 2026-05-06
-
-### Work Done Till Date
-
-- Completed local review for the auth directory admin slice after subagent quota failure.
-- Hardened directory enforcement to reject inactive/missing runtime principals/workspaces when records exist.
-- Added self-lockout prevention for directory updates and tests for disabled-user denial plus lockout rejection.
-- Verified frontend, Julia, contract, BRD traceability, build, and diff whitespace checks.
-
-### Gaps Pending
-
-- RSA/live IdP validation, PostgreSQL runtime evidence, and broader security review remain before P0 auth completion.
-- Streaming production hardening and GPU production hardening remain next P0 lanes after auth/security depth.
-
-### Next Items To Implement
-
-- Decide/implement RSA/JWKS live-provider validation path with security/dependency review.
-- Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
-- Keep P0 auth TODO unchecked until live-provider, PostgreSQL runtime, and security-review evidence exist.
-
----
-
-## Checkpoint: RS256 OIDC/JWKS Validation Slice — 2026-05-06
-
-### Work Done Till Date
-
-- Added no-new-dependency RS256 JWT verification against OIDC discovery/JWKS metadata.
-- Implemented RSA JWK lookup plus PKCS#1 v1.5 SHA-256 signature validation in the gateway.
-- Added Julia coverage for valid RS256 token acceptance and tampered RS256 signature rejection.
-- Kept P0 auth TODO unchecked and documented remaining external live-IdP, PostgreSQL runtime, and broader security-review gaps.
-
-### Gaps Pending
-
-- External live-IdP smoke remains pending because no provider credentials/metadata target were supplied.
-- PostgreSQL runtime evidence remains pending until `JULIAFLOW_TEST_POSTGRES_URL` is available and run.
-- Broader security review remains pending before P0 auth completion.
-- Streaming production hardening and GPU production hardening remain next P0 lanes after auth/security depth.
-
-### Next Items To Implement
-
-- Complete full verification and code review for this RS256 slice.
-- Add external IdP smoke evidence when provider/credentials are available.
-- Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
-
----
-
-## Checkpoint: RS256 OIDC/JWKS Verification And Review — 2026-05-06
-
-### Work Done Till Date
-
-- Completed local code review for RS256 OIDC/JWKS validation.
-- Added review-driven 2048-bit minimum RSA modulus enforcement.
-- Verified frontend, Julia, contract, BRD traceability, build, and diff whitespace checks.
-
-### Gaps Pending
-
-- External live-IdP smoke remains pending because no provider credentials/metadata target were supplied.
-- PostgreSQL runtime evidence remains pending until `JULIAFLOW_TEST_POSTGRES_URL` is available and run.
-- Broader security review remains pending before P0 auth completion.
-- Streaming production hardening and GPU production hardening remain next P0 lanes after auth/security depth.
-
-### Next Items To Implement
-
-- Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
-- Add external IdP smoke evidence when provider/credentials are available.
-- Run broader auth security review before marking P0 auth complete.
-
----
-
-## Checkpoint: Auth Security Review — 2026-05-06
-
-### Work Done Till Date
-
-- Completed broader local auth/RBAC security review after directory admin and RS256 JWKS hardening.
-- Added `docs/security/auth-security-review-2026-05-06.md`.
-- Confirmed no critical, high, or medium local-review findings.
-- Preserved P0 auth as open for external live-IdP smoke and PostgreSQL runtime evidence.
-
-### Gaps Pending
-
-- External live-IdP smoke remains pending because no provider credentials/metadata target were supplied.
-- PostgreSQL runtime evidence remains pending until `JULIAFLOW_TEST_POSTGRES_URL` is available and run.
-- Streaming production hardening and GPU production hardening remain next P0 lanes after auth/security depth.
-
-### Next Items To Implement
-
-- Run PostgreSQL auth directory/policy evidence when `JULIAFLOW_TEST_POSTGRES_URL` is available.
-- Add external IdP smoke evidence when provider/credentials are available.
-- If auth evidence remains credential-blocked, proceed to next P0 lane: streaming production hardening.
-
----
-
-## Checkpoint: Streaming Exactly-Once Fixture Slice — 2026-05-06
-
-### Work Done Till Date
-
-- Added committed-offset metadata, sink transaction IDs, idempotency keys, and duplicate replay suppression for fixture streaming.
-- Exposed stream exactly-once/replay metadata through repository payloads, contracts, and OpenAPI.
-- Added Julia worker and contract coverage for duplicate replay suppression and transaction metadata.
-
-### Gaps Pending
-
-- Kafka/NATS adapters remain pending.
-- Durable replay runner across process restarts remains pending beyond fixture duplicate suppression.
-- Production watermarking and external sink transactions remain pending.
-- GPU production hardening remains queued after streaming depth.
-
-### Next Items To Implement
-
-- Add Kafka/NATS adapter contract fixtures without new runtime dependencies.
-- Add durable replay runner evidence across restart using persisted checkpoint offsets.
-- Add production watermark and external sink transaction tests before checking P0 streaming complete.
-
----
-
-## Checkpoint: Streaming Adapter Contract Slice — 2026-05-06
-
-### Work Done Till Date
-
-- Added Kafka/NATS adapter contract metadata without adding runtime broker dependencies.
-- Exposed adapter contract metadata through repository payloads, contracts, and OpenAPI.
-- Added Julia worker tests for Kafka/NATS contract metadata and contract schema assertions.
-
-### Gaps Pending
-
-- Runtime Kafka/NATS clients remain pending until dependency/provider approval.
-- Durable replay runner across process restarts remains pending beyond fixture duplicate suppression.
-- Production watermarking and external sink transactions remain pending.
-- GPU production hardening remains queued after streaming depth.
-
-### Next Items To Implement
-
-- Add durable replay runner evidence across restart using persisted checkpoint offsets.
-- Add runtime Kafka/NATS clients after dependency/provider decision.
-- Add production watermark and external sink transaction tests before checking P0 streaming complete.
-
----
-
-## Checkpoint: Streaming Restart Replay Slice — 2026-05-07
-
-### Work Done Till Date
-
-- Added fixture restart replay coverage for streaming worker recovery from persisted committed offsets.
-- Updated `replay_stream_fixture_batch!` so replay at the committed checkpoint resumes with the next unprocessed fixture events and records restored replay metadata.
-- Added Julia worker tests that sync a fresh `WorkerServiceState` from persisted executions, resume from the committed offset, and verify prior rows are not reprocessed.
-
-### Gaps Pending
-
-- Runtime Kafka/NATS clients remain pending until dependency/provider approval.
-- Production watermarking and external sink transactions remain pending.
-- Live broker restart proof remains dependency/provider-gated beyond the no-new-dependency fixture restart evidence.
-- GPU production hardening remains queued after streaming depth.
-
-### Next Items To Implement
-
-- Add production watermark and external sink transaction tests before checking P0 streaming complete.
-- Add runtime Kafka/NATS clients after dependency/provider decision.
-- Add live broker restart evidence once a broker/provider target is available.
-
----
-
-## Checkpoint: Streaming Watermark Transaction State Slice — 2026-05-07
-
-### Work Done Till Date
-
-- Added policy-aware watermark handling for fixture streaming so processing-time and event-time modes produce explicit monotonic committed watermark state.
-- Added fenced sink transaction state metadata alongside transaction IDs and idempotency keys.
-- Exposed watermark state and sink transaction state through gateway payloads, TypeScript contracts, and OpenAPI.
-- Added Julia worker coverage for processing-time/event-time watermark behavior and contract coverage for the new payload fields.
-
-### Gaps Pending
-
-- Runtime Kafka/NATS clients remain pending until dependency/provider approval.
-- Live external sink transaction backend evidence remains pending beyond fenced fixture transaction metadata.
-- Live broker restart proof remains dependency/provider-gated beyond fixture restart evidence.
-- GPU production hardening remains queued after streaming depth.
-
-### Next Items To Implement
-
-- Add runtime Kafka/NATS clients after dependency/provider decision.
-- Add live broker restart and external sink transaction backend evidence once services are available.
-- Move to GPU production hardening if streaming runtime dependencies remain blocked.
-
----
-
-## Checkpoint: GPU Production-Hardening Prep Slice — 2026-05-07
-
-### Work Done Till Date
-
-- Added no-new-dependency GPU placement/dispatch metadata for deterministic multi-device scheduling prep.
-- Worker runtime now records requested device, selected device, fallback reason, placement reason, scheduler policy, worker isolation mode, and capacity metadata.
-- Invalid requested devices fall back to deterministic GPU placement with explicit reason; CPU fallback remains reserved for empty GPU registry/no matching device availability.
-- Contracts/OpenAPI/gateway mapping and Julia tests were updated for the metadata shape.
-
-### Gaps Pending
-
-- Real CUDA/KernelAbstractions kernels, device-memory operations, and hardware-backed multi-GPU isolation remain pending.
-- CUDA/KernelAbstractions dependency and hardware/CI approval are still required before checking final GPU production closure complete.
-
-### Next Items To Implement
-
-- Complete full verification: Julia suite, npm test/build, BRD traceability validator, and diff whitespace check.
-- If GPU dependencies/hardware are approved, implement a small real kernel/device-memory smoke path behind explicit gates.
-- Otherwise keep GPU production-hardening P0 open and move to other unblocked P1/P2 hardening.
-
----
-
-## Checkpoint: BRD Reanalysis And Next-Step Plan — 2026-05-07
-
-### Work Done Till Date
-
-- Compared BRD/control docs/checkpoints against current implementation and uncommitted GPU prep state.
-- Saved next-step plan at `.omx/plans/repo-brd-next-steps-2026-05-07.md`.
-- Confirmed `npm run validate:brd-traceability` and `git diff --check` pass during planning.
-
-### Gaps Pending
-
-- Existing GPU prep slice still needs full Julia, JS, build, traceability, and review evidence before further scope.
-- Auth live-IdP/PostgreSQL, streaming live broker/sink, and real CUDA/KernelAbstractions evidence remain open.
-
-### Next Items To Implement
-
-- Complete verification/review for GPU production-hardening prep.
-- Decide whether to proceed to gated CUDA/KernelAbstractions smoke or pivot to unblocked P1 Hub hardening.
-- Keep P0 TODO items unchecked until traceability has live/provider/hardware evidence.
-
----
-
-## Checkpoint: GPU Production-Hardening Prep Verification — 2026-05-08
-
-### Work Done Till Date
-
-- Completed full verification for the no-new-dependency GPU placement/dispatch prep slice.
-- Evidence passed: `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:brd-traceability`, `git diff --check`, and bounded `JULIAFLOW_WORKER_ONCE=1 julia --project=. scripts/run-gpu-worker.jl` smoke.
-- Kept final GPU production closure open because this is still metadata/mock-worker prep, not real CUDA/KernelAbstractions compute evidence.
-
-### Gaps Pending
-
-- Real CUDA/KernelAbstractions kernels, device-memory operations, hardware-backed isolation, and multi-GPU scheduling evidence remain pending.
-- Auth live-IdP/PostgreSQL and streaming live broker/sink evidence remain credential/provider/dependency-gated.
-
-### Next Items To Implement
-
-- Complete code review for the verified GPU prep diff.
-- If review is clean, choose next lane: gated CUDA/KernelAbstractions smoke when approved, otherwise P1 Hub publish/install hardening.
-- Keep P0 TODO items unchecked until traceability has live/provider/hardware evidence.
-
----
-
-## Checkpoint: GPU Prep Review Fixes — 2026-05-08
-
-### Work Done Till Date
-
-- Fixed review-found GPU requested-device alias drift and tracker timestamp.
-- Added explicit GPU CPU-fallback, placement-fallback, and request-satisfied metadata so observability can distinguish CPU fallback from deterministic GPU placement fallback.
-- Added regression coverage for flow-variable dispatch override and `nvidia:1` request alias placement.
-
-### Gaps Pending
-
-- Real CUDA/KernelAbstractions kernel/device-memory evidence remains pending before final GPU production closure.
-- Capacity schema can be hardened when the real GPU backend shape is known.
-
-### Next Items To Implement
-
-- Rerun full verification after review fixes.
-- Rerun code review and complete autopilot only on `APPROVE` plus architecture `CLEAR`.
-- Keep final hardware-gated GPU item unchecked until real GPU evidence exists.
-
----
-
-## Checkpoint: GPU Prep Review Fix Verification — 2026-05-08
-
-### Work Done Till Date
-
-- Reran full verification after review fixes.
-- Evidence passed: `julia --project=. tests/julia/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:brd-traceability`, `git diff --check`, and bounded `JULIAFLOW_WORKER_ONCE=1 julia --project=. scripts/run-gpu-worker.jl` smoke.
-
-### Gaps Pending
-
-- Real CUDA/KernelAbstractions kernel/device-memory evidence remains pending before final GPU production closure.
-- Final code-review rerun is still required before autopilot completion.
-
-### Next Items To Implement
-
-- Rerun code review on the fixed diff.
-- If clean, close autopilot with verification evidence.
-- Keep final hardware-gated GPU item unchecked until real GPU evidence exists.
-
----
-
-## Checkpoint: GPU Prep Autopilot Completion — 2026-05-08
-
-### Work Done Till Date
-
-- Completed `$autopilot` loop for GPU production-hardening prep stabilization.
-- Final verification passed: Julia suite, npm test, npm build, BRD traceability validator, diff whitespace check, bounded GPU worker smoke.
-- Final code review passed with `APPROVE`; architecture review passed with `CLEAR`.
-
-### Gaps Pending
-
-- Real CUDA/KernelAbstractions kernel/device-memory/hardware evidence remains required before checking final GPU production closure complete.
-- Auth live-IdP/PostgreSQL and streaming live broker/sink evidence remain provider/dependency-gated.
-
-### Next Items To Implement
-
-- Choose next lane: gated CUDA/KernelAbstractions smoke if approved, otherwise P1 Hub publish/install hardening.
-- Preserve no-new-dependency fallback paths and honest P0 traceability.
-- Commit/push only when requested or when delivery scope includes GitHub handoff.
-
----
-
-## Checkpoint: Hub Publish/Install Hardening — 2026-05-09
-
-### Work Done Till Date
-
-- Implemented Alpha Hub publish/install hardening metadata path: artifact hashes, sandbox command metadata, private/offline mirror refs, trust/compatibility blockers, gateway publish registration, persisted catalog roundtrip, and frontend publish sample UX.
-- Updated TODO, BRD traceability, risk register, project tracker, and checkpoint log for the completed P1 scope.
-- Initial verification passed for `npm run test` and `julia --project=. tests/julia/runtests.jl` after code/test changes.
-
-### Gaps Pending
-
-- Full final verification still requires build, BRD traceability validator, whitespace diff check, and review pass before commit.
-- Future Hub production depth remains: execute sandbox commands, verify downloaded artifact hashes, and test real private/offline registry mirrors.
-- Remaining P0 gates are external-provider/hardware-dependent.
-
-### Next Items To Implement
-
-- Run final verification: `npm run build`, `npm run validate:brd-traceability`, `git diff --check`, plus rerun failed checks if any.
-- Run code/architecture review; commit only if clean.
-- Continue next unblocked gap after commit: P1 components/control-flow contracts or observability/perf gates.
-
----
-
-## Checkpoint: Hub Hardening Review Fix Completion — 2026-05-09
-
-### Work Done Till Date
-
-- Closed review findings for Hub publish/install hardening: artifact hash validation now applies to official and partner manifests, required manifest shapes are enforced, Hub install/enable/upgrade are blocked when trust or compatibility fails, and local-file mirror refs are rejected for Hub mirrors.
-- Frontend Hub lifecycle gating now still allows disabling already-enabled unsafe extensions while blocking install/enable/upgrade remediation-risk actions.
-- Added regression coverage for malformed hash payloads, official bad/missing hashes, official/partner local-file mirror rejection, unsafe enable attempts, persistence roundtrip, and UI disable parity.
-
-### Gaps Pending
-
-- External/provider gates remain: live IdP/PostgreSQL, Kafka/NATS/live sink, and real CUDA/KernelAbstractions hardware evidence.
-- Future Hub depth remains: actual sandbox execution, artifact download verification, and real private registry mirror smoke.
-- Native subagent re-review was attempted but blocked by usage-limit errors; local verification and manual review were completed instead.
-
-### Next Items To Implement
-
-- Commit the verified Hub hardening slice.
-- Continue next unblocked local gap: P1 components/control-flow contracts or observability/perf gates, unless external provider/hardware approval arrives.
-
----
-
-## Checkpoint: Remaining P0 Live-Evidence Harness Slice — 2026-05-09
-
-### Work Done Till Date
-
-- Added reproducible gated smoke harnesses for remaining P0 external evidence: Keycloak/PostgreSQL auth, Kafka streaming replay/sink idempotency, and CUDA/KernelAbstractions GPU compute.
-- Added worker-service support for Kafka captured-event replay and file-backed fenced sink idempotency state, with Julia regression coverage.
-- Added CUDA/KernelAbstractions dependencies and a gated real-kernel smoke script.
-
-### Gaps Pending
-
-- Auth P0 still needs the Keycloak/PostgreSQL smoke to pass and be recorded as evidence.
-- Streaming P0 still needs the live Kafka smoke to pass and be recorded as evidence.
-- Final hardware-gated GPU item still needs real CUDA smoke plus multi-GPU scheduling evidence on >=2 visible devices; this host only reports one CUDA GPU.
-
-### Next Items To Implement
-
-- Run the three smoke commands from README and record outputs in traceability before changing TODO checkboxes.
-- Keep P0 TODO items 11, 13, and 15 open until all required live/provider/hardware evidence exists.
-- Use the smoke outputs to fix any live-environment drift in Keycloak claims, Kafka consumption, or CUDA runtime setup.
-
----
-
-## Checkpoint: Auth And Streaming P0 Live Evidence Closure — 2026-05-09
-
-### Work Done Till Date
-
-- Passed live auth smoke: `./scripts/smoke-keycloak-postgres-auth.sh` returned JSON evidence for Keycloak RS256, PostgreSQL repository, protected route access, policy/directory persistence, and audit query.
-- Passed live streaming smoke: `./scripts/smoke-kafka-streaming.sh` returned JSON evidence for Kafka consume/replay, committed offset 3, duplicate suppression, and fenced sink output with 3 rows.
-- Marked TODO P0 items 11 and 13 complete and linked evidence in `docs/brd-traceability.md`.
-
-### Gaps Pending
-
-- Final hardware-gated GPU item remains open because this host exposes one CUDA device and the final hardware-gated plan requires >=2 visible devices for multi-GPU scheduling evidence.
-- Provider-specific production deployments still need target-provider smoke repeats even though local-platform P0 evidence is complete for auth and Kafka streaming.
-
-### Next Items To Implement
-
-- Run the multi-GPU CUDA/KernelAbstractions smoke on suitable hardware.
-- Keep Final Hardware-Gated Phase GPU item unchecked until multi-GPU evidence is linked.
-- Rerun final verification after any GPU closure change.
-
----
-
-## Checkpoint: GPU Hardware Constraint Rephase — 2026-05-10
-
-### Work Done Till Date
-
-- Moved GPU production hardening / multi-GPU closure to the Final Hardware-Gated Phase because GPU count is an environment constraint.
-- Updated control docs and developer-facing docs so one-device CUDA/KernelAbstractions smoke is recorded as useful evidence, not a blocker for near-term P1/P2 progress.
-- Kept auth/RBAC and Kafka streaming P0 local-platform closures unchanged.
-
-### Gaps Pending
-
-- Final GPU closure still requires >=2 visible CUDA devices, hardware-backed worker isolation proof, and linked multi-GPU scheduling evidence.
-- Provider-specific production smokes remain needed for auth, PostgreSQL, Kafka/NATS, sinks, and object-store deployments.
-
-### Next Items To Implement
-
-- Proceed with unblocked P1/P2 work unless a >=2-device GPU runner becomes available.
-- When hardware exists, run `JULIAFLOW_CUDA_SMOKE=1 JULIAFLOW_REQUIRE_MULTI_GPU=1 julia --project=. scripts/smoke-cuda-kernel.jl`, link evidence, and rerun BRD traceability validation.
-
----
-
-## Checkpoint: P0 Closure Verification And Commit Prep — 2026-05-10
-
-### Work Done Till Date
-
-- Verified P0 closure state: `docs/TODO.md` P0 has 14 checked items and zero unchecked items; GPU multi-GPU closure is no longer P0 and is tracked in Final Hardware-Gated Phase.
-- Fresh evidence passed: live Keycloak/PostgreSQL auth smoke, live Kafka streaming smoke, Julia suite, npm test, npm build, BRD traceability validator, diff whitespace check, bounded GPU worker smoke, and one-device CUDA/KernelAbstractions smoke.
-
-### Gaps Pending
-
-- Final GPU closure still needs >=2 visible CUDA devices plus linked hardware-backed isolation and multi-GPU scheduling evidence.
-- Provider-specific production smokes remain pending for chosen external IdP, managed PostgreSQL, managed Kafka/NATS, sinks, and object stores.
-
-### Next Items To Implement
-
-- Commit all latest verified changes.
-- Continue P1/P2 lanes unless final GPU hardware becomes available.
----
-
-## Checkpoint: Components/Control-Flow Contract Slice — 2026-05-12
-
-### Work Done Till Date
-
-- Added P1 workflow metadata contracts for containers, components, switch/case, loop, try/catch, and parallel chunk definitions across TypeScript contracts, OpenAPI, JSON schema, gateway mapping, and Julia parser/serializer/validator.
-- Added foundation fixture coverage, Julia validation coverage, contract assertions, and frontend Canvas inspector visibility for component/control-flow bindings.
-- Verified initial evidence: `julia --project=. tests/julia/runtests.jl` and `npm run test` passed before documentation closure.
-
-### Gaps Pending
-
-- Full runtime execution semantics for loop and try/catch nodes remain future Beta work beyond the current P1 contract/validation slice.
-- Observability/perf gates, production deployment manifests, provider-specific object-store proof, and final >=2-device GPU closure remain open.
-
-### Next Items To Implement
-
-- Continue P1 observability/perf gates: OTel/Prometheus seam, 1,000-node render harness, node dispatch microbench, and coverage thresholds.
-- Then continue P2 deployment hardening with real K8s/Helm/Kustomize service manifests.
-- Return to final GPU closure only when >=2 visible CUDA devices are available.
----
-
-## Checkpoint: Observability/Perf First Gate Slice — 2026-05-12
-
-### Work Done Till Date
-
-- Added a Prometheus-style `/metrics` endpoint with workflow, execution, durable event-log, consumer-lag, queued, and running execution gauges.
-- Added OpenAPI coverage for `/metrics`.
-- Added `npm run validate:perf`, combining a 1,000-node/500-connection render harness and a Julia dispatch microbench.
-- Verified `npm run validate:perf` passed with render `elapsedMs` under 500 ms and dispatch average under the configured threshold.
-
-### Gaps Pending
-
-- P1 observability/perf item remains unchecked until fuller OTel integration and real coverage thresholds land.
-- Production deployment manifests remain P2 open.
-- Final hardware-gated GPU closure remains blocked on >=2 visible CUDA devices.
-
-### Next Items To Implement
-
-- Add coverage threshold enforcement compatible with the existing test stack.
-- Add OTel trace/span seam around gateway request handling and execution dispatch.
-- Continue deployment hardening after observability/perf item can be checked with traceability evidence.
-
-### Observability/Perf Trace And Coverage Surface Slice — 2026-05-13
-
-### Work Done Till Date
-
-- Added no-new-dependency OTel-style trace/span metadata for gateway HTTP routing and execution dispatch planning.
-- Exposed observability span counters through health/metrics surfaces and contract/OpenAPI execution trace fields.
-- Added `npm run validate:coverage` as a dependency-free coverage-surface threshold gate across frontend, contracts, Julia gateway/execution, and base extension tests.
-- Verified: `julia --project=. tests/julia/runtests.jl`, `julia --project=. extensions/base/test/runtests.jl`, `npm run test`, `npm run build`, `npm run validate:perf`, `npm run validate:coverage`, `npm run validate:brd-traceability`, and `git diff --check` passed.
-
-### Gaps Pending
-
-- P1 observability/perf item remains unchecked until real coverage-provider thresholds are approved or equivalent threshold evidence is accepted.
-- Production deployment manifests remain P2 open.
-- Final hardware-gated GPU closure remains blocked on >=2 visible CUDA devices.
-
-### Next Items To Implement
-
-- Either add real coverage-provider thresholds with approved dependency support or move to P2 deployment hardening.
-- Keep `npm run validate:coverage` in the standard observability/perf gate until a real provider replaces it.
-- Continue deployment hardening after observability/perf evidence is stable.
-
-### P1 Observability/Perf Closure — 2026-05-13
-
-### Work Done Till Date
-
-- Selected the official Vitest v8 coverage provider path and added `@vitest/coverage-v8` to the frontend workspace.
-- Configured real coverage thresholds in `apps/frontend/vite.config.ts` for `App.tsx` and `sample-workflow.ts`.
-- Wired `npm run validate:coverage` to run real Vitest coverage plus the dependency-free cross-surface coverage inventory, and added `npm run validate:p1` for perf + coverage + BRD traceability.
-- Marked P1 Observability/perf gates complete after linking TODO traceability evidence.
-- Verified P1 closure gates: `npm run validate:p1`, `npm run test`, `npm run build`, and `julia --project=. tests/julia/runtests.jl` passed after real coverage thresholds landed.
-
-### Gaps Pending
-
-- P1 is complete.
-- P2 deployment hardening remains open.
-- Final hardware-gated GPU closure remains blocked on >=2 visible CUDA devices.
-
-### Next Items To Implement
-
-- Start P2 deployment hardening: replace ArgoCD placeholders with real Deployment/Service/Ingress/SecretRef manifests and production overlays.
-- Keep coverage thresholds ratcheted upward as more frontend tests land.
-- Return to final GPU closure only when >=2 visible CUDA devices are available.
-
----
-
-## Checkpoint: P2 Deployment Hardening — 2026-05-14
-
-### Work Done Till Date
-
-- Replaced placeholder ArgoCD workload intent ConfigMaps with Kustomize bases and dev overlays for API Gateway, Execution Service, Frontend, and provider-neutral platform dependency seams.
-- Added workload manifests for Deployments, Services, runtime ConfigMaps, dev Ingresses, and secret templates without committing real credentials.
-- Fixed review blockers: AppProject now whitelists `argoproj.io/Application`; API Gateway dev defaults avoid required Postgres/OIDC secrets and require a dev auth token for protected routes; Execution Service runs a real HTTP health/metrics runner; frontend runtime config is mounted as `juliaflow-config.js` and read before Vite env fallback.
-- Kept platform dependencies provider-neutral by declaring namespace, service contracts, secret templates, and dependency-contract metadata instead of fake production PostgreSQL/Kafka/Keycloak/MinIO/Redis workloads.
-- Added `scripts/validate-k8s-manifests.sh` and `npm run validate:k8s` for render/static validation, including AppProject app-of-apps policy checks and structural YAML fallback when kubectl/kustomize is unavailable.
-
-### Gaps Pending
-
-- Provider-specific staging/prod overlays and live cluster server-side dry-run evidence remain pending until target providers/cluster access exist.
-- External production smoke repeats remain needed for managed IdP/PostgreSQL/Kafka/NATS/object-store choices.
-- Final hardware-gated GPU closure remains blocked until >=2 visible CUDA devices exist.
-
-### Next Items To Implement
-
-- Add selected-provider overlays and secret delivery integration (for example ExternalSecrets/SealedSecrets/provider-native secret sync) without committing credentials.
-- Run `kubectl apply --dry-run=server -k ...` against a configured cluster for all workload overlays.
-- Continue provider-specific object-store deployment proof or GA release-hardening gates next.
----
-
-## Checkpoint: Agent Guidance / Future Module Skill Routing — 2026-05-14
-
-### Work Done Till Date
-
-- Added concise `AGENTS.md` guidance for future module delivery, skill invocation, frontend-heavy work, Julia language/syntax work, provider deployment work, and native subagent usage.
-- Added repo-local skills: `juliaflow-control-loop`, `juliaflow-julia-development`, `juliaflow-frontend-development`, and `juliaflow-provider-deployment`.
-- Reaffirmed NASA/JPL Power of 10 as always-on for core logic.
-
-### Gaps Pending
-
-- Future modules still require domain-specific implementation and evidence; this checkpoint only adds guidance and reusable skill surfaces.
-- Live provider/cluster proof and final multi-GPU hardware evidence remain separate future gates.
-
-### Next Items To Implement
-
-- Invoke the relevant repo-local skill before future module work.
-- Keep docs, contracts, code, tests, tracker, and checkpoint synchronized for each future slice.
-- Continue with provider-specific deployment proof, frontend expansion, or final hardware-gated GPU work when prerequisites exist.
----
-
-## Checkpoint: Current Phase Plan Sync — 2026-05-14
-
-### Work Done Till Date
-
-- Created `Plan.md` for the current Provider-Specific GA Proof / Module Expansion phase.
-- Synced `docs/TODO.md` with open current-phase items after P0/P1/P2 local-platform closure.
-- Updated `docs/risk-register.md` to reflect provider deployment proof, frontend-scale risk, Julia-runtime-depth risk, and final GPU hardware gating.
-
-### Gaps Pending
-
-- Provider-specific overlays, secret delivery integration, server-side dry-run, and live smokes remain pending.
-- Frontend module expansion and Julia runtime module expansion are open future lanes.
-- Final GPU production hardening still requires >=2 visible CUDA devices.
-
-### Next Items To Implement
-
-- Use `Plan.md` as the current plan source before the next implementation slice.
-- Continue provider-specific GA proof first when external target access exists; otherwise proceed with frontend or Julia module expansion.
-- Update TODO, risks, tracker, checkpoint, and traceability together after the next meaningful phase change.
----
-
-## Checkpoint: Control-Doc Sync Guard — 2026-05-14
-
-### Work Done Till Date
-
-- Added a control-doc sync validator and package script: `npm run validate:control-doc-sync`.
-- Updated `AGENTS.md` and the control-loop skill so every completed slice, phase, or review requires Plan/TODO/risk/tracker/checkpoint updates.
-- Updated Plan, TODO, risk register, tracker, and checkpoint to record the guard itself.
-- Verified the guard with `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, `node --test tests/contracts/brd-traceability.test.mjs`, `npm run test`, `npm run build`, and `git diff --check`.
-
-### Gaps Pending
-
-- The validator proves required control docs were touched, not that their wording is semantically perfect.
-- Future CI/release gates should include the validator.
-
-### Next Items To Implement
-
-- Run `npm run validate:control-doc-sync` on every future slice, phase, review, and before commits with non-control changes.
-- Continue pairing control-doc sync with traceability validation for milestone/TODO changes.
-
----
-
-## Checkpoint: Frontend Module Expansion / BI Viewer Row-Search Slice — 2026-05-15
-
-### Work Done Till Date
-
-- Implemented the first current-phase frontend module expansion slice in the BI published dashboard viewer.
-- Published viewers now have a row-search control that filters visible chart rows after chart cross-filter selection.
-- Filtered CSV export now uses the same effective viewer row set: chart filter plus row search.
-- Regression coverage now exercises share-token viewer row search, clear row search, and search-aware CSV export.
-
-### Gaps Pending
-
-- Provider-specific deployment/object-store proof still lacks live provider, cluster, and credential context.
-- Julia runtime module expansion remains pending for loop/try-catch/control-flow execution semantics.
-- Governed Hub production depth remains pending for bounded sandbox execution and artifact hash verification.
-- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
-
-### Next Items To Implement
-
-- Complete full verification: `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, and `npm run validate:brd-traceability`.
-- If full gates pass, move to Julia runtime module expansion as the next repo-local lane unless provider access appears.
-- Keep frontend route shell, demo fallback, runtime `juliaflow-config.js`, and accessible selectors intact in future frontend slices.
-
----
-
-## Checkpoint: Julia Runtime Module Expansion / Loop Runtime-Plan Slice — 2026-05-15
-
-### Work Done Till Date
-
-- Added bounded loop runtime-plan semantics without changing node compute execution.
-- Valid loops now derive ordered body node IDs from the DAG and include `controlFlowPlan` evidence on execution records.
-- Invalid loops whose end node is unreachable from the start node now fail validation.
-- Contracts, gateway payload mapping, Monitor UI, fixtures, and tests were updated for the additive execution evidence.
-
-### Gaps Pending
-
-- Try/catch runtime execution semantics remain pending.
-- Provider-specific deployment/object-store proof still requires external provider and cluster context.
-- Governed Hub sandbox/hash verification remains pending.
-- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
-
-### Next Items To Implement
-
-- Complete full verification for this runtime slice.
-- Continue with try/catch runtime semantics next unless provider/cluster access is supplied.
-- Keep control-flow runtime additions additive and evidence-backed across Julia, contracts, gateway, frontend, and tests.
-
----
-
-## Checkpoint: Julia Runtime Module Expansion / Try-Catch Runtime-Plan Slice — 2026-05-16
-
-### Work Done Till Date
-
-- Added additive try/catch runtime-plan evidence without changing node compute execution.
-- Execution records now include try/catch `controlFlowPlan` entries with try and catch node IDs.
-- Contracts, gateway payload mapping, Monitor UI, fixtures, and tests were updated for the try/catch evidence shape.
-
-### Gaps Pending
-
-- Failure-driven executor semantics and worker-runtime behavior remain pending.
-- Provider-specific deployment/object-store proof still requires external provider and cluster context.
-- Governed Hub sandbox/hash verification remains pending.
-- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
-
-### Next Items To Implement
-
-- Complete full verification and code review for this runtime slice.
-- Continue with deeper runtime execution semantics or Hub production depth unless provider/cluster access is supplied.
-- Keep loop/try-catch runtime additions additive until failure-driven node execution is deliberately expanded.
-
-
----
-
-## Checkpoint: Governed Hub Production Depth / Deterministic Sandbox-Hash-Mirror Proof Slice — 2026-05-16
-
-### Work Done Till Date
-
-- Added Hub `verification` evidence across TS contracts, OpenAPI, Julia repository payloads, gateway install responses, and frontend Hub cards.
-- Added deterministic install-time checks for bounded sandbox command shape, artifact hash match/mismatch, and supported `mirror://` / `private://` references.
-- Preserved safe remediation: disable remains available even when compatibility, trust, or verification blockers exist.
-- Added Julia, frontend, and contract regression coverage for passed verification, hash mismatch blocking, unsafe sandbox blocking, mirror status, and UI blocker rendering.
-
-### Gaps Pending
-
-- Real isolated sandbox execution is still pending; manifest commands are not executed directly on the request path.
-- Downloaded artifact hash verification and real private/offline registry mirror proof remain future Hub production-depth follow-ups.
-- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
-- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
-
-### Next Items To Implement
-
-- Complete full gate execution and review for this slice before commit/push.
-- Add isolated sandbox runner plus downloaded-artifact verification when registry/mirror fixtures are ready.
-- Continue deeper runtime execution semantics or provider proof when prerequisites are available.
-
-
----
-
-## Checkpoint: Julia Runtime Module Expansion / Try-Catch Failure-Recovery Route Slice — 2026-05-16
-
-### Work Done Till Date
-
-- Added try/catch failure-recovery routing on top of existing try/catch metadata.
-- Status updates reporting `failedNodeId` for a covered try node now append recovery evidence and keep the execution non-terminal.
-- Uncaught failed-node telemetry still transitions to failed normally.
-- Updated contracts, OpenAPI, gateway mapping, frontend Monitor UI, Julia tests, frontend tests, contract tests, tracker, TODO, risk register, and traceability docs.
-
-### Gaps Pending
-
-- Real catch-node compute execution is not implemented in this slice.
-- Worker-runtime branch state and catch-node scheduling remain future runtime work.
-- Provider-specific deployment/object-store proof and real Hub sandbox/download/mirror proof remain gated on external context/fixtures.
-- Final multi-GPU closure remains hardware-gated on >=2 visible CUDA devices.
-
-### Next Items To Implement
-
-- Complete full verification and code review for this slice.
-- Add real catch-node compute and worker branch-state execution in a future runtime slice.
-- Continue provider proof only when cluster/provider/credential prerequisites exist.
-
-
----
-
-## Checkpoint: Julia Runtime Module Expansion / Catch-Node Branch-State Slice — 2026-05-17
-
-### Work Done Till Date
-
-- Added worker-service catch-branch execution after try/catch recovery.
-- Recovered executions now queue branch work, execute bounded catch nodes, record `controlFlowBranchState`, and complete once the catch branch finishes.
-- Branch evidence includes worker id, failed node id, catch/completed node IDs, deterministic BI outlet row-count node results, gateway payload mapping, contracts/OpenAPI, and Monitor UI rendering.
-- Added Julia, frontend, and contract regression coverage plus Autopilot PRD/test-spec artifacts.
-
-### Gaps Pending
-
-- General DAG branch rescheduling and broader executor scheduling remain future runtime work.
-- Provider-specific deployment/object-store proof still requires provider, cluster, and credential context.
-- Real Hub sandbox/download/private-mirror proof still requires isolated runner and registry fixtures.
-- Final GPU closure remains hardware-gated on >=2 visible CUDA devices.
-
-### Next Items To Implement
-
-- Complete full verification and code review for this slice.
-- Continue with general DAG branch rescheduling or Hub isolated sandbox proof if provider context remains unavailable.
-- Keep all future slice claims tied to traceability and control-doc sync gates.
-
----
-
-## Checkpoint: Governed Hub Production Depth / Isolated Sandbox-Artifact-Mirror Proof Slice — 2026-05-17
-
-### Work Done Till Date
-
-- Prioritized unblocked `R-HUB-001` after provider deployment/object-store risks remained gated on external provider, cluster, and credentials.
-- Added env-gated allowlisted sandbox fixture execution for Hub installs, local artifact-store hash verification, and private/offline mirror-registry resolution.
-- Missing artifact-store entries and missing mirror-registry refs now block install/enable/upgrade with verification evidence, while unsafe sandbox/file-mirror behavior remains blocked.
-- Hub UI now surfaces verification details; Julia/frontend regression coverage and the labs sandbox fixture were added.
-
-### Gaps Pending
-
-- External Hub registry/provider mirror proof remains pending until provider or registry context exists.
-- Provider-specific deployment/object-store proof still requires live target context and credentials.
-- General DAG branch rescheduling remains future runtime work.
-- Final GPU closure remains hardware-gated on >=2 visible CUDA devices.
-
-### Next Items To Implement
-
-- Complete security/code review, commit, push, and verify remote publication for this slice.
-- If external provider context appears, proceed to `R-DEP-001` and `R-OBJ-001`; otherwise continue general DAG branch rescheduling or frontend/Hub polish.
-- Keep sandbox execution env-gated and allowlisted in future Hub work.
-
----
-
-## Checkpoint: Julia Runtime Module Expansion / DAG Branch Rescheduling Slice — 2026-05-17
-
-### Work Done Till Date
-
-- Implemented bounded DAG branch rescheduling for recovered try/catch catch branches.
-- Worker-service now groups catch nodes into deterministic dependency stages from workflow connections and records stage-level branch metadata.
-- Gateway repository mapping, TS/OpenAPI contracts, Monitor UI, Julia tests, frontend tests, TODO, risk register, traceability, plan, and tracker were updated together.
-
-### Gaps Pending
-
-- General executor scheduling across non-catch runtime paths remains open.
-- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
-- External Hub registry/provider mirror proof remains gated on external registry/provider context.
-- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
-
-### Next Items To Implement
-
-- Complete full verification and clean code review for this slice.
-- Commit and push after gates pass.
-- Continue broader multi-node executor scheduling unless provider context becomes available first.
-
----
-
-## Checkpoint: Julia Runtime Module Expansion / Executor Stage-Schedule Slice — 2026-05-17
-
-### Work Done Till Date
-
-- Added additive general workflow executor scheduling evidence beyond catch-branch DAG rescheduling.
-- Execution service now builds bounded topological `executorSchedule` entries from workflow stages with lane, worker-pool, readiness, max-concurrency, and scheduler-policy data.
-- Gateway payload mapping, TS/OpenAPI contracts, Monitor UI, Julia regression tests, frontend tests, and control docs were synchronized.
-
-### Gaps Pending
-
-- Real asynchronous multi-tick executor scheduling remains open.
-- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
-- External Hub registry/provider mirror proof remains gated on external registry/provider context.
-- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
-
-### Next Items To Implement
-
-- Run full verification and code review for this slice.
-- Commit and push after gates pass.
-- Continue true multi-tick executor scheduling unless provider context becomes available first.
-
----
-
-## Checkpoint: Julia Runtime Module Expansion / Multi-Tick Executor Slice — 2026-05-17
-
-### Work Done Till Date
-
-- Added metadata-only multi-tick executor scheduling over existing `executorSchedule` evidence.
-- Worker-service now progresses CPU batch executions through accepted -> queued -> running stage progress -> completed with one bounded stage action per tick.
-- Gateway payload mapping, TS/OpenAPI contracts, Monitor UI, Julia regression tests, frontend tests, and control docs were synchronized.
-
-### Gaps Pending
-
-- Real node execution, output materialization, and per-node error propagation remain open for future staged executor work.
-- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
-- External Hub registry/provider mirror proof remains gated on external registry/provider context.
-- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
-
-### Next Items To Implement
-
-- Run full verification and code review for this slice.
-- Commit and push after gates pass.
-- Continue real node execution/output/error handling inside staged executor ticks unless provider context becomes available first.
-
----
-
-## Checkpoint: Julia Runtime Module Expansion / Executor Node Result-Error Binding Slice — 2026-05-17
-
-### Work Done Till Date
-
-- Added callback-bound node output/error telemetry to staged executor ticks.
-- Worker-service now records per-stage node results, flattened executor node results, output refs/row counts, and failed-node/error metadata.
-- Gateway payload mapping, TS/OpenAPI contracts, Monitor UI, Julia regression tests, frontend tests, and control docs were synchronized.
-
-### Gaps Pending
-
-- Full base-extension dataflow execution and payload propagation through the callback seam remain open.
-- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
-- External Hub registry/provider mirror proof remains gated on external registry/provider context.
-- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
-
-### Next Items To Implement
-
-- Run full verification and code review for this slice.
-- Commit and push after gates pass.
-- Continue full dataflow/payload execution binding unless provider context becomes available first.
-
----
-
-## Checkpoint: Julia Runtime Module Expansion / Base-Extension Dataflow Binding Slice — 2026-05-18
-
-### Work Done Till Date
-
-- Added a focused base-extension executor dataflow helper for staged executor callbacks.
-- Executor callbacks can now execute registered base source/transform/sink nodes, propagate Arrow IPC payloads through stored stage outputs, and return row/output/persisted-ref telemetry.
-- Julia regression tests, extension tests, and control docs were synchronized.
-
-### Gaps Pending
-
-- Broader callback-bound dataflow coverage across all base nodes and production scheduling policies remains open.
-- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
-- External Hub registry/provider mirror proof remains gated on external registry/provider context.
-- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
-
-### Next Items To Implement
-
-- Run full verification and code review for this slice.
-- Commit and push after gates pass.
-- Continue broader executor dataflow coverage unless provider context becomes available first.
-
----
-
-## Checkpoint: Julia Runtime Module Expansion / Executor Dataflow Authored-Alias Coverage Slice — 2026-05-18
-
-### Work Done Till Date
-
-- Added authored-node alias coverage to the base-extension executor dataflow helper.
-- UI/contract-style base node types now resolve into canonical base node keys for staged executor callbacks.
-- Authored workflow ports now supply default input/output port IDs for source, transform, aggregate, and sink nodes.
-- Julia runtime and extension regressions cover alias-authored Arrow IPC dataflow through staged executor ticks.
-
-### Gaps Pending
-
-- Production scheduling policy evidence for callback-bound executor dataflow remains open.
-- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
-- External Hub registry/provider mirror proof remains gated on external registry/provider context.
-- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
-
-### Next Items To Implement
-
-- Run full verification and code review for this slice.
-- Commit and push after gates pass.
-- Continue production scheduling policy evidence unless provider context becomes available first.
-
----
-
-## Checkpoint: Julia Runtime Module Expansion / Executor Dataflow Scheduling-Policy Evidence Slice — 2026-05-19
-
-### Work Done Till Date
-
-- Added production-oriented scheduling-policy evidence for callback-bound executor dataflow.
-- Schedule-stage and executor-state payloads now expose `dataflowPolicy` / `dataflow_policy` details across Julia, gateway, contracts, OpenAPI, and Monitor UI.
-- Regression tests cover policy evidence on normal scheduler payloads and alias-authored source -> select -> aggregate -> sink dataflow execution.
-
-### Gaps Pending
-
-- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
-- External Hub registry/provider mirror proof remains gated on external registry/provider context.
-- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
-- Frontend module depth remains the next unblocked local lane if provider context is still unavailable.
-
-### Next Items To Implement
-
-- Run full verification and code review for this slice.
-- Commit and push after gates pass.
-- Continue frontend module expansion unless provider context becomes available first.
-
----
-
-## Checkpoint: Frontend Module Expansion / Monitor Executor Detail Slice — 2026-05-28
-
-### Work Done Till Date
-
-- Pulled `Gravelaw/LowcodeMLtoolkit.jl` into the local Git workspace on `main`.
-- Reviewed BRD, plan, TODO, traceability, risk, tracker, and checkpoint state for the current Provider-Specific GA Proof / Module Expansion phase.
-- Added Monitor execution-rail detail for executor dataflow stage policies and per-node executor/branch results.
-- Removed tracked `.staging/` skill residue and ignored future `.staging/` folders.
-- Resolved the moderate `ws` audit advisory with `npm audit fix`.
-
-### Gaps Pending
-
-- Provider-specific deployment/object-store proof still requires external provider, cluster, and credentials.
-- External Hub registry/provider mirror proof remains gated on external registry/provider context.
-- Final multi-GPU closure remains hardware-gated on `>=2` visible CUDA devices.
-- Further BI/Hub/settings polish remains available as local frontend module depth.
-
-### Next Items To Implement
-
-- Run focused frontend and control-doc verification for this slice.
-- Continue provider-specific GA proof when provider context exists; otherwise continue local frontend/Hub polish slices.
-
----
-
-## Checkpoint: BRD Local-First Strategy Refresh — 2026-05-28
-
-### Work Done Till Date
-
-- Promoted `business-requirements-v0.3.0.md` to the v0.4.0 local-first BRD baseline.
-- Reframed JuliaFlow as a self-contained local appliance for academia, labs, students, researchers, small teams, and low-resource users.
-- Added core requirements for local appliance bootstrap, local data estate, DuckDB analytics, PostgreSQL lab/team metadata mode, optional MinIO local S3 profile, local CPU/GPU hardware validation, AI explainability/model transparency, offline Hub, academic reproducibility bundles, and backup/restore.
-- Downgraded provider-specific deployment, cloud object stores, external Hub registries, enterprise identity, Kubernetes/ArgoCD production overlays, and cloud multi-GPU closure to optional compatibility paths.
-- Updated Plan, TODO, risk register, tracker, checkpoint, and BRD traceability docs to point future implementation at local-first GA proof.
-
-### Gaps Pending
-
-- Local appliance bootstrap proof remains open.
-- Local data estate and DuckDB query path proof remain open.
-- Local PostgreSQL lab/team metadata mode proof remains open.
-- Local hardware profiler, GPU smoke, and CPU fallback proof remain open.
-- Explainability/model evidence and academic reproducibility bundle proof remain open.
-- Offline Hub proof and backup/restore proof remain open.
-
-### Next Items To Implement
-
-- Build the local appliance bootstrap proof first.
-- Then implement local data estate and metadata/database proof before deeper explainability and offline Hub work.
-
----
-
-## Checkpoint: Documentation Cleanup — 2026-05-28
-
-### Work Done Till Date
-
-- Removed only the user-approved obsolete documentation artifacts: one superseded BRD draft, the old persona archive, legacy handoff/parallel-lane planning files, one old OIDC/RBAC planning file, and two empty release-note stubs.
-- Repointed active README/TODO/tracker/checkpoint references away from removed files and into the active control-doc set.
-- Recorded documentation-sprawl risk mitigation while keeping the active local-first BRD baseline intact.
-
-### Gaps Pending
-
-- Historical tracker/checkpoint narratives still preserve prior work context by design.
-- Active implementation remains local appliance bootstrap, local data estate, local metadata/database, local hardware runtime, explainability/model evidence, offline Hub, reproducibility, and backup/restore.
-
-### Next Items To Implement
-
-- Start the local appliance bootstrap proof.
-
----
-
-## Checkpoint: Agent Prompt Hygiene And Skill Routing Cleanup — 2026-05-28
-
-### Work Done Till Date
-
-- Compared `AGENTS.md` with repo-local skills and installed plugin skill names.
-- Added `juliaflow-local-first-appliance` for one-command local bootstrap, local data estate, DuckDB/PostgreSQL modes, hardware proof, explainability, offline Hub, reproducibility, and backup/restore work.
-- Updated repo-local skills to use installed `analysis-engineering-workflow`, `julia-engineering-toolkit`, `frontend-design-workflow`, `lowcode-ml-ui-patterns`, and `codex-security` skill names.
-- Reworked `AGENTS.md` to remove unavailable skill names, hard-coded model guidance, and stale provider-first routing.
-
-### Gaps Pending
-
-- Product implementation still needs local appliance bootstrap, data estate, metadata/database, hardware, explainability, offline Hub, reproducibility, and backup/restore proofs.
-- Prompt routing should be checked again when installed plugin inventory changes.
-
-### Next Items To Implement
-
-- Use the new local-first appliance skill for the next local bootstrap implementation slice.
-
----
-
-## Checkpoint: Agent Prompt Hygiene Skill Frontmatter Repair — 2026-06-16
-
-### Work Done Till Date
-
-- Repaired `.codex/skills/juliaflow-local-first-appliance/SKILL.md` by quoting its description frontmatter value, preserving the existing trigger wording while making the colon-bearing YAML scalar valid.
-- Hardened `scripts/validate-control-doc-sync.mjs` to avoid failing when child-process git output is returned with status `0` in the current environment.
-- Ran a local frontmatter check across all repo-local `SKILL.md` files for required `name` and `description` keys.
-
-### Gaps Pending
-
-- The official `skill-creator` validator could not run because `PyYAML` is not installed in the current Python environment.
-
-### Next Items To Implement
-
-- Install or restore project validation dependencies before running the official skill validator.
-
----
-
-## Checkpoint: Offline Hub Proof Implementation Staged — 2026-06-16
-
-### Work Done Till Date
-
-- Added local Hub cache readiness evidence to gateway `/health`, including artifact-store and mirror-registry paths plus local install counts.
-- Updated local bootstrap setup so the Hub cache contains offline artifact and mirror registry files by default.
-- Added `scripts/smoke-local-offline-hub.mjs`, `scripts/smoke-local-offline-hub.jl`, and the `npm run smoke:local-offline-hub` command to prove local extension install without an external registry and to keep unsafe sandbox commands blocked.
-- Updated contracts, OpenAPI, frontend Monitor rendering, frontend fixtures, contract tests, and Julia health assertions for the new evidence surface.
-- Rectified the active development shell for Debian with `npm run doctor:debian`, repo-local Juliaup LTS, workspace-local Julia depots, and Julia sandbox execution through the active Julia command instead of a PATH-dependent `julia` shim.
-- Verified with `npm run doctor:debian`, `npm run smoke:local-offline-hub`, Debian-local `julia --project=. tests/julia/runtests.jl`, `npm run validate:contracts`, `npm run test`, `npm run build`, `npm run validate:control-doc-sync`, `npm run validate:brd-traceability`, and `git diff --check`.
-
-### Gaps Pending
-
-- Offline Hub proof is closed for the current local-first slice.
-- Socket-bound gateway smoke remains unavailable in the current sandbox because TCP bind fails with `EPERM`; the offline Hub smoke uses the in-process gateway router to verify the same install path without network binding.
-- The Babel/esbuild/Vite dependency advisories are resolved in this PR branch; `npm audit --audit-level=moderate` now reports zero vulnerabilities after the Vite 8 lockfile upgrade.
-
-### Next Items To Implement
-
-- Start academic reproducibility workflow: offline EDA -> model -> explain -> dashboard -> checkpoint -> export/reimport with package, seed, checksum, metric, model, explanation, dashboard, and notes evidence.
----
-
-## Checkpoint: Academic Reproducibility Workflow Proof — 2026-06-17
-
-### Work Done Till Date
-
-- Added local reproducibility bundle export/import routes to the gateway.
-- Added contract/OpenAPI/client shapes for reproducibility bundle export and import.
-- Bundles include workflow, checkpoint, dataset checksum/card, package/runtime metadata, seeds, model artifact evidence, metrics, explainability output, dashboard snapshot, notes, local-only flag, and deterministic checksum.
-- Import validates the checksum, restores workflow/checkpoint/dashboard evidence into a fresh local repository, and rejects tampered bundles.
-- Added `npm run smoke:local-reproducibility` to prove export/reimport through the in-process gateway router without network binding or cloud credentials.
-
-### Gaps Pending
-
-- Backup/restore and migration remain open for full local data estate and metadata portability.
-- Mock-derived product modules remain requirements-only until implementation slices land.
-
-### Next Items To Implement
-
-- Start backup/restore and migration proof.
-- Keep `npm run smoke:local-reproducibility` in the local-first verification gate set.
-
----
-
-## Checkpoint: Backend-Backed Data And Transform Product Actions — 2026-06-17
-
-### Work Done Till Date
-
-- Closed PR #12 after GitHub `web` and `julia` checks passed, then started draft PR #13 for the next product-depth branch.
-- Added local data import/profile gateway support with data-estate zone validation, checksum/profile evidence, manifest/DuckDB status, and deterministic local artifact references.
-- Added transform run/history gateway support that wraps workflow execution state and returns workflow-node, checkpoint, status, and artifact evidence.
-- Extended `packages/contracts` TypeScript client types and OpenAPI paths/schemas for the new Data and Transform endpoints.
-- Wired Data and Transform product views to run the actions against the gateway when configured, with deterministic demo fallback and visible action feedback.
-- Added route-level Julia tests, typed-client contract coverage, OpenAPI assertions, and frontend demo smoke coverage.
-
-### Gaps Pending
-
-- Full product readiness still needs ML Studio experiment tracking, Models registry mutation, Visualize checkpoint/export depth, and local Deploy packaging.
-- Optional provider/cloud compatibility remains out of scope for this local-first slice.
-- Hardware-backed CUDA/multi-GPU evidence remains environment-gated.
-
-### Next Items To Implement
-
-- Finish PR #13 verification/CI/review and merge once green.
-- Continue product-depth implementation with ML Studio experiments or Models registry actions before packaging/deploy depth.
-
----
-
-## Checkpoint: Mockup-Aligned Local UI And Browser Automation — 2026-06-17
-
-### Work Done Till Date
-
-- Replaced the dark glass frontend surface with the mockup-aligned JuliaFlow Local appliance shell, including left navigation, `100% Local` strip, compact white cards, purple actions, green local/privacy state, and consistent right-side detail panels.
-- Split frontend implementation into `App.tsx`, shared `components/`, deterministic `fixtures/local-fixtures.ts`, and dedicated `views/` route components.
-- Added deterministic local-only synthetic data for churn rows, data profiles, transform runs, ML experiments, model registry records, dashboard exports, deploy packages, local health, checkpoints, and generated Julia code snippets.
-- Added Playwright browser tests that intercept gateway API calls and verify desktop plus mobile-width journeys across Explorer, Data, Transform, ML Studio, Models, Visualize, Deploy, and Settings.
-- Preserved runtime gateway configuration and demo fallback behavior for offline UI operation.
-
-### Gaps Pending
-
-- Browser automation is fixture-backed by default; an optional live `dev:local` smoke path can be added later without becoming the default gate.
-- Provider/cloud compatibility and multi-GPU evidence remain optional or hardware-gated and were not expanded by this UI slice.
-
-### Next Items To Implement
-
-- Keep Playwright browser automation in the release gate and expand it only around concrete local workflow regressions or accessibility findings.
-- Complete full PR verification with contracts, Julia tests, frontend tests, build, control-doc sync, BRD traceability, and diff whitespace checks.
-
----
-
-## Checkpoint: AKS-5 Stage 2 Release-Mode Boundary - 2026-06-18
-
-### Work Done Till Date
-
-- Added contract-first runtime mode support for `demo`, `development`, `release`, and `local-appliance`.
-- Added fixture provenance, fixture-substitution policy, and unavailable-state evidence to TypeScript contracts, OpenAPI, gateway health, and frontend app state.
-- Updated frontend runtime config so release/local-appliance mode reports missing gateway data, protected-gateway auth failures, and failed actions explicitly instead of using deterministic fixture substitutions.
-- Wired gateway/OIDC bearer token, workspace id, and workspace role config through the normal frontend gateway client so workflows, execution actions, Hub/admin/auth APIs, dashboard publish/read, and existing share/workspace-token paths inherit one auth context.
-- Added focused frontend, contract, and Julia assertions for the release-mode boundary.
-
-### Gaps Pending
-
-- Stage 3 must still make Canvas save/run/monitor a true backend lifecycle.
-- Stage 5 must still add the fresh-checkout release verification script and live-backend Playwright smoke.
-- PR #20 has merged; PR #21 is retargeted to `main`. The primary Documents checkout is restored as a readable Git checkout, but this Codex process still cannot write `.git` lock files because restored `.git` ACLs block metadata writes, so verification and branch updates use fresh temp clones.
-
-### Next Items To Implement
-
-- Keep PR #21 current on `main`, verify Stage 2 gates after each change, and mark it ready after final review.
-- Continue with backend-backed Canvas lifecycle and artifact-backed dashboard/explainability behavior.
-
----
-
-## Checkpoint: AKS-5 Stage 5 Release Verification Blocker Burn-Down - 2026-06-20
-
-### Work Done Till Date
-
-- Docker Desktop access from Codex is restored on the `desktop-linux` context; `docker info` and Compose work from `D:\Julia Project`.
-- `smoke:local-metadata` now passes the Docker PostgreSQL lab-team path. The gateway repository imports `LibPQ` normally at module load instead of lazily importing it mid-call, which removes Julia 1.12 world-age failures in PostgreSQL gateway startup.
-- `smoke-local-metadata.mjs`, `verify-release.mjs`, and npm-visible Julia scripts now use the repo-local Julia command/depot for standalone Julia subprocesses, avoiding blocked user-global compiled DLLs under `C:\Users\aksha\.julia\compiled`.
-- No-skip `npm run verify:release` passed bootstrap, contracts, frontend, Julia tests, local smokes, and live-backend browser smoke before stopping at the expected control-doc sync gate for this code/doc slice.
-- After control-doc synchronization, full no-skip `npm run verify:release` passed and wrote `artifacts/release-verification/latest/summary.json`.
-
-### Gaps Pending
-
-- No Docker/PostgreSQL blocker remains for the current release gate.
-- PR/Linear evidence still needs to reference the passing summary and live browser artifacts.
-
-### Next Items To Implement
-
-- Use `artifacts/release-verification/latest/summary.json` plus live browser artifacts as final AKS-5/AKS-10 evidence in PR/Linear cleanup.
-
----
-
-## Checkpoint: AKS-23 Project Creation And Shell Actions First Slice - 2026-06-20
-
-### Work Done Till Date
-
-- Added editable project name, description, and typed local folder path inputs to the `Create New Project` dialog.
-- Added validation for short names, reserved filename characters, missing descriptions, non-local paths, parent traversal, and visible project-folder collisions.
-- Updated the active workflow name/id and Explorer project artifact state when a local scaffold is created.
-- Added browser-granted target-folder selection and scaffold file writes for `Project.toml`, `README.md`, workflow TOML, and `data/raw/.gitkeep`.
-- Wired Grid, Share, Help, and avatar controls to local-first dialogs instead of inert buttons.
-- Hardened ML Studio against incomplete metric payloads found during browser sanity.
-
-### Gaps Pending
-
-- Project creation writes files through browser-granted folder handles; service-owned gateway scaffold creation from typed paths remains optional future work.
-- Route-level error boundaries remain open under AKS-27.
-
-### Next Items To Implement
-
-- Use PR #28 to review the AKS-23 first slice.
-- Decide whether browser-granted local scaffold writes satisfy AKS-23 or whether a gateway scaffold endpoint is required before closure.
-
----
-
-## Checkpoint: AKS-27 Route Resilience First Slice - 2026-06-20
-
-### Work Done Till Date
-
-- Added route-level crash containment for module views so a failed route renders an unavailable state instead of blanking the full app shell.
-- Made shared table rendering tolerant of missing row arrays.
-- Added explicit empty states for Models and Deploy when live backend lists are empty.
-- Guarded Settings backup checkpoint rendering.
-- Extended local-appliance frontend coverage across empty Transform, Monitor, ML Studio, Visualize, Models, Deploy, and Settings routes.
-- Captured local Playwright/Edge browser sanity for Explorer, ML Studio, Models, Deploy, and Visualize routes.
-
-### Gaps Pending
-
-- A future per-card boundary can be added if product review wants individual cards to isolate failures inside a route.
-
-### Next Items To Implement
-
-- Update PR #29/Linear with final AKS-27 evidence.
-
----
-
-## Checkpoint: AKS-24 Explorer System Health And Artifacts First Slice - 2026-06-20
-
-### Work Done Till Date
-
-- Closed stale PR #19 and started AKS-24 from current `main` on `codex/aks-24-explorer-system-health-artifacts`.
-- Added gateway health polling through existing `/health` data at a 5-second cadence for gateway-backed modes.
-- Added health freshness/stale state so failed refreshes keep the last known hardware values visible.
-- Consolidated Explorer hardware metrics into one System Health surface backed by runtime health instead of static CPU/RAM/Disk placeholders.
-- Added project-specific trust boundary evidence and replaced the generic local-first privacy card.
-- Replaced flat project artifact rows with grouped hierarchy rows and explicit path-copy actions.
-- Kept compute controls read-only for this first slice while making their runtime-health source and Settings handoff clear.
-- Verification passed with focused frontend tests, production build, browser sanity on `/`, `/settings`, and `/data`, control-doc sync, BRD traceability, and diff checks.
-
-### Gaps Pending
-
-- Functional compute settings remain the second AKS-24 slice: contract/gateway persistence, runtime scheduling propagation, and execution evidence are still needed.
-- Artifact open-folder behavior remains copy-path only until a real local folder reveal bridge exists.
-
-### Next Items To Implement
-
-- Publish the draft AKS-24 PR.
-- Start AKS-24 compute settings after the Explorer UX PR is reviewed.
-
----
-
-## Checkpoint: AKS-24 Compute Settings Runtime Slice - 2026-06-20
-
-### Work Done Till Date
-
-- Added contract/client support for `GatewayComputeSettings`.
-- Added gateway `GET/PUT /api/v1/settings/compute` routes with local metadata file persistence.
-- Reflected compute settings into health and workflow execution metadata.
-- Added editable Settings controls for backend, CPU worker concurrency, memory limit, GPU preference, and BLAS thread count.
-- Preserved existing GPU/stream dispatch metadata while attaching compute settings evidence to executions.
-- Verified with focused frontend tests, contract validation, repo-local Julia tests, and production build.
-
-### Gaps Pending
-
-- PR #32 replaced closed stacked PR #31 and merged after PR #30.
-- External worker hot-reload remains future runtime depth if product review requires live process reconfiguration beyond gateway-dispatched evidence.
-
-### Next Items To Implement
-
-- Continue with AKS-25 Data estate workflow.
-
----
-
-## Checkpoint: AKS-25 Data Estate Workflow Slice - 2026-06-20
-
-### Work Done Till Date
-
-- Started `codex/aks-25-data-estate-workflow` after AKS-24 merged to `main`.
-- Added contract/OpenAPI fields for active read mode, source options, artifact lineage, quality checks, field roles, workflow readiness, quick EDA plots, and preview rows.
-- Extended gateway local-data import/profile evidence for telecom churn and Global Superstore local fixture profiles with CSV, Arrow IPC, Parquet, and DuckDB semantics.
-- Reworked Data into a workflow surface for dataset switching, read-mode switching, preview/profile evidence, lineage, quality checks, ML readiness, and quick EDA checks.
-- Verified with focused frontend tests, contract validation, production build, and repo-local Julia gateway tests.
-
-### Gaps Pending
-
-- Full external Kaggle download/import UX remains future depth; this slice uses committed deterministic fixture metadata.
-
-### Next Items To Implement
-
-- AKS-26 EDA and ML diagnostic visualization is the follow-on closure slice.
-
----
-
-## Checkpoint: AKS-26 EDA And ML Diagnostics Slice - 2026-06-20
-
-### Work Done Till Date
-
-- Started `codex/aks-26-eda-ml-diagnostics` after AKS-25 merged to `main`.
-- Reworked Visualize into EDA, Dashboard, Model Diagnostics, and Experiment Compare modes.
-- Fed EDA from AKS-25 profile fields, quick plots, quality checks, target/readiness, missingness, outliers, and role metadata.
-- Preserved local dashboard checkpoint/export and artifact-backed dashboard row behavior.
-- Added ML diagnostic and experiment comparison views from existing ML experiment/model evidence.
-- Added EDA correlation, outlier, and segment-slice review surfaces.
-- Merged PR #34 as `2827ff0` after green `web` and `julia` CI.
-- Verified with focused frontend tests, production build, control-doc sync, BRD traceability, and diff check.
-
-### Gaps Pending
-
-- Linear AKS-26 closure remains pending until this final control-doc closure update lands.
-- Persisted diagnostic artifact API can be added later only if backend-owned diagnostic storage becomes required.
-
-### Next Items To Implement
-
-- Merge this closure-doc update.
-- Confirm Linear has no open LowCodeML backlog issues.
+2026-10-10 accessibility review follow-up: give the existing labeled Visualize capabilities container its semantic group role. Preserve content, navigation and approved palette. Exact-candidate browser/axe and complete release verification remain required; manual SVG contrast and participant acceptance remain separate.

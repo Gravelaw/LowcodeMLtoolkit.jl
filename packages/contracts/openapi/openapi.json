@@ -1099,6 +1099,579 @@
         }
       }
     },
+    "/api/v1/data-science-projects": {
+      "get": {
+        "summary": "List local data-science projects",
+        "responses": {
+          "200": {
+            "description": "Data-science project records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataScienceProjectListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a local data-science project",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDataScienceProjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Data-science project created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataScienceProject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}": {
+      "get": {
+        "summary": "Get local data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data-science project record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataScienceProject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update local data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDataScienceProjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Data-science project updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataScienceProject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}/transforms/fit-apply": {
+      "post": {
+        "summary": "Run local train-only transform fit and split-safe apply for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunTransformFitApplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transform fit/apply evidence persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunTransformFitApplyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid transform fit/apply request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}/statistical-analysis/run": {
+      "post": {
+        "summary": "Run local statistical EDA for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunStatisticalAnalysisRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Statistical analysis run persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunStatisticalAnalysisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid analysis request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}/tuning/run": {
+      "post": {
+        "summary": "Run a local validation-only tuning study for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunTuningStudyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tuning study persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunTuningStudyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid tuning request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}/evaluation/run": {
+      "post": {
+        "summary": "Run a local final evaluation for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunFinalEvaluationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Final evaluation report persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunFinalEvaluationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid final evaluation request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Final evaluation prerequisites are missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}/predictions/export": {
+      "post": {
+        "summary": "Export local predictions for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunPredictionExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Prediction export persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPredictionExportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid prediction export request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Prediction export prerequisites are missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}/drift/run": {
+      "post": {
+        "summary": "Run a local drift report for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunDriftReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Drift report persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDriftReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid drift request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Drift prerequisites are missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}/models/lifecycle": {
+      "post": {
+        "summary": "Record a local model lifecycle action for a data-science project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunModelLifecycleActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Model lifecycle action recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunModelLifecycleActionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid lifecycle request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Lifecycle prerequisites are missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayErrorPayload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflows/{workflowId}/transforms/run": {
       "post": {
         "summary": "Run a workflow transform and return local artifact evidence",
@@ -1394,6 +1967,166 @@
           }
         }
       }
+    },
+    "/api/v1/data-science-projects/{projectId}/analysis/profile": {
+      "post": {
+        "operationId": "getAnalysisProfile",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "datasetId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "datasetId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized local analysis response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid, stale or unavailable evidence"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Project access denied"
+          },
+          "409": {
+            "description": "Another mutation of this project is in progress; retry after completion."
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}/analysis/workspace": {
+      "post": {
+        "operationId": "saveAnalysisWorkspace",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAnalysisWorkspaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized local analysis response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataScienceProject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid, stale or unavailable evidence"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Project access denied"
+          },
+          "409": {
+            "description": "Another mutation of this project is in progress; retry after completion."
+          }
+        }
+      }
+    },
+    "/api/v1/data-science-projects/{projectId}/analysis/export": {
+      "post": {
+        "operationId": "exportAnalysisReport",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorized local analysis response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid, stale or unavailable evidence"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Project access denied"
+          },
+          "409": {
+            "description": "Another mutation of this project is in progress; retry after completion."
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1464,6 +2197,1289 @@
         "properties": {
           "error": {
             "type": "string"
+          }
+        }
+      },
+      "DataScienceProjectEvidenceRef": {
+        "type": "object",
+        "required": [
+          "refId",
+          "kind",
+          "localOnly"
+        ],
+        "properties": {
+          "refId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          },
+          "checksumSha256": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "path": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "ProjectDataset": {
+        "type": "object",
+        "required": [
+          "datasetId",
+          "name",
+          "role",
+          "sourceUri",
+          "localOnly"
+        ],
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "train",
+              "validation",
+              "test",
+              "evaluation",
+              "output",
+              "reference"
+            ]
+          },
+          "sourceUri": {
+            "type": "string",
+            "description": "Managed local artifact reference. DataScienceProject routes accept local:// refs and reject remote/provider URIs or traversal-shaped paths."
+          },
+          "localOnly": {
+            "type": "boolean"
+          },
+          "rowCount": {
+            "type": "integer"
+          },
+          "columnCount": {
+            "type": "integer"
+          },
+          "checksumSha256": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "type": "string",
+            "description": "Optional managed local artifact reference using local://."
+          },
+          "importSourceUri": {
+            "type": "string",
+            "description": "Original approved local import source, retained only as provenance; sourceUri and artifactRef identify the actual managed CSV used by consumers."
+          }
+        }
+      },
+      "SchemaColumnContract": {
+        "type": "object",
+        "required": [
+          "name",
+          "inferredType",
+          "logicalType",
+          "role",
+          "nullable"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "inferredType": {
+            "type": "string"
+          },
+          "logicalType": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "feature",
+              "target",
+              "id",
+              "group",
+              "time",
+              "depth",
+              "sensitive",
+              "ignore"
+            ]
+          },
+          "nullable": {
+            "type": "boolean"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "SchemaContract": {
+        "type": "object",
+        "required": [
+          "schemaId",
+          "datasetId",
+          "columns",
+          "updatedAt"
+        ],
+        "properties": {
+          "schemaId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchemaColumnContract"
+            }
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "DatasetSplitPlan": {
+        "type": "object",
+        "required": [
+          "splitPlanId",
+          "datasetId",
+          "strategy",
+          "locked",
+          "createdAt"
+        ],
+        "properties": {
+          "splitPlanId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "random",
+              "stratified",
+              "grouped",
+              "time",
+              "depth",
+              "external"
+            ]
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "trainFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "validationFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "testFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "groupColumn": {
+            "type": "string"
+          },
+          "timeColumn": {
+            "type": "string"
+          },
+          "depthColumn": {
+            "type": "string"
+          },
+          "seed": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "DataScienceProjectChildRecord": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "DataScienceProjectJobRecord": {
+        "type": "object",
+        "required": [
+          "jobId",
+          "projectId",
+          "jobType",
+          "status",
+          "outputRefs",
+          "startedAt"
+        ],
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "jobType": {
+            "type": "string",
+            "enum": [
+              "data_profile",
+              "training",
+              "transform_fit_apply",
+              "statistical_analysis",
+              "tuning_study",
+              "final_evaluation",
+              "batch_scoring",
+              "prediction_export",
+              "drift_report",
+              "deploy_package",
+              "model_lifecycle",
+              "retraining"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "sourceRecordId": {
+            "type": "string"
+          },
+          "outputRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          },
+          "resourceEvidence": {
+            "description": "Missing or empty historical v1 evidence is unavailable. Populated evidence must be complete. Newly executed jobs must supply populated evidence.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataScienceProjectJobResourceEvidence"
+              },
+              {
+                "type": "object",
+                "maxProperties": 0
+              }
+            ]
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "finishedAt": {
+            "type": "string"
+          },
+          "errorMessage": {
+            "type": "string"
+          },
+          "executionEvidence": {
+            "$ref": "#/components/schemas/DataScienceProjectJobExecutionEvidence"
+          }
+        }
+      },
+      "DataScienceProjectJobResourceEvidence": {
+        "type": "object",
+        "required": [
+          "executionMode",
+          "requestedBackend",
+          "selectedBackend",
+          "dispatchLane",
+          "workerPool",
+          "schedulerPolicy",
+          "cpuThreadCount",
+          "cpuWorkerConcurrency",
+          "cpuMemoryLimitBytes",
+          "gpuReadinessStatus",
+          "gpuHardwareDeviceCount",
+          "gpuSimulatedDeviceCount",
+          "gpuFallbackReason"
+        ],
+        "properties": {
+          "evidenceVersion": {
+            "type": "integer",
+            "enum": [
+              2
+            ]
+          },
+          "executionMode": {
+            "type": "string"
+          },
+          "requestedBackend": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "cuda",
+              "simulated_cuda"
+            ]
+          },
+          "selectedBackend": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "cuda",
+              "simulated_cuda"
+            ]
+          },
+          "dispatchLane": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "gpu"
+            ]
+          },
+          "workerPool": {
+            "type": "string"
+          },
+          "schedulerPolicy": {
+            "type": "string"
+          },
+          "cpuThreadCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cpuWorkerConcurrency": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cpuMemoryLimitBytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "gpuReadinessStatus": {
+            "type": "string"
+          },
+          "gpuHardwareDeviceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "gpuSimulatedDeviceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "gpuFallbackReason": {
+            "type": "string"
+          },
+          "gpuProbeStatus": {
+            "type": "string",
+            "enum": [
+              "unprobed",
+              "passed",
+              "failed",
+              "skipped"
+            ]
+          },
+          "requestedDeviceId": {
+            "type": "string"
+          },
+          "plannedDeviceId": {
+            "type": "string"
+          },
+          "actualDeviceId": {
+            "type": "string"
+          },
+          "actualExecutionBackend": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "cuda",
+              "unavailable"
+            ]
+          }
+        }
+      },
+      "DataScienceProject": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "projectId",
+          "name",
+          "localOnly",
+          "createdAt",
+          "updatedAt",
+          "datasets",
+          "schemaContracts",
+          "splitPlans",
+          "splitAssignments",
+          "validationFolds",
+          "finalTestLocks",
+          "projectJobs",
+          "transformFitApplyRecords",
+          "statisticalAnalysisRuns",
+          "trainingPlans",
+          "tuningStudies",
+          "evaluationReports",
+          "predictionExports",
+          "modelRegistryRecords",
+          "modelLifecycleRecords",
+          "monitoringBaselines",
+          "driftReports",
+          "reproducibilityEvidence"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "enum": [
+              "1.0"
+            ]
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "datasets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectDataset"
+            }
+          },
+          "schemaContracts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchemaContract"
+            }
+          },
+          "splitPlans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatasetSplitPlan"
+            }
+          },
+          "splitAssignments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SplitAssignment"
+            }
+          },
+          "validationFolds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationFold"
+            }
+          },
+          "finalTestLocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FinalTestLock"
+            }
+          },
+          "projectJobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectJobRecord"
+            }
+          },
+          "transformFitApplyRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransformFitApplyRecord"
+            }
+          },
+          "statisticalAnalysisRuns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatisticalAnalysisRun"
+            }
+          },
+          "trainingPlans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrainingPlan"
+            }
+          },
+          "tuningStudies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TuningStudy"
+            }
+          },
+          "evaluationReports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvaluationReport"
+            }
+          },
+          "predictionExports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PredictionExport"
+            }
+          },
+          "modelRegistryRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelRegistryRecord"
+            }
+          },
+          "modelLifecycleRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelLifecycleRecord"
+            }
+          },
+          "monitoringBaselines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonitoringBaseline"
+            }
+          },
+          "driftReports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DriftReport"
+            }
+          },
+          "reproducibilityEvidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          },
+          "analysisWorkspace": {
+            "$ref": "#/components/schemas/AnalysisWorkspace"
+          }
+        }
+      },
+      "StatisticalAnalysisRun": {
+        "type": "object",
+        "properties": {
+          "analysisRunId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "unavailable"
+            ]
+          },
+          "generatedCodeRef": {
+            "type": "string"
+          },
+          "resultRef": {
+            "type": "string"
+          },
+          "resultSummary": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Local statistical EDA result summary, including execution mode, numeric summaries, correlation matrix, and available inferential evidence."
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            },
+            "description": "Persisted local code and result artifacts for the statistical analysis run."
+          },
+          "charts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InteractiveChartSpec"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "RunStatisticalAnalysisRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targetColumn": {
+            "type": "string"
+          },
+          "featureColumns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AnalysisScopeRequest"
+          }
+        }
+      },
+      "RunTransformFitApplyRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "transformRef": {
+            "type": "string"
+          },
+          "fitSplit": {
+            "type": "string",
+            "enum": [
+              "train"
+            ]
+          },
+          "applySplits": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "validation",
+                "test",
+                "evaluation"
+              ]
+            }
+          }
+        }
+      },
+      "RunTransformFitApplyResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "transformRun",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "transformRun": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "RunStatisticalAnalysisResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "analysisRun",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "analysisRun": {
+            "$ref": "#/components/schemas/StatisticalAnalysisRun"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "RunTuningStudyRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "trainingPlanId": {
+            "type": "string"
+          },
+          "targetColumn": {
+            "type": "string"
+          },
+          "taskType": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string"
+          },
+          "metricNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "maxTrials": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "finalTestPolicy": {
+            "type": "string",
+            "enum": [
+              "forbid_final_test",
+              "use_final_test"
+            ]
+          }
+        }
+      },
+      "RunTuningStudyResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "trainingPlan",
+          "tuningStudy",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "trainingPlan": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "tuningStudy": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "RunFinalEvaluationRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "trainingPlanId": {
+            "type": "string"
+          },
+          "tuningStudyId": {
+            "type": "string"
+          },
+          "metricNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "approvalThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "finalTestPolicy": {
+            "type": "string",
+            "enum": [
+              "use_final_test"
+            ]
+          }
+        }
+      },
+      "RunFinalEvaluationResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "evaluationReport",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "evaluationReport": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "RunPredictionExportRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "evaluationReportId": {
+            "type": "string"
+          },
+          "outputContractRef": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "parquet",
+              "jsonl"
+            ]
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "outputColumns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputContract": {
+            "$ref": "#/components/schemas/PredictionOutputContract"
+          },
+          "outputContractImport": {
+            "$ref": "#/components/schemas/PredictionOutputContractImport"
+          },
+          "outputMappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PredictionOutputMapping"
+            }
+          }
+        }
+      },
+      "RunPredictionExportResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "predictionExport",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "predictionExport": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "RunDriftReportRequest": {
+        "type": "object",
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "predictionExportId": {
+            "type": "string"
+          },
+          "baselineId": {
+            "type": "string"
+          },
+          "metricNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "RunDriftReportResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "monitoringBaseline",
+          "driftReport",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "monitoringBaseline": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "driftReport": {
+            "$ref": "#/components/schemas/DataScienceProjectChildRecord"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "RunModelLifecycleActionRequest": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "action"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "approve_model",
+              "deprecate_model",
+              "archive_model",
+              "mark_rollback_ready",
+              "mark_rolled_back",
+              "request_retraining"
+            ]
+          },
+          "rollbackModelId": {
+            "type": "string"
+          },
+          "driftReportId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "RunModelLifecycleActionResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "lifecycleRecord",
+          "project"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "lifecycleRecord": {
+            "$ref": "#/components/schemas/ModelLifecycleRecord"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
+          }
+        }
+      },
+      "ModelLifecycleRecord": {
+        "type": "object",
+        "required": [
+          "modelId",
+          "state",
+          "updatedAt"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "candidate",
+              "validated",
+              "approved",
+              "deployed",
+              "rollback_ready",
+              "rolled_back",
+              "retraining_requested",
+              "deprecated",
+              "archived"
+            ]
+          },
+          "evaluationReportId": {
+            "type": "string"
+          },
+          "deployedEndpointId": {
+            "type": "string"
+          },
+          "rollbackModelId": {
+            "type": "string"
+          },
+          "rollbackPackageId": {
+            "type": "string"
+          },
+          "rollbackPackageRef": {
+            "type": "string"
+          },
+          "lifecycleAction": {
+            "type": "string",
+            "enum": [
+              "approve_model",
+              "deprecate_model",
+              "archive_model",
+              "mark_rollback_ready",
+              "mark_rolled_back",
+              "request_retraining"
+            ]
+          },
+          "rollbackReason": {
+            "type": "string"
+          },
+          "retrainingReason": {
+            "type": "string"
+          },
+          "retrainingTrainingPlanId": {
+            "type": "string"
+          },
+          "retrainingTuningStudyId": {
+            "type": "string"
+          },
+          "retrainingJobId": {
+            "type": "string"
+          },
+          "deprecationReason": {
+            "type": "string"
+          },
+          "archiveReason": {
+            "type": "string"
+          },
+          "validationEvidence": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "CreateDataScienceProjectRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "datasets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectDataset"
+            }
+          },
+          "schemaContracts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchemaContract"
+            }
+          }
+        }
+      },
+      "UpdateDataScienceProjectRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "datasets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectDataset"
+            }
+          },
+          "schemaContracts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchemaContract"
+            }
+          },
+          "splitPlans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatasetSplitPlan"
+            }
+          },
+          "splitAssignments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SplitAssignment"
+            }
+          },
+          "validationFolds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationFold"
+            }
+          },
+          "finalTestLocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FinalTestLock"
+            }
+          },
+          "projectJobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectJobRecord"
+            }
+          },
+          "transformFitApplyRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransformFitApplyRecord"
+            }
+          },
+          "statisticalAnalysisRuns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatisticalAnalysisRun"
+            }
+          },
+          "trainingPlans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrainingPlan"
+            }
+          },
+          "tuningStudies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TuningStudy"
+            }
+          },
+          "evaluationReports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvaluationReport"
+            }
+          },
+          "predictionExports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PredictionExport"
+            }
+          },
+          "modelRegistryRecords": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "modelLifecycleRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelLifecycleRecord"
+            }
+          },
+          "monitoringBaselines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonitoringBaseline"
+            }
+          },
+          "driftReports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DriftReport"
+            }
+          },
+          "reproducibilityEvidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          }
+        }
+      },
+      "DataScienceProjectListResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProject"
+            }
           }
         }
       },
@@ -1813,6 +3829,10 @@
             "type": "string",
             "const": "api-gateway"
           },
+          "juliaVersion": {
+            "type": "string",
+            "description": "Measured gateway Julia version; absent on older gateways."
+          },
           "status": {
             "type": "string",
             "const": "ok"
@@ -1977,7 +3997,11 @@
             "type": "string",
             "enum": [
               "available",
-              "cpu_fallback"
+              "cpu_fallback",
+              "unprobed",
+              "passed",
+              "failed",
+              "skipped"
             ]
           },
           "gpuFallbackReason": {
@@ -2109,6 +4133,13 @@
           "gpuRegistryDeviceCount": {
             "type": "integer"
           },
+          "gpuCudaInstalled": {
+            "type": "boolean"
+          },
+          "gpuVisibleDeviceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
           "gpuFallbackAvailable": {
             "type": "boolean"
           },
@@ -2212,6 +4243,14 @@
               "simulated_cuda"
             ]
           },
+          "hardwareRequestedBackend": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "cuda",
+              "simulated_cuda"
+            ]
+          },
           "cpuSchedulerPolicy": {
             "type": "string",
             "enum": [
@@ -2230,7 +4269,11 @@
               "not_requested",
               "requested",
               "ready",
-              "unavailable"
+              "unavailable",
+              "unprobed",
+              "passed",
+              "failed",
+              "skipped"
             ]
           },
           "gpuHardwareDeviceCount": {
@@ -3014,8 +5057,30 @@
             "type": "string",
             "enum": [
               "gpu",
-              "cpu_fallback"
+              "cpu_fallback",
+              "unavailable"
             ]
+          },
+          "gpuEvidenceVersion": {
+            "type": "integer",
+            "enum": [
+              2
+            ]
+          },
+          "gpuProbeStatus": {
+            "type": "string",
+            "enum": [
+              "unprobed",
+              "passed",
+              "failed",
+              "skipped"
+            ]
+          },
+          "gpuPlannedDevice": {
+            "type": "string"
+          },
+          "gpuActualDevice": {
+            "type": "string"
           },
           "gpuDeviceId": {
             "type": "string"
@@ -3979,6 +6044,8 @@
           "workflows",
           "checkpoints",
           "executions",
+          "dataScienceProjects",
+          "modelRegistryRecords",
           "publishedDashboards",
           "hubExtensions",
           "authPolicy",
@@ -4071,6 +6138,18 @@
               "$ref": "#/components/schemas/GatewayExecutionRecord"
             }
           },
+          "dataScienceProjects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProject"
+            }
+          },
+          "modelRegistryRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayModelRegistryRecord"
+            }
+          },
           "publishedDashboards": {
             "type": "array",
             "items": {
@@ -4137,6 +6216,8 @@
           "workflows",
           "checkpoints",
           "executions",
+          "dataScienceProjects",
+          "modelRegistryRecords",
           "publishedDashboards",
           "hubExtensions",
           "authPolicy",
@@ -4156,6 +6237,18 @@
             }
           },
           "executions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dataScienceProjects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "modelRegistryRecords": {
             "type": "array",
             "items": {
               "type": "string"
@@ -5685,17 +7778,34 @@
           },
           "memoryBytes": {
             "type": "integer"
+          },
+          "usable": {
+            "type": "boolean"
+          },
+          "probeStatus": {
+            "type": "string",
+            "enum": [
+              "unprobed",
+              "passed",
+              "failed",
+              "skipped"
+            ]
           }
         }
       },
       "DataImportProfileRequest": {
         "type": "object",
         "properties": {
+          "projectId": {
+            "type": "string",
+            "description": "Optional data-science project id to update with dataset profile/catalog job evidence."
+          },
           "datasetId": {
             "type": "string"
           },
           "sourceUri": {
-            "type": "string"
+            "type": "string",
+            "description": "Local import source. Accepts managed local:// refs or existing local files confined to the configured import roots."
           },
           "format": {
             "type": "string"
@@ -5739,6 +7849,30 @@
           "outlierCount": {
             "type": "integer",
             "minimum": 0
+          },
+          "numericSummary": {
+            "type": "object",
+            "required": [
+              "count",
+              "minimum",
+              "maximum",
+              "mean"
+            ],
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minimum": {
+                "type": "number"
+              },
+              "maximum": {
+                "type": "number"
+              },
+              "mean": {
+                "type": "number"
+              }
+            }
           }
         }
       },
@@ -5817,6 +7951,12 @@
             "items": {
               "$ref": "#/components/schemas/DataProfileField"
             }
+          },
+          "profileScope": {
+            "type": "string",
+            "enum": [
+              "complete_unquoted_csv_1000_rows"
+            ]
           },
           "manifestReady": {
             "type": "boolean"
@@ -5994,6 +8134,10 @@
                       },
                       "value": {
                         "type": "number"
+                      },
+                      "missing": {
+                        "type": "boolean",
+                        "description": "True for the distinct missing-cell bucket; false for literal categories."
                       }
                     }
                   }
@@ -6025,6 +8169,9 @@
           },
           "profile": {
             "$ref": "#/components/schemas/DataImportProfile"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DataScienceProject"
           }
         }
       },
@@ -6308,6 +8455,42 @@
               "$ref": "#/components/schemas/MlExperimentArtifactEvidence"
             }
           },
+          "validationEvidence": {
+            "type": "object",
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "splitPlanId": {
+                "type": "string"
+              },
+              "splitStrategy": {
+                "type": "string"
+              },
+              "finalTestPolicy": {
+                "type": "string",
+                "enum": [
+                  "forbid_final_test",
+                  "use_final_test"
+                ]
+              },
+              "validationFraction": {
+                "type": "number"
+              },
+              "testFraction": {
+                "type": "number"
+              },
+              "executionId": {
+                "type": "string"
+              },
+              "trainingExecutionId": {
+                "type": "string"
+              }
+            }
+          },
+          "executionEvidence": {
+            "$ref": "#/components/schemas/DataScienceProjectJobExecutionEvidence"
+          },
           "startedAt": {
             "type": "string"
           },
@@ -6328,8 +8511,21 @@
           "executionMode": {
             "type": "string"
           },
+          "projectId": {
+            "type": "string"
+          },
           "datasetId": {
             "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "finalTestPolicy": {
+            "type": "string",
+            "enum": [
+              "forbid_final_test",
+              "use_final_test"
+            ]
           },
           "target": {
             "type": "string"
@@ -6488,6 +8684,33 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ModelRegistryArtifactEvidence"
+            }
+          },
+          "validationEvidence": {
+            "type": "object",
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "splitPlanId": {
+                "type": "string"
+              },
+              "splitStrategy": {
+                "type": "string"
+              },
+              "finalTestPolicy": {
+                "type": "string",
+                "enum": [
+                  "forbid_final_test",
+                  "use_final_test"
+                ]
+              },
+              "validationFraction": {
+                "type": "number"
+              },
+              "testFraction": {
+                "type": "number"
+              }
             }
           },
           "registeredAt": {
@@ -6654,11 +8877,59 @@
           "deploymentStatus": {
             "type": "string"
           },
+          "rollbackFromModelId": {
+            "type": "string"
+          },
+          "rollbackTargetModelId": {
+            "type": "string"
+          },
+          "rollbackSourcePackageId": {
+            "type": "string"
+          },
+          "rollbackReason": {
+            "type": "string"
+          },
           "artifactEvidence": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DeployPackageArtifactEvidence"
             }
+          },
+          "validationEvidence": {
+            "type": "object",
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "splitPlanId": {
+                "type": "string"
+              },
+              "splitStrategy": {
+                "type": "string"
+              },
+              "finalTestPolicy": {
+                "type": "string",
+                "enum": [
+                  "forbid_final_test",
+                  "use_final_test"
+                ]
+              },
+              "validationFraction": {
+                "type": "number"
+              },
+              "testFraction": {
+                "type": "number"
+              },
+              "executionId": {
+                "type": "string"
+              },
+              "deployPackageExecutionId": {
+                "type": "string"
+              }
+            }
+          },
+          "executionEvidence": {
+            "$ref": "#/components/schemas/DataScienceProjectJobExecutionEvidence"
           },
           "createdAt": {
             "type": "string"
@@ -6724,6 +8995,1168 @@
             "minimum": 0
           }
         }
+      },
+      "PredictionOutputColumnContract": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "sourceColumn": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "PredictionOutputContract": {
+        "type": "object",
+        "required": [
+          "contractId",
+          "columns"
+        ],
+        "properties": {
+          "contractId": {
+            "type": "string"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PredictionOutputColumnContract"
+            }
+          },
+          "primaryKey": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "PredictionOutputContractImport": {
+        "type": "object",
+        "required": [
+          "sourceUri"
+        ],
+        "properties": {
+          "sourceUri": {
+            "type": "string"
+          },
+          "connector": {
+            "type": "string",
+            "enum": [
+              "managed_local",
+              "local_file"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "json"
+            ]
+          },
+          "checksumSha256": {
+            "type": "string"
+          }
+        }
+      },
+      "PredictionOutputMapping": {
+        "type": "object",
+        "required": [
+          "outputColumn",
+          "sourceColumn"
+        ],
+        "properties": {
+          "outputColumn": {
+            "type": "string"
+          },
+          "sourceColumn": {
+            "type": "string"
+          }
+        }
+      },
+      "DataScienceProjectJobExecutionEvidence": {
+        "type": "object",
+        "required": [
+          "executionId",
+          "workflowId",
+          "status",
+          "mode"
+        ],
+        "properties": {
+          "executionId": {
+            "type": "string"
+          },
+          "workflowId": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GatewayExecutionStatus"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "orchestrationMode": {
+            "type": "string"
+          },
+          "dispatchStatus": {
+            "type": "string"
+          },
+          "workerPool": {
+            "type": "string"
+          },
+          "dispatchLane": {
+            "type": "string"
+          },
+          "queuedAt": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "finishedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "SplitAssignment": {
+        "type": "object",
+        "properties": {
+          "splitAssignmentId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "split": {
+            "type": "string",
+            "enum": [
+              "train",
+              "validation",
+              "test",
+              "evaluation"
+            ]
+          },
+          "rowRef": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "ValidationFold": {
+        "type": "object",
+        "properties": {
+          "foldId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "random",
+              "stratified",
+              "grouped",
+              "time",
+              "depth",
+              "external",
+              "kfold"
+            ]
+          },
+          "index": {
+            "type": "number"
+          },
+          "trainRef": {
+            "type": "string"
+          },
+          "validationRef": {
+            "type": "string"
+          },
+          "sourceChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "splitPlanChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "membershipChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "trainChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "validationChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "FinalTestLock": {
+        "type": "object",
+        "properties": {
+          "lockId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "lockedAt": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "lockedBy": {
+            "type": "string"
+          },
+          "sourceChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "splitPlanChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "membershipChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "testChecksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "testRef": {
+            "type": "string",
+            "pattern": "^local://splits/"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "TransformFitApplyRecord": {
+        "type": "object",
+        "properties": {
+          "transformRunId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "fitSplit": {
+            "type": "string",
+            "enum": [
+              "train"
+            ]
+          },
+          "applySplits": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "validation",
+                "test",
+                "evaluation"
+              ]
+            }
+          },
+          "transformRef": {
+            "type": "string"
+          },
+          "leakageChecks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "checkId",
+                "status",
+                "detail"
+              ],
+              "properties": {
+                "checkId": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "passed",
+                    "warning",
+                    "failed"
+                  ]
+                },
+                "detail": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "transformKind": {
+            "type": "string",
+            "enum": [
+              "numeric_standardize"
+            ]
+          },
+          "membershipEvidence": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "TrainingPlan": {
+        "type": "object",
+        "properties": {
+          "trainingPlanId": {
+            "type": "string"
+          },
+          "targetColumn": {
+            "type": "string"
+          },
+          "taskType": {
+            "type": "string"
+          },
+          "metricNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "transformRef": {
+            "type": "string"
+          },
+          "seed": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "TuningStudy": {
+        "type": "object",
+        "properties": {
+          "tuningStudyId": {
+            "type": "string"
+          },
+          "trainingPlanId": {
+            "type": "string"
+          },
+          "validationOnly": {
+            "type": "boolean"
+          },
+          "trials": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TuningTrial"
+            }
+          },
+          "bestTrialId": {
+            "type": "string"
+          },
+          "validationEvidence": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "datasetId": {
+                "type": "string"
+              },
+              "splitPlanId": {
+                "type": "string"
+              },
+              "splitStrategy": {
+                "type": "string"
+              },
+              "validationFraction": {
+                "type": "number"
+              },
+              "testFraction": {
+                "type": "number"
+              },
+              "finalTestPolicy": {
+                "type": "string",
+                "enum": [
+                  "forbid_final_test",
+                  "use_final_test"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "EvaluationReport": {
+        "type": "object",
+        "properties": {
+          "evaluationReportId": {
+            "type": "string"
+          },
+          "trainingPlanId": {
+            "type": "string"
+          },
+          "splitPlanId": {
+            "type": "string"
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "approved": {
+            "type": "boolean"
+          },
+          "finalTestOnly": {
+            "type": "boolean"
+          },
+          "validationEvidence": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "datasetId": {
+                "type": "string"
+              },
+              "splitPlanId": {
+                "type": "string"
+              },
+              "tuningStudyId": {
+                "type": "string"
+              },
+              "finalTestPolicy": {
+                "type": "string",
+                "enum": [
+                  "use_final_test"
+                ]
+              },
+              "validationOnlyTuning": {
+                "type": "boolean"
+              },
+              "testFraction": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": true
+          },
+          "generatedAt": {
+            "type": "string"
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "PredictionExport": {
+        "type": "object",
+        "properties": {
+          "predictionExportId": {
+            "type": "string"
+          },
+          "evaluationReportId": {
+            "type": "string"
+          },
+          "outputContractRef": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "type": "string"
+          },
+          "rowCount": {
+            "type": "number"
+          },
+          "format": {
+            "type": "string"
+          },
+          "outputColumns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputContract": {
+            "$ref": "#/components/schemas/PredictionOutputContract"
+          },
+          "outputContractImport": {
+            "$ref": "#/components/schemas/PredictionOutputContractImportEvidence"
+          },
+          "outputMappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PredictionOutputMapping"
+            }
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          },
+          "executionEvidence": {
+            "$ref": "#/components/schemas/DataScienceProjectJobExecutionEvidence"
+          },
+          "validationEvidence": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "datasetId": {
+                "type": "string"
+              },
+              "evaluationReportId": {
+                "type": "string"
+              },
+              "executionId": {
+                "type": "string"
+              },
+              "outputContractRef": {
+                "type": "string"
+              },
+              "outputContractImport": {
+                "$ref": "#/components/schemas/PredictionOutputContractImportEvidence"
+              },
+              "outputColumns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "outputContractColumns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "outputMappings": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PredictionOutputMapping"
+                }
+              },
+              "outputSchemaValidated": {
+                "type": "boolean"
+              },
+              "contractRequiredColumnsSatisfied": {
+                "type": "boolean"
+              },
+              "finalEvaluationApproved": {
+                "type": "boolean"
+              },
+              "finalTestOnly": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "MonitoringBaseline": {
+        "type": "object",
+        "properties": {
+          "baselineId": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "metricNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "predictionExportId": {
+            "type": "string"
+          },
+          "evaluationReportId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "DriftReport": {
+        "type": "object",
+        "properties": {
+          "driftReportId": {
+            "type": "string"
+          },
+          "baselineId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_available",
+              "low",
+              "moderate",
+              "high"
+            ]
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "validationEvidence": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "datasetId": {
+                "type": "string"
+              },
+              "predictionExportId": {
+                "type": "string"
+              },
+              "evaluationReportId": {
+                "type": "string"
+              },
+              "outputContractRef": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "generatedAt": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Extensible v1 child record. Historical fields may be absent; populated fields are validated. Runtime operations require their applicable identifiers and prerequisites."
+      },
+      "TuningTrial": {
+        "type": "object",
+        "required": [
+          "trialId",
+          "parameters",
+          "metrics",
+          "artifactRefs"
+        ],
+        "properties": {
+          "trialId": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataScienceProjectEvidenceRef"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "GatewayInteractiveChartSpec": {
+        "type": "object",
+        "required": [
+          "chartId",
+          "title",
+          "renderer",
+          "kind",
+          "status",
+          "data",
+          "layout",
+          "source",
+          "summary"
+        ],
+        "properties": {
+          "chartId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "renderer": {
+            "type": "string",
+            "enum": [
+              "plotly"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "empty",
+              "stale",
+              "error"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "layout": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "source": {
+            "$ref": "#/components/schemas/GatewayInteractiveChartSource"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "emptyReason": {
+            "type": "string"
+          },
+          "staleReason": {
+            "type": "string"
+          },
+          "export": {
+            "$ref": "#/components/schemas/GatewayInteractiveChartExport"
+          }
+        },
+        "additionalProperties": true
+      },
+      "GatewayInteractiveChartSource": {
+        "type": "object",
+        "required": [
+          "label",
+          "localOnly"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "localOnly": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "evidenceRef": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "GatewayInteractiveChartExport": {
+        "type": "object",
+        "required": [
+          "fileName"
+        ],
+        "properties": {
+          "fileName": {
+            "type": "string"
+          },
+          "png": {
+            "type": "boolean"
+          },
+          "html": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "InteractiveChartSpec": {
+        "$ref": "#/components/schemas/GatewayInteractiveChartSpec"
+      },
+      "GatewayModelRegistryRecord": {
+        "$ref": "#/components/schemas/ModelRegistryRecord"
+      },
+      "PredictionOutputContractImportEvidence": {
+        "type": "object",
+        "required": [
+          "sourceKind",
+          "connector",
+          "format",
+          "checksumSha256",
+          "sizeBytes",
+          "checksumMode"
+        ],
+        "properties": {
+          "sourceKind": {
+            "type": "string",
+            "enum": [
+              "managed",
+              "file"
+            ]
+          },
+          "sourceRef": {
+            "type": "string",
+            "pattern": "^local://"
+          },
+          "sourceBasename": {
+            "type": "string"
+          },
+          "sourceExtension": {
+            "type": "string"
+          },
+          "sourceBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "connector": {
+            "type": "string",
+            "enum": [
+              "managed_local",
+              "local_file"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "json"
+            ]
+          },
+          "checksumSha256": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "checksumMode": {
+            "type": "string",
+            "enum": [
+              "streaming_file_sha256"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "sourceKind": {
+                "const": "managed"
+              }
+            },
+            "required": [
+              "sourceRef"
+            ]
+          },
+          {
+            "properties": {
+              "sourceKind": {
+                "const": "file"
+              }
+            },
+            "required": [
+              "sourceBasename",
+              "sourceExtension",
+              "sourceBytes"
+            ]
+          }
+        ]
+      },
+      "AnalysisFilter": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "operator": {
+            "type": "string",
+            "enum": [
+              "eq",
+              "gte",
+              "lte"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "column",
+          "operator",
+          "value"
+        ]
+      },
+      "AnalysisScopeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "datasetChecksum": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "schemaFingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "filters": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "$ref": "#/components/schemas/AnalysisFilter"
+            }
+          },
+          "question": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "xColumn": {
+            "type": "string"
+          },
+          "yColumn": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "datasetChecksum",
+          "schemaFingerprint",
+          "filters",
+          "question"
+        ]
+      },
+      "AnalysisFinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "findingId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "analysisRunId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "findingId",
+          "analysisRunId",
+          "title",
+          "notes"
+        ]
+      },
+      "AnalysisWorkspace": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AnalysisScopeRequest"
+          },
+          "analysisRunId": {
+            "type": "string"
+          },
+          "findings": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/AnalysisFinding"
+            }
+          }
+        },
+        "required": [
+          "revision",
+          "datasetId",
+          "scope",
+          "findings"
+        ]
+      },
+      "SaveAnalysisWorkspaceRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/AnalysisWorkspace"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "workspace"
+        ]
+      },
+      "AnalysisProfileResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/DataImportProfile"
+          },
+          "schemaFingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "numericColumns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "profile",
+          "schemaFingerprint",
+          "numericColumns"
+        ]
+      },
+      "AnalysisReportResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fileName": {
+            "type": "string"
+          },
+          "html": {
+            "type": "string"
+          },
+          "csv": {
+            "type": "string"
+          },
+          "checksumSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "fileName",
+          "html",
+          "csv",
+          "checksumSha256"
+        ]
       }
     }
   }

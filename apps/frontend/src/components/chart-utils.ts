@@ -9,8 +9,8 @@ export function chartFileName(spec: GatewayInteractiveChartSpec, extension: stri
 export function chartReadiness(spec?: GatewayInteractiveChartSpec): ChartReadiness {
   if (!spec) return "empty";
   if (spec.status === "error") return "error";
-  if (spec.status === "stale") return "stale";
   if (spec.status === "empty" || spec.data.length === 0) return "empty";
+  if (spec.status === "stale") return "stale";
   return "ready";
 }
 

@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createHash, randomBytes } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -12,6 +12,7 @@ const gatewayPort = process.env.JULIAFLOW_LIVE_GATEWAY_PORT ?? String(portBase);
 const frontendPort = process.env.JULIAFLOW_LIVE_FRONTEND_PORT ?? String(portBase + 1);
 const gatewayUrl = `http://127.0.0.1:${gatewayPort}`;
 const frontendUrl = `http://127.0.0.1:${frontendPort}`;
+const authToken = randomBytes(32).toString("hex");
 const npmBin = process.platform === "win32" ? "npm.cmd" : "npm";
 const juliaBin = process.env.JULIA_EXE ?? "julia";
 const juliaArgs = ["--compiled-modules=no", "--pkgimages=no"];
@@ -53,6 +54,21 @@ function writeOfflineHubRegistries() {
   return `sha256:${createHash("sha256").update(artifactBytes).digest("hex")}`;
 }
 
+function writeManagedLiveDataset() {
+  const rawRoot = join(liveHome, "data", "raw");
+  const datasetPath = join(rawRoot, "customer-churn-local.csv");
+  mkdirSync(rawRoot, { recursive: true });
+  const rows = Array.from({ length: 30 }, (_, index) => {
+    const churn = index % 3 === 0 ? 1 : 0;
+    const contract = churn ? "monthly" : index % 2 === 0 ? "annual" : "two_year";
+    const tenure = 3 + index * 2;
+    // Keep the positive workflow separable for the supported centroid classifier.
+    const monthlyCharges = (48 + index * 0.1 + churn * 100).toFixed(2);
+    return `C-${String(index + 1).padStart(4, "0")},${tenure},${monthlyCharges},${contract},${churn}`;
+  });
+  writeFileSync(datasetPath, ["customer_id,tenure_months,monthly_charges,contract_type,churn", ...rows, ""].join("\n"));
+}
+
 function spawnLogged(name, command, args, env = {}) {
   const logPath = join(logRoot, `${name}.log`);
   writeFileSync(logPath, `$ ${command} ${args.join(" ")}\n\n`);
@@ -62,6 +78,7 @@ function spawnLogged(name, command, args, env = {}) {
     env: { ...process.env, ...env },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
+    detached: process.platform !== "win32",
     shell
   });
   child.stdout.on("data", (chunk) => {
@@ -78,11 +95,13 @@ function spawnLogged(name, command, args, env = {}) {
 
 function runLogged(name, command, args, env = {}) {
   const logPath = join(logRoot, `${name}.log`);
+  const shell = process.platform === "win32" && (command === "npm" || command.endsWith(".cmd"));
   const result = spawnSync(command, args, {
     cwd: root,
     env: { ...process.env, ...env },
     encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024
+    maxBuffer: 64 * 1024 * 1024,
+    shell
   });
   const log = [
     `$ ${command} ${args.join(" ")}`,
@@ -93,6 +112,9 @@ function runLogged(name, command, args, env = {}) {
     "",
     "----- stderr -----",
     result.stderr ?? "",
+    "",
+    "----- spawn error -----",
+    result.error ? result.error.stack ?? result.error.message : "",
     ""
   ].join("\n");
   writeFileSync(logPath, log);
@@ -122,18 +144,21 @@ async function waitFor(url, label, timeoutMs = 180000) {
 async function postJson(url, body) {
   return fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", Authorization: `Bearer ${authToken}` },
     body: JSON.stringify(body)
   });
 }
 
 function stopChildren() {
   for (const child of children.reverse()) {
-    if (child.killed || child.pid === undefined) continue;
+    if (child.pid === undefined) continue;
     if (process.platform === "win32") {
-      spawnSync("taskkill.exe", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+      if (child.exitCode === null) spawnSync("taskkill.exe", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
     } else {
-      child.kill("SIGTERM");
+      // npm may exit before its Vite child. Signal the owned process group even
+      // when the direct child has already exited, so inherited pipes can close.
+      try { process.kill(-child.pid, "SIGTERM"); }
+      catch (error) { if (error.code !== "ESRCH") throw error; }
     }
   }
 }
@@ -141,13 +166,16 @@ function stopChildren() {
 try {
   const workflowPath = resolve(root, "tests", "contracts", "fixtures", "foundation.workflow.toml");
   const hubArtifactHash = writeOfflineHubRegistries();
+  writeManagedLiveDataset();
   runLogged("julia-instantiate", juliaBin, [...juliaArgs, "--project=.", "-e", "using Pkg; Pkg.instantiate()"], juliaEnv);
   spawnLogged("gateway", juliaBin, [...juliaArgs, "--project=.", "scripts/run-api-gateway.jl"], {
     ...juliaEnv,
     JULIAFLOW_GATEWAY_HOST: "127.0.0.1",
     JULIAFLOW_GATEWAY_PORT: gatewayPort,
     JULIAFLOW_RUNTIME_MODE: "local-appliance",
-    JULIAFLOW_AUTH_MODE: "disabled",
+    JULIAFLOW_AUTH_MODE: "required",
+    JULIAFLOW_DEV_AUTH_TOKEN: authToken,
+    JULIAFLOW_CORS_ALLOW_ORIGIN: frontendUrl,
     JULIAFLOW_LOCAL_PROFILE: "single-user",
     JULIAFLOW_APPLIANCE_BOOTSTRAP: "1",
     JULIAFLOW_HOME: liveHome,
@@ -170,13 +198,15 @@ try {
     throw new Error(`dashboard prepublish failed: ${publishResponse.status} ${await publishResponse.text()}`);
   }
 
-  spawnLogged("frontend", npmBin, ["--workspace", "@juliaflow/frontend", "run", "dev", "--", "--host", "127.0.0.1", "--port", frontendPort]);
+  runLogged("frontend-build", npmBin, ["--workspace", "@juliaflow/frontend", "run", "build"]);
+  spawnLogged("frontend", npmBin, ["--workspace", "@juliaflow/frontend", "run", "preview", "--", "--host", "127.0.0.1", "--port", frontendPort]);
   await waitFor(frontendUrl, "frontend");
 
   const result = await new Promise((resolveRun) => {
     const child = spawnLogged("playwright", npmBin, ["exec", "--", "playwright", "test", "--config", "playwright.live.config.ts"], {
       JULIAFLOW_LIVE_FRONTEND_URL: frontendUrl,
       JULIAFLOW_LIVE_GATEWAY_URL: gatewayUrl,
+      JULIAFLOW_LIVE_AUTH_TOKEN: authToken,
       JULIAFLOW_LIVE_HUB_ARTIFACT_HASH: hubArtifactHash,
       JULIAFLOW_LIVE_HUB_PACKAGE_REF: hubPackageRef,
       JULIAFLOW_LIVE_HUB_MIRROR_REF: hubMirrorRef,
@@ -184,7 +214,16 @@ try {
     });
     child.on("exit", (code) => resolveRun(code ?? 1));
   });
-  if (result !== 0) process.exit(result);
+  if (result !== 0) {
+    throw new Error(`live-backend Playwright smoke failed with exit code ${result}`);
+  }
+  const gatewayLog = readFileSync(join(logRoot, "gateway.log"), "utf8");
+  if (/Unexpected websocket server error|handle_connection handler error/.test(gatewayLog)) {
+    throw new Error("Gateway reported a realtime connection lifecycle error");
+  }
+  if (gatewayLog.includes(authToken) || gatewayLog.includes(Buffer.from(authToken).toString("base64url"))) {
+    throw new Error("Gateway log exposed an ephemeral authentication credential");
+  }
 
   writeFileSync(join(artifactRoot, "summary.json"), `${JSON.stringify({
     status: "passed",

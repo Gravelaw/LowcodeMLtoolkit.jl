@@ -37,9 +37,9 @@ elseif backend == "postgres-cleanup"
     repo = JuliaFlowApiGateway.JuliaFlowGatewayRepository.PostgreSQLGatewayRepository(postgres_url; schema = postgres_schema)
     conn = JuliaFlowApiGateway.JuliaFlowGatewayRepository.connect(repo)
     try
-        JuliaFlowApiGateway.JuliaFlowGatewayRepository.LibPQ.execute(conn, "DROP SCHEMA IF EXISTS $(repo.schema) CASCADE;")
+        JuliaFlowApiGateway.JuliaFlowGatewayRepository.execute(conn, "DROP SCHEMA IF EXISTS $(repo.schema) CASCADE;")
     finally
-        close(conn)
+        JuliaFlowApiGateway.JuliaFlowGatewayRepository.close_connection(conn)
     end
 elseif backend == "postgres"
     isempty(postgres_url) && error("JULIAFLOW_TEST_POSTGRES_URL or JULIAFLOW_DATABASE_URL is required for postgres metadata smoke")
@@ -51,9 +51,9 @@ elseif backend == "postgres"
         run_shared_postgres_read_test!(postgres_url, postgres_schema)
     finally
         try
-            JuliaFlowApiGateway.JuliaFlowGatewayRepository.LibPQ.execute(conn, "DROP SCHEMA IF EXISTS $(repo.schema) CASCADE;")
+            JuliaFlowApiGateway.JuliaFlowGatewayRepository.execute(conn, "DROP SCHEMA IF EXISTS $(repo.schema) CASCADE;")
         finally
-            close(conn)
+            JuliaFlowApiGateway.JuliaFlowGatewayRepository.close_connection(conn)
         end
     end
 else

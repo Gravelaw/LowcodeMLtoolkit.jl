@@ -10,6 +10,13 @@ JuliaFlow is a monorepo for a visual low-code analytics platform built in Julia.
 
 ## Repository Layout
 
+Current work and acceptance gaps live in [Plan.md](Plan.md) and
+[docs/TODO.md](docs/TODO.md). Agent/tooling procedures are documented in
+[docs/agent-tooling.md](docs/agent-tooling.md). Superseded concept BRDs and
+historical control documents are preserved in the
+[indexed archive](docs/archive/2026-09-20/README.md); their readiness statements
+refer to their recorded versions, not the current checkout.
+
 - `apps/frontend/` React + Vite application shell
 - `packages/contracts/` shared TypeScript contracts and protocol specs
 - `packages/ui/` shared React UI primitives

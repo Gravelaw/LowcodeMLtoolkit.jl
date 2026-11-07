@@ -1,4 +1,7 @@
+import { AnalyseDataPanel } from "./AnalyseDataPanel";
+import type { ComponentProps } from "react";
 import { useState } from "react";
+import type { KeyboardEvent } from "react";
 import { Card, DataTable, StatusPill } from "../components/ui";
 import type { ActionFeedback, AppData } from "../types";
 
@@ -10,6 +13,15 @@ const modes: Array<{ id: VisualizeMode; label: string }> = [
   { id: "diagnostics", label: "Model Diagnostics" },
   { id: "compare", label: "Experiment Compare" }
 ];
+
+function moveVisualizeTabFocus(event: KeyboardEvent<HTMLButtonElement>, index: number, select: (mode: VisualizeMode) => void) {
+  const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+  const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? modes.length - 1 : direction ? (index + direction + modes.length) % modes.length : -1;
+  if (nextIndex < 0) return;
+  event.preventDefault();
+  select(modes[nextIndex].id);
+  event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role='tab']")[nextIndex]?.focus();
+}
 
 function datasetRows(data: AppData) {
   const datasetKey = data.dashboard.binding.datasetKey;
@@ -36,14 +48,37 @@ function metricPercent(value: unknown) {
   return `${Math.round(numeric * 1000) / 10}%`;
 }
 
+function latestProjectAnalysisRuns(data: AppData) {
+  return [...data.dataScienceProject.statisticalAnalysisRuns]
+    .sort((left, right) => (right.createdAt ?? "").localeCompare(left.createdAt ?? ""))
+    .slice(0, 4);
+}
+
+function evidenceRefLabel(run: ReturnType<typeof latestProjectAnalysisRuns>[number]) {
+  return run.resultRef ?? run.artifactRefs?.[0]?.path ?? run.artifactRefs?.[0]?.refId ?? "No persisted result";
+}
+
+function checksumLabel(run: ReturnType<typeof latestProjectAnalysisRuns>[number]) {
+  return run.artifactRefs?.find((ref) => ref.checksumSha256)?.checksumSha256?.slice(0, 12) ?? "No checksum";
+}
+
+function statusTone(status?: string): "green" | "blue" | "orange" | "neutral" {
+  if (status === "completed") return "green";
+  if (status === "failed" || status === "unavailable") return "orange";
+  if (status === "running") return "blue";
+  return "neutral";
+}
+
 export function VisualizeView({
   data,
   onExport,
-  feedback
+  feedback, analysisActions, onBuildModel = () => {}
 }: {
   data: AppData;
   onExport: () => void;
   feedback?: ActionFeedback;
+  analysisActions?: ComponentProps<typeof AnalyseDataPanel>["actions"];
+  onBuildModel?: () => void;
 }) {
   const [mode, setMode] = useState<VisualizeMode>("eda");
   const rows = datasetRows(data);
@@ -55,6 +90,7 @@ export function VisualizeView({
   const activeExperiment = data.mlExperiments[0];
   const profile = data.dataProfile;
   const readiness = profile.workflowReadiness;
+  const projectAnalysisRuns = latestProjectAnalysisRuns(data);
 
   return (
     <div className="route-grid visualize-route">
@@ -63,27 +99,30 @@ export function VisualizeView({
           <h1>Visualize</h1>
           <p>Explore datasets, inspect model diagnostics, compare experiments, and checkpoint dashboards locally.</p>
         </div>
-        <button type="button" className="jf-button primary" onClick={onExport}>Save Local Checkpoint</button>
+        {mode !== "eda" || data.runtimeMode === "demo" || data.runtimeMode === "development" ? <button type="button" className="jf-button primary" onClick={onExport}>Save Local Checkpoint</button> : null}
       </section>
       {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
 
       <Card className="wide" title="Visualization Workspace" eyebrow={profile.datasetId}>
         <div className="mode-tabs" role="tablist" aria-label="Visualize modes">
-          {modes.map((item) => (
+          {modes.map((item, index) => (
             <button
               type="button"
               role="tab"
+              id={`visualize-tab-${item.id}`}
               aria-selected={mode === item.id}
+              tabIndex={mode === item.id ? 0 : -1}
               className={mode === item.id ? "active" : ""}
               key={item.id}
               onClick={() => setMode(item.id)}
+              onKeyDown={(event) => moveVisualizeTabFocus(event, index, setMode)}
             >
               {item.label}
             </button>
           ))}
         </div>
         {mode !== "dashboard" ? (
-          <div className="visualize-capabilities" aria-label="Visualize workspace capabilities">
+          <div className="visualize-capabilities" role="group" aria-label="Visualize workspace capabilities">
             <span>Dashboard Builder</span>
             <span>Artifact Rows</span>
             <span>Local Save And Export Actions</span>
@@ -91,7 +130,19 @@ export function VisualizeView({
         ) : null}
       </Card>
 
-      {mode === "eda" ? (
+      {mode === "eda" && data.runtimeMode !== "demo" && data.runtimeMode !== "development" ? <AnalyseDataPanel key={data.dataScienceProject.projectId} project={data.dataScienceProject} actions={analysisActions} onBuildModel={onBuildModel} /> : null}
+      {mode === "eda" && data.runtimeMode !== "demo" && data.runtimeMode !== "development" ? <Card title="Project Statistical Analysis Evidence" className="wide">
+        <p>Historical runs remain read-only. Missing scope or provenance is unavailable.</p>
+        <DataTable caption="Saved analysis run history" columns={[
+          { key: "analysisRunId", label: "Run", render: (row) => row.analysisRunId ?? "unavailable" },
+          { key: "method", label: "Method", render: (row) => row.method ?? "unavailable" },
+          { key: "status", label: "Status", render: (row) => row.status ?? "unavailable" },
+          { key: "resultRef", label: "Result", render: (row) => evidenceRefLabel(row) },
+          { key: "generatedCodeRef", label: "Code", render: (row) => row.generatedCodeRef ?? "No code ref" },
+          { key: "checksum", label: "Checksum", render: (row) => checksumLabel(row) }
+        ]} rows={projectAnalysisRuns} getRowKey={(row,index) => row.analysisRunId ?? `historical-analysis-${index}`} />
+      </Card> : null}
+      {mode === "eda" && (data.runtimeMode === "demo" || data.runtimeMode === "development") ? (
         <>
           <Card title="EDA Overview" className="wide">
             <div className="profile-cards">
@@ -115,6 +166,26 @@ export function VisualizeView({
               rows={profile.profileSummary}
               getRowKey={(row) => String(row.name)}
             />
+          </Card>
+
+          <Card title="Project Statistical Analysis Evidence" className="wide">
+            {projectAnalysisRuns.length === 0 ? (
+              <p className="empty-state">No project-backed statistical analysis runs are available yet. Run EDA from Data to persist analysis evidence for Visualize.</p>
+            ) : (
+              <DataTable
+                caption="Saved analysis run history"
+                columns={[
+                  { key: "analysisRunId", label: "Run", render: (row) => row.analysisRunId ?? "unavailable" },
+                  { key: "method", label: "Method", render: (row) => row.method ?? "unavailable" },
+                  { key: "status", label: "Status", render: (row) => <StatusPill tone={statusTone(row.status)}>{row.status ?? "unavailable"}</StatusPill> },
+                  { key: "resultRef", label: "Result", render: (row) => evidenceRefLabel(row) },
+                  { key: "generatedCodeRef", label: "Code", render: (row) => row.generatedCodeRef ?? "No code ref" },
+                  { key: "checksum", label: "Checksum", render: (row) => checksumLabel(row) }
+                ]}
+                rows={projectAnalysisRuns}
+                getRowKey={(row, index) => row.analysisRunId ?? `historical-analysis-${index}`}
+              />
+            )}
           </Card>
 
           <Card title="Distribution And Target Checks" className="wide">

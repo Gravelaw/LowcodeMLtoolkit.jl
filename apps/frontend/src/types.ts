@@ -1,6 +1,7 @@
 import type {
   GatewayCheckpointRecord,
   GatewayDataImportProfile,
+  DataScienceProject,
   GatewayDeployPackageRecord,
   GatewayExecutionRecord,
   GatewayHealthcheck,
@@ -41,6 +42,7 @@ export interface AppData {
   workflowSummary: GatewayWorkflowSummary;
   dataProfile: GatewayDataImportProfile;
   dataProfiles: GatewayDataImportProfile[];
+  dataScienceProject: DataScienceProject;
   transformRuns: GatewayTransformRunRecord[];
   executions: GatewayExecutionRecord[];
   mlExperiments: GatewayMlExperimentRecord[];

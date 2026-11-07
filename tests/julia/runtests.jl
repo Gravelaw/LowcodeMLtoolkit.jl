@@ -18,6 +18,7 @@ using .JuliaFlowApiGateway
 using .JuliaFlowBaseExtension
 
 include(joinpath(@__DIR__, "repository_contract_tests.jl"))
+include(joinpath(@__DIR__, "shared_test_helpers.jl"))
 
 mutable struct FakeRealtimeSocket
     messages::Vector{String}
@@ -25,111 +26,2008 @@ end
 
 HTTP.WebSockets.send(socket::FakeRealtimeSocket, message) = push!(socket.messages, String(message))
 
-function test_base64url(bytes::Vector{UInt8})
-    encoded = base64encode(bytes)
-    encoded = replace(replace(encoded, '+' => '-'), '/' => '_')
-    return replace(encoded, "=" => "")
+@testset "Gateway presentation helpers" begin
+    presentation = JuliaFlowApiGateway.JuliaFlowGatewayPresentation
+    custom_chart = presentation.plotly_chart_spec(
+        "validation-overview",
+        "Validation Overview",
+        "bar",
+        [Dict("x" => ["valid"], "y" => [1])];
+        layout = Dict("height" => 260),
+        config = Dict("scrollZoom" => true),
+        source_label = "Project evidence",
+        summary = "Validation evidence is project-backed.",
+        status = "unavailable",
+        empty_reason = "missing_final_evaluation",
+        evidence_ref = "local://artifacts/evaluation.json",
+    )
+    @test custom_chart["renderer"] == "plotly"
+    @test custom_chart["layout"]["height"] == 260
+    @test custom_chart["config"]["scrollZoom"] == true
+    @test custom_chart["source"]["label"] == "Project evidence"
+    @test custom_chart["source"]["evidenceRef"] == "local://artifacts/evaluation.json"
+    @test custom_chart["status"] == "unavailable"
+    @test custom_chart["emptyReason"] == "missing_final_evaluation"
+    @test presentation.local_artifact_kind("model.jls") == "model"
+    @test presentation.local_artifact_kind("notes.md") == "metadata"
+    @test presentation.local_artifact_kind("unknown.bin") == "artifact"
+    @test presentation.local_artifact_size_label(1023) == "1023 B"
+    @test presentation.local_artifact_size_label(1024) == "1.0 KB"
+    artifacts = presentation.workspace_artifact_summaries([
+        Dict{String,Any}("relativePath" => "runs/model.jls", "sizeBytes" => 2_048, "present" => true),
+        Dict{String,Any}("relativePath" => "stale.csv", "sizeBytes" => 0, "present" => false),
+    ])
+    @test artifacts[1]["kind"] == "model"
+    @test artifacts[1]["size"] == "2.0 KB"
+    @test artifacts[2]["status"] == "missing"
+
+    charts = presentation.workspace_chart_specs(Dict{String,Any}(
+        "cpuUsagePercent" => 40,
+        "ramUsedBytes" => 3,
+        "ramTotalBytes" => 0,
+        "diskUsedBytes" => 4,
+        "diskTotalBytes" => 0,
+    ))
+    @test length(charts) == 3
+    @test [chart["chartId"] for chart in charts] == ["workspace-cpu-trend", "workspace-ram-trend", "workspace-disk-trend"]
+    @test charts[2]["data"][1]["y"][end] == 0
+    @test charts[3]["data"][1]["y"][end] == 0
+
+    routes = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRoutes
+    @test routes.match_project_route("GET", ["api", "v1", "data-science-projects"]).action == :list
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects"]).action == :create
+    @test routes.match_project_route("GET", ["api", "v1", "data-science-projects", "project-1"]) == (action = :get, project_id = "project-1")
+    @test routes.match_project_route("PUT", ["api", "v1", "data-science-projects", "project-1"]).action == :update
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "transforms", "fit-apply"]).action == :transform_fit_apply
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "statistical-analysis", "run"]).action == :statistical_analysis
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "tuning", "run"]).action == :tuning
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "evaluation", "run"]).action == :evaluation
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "predictions", "export"]).action == :prediction_export
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "drift", "run"]).action == :drift
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "models", "lifecycle"]).action == :model_lifecycle
+    @test routes.match_project_route("DELETE", ["api", "v1", "data-science-projects", "project-1"]) === nothing
+    @test routes.match_project_route("POST", ["api", "v1", "data-science-projects", "project-1", "unknown", "run"]) === nothing
 end
 
-function test_base64url_json(payload)
-    return test_base64url(Vector{UInt8}(codeunits(JSON3.write(payload))))
+@testset "Data science project core helpers" begin
+    body = Dict{String,Any}(
+        "projectId" => "Wellbore Geology!",
+        "schemaVersion" => "1.0",
+        "name" => "Wellbore Geology",
+        "description" => "Local workstation geology project",
+        "datasets" => [
+            Dict{String,Any}(
+                "datasetId" => "Train Logs",
+                "name" => "Train Logs",
+                "role" => "train",
+                "sourceUri" => "local://raw/wellbore/train.csv",
+                "artifactRef" => "local://processed/wellbore/train.arrow",
+                "localOnly" => true,
+            ),
+        ],
+        "schemaContracts" => [
+            Dict{String,Any}(
+                "schemaId" => "schema-wellbore",
+                "datasetId" => "Train Logs",
+                "updatedAt" => "2026-06-21T00:00:00Z",
+                "columns" => [Dict{String,Any}("name" => "depth", "inferredType" => "Float64", "logicalType" => "continuous", "role" => "depth", "nullable" => false)],
+            ),
+        ],
+    )
+    project = JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(body)
+    @test project.project_id == "wellbore-geology"
+    @test project.name == "Wellbore Geology"
+    @test project.description == "Local workstation geology project"
+    @test project.datasets[1]["sourceUri"] == "local://raw/wellbore/train.csv"
+    @test project.schema_contracts[1]["schemaId"] == "schema-wellbore"
+
+    updated = JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
+        Dict{String,Any}(
+            "name" => "Wellbore Geology Updated",
+            "projectId" => "wellbore-geology",
+            "splitPlans" => [Dict{String,Any}("splitPlanId" => "split-depth", "datasetId" => "Train Logs", "strategy" => "depth", "locked" => true, "createdAt" => "2026-06-21T00:00:00Z")],
+        );
+        existing = project,
+        project_id_override = project.project_id,
+    )
+    @test updated.created_at == project.created_at
+    @test updated.datasets == project.datasets
+    @test updated.split_plans[1]["strategy"] == "depth"
+
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.project_id_from_body(
+        Dict{String,Any}("projectId" => "Titanic / Baseline"),
+        "Fallback",
+    ) == "titanic-baseline"
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
+        Dict{String,Any}("name" => "Remote", "datasets" => [Dict{String,Any}("datasetId" => "remote", "name" => "Remote", "role" => "train", "localOnly" => true, "sourceUri" => "https://example.com/data.csv")]),
+    )
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
+        Dict{String,Any}("name" => "Traversal", "datasets" => [Dict{String,Any}("datasetId" => "bad", "name" => "Traversal", "role" => "train", "localOnly" => true, "sourceUri" => "local://raw/../secret.csv")]),
+    )
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
+        Dict{String,Any}("name" => "Bad Shape", "datasets" => Dict{String,Any}("datasetId" => "bad")),
+    )
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.materialize_project_record(
+        Dict{String,Any}("name" => "Bad Version", "schemaVersion" => "2.0"),
+    )
 end
 
-function test_hs256_jwt(claims::Dict{String,Any}; secret::AbstractString = "oidc-secret", kid::Union{Nothing,AbstractString} = nothing)
-    header = Dict{String,Any}("alg" => "HS256", "typ" => "JWT")
-    kid === nothing || (header["kid"] = String(kid))
-    signing_input = string(test_base64url_json(header), ".", test_base64url_json(claims))
-    signature = test_base64url(hmac_sha256(Vector{UInt8}(codeunits(secret)), signing_input))
-    return string(signing_input, ".", signature)
+@testset "Data science project local source helpers" begin
+    sources = JuliaFlowApiGateway.JuliaFlowDataScienceProjectLocalSources
+    import_root = mktempdir()
+    data_root = mktempdir()
+    allowed_path = joinpath(import_root, "profile.csv")
+    secret_path = joinpath(import_root, "secret-token.csv")
+    credential_path = joinpath(import_root, "profile-with-auth-column.csv")
+    symlink_path = joinpath(import_root, "profile-link.csv")
+    escape_root = mktempdir()
+    escape_path = joinpath(escape_root, "outside.csv")
+    write(allowed_path, "region,amount\nnorth,12.5\n")
+    write(secret_path, "region,amount\nnorth,12.5\n")
+    write(credential_path, "region,access_token\nnorth,redacted\n")
+    write(escape_path, "region,amount\nsouth,9.5\n")
+    symlink_available = try
+        symlink(allowed_path, symlink_path)
+        isfile(symlink_path)
+    catch
+        false
+    end
+    validate_ref = (value, label) -> JuliaFlowApiGateway.JuliaFlowDataScienceProjectCore.validate_project_local_ref!(value, label)
+
+    roots = sources.local_data_import_roots(data_root, data_root; import_roots = import_root)
+    @test realpath(import_root) in realpath.(filter(isdir, roots))
+    @test sources.path_within_root(realpath(allowed_path), realpath(import_root))
+    @test !sources.path_within_root(realpath(escape_path), realpath(import_root))
+    @test sources.validate_local_data_import_source!(
+        allowed_path;
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+        import_roots = import_root,
+    ) == realpath(allowed_path)
+    @test sources.validate_local_data_import_source!(
+        "local://data/raw/profile.csv";
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+        import_roots = import_root,
+    ) == "local://data/raw/profile.csv"
+    @test_throws ErrorException sources.validate_local_data_import_source!(
+        "https://example.com/data.csv";
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+        import_roots = import_root,
+    )
+    @test_throws ErrorException sources.validate_local_data_import_source!(
+        escape_path;
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+        import_roots = import_root,
+    )
+    @test_throws ErrorException sources.validate_local_data_import_file!(secret_path, "csv"; max_bytes = 1024)
+    @test_throws ErrorException sources.validate_local_data_import_file!(credential_path, "csv"; max_bytes = 1024)
+    if symlink_available
+        @test_throws ErrorException sources.validate_local_data_import_source!(
+            symlink_path;
+            local_home = data_root,
+            data_root = data_root,
+            validate_local_ref = validate_ref,
+            import_roots = import_root,
+        )
+    else
+        @test_skip "local filesystem symlink creation unavailable"
+    end
+    sources.validate_local_data_import_file!(allowed_path, "csv"; max_bytes = 1024)
+    streamed_artifact_path = joinpath(data_root, "artifacts", "streamed.json")
+    streamed_artifact = sources.write_local_artifact!(streamed_artifact_path, "{\"ok\":true}\n")
+    @test streamed_artifact["checksumSha256"] == sources.local_artifact_checksum(streamed_artifact_path)
+    @test streamed_artifact["sizeBytes"] == filesize(streamed_artifact_path)
+    @test streamed_artifact["checksumMode"] == "streaming_file_sha256"
+
+    audit_details = sources.local_data_import_audit_source_details(allowed_path)
+    @test audit_details["sourceKind"] == "file"
+    @test audit_details["sourceBasename"] == "profile.csv"
+    @test !haskey(audit_details, "sourcePath")
+    redaction_preview = sources.local_data_import_redaction_preview(allowed_path)
+    @test redaction_preview["fullPathRedacted"] == true
+    @test redaction_preview["sampleValuesRedacted"] == true
+    @test redaction_preview["sourceRefPolicy"] == "filesystem-path-redacted"
+    @test "sourceBasename" in redaction_preview["recordedFields"]
+    remote_details = sources.local_data_import_audit_source_details("https://example.com/data.csv")
+    @test remote_details["sourceKind"] == "remote"
+    @test remote_details["scheme"] == "https"
+    @test sources.validate_source_identifier!("sales_fact_2026", "PostgreSQL source table") == "sales_fact_2026"
+    @test_throws ErrorException sources.validate_source_identifier!("sales.orders", "PostgreSQL source table")
+    @test_throws ErrorException sources.validate_source_identifier!("1orders", "PostgreSQL source table")
+    @test_throws ErrorException sources.validate_source_identifier!("orders;drop_table", "PostgreSQL source table")
+    @test sources.validate_local_data_import_connector_policy!(Dict{String,Any}(), "local://data/raw/profile.csv") == "managed_local"
+    @test sources.validate_local_data_import_connector_policy!(Dict{String,Any}(), allowed_path) == "local_file"
+    @test_throws ErrorException sources.validate_local_data_import_connector_policy!(Dict{String,Any}("connector" => "managed_local"), allowed_path)
+    @test_throws ErrorException sources.validate_local_data_import_connector_policy!(Dict{String,Any}("connector" => "local_file"), "local://data/raw/profile.csv")
+    @test_throws ErrorException sources.validate_local_data_import_connector_policy!(Dict{String,Any}("connector" => "duckdb"), allowed_path)
+    @test_throws ErrorException sources.validate_local_data_import_connector_policy!(
+        Dict{String,Any}("connector" => "postgresql", "databaseSchema" => "analytics", "databaseTable" => "orders"),
+        allowed_path,
+    )
+    @test_throws ErrorException sources.validate_local_data_import_connector_policy!(Dict{String,Any}("connector" => "disabled_remote"), "https://example.com/data.csv")
+
+    managed_data_path = joinpath(data_root, "raw", "profile.csv")
+    mkpath(dirname(managed_data_path))
+    write(managed_data_path, "region,amount\nnorth,12.5\n")
+    @test sources.resolve_local_data_ref_path(
+        "local://data/raw/profile.csv";
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+    ) == managed_data_path
+    artifact_path = sources.local_data_ref_path_for_write(
+        "local://analysis/profile/results.json";
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+    )
+    @test sources.path_within_root(artifact_path, realpath(data_root))
+    @test_throws ErrorException sources.local_data_ref_path_for_write(
+        "local://analysis/../secret.json";
+        local_home = data_root,
+        data_root = data_root,
+        validate_local_ref = validate_ref,
+    )
 end
 
-function test_oct_jwk(kid::AbstractString, secret::AbstractString)
-    return Dict("kty" => "oct", "kid" => String(kid), "alg" => "HS256", "k" => test_base64url(Vector{UInt8}(codeunits(secret))))
+@testset "Data science project catalog helpers" begin
+    catalog = JuliaFlowApiGateway.JuliaFlowDataScienceProjectCatalog
+    @test catalog.safe_local_dataset_id("Foundation Profile!") == "foundation-profile"
+    @test catalog.safe_local_dataset_id("  ") == "workflow-dataset"
+    @test length(catalog.safe_local_dataset_id(repeat("A", 100))) == 80
+
+    health = Dict{String,Any}(
+        "dataEstateDuckdbQueryPath" => "local://data/_duckdb/profile.sql",
+        "dataEstateDuckdbStatus" => "ready",
+    )
+    options = catalog.data_source_options("Foundation Profile!", "local://data/raw/foundation-profile.csv", "raw", "duckdb", health)
+    @test length(options) == 7
+    @test options[1]["mode"] == "csv"
+    @test only(filter(option -> option["mode"] == "duckdb", options))["status"] == "active"
+    @test only(filter(option -> option["mode"] == "s3", options))["status"] == "unavailable"
+    @test occursin("disabled", only(filter(option -> option["mode"] == "s3", options))["semantics"])
+    @test only(filter(option -> option["mode"] == "gcs", options))["status"] == "unavailable"
+    @test only(filter(option -> option["mode"] == "azure_blob", options))["status"] == "unavailable"
+    compatible_options = catalog.data_source_options(
+        "Foundation Profile!",
+        "local://data/raw/foundation-profile.csv",
+        "raw",
+        "csv",
+        merge(health, Dict{String,Any}("objectStoreCompatibilityStatus" => "local_compatibility")),
+    )
+    @test only(filter(option -> option["mode"] == "s3", compatible_options))["status"] == "available"
+
+    lineage = catalog.data_lineage_artifacts("Foundation Profile!", "local://data/raw/foundation-profile.csv", "raw", "abc123", 42, health)
+    @test length(lineage) == 4
+    @test lineage[2]["artifactRef"] == "local://data/raw/foundation-profile.arrow"
+    @test lineage[3]["format"] == "parquet"
+    @test lineage[4]["artifactRef"] == "local://data/_duckdb/profile.sql"
+
+    churn_fixture = catalog.data_profile_fixture("foundation-profile", "local://data/raw/foundation-profile.csv")
+    @test churn_fixture["rowCount"] == 12500
+    @test !isempty(churn_fixture["schemaSummary"])
+    @test !isempty(churn_fixture["profileSummary"])
+    @test !isempty(churn_fixture["previewRows"])
+    @test churn_fixture["workflowReadiness"]["downstreamReady"] == true
+    @test !isempty(churn_fixture["quickPlots"])
+
+    superstore_fixture = catalog.data_profile_fixture("global-superstore", "local://data/raw/superstore.csv")
+    @test superstore_fixture["rowCount"] == 9800
+    @test superstore_fixture["workflowReadiness"]["targetColumn"] == "profit"
+    @test any(row -> row["name"] == "profit" && row["role"] == "label", superstore_fixture["profileSummary"])
 end
 
-function runtime_branch_workflow_text()
-    return """
-    version = "0.1.0"
+@testset "Data science project prediction export helpers" begin
+    export_helpers = JuliaFlowApiGateway.JuliaFlowDataScienceProjectPredictionExport
+    @test export_helpers.prediction_export_format(Dict{String,Any}()) == "csv"
+    @test export_helpers.prediction_export_format(Dict{String,Any}("format" => "JSONL")) == "jsonl"
+    @test_throws ErrorException export_helpers.prediction_export_format(Dict{String,Any}("format" => "xlsx"))
+    @test export_helpers.prediction_export_row_count(Dict{String,Any}(), Dict{String,Any}("rowCount" => 12)) == 12
+    @test_throws ErrorException export_helpers.prediction_export_row_count(Dict{String,Any}("rowCount" => 0), Dict{String,Any}())
 
-    [workflow]
-    id = "wf-catch-branch-dag"
-    name = "Catch Branch DAG"
-
-    [[workflow.bi_outlets]]
-    node_id = "catch-bi"
-    name = "Catch BI Outlet"
-    rows = [
-      { status = "recovered", count = 2 },
-      { status = "audited", count = 1 }
+    body = Dict{String,Any}(
+        "outputContractRef" => "contract-local",
+        "outputContract" => Dict{String,Any}(
+            "contractId" => "contract-local",
+            "columns" => [
+                Dict{String,Any}("name" => "prediction_id", "sourceColumn" => "prediction_id", "required" => true),
+                Dict{String,Any}("name" => "score", "sourceColumn" => "prediction", "required" => true),
+                Dict{String,Any}("name" => "dataset", "sourceColumn" => "dataset_id", "required" => false),
+            ],
+        ),
+        "outputColumns" => ["prediction_id", "score"],
+    )
+    contract = export_helpers.prediction_export_contract(body, "contract-local")
+    @test export_helpers.prediction_export_contract_column_names(contract) == ["prediction_id", "score", "dataset"]
+    output_columns = export_helpers.prediction_export_output_columns(body, contract)
+    @test output_columns == ["prediction_id", "score"]
+    output_mappings = export_helpers.prediction_export_output_mappings(body, contract, output_columns)
+    @test output_mappings == [
+        Dict{String,Any}("outputColumn" => "prediction_id", "sourceColumn" => "prediction_id"),
+        Dict{String,Any}("outputColumn" => "score", "sourceColumn" => "prediction"),
     ]
+    @test_throws ErrorException export_helpers.prediction_export_contract(
+        Dict{String,Any}("outputContract" => Dict{String,Any}("contractId" => "other", "columns" => [])),
+        "contract-local",
+    )
+    @test_throws ErrorException export_helpers.prediction_export_output_columns(
+        Dict{String,Any}("outputColumns" => ["prediction_id"]),
+        contract,
+    )
+    @test_throws ErrorException export_helpers.prediction_export_output_mappings(
+        Dict{String,Any}("outputMappings" => [Dict{String,Any}("outputColumn" => "score", "sourceColumn" => "unknown")]),
+        contract,
+        output_columns,
+    )
 
-    [[workflow.control_flow]]
-    id = "try-catch-dag"
-    kind = "try_catch"
-    name = "Catch DAG Guard"
-    try_node_ids = ["node-transform"]
-    catch_node_ids = ["catch-log", "catch-clean", "catch-bi"]
+    report = Dict{String,Any}("evaluationReportId" => "eval-1", "metrics" => Dict{String,Any}("accuracy" => 0.9, "f1" => 0.8))
+    rows = export_helpers.prediction_export_rows("export-1", report, "dataset-1", "contract-local", 2)
+    @test length(rows) == 2
+    @test rows[1]["prediction_id"] == "export-1-1"
+    @test rows[1]["prediction"] == 0.85
+    local_csv_report = Dict{String,Any}(
+        "evaluationReportId" => "eval-local",
+        "validationEvidence" => Dict{String,Any}(
+            "evaluationExecutionMode" => "local_csv_baseline",
+            "evaluationDataEvidence" => Dict{String,Any}(
+                "baselineModel" => "row_index_linear_baseline",
+                "baselineSlope" => 10.0,
+                "baselineIntercept" => 0.0,
+            ),
+        ),
+    )
+    local_csv_values, local_csv_mode = export_helpers.prediction_export_prediction_values(local_csv_report, 3)
+    @test local_csv_mode == "local_csv_row_index_baseline"
+    @test local_csv_values == [10.0, 20.0, 30.0]
+    local_csv_rows = export_helpers.prediction_export_rows("export-local", local_csv_report, "dataset-1", "contract-local", 3)
+    @test [row["prediction"] for row in local_csv_rows] == [10.0, 20.0, 30.0]
+    model_rows = export_helpers.prediction_export_rows(
+        "export-model",
+        local_csv_report,
+        "dataset-1",
+        "contract-local",
+        2;
+        prediction_values = [1.25, 2.5],
+    )
+    @test [row["prediction"] for row in model_rows] == [1.25, 2.5]
+    selected_rows = export_helpers.selected_prediction_export_rows(rows, output_columns, output_mappings)
+    @test selected_rows[1]["score"] == 0.85
+    csv_content = export_helpers.prediction_export_content("csv", rows, output_columns, output_mappings)
+    @test startswith(csv_content, "prediction_id,score\n")
+    jsonl_content = export_helpers.prediction_export_content("jsonl", rows, output_columns, output_mappings)
+    @test occursin("\"score\":0.85", jsonl_content)
+end
 
-    [runtime]
-    run_mode = "batch"
+@testset "Data science project registry payload helpers" begin
+    payloads = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistryPayloads
+    model_card = Dict{String,Any}(
+        "modelId" => "wellbore-linear",
+        "kind" => "regression",
+        "target" => "formation",
+        "metrics" => Dict{String,Any}("loss" => 0.22, "mae" => 0.11, "accuracy" => 0.91),
+        "config" => Dict{String,Any}("algorithm" => "linear", "seed" => 42),
+    )
+    dataset_card = Dict{String,Any}("datasetId" => "wellbore-train", "checksumSha256" => "abc123")
+    validation_context = Dict{String,Any}("projectId" => "wellbore", "splitPlanId" => "split-depth")
 
-    [[nodes]]
-    id = "node-source"
-    name = "Source"
-    type = "JuliaFlow.Base.CSVReader"
-    execution_hint = "cpu_only"
-    ports = [{ id = "out", direction = "output", type = "data_table" }]
-    config = { path = "assets/sample.csv" }
+    metric_name, metric_value = payloads.model_registry_metric(model_card)
+    @test metric_name == "mae"
+    @test metric_value == 0.11
+    @test payloads.model_registry_tags(Dict{String,Any}(), Dict{String,Any}()) == ["local", "checkpointed"]
+    @test payloads.model_registry_tags(Dict{String,Any}(), Dict{String,Any}("tags" => ["validated"])) == ["validated"]
+    @test payloads.model_registry_tags(Dict{String,Any}("tags" => ["champion"]), Dict{String,Any}("tags" => ["old"])) == ["champion"]
 
-    [[nodes]]
-    id = "node-transform"
-    name = "Transform"
-    type = "JuliaFlow.Base.ColumnSelect"
-    execution_hint = "cpu_only"
-    ports = [
-      { id = "in", direction = "input", type = "data_table" },
-      { id = "out", direction = "output", type = "data_table" }
+    record = payloads.model_registry_record(
+        "wf-wellbore",
+        "1.2.0",
+        "exec-1",
+        "cp-1",
+        model_card,
+        dataset_card,
+        validation_context,
+        Dict{String,Any}("modelId" => "wellbore-champion", "owner" => "principal-ds", "status" => "approved"),
+        Dict{String,Any}("registeredAt" => "2026-06-22T00:00:00Z", "deploymentStatus" => "deployed", "tags" => ["old"]),
+        "2026-06-23T00:00:00Z",
+    )
+    @test record["modelId"] == "wellbore-champion"
+    @test record["workflowId"] == "wf-wellbore"
+    @test record["workflowVersion"] == "1.2.0"
+    @test record["experimentId"] == "ml-exec-1"
+    @test record["owner"] == "principal-ds"
+    @test record["status"] == "approved"
+    @test record["tags"] == ["old"]
+    @test record["primaryMetricName"] == "mae"
+    @test record["primaryMetricValue"] == 0.11
+    @test record["registeredAt"] == "2026-06-22T00:00:00Z"
+    @test record["updatedAt"] == "2026-06-23T00:00:00Z"
+    @test record["deploymentStatus"] == "deployed"
+    @test record["localOnly"] == true
+    @test length(record["artifactEvidence"]) == 3
+    @test record["artifactEvidence"][1]["artifactRef"] == "local://models/wellbore-champion.json"
+    @test record["artifactEvidence"][2]["checksumSha256"] == "abc123"
+    @test record["validationEvidence"]["splitPlanId"] == "split-depth"
+end
+
+@testset "Data science project monitoring helpers" begin
+    monitoring = JuliaFlowApiGateway.JuliaFlowDataScienceProjectMonitoring
+    project = DataScienceProjectRecord(project_id = "monitoring-helper", name = "Monitoring Helper")
+    prediction_export = Dict{String,Any}(
+        "predictionExportId" => "export-helper",
+        "evaluationReportId" => "eval-helper",
+        "outputContractRef" => "contract://outputs/helper",
+        "validationEvidence" => Dict{String,Any}("finalEvaluationApproved" => true, "datasetId" => "dataset-helper"),
+    )
+    project.prediction_exports = [prediction_export]
+
+    @test monitoring.project_prediction_export_for_drift(project, Dict{String,Any}("predictionExportId" => "export-helper")) === prediction_export
+    @test_throws ErrorException monitoring.project_prediction_export_for_drift(project, Dict{String,Any}("predictionExportId" => "missing-export"))
+    @test monitoring.drift_metric_names(Dict{String,Any}()) == ["psi", "ks"]
+    @test monitoring.drift_metric_names(Dict{String,Any}("metricNames" => ["Population Stability", "KS"])) == ["population-stability", "ks"]
+    @test_throws ErrorException monitoring.drift_metric_names(Dict{String,Any}("metricNames" => []))
+    @test monitoring.drift_threshold(Dict{String,Any}()) == 0.2
+    @test_throws ErrorException monitoring.drift_threshold(Dict{String,Any}("threshold" => 1.5))
+
+    timestamp = "2026-06-22T00:00:00Z"
+    metrics = ["psi", "ks"]
+    baseline = monitoring.monitoring_baseline_for_drift!(
+        project,
+        Dict{String,Any}("baselineId" => "baseline-helper"),
+        "dataset-helper",
+        prediction_export,
+        metrics,
+        timestamp,
+    )
+    @test baseline["baselineId"] == "baseline-helper"
+    @test baseline["metricNames"] == metrics
+    @test length(project.monitoring_baselines) == 1
+    reused = monitoring.monitoring_baseline_for_drift!(
+        project,
+        Dict{String,Any}("baselineId" => "baseline-helper"),
+        "dataset-helper",
+        prediction_export,
+        metrics,
+        timestamp,
+    )
+    @test reused === baseline
+    @test length(project.monitoring_baselines) == 1
+
+    metric_values = monitoring.drift_metric_values(["psi", "ks", "wasserstein"])
+    @test metric_values["psi"] == 0.08
+    @test metric_values["wasserstein"] == 0.24
+    exported_predictions = monitoring.prediction_column_values_from_content(
+        "prediction_id,prediction\np1,10.0\np2,20.0\n",
+        "csv",
+    )
+    @test exported_predictions == [10.0, 20.0]
+    drift_metrics = monitoring.drift_metric_values_from_predictions(["psi", "ks", "mean-shift"], [10.0, 20.0, 30.0], [10.0, 25.0, 30.0])
+    @test drift_metrics !== nothing
+    @test haskey(drift_metrics, "psi")
+    @test drift_metrics["ks"] >= 0.0
+    @test drift_metrics["mean-shift"] > 0.0
+    feature_drift = monitoring.drift_metric_values_from_feature_columns(
+        ["psi", "ks"],
+        Dict("pressure" => [10.0, 11.0, 12.0], "temperature" => [90.0, 91.0, 92.0]),
+        Dict("pressure" => [12.0, 13.0, 14.0], "temperature" => [90.0, 90.0, 90.0]),
+    )
+    @test feature_drift !== nothing
+    @test feature_drift["featureCount"] == 2
+    @test haskey(feature_drift["metricsByColumn"]["pressure"], "psi")
+    @test feature_drift["aggregateMetric"] >= 0.0
+    @test monitoring.drift_status(metric_values, 0.2) == "moderate"
+    @test monitoring.drift_status(metric_values, 0.1) == "high"
+    report = monitoring.drift_report_record(
+        project,
+        baseline,
+        prediction_export,
+        "dataset-helper",
+        metric_values,
+        "moderate",
+        timestamp;
+        report_id = "drift-helper",
+    )
+    @test report["driftReportId"] == "drift-helper"
+    @test report["validationEvidence"]["predictionExportId"] == "export-helper"
+    output_refs = monitoring.drift_output_refs(project.project_id, "drift-helper", timestamp)
+    @test output_refs[1]["path"] == "local://drift/monitoring-helper/drift-helper/report.json"
+end
+
+@testset "Data science project deploy helpers" begin
+    deploy = JuliaFlowApiGateway.JuliaFlowDataScienceProjectDeploy
+    endpoint = deploy.deploy_endpoint_config(Dict{String,Any}("host" => "127.0.0.1", "port" => 9000, "endpointPath" => "predict"))
+    @test endpoint["endpointPath"] == "/predict"
+    @test endpoint["endpointUrl"] == "http://127.0.0.1:9000/predict"
+
+    model_record = Dict{String,Any}(
+        "modelId" => "model-helper",
+        "checkpointTag" => "chk-helper",
+        "registryId" => "registry-helper",
+        "artifactEvidence" => [
+            Dict{String,Any}("kind" => "model", "artifactRef" => "local://models/model-helper.jls", "checksumSha256" => repeat("a", 64)),
+            Dict{String,Any}("kind" => "metrics", "artifactRef" => "local://models/model-helper-metrics.json", "checksumSha256" => repeat("b", 64)),
+        ],
+    )
+    @test deploy.deploy_model_ref(model_record) == "local://models/model-helper.jls"
+    service_code = deploy.local_deploy_service_code("model-helper", endpoint["endpointUrl"], "local://models/model-helper.jls")
+    @test occursin("model-helper", service_code)
+    @test occursin(endpoint["endpointUrl"], service_code)
+    @test deploy.deploy_runtime_inference_mode(deploy.deploy_model_artifact(model_record)) == "echo_payload_fallback"
+    ols_model_record = Dict{String,Any}(
+        "modelId" => "ols-helper",
+        "checkpointTag" => "chk-helper",
+        "artifactEvidence" => [
+            Dict{String,Any}(
+                "kind" => "model",
+                "artifactRef" => "local://models/ols-helper/model.json",
+                "checksumSha256" => repeat("e", 64),
+                "modelKind" => "local_csv_single_feature_ols",
+                "featureColumn" => "margin",
+                "targetColumn" => "amount",
+            ),
+        ],
+    )
+    ols_artifact = deploy.deploy_model_artifact(ols_model_record)
+    @test deploy.deploy_model_ref(ols_model_record) == "local://models/ols-helper/model.json"
+    @test deploy.deploy_runtime_inference_mode(ols_artifact) == "local_csv_single_feature_ols"
+    ols_service_code = deploy.local_deploy_service_code("ols-helper", endpoint["endpointUrl"], "local://models/ols-helper/model.json", ols_artifact)
+    @test occursin("function load_model()", ols_service_code)
+    @test occursin("function score(payload)", ols_service_code)
+    @test occursin("\"prediction\" => prediction", ols_service_code)
+    @test occursin("\"inferenceMode\" => \"local_csv_single_feature_ols\"", ols_service_code)
+    multi_model_record = Dict{String,Any}(
+        "modelId" => "multi-helper",
+        "checkpointTag" => "chk-helper",
+        "artifactEvidence" => [
+            Dict{String,Any}(
+                "kind" => "model",
+                "artifactRef" => "local://models/multi-helper/model.json",
+                "checksumSha256" => repeat("f", 64),
+                "modelKind" => "local_csv_multi_feature_ols",
+                "featureColumn" => "margin",
+                "featureColumns" => ["margin", "units"],
+                "targetColumn" => "amount",
+            ),
+        ],
+    )
+    multi_artifact = deploy.deploy_model_artifact(multi_model_record)
+    @test deploy.deploy_runtime_inference_mode(multi_artifact) == "local_csv_multi_feature_ols"
+    multi_service_code = deploy.local_deploy_service_code("multi-helper", endpoint["endpointUrl"], "local://models/multi-helper/model.json", multi_artifact)
+    @test occursin("const FEATURE_COLUMNS = [\"margin\", \"units\"]", multi_service_code)
+    @test occursin("for column in model[\"featureColumns\"]", multi_service_code)
+    @test occursin("\"inferenceMode\" => \"local_csv_multi_feature_ols\"", multi_service_code)
+    classifier_model_record = Dict{String,Any}(
+        "modelId" => "classifier-helper",
+        "checkpointTag" => "chk-helper",
+        "artifactEvidence" => [
+            Dict{String,Any}(
+                "kind" => "model",
+                "artifactRef" => "local://models/classifier-helper/model.json",
+                "checksumSha256" => repeat("g", 64),
+                "modelKind" => "local_csv_binary_centroid_classifier",
+                "featureColumns" => ["age", "fare"],
+                "targetColumn" => "survived",
+            ),
+        ],
+    )
+    classifier_artifact = deploy.deploy_model_artifact(classifier_model_record)
+    @test deploy.deploy_runtime_inference_mode(classifier_artifact) == "local_csv_binary_centroid_classifier"
+    classifier_service_code = deploy.local_deploy_service_code("classifier-helper", endpoint["endpointUrl"], "local://models/classifier-helper/model.json", classifier_artifact)
+    @test occursin("positive_means", classifier_service_code)
+    @test occursin("\"probability\" => probability", classifier_service_code)
+    @test occursin("\"inferenceMode\" => \"local_csv_binary_centroid_classifier\"", classifier_service_code)
+
+    mlj_model_record = Dict{String,Any}(
+        "modelId" => "mlj-helper",
+        "checkpointTag" => "chk-helper",
+        "artifactEvidence" => [
+            Dict{String,Any}(
+                "kind" => "model",
+                "artifactRef" => "local://models/mlj-helper/model.json",
+                "checksumSha256" => repeat("1", 64),
+                "modelKind" => "mlj_compatible_linear_regressor",
+                "nativeModelKind" => "local_csv_multi_feature_ols",
+                "featureColumns" => ["margin", "units"],
+                "mljMachineArtifactRef" => "local://models/mlj-helper/machine.jls",
+                "mljMachineArtifactChecksumSha256" => repeat("2", 64),
+                "mljMachineArtifactSizeBytes" => 4096,
+                "mljMachinePredictionMode" => "continuous_prediction",
+                "mljMachinePositiveLabel" => "",
+            ),
+        ],
+    )
+    mlj_artifact = deploy.deploy_model_artifact(mlj_model_record)
+    @test deploy.deploy_runtime_inference_mode(mlj_artifact) == "mlj_persisted_machine"
+    mlj_service_code = deploy.local_deploy_service_code("mlj-helper", endpoint["endpointUrl"], "local://models/mlj-helper/model.json", mlj_artifact)
+    @test occursin("Serialization.deserialize", mlj_service_code)
+    @test occursin("MLJ machine artifact checksum mismatch", mlj_service_code)
+    @test occursin("\"inferenceMode\" => \"mlj_persisted_machine\"", mlj_service_code)
+    mlj_artifact_evidence = deploy.deploy_artifact_evidence(
+        "wf-helper",
+        mlj_model_record,
+        "deploy-mlj-helper",
+        mlj_service_code,
+        repeat("3", 64),
+        repeat("4", 64),
+    )
+    persisted_machine_evidence = only(filter(item -> String(get(item, "kind", "")) == "mlj_machine", mlj_artifact_evidence))
+    @test persisted_machine_evidence["artifactRef"] == "local://models/mlj-helper/machine.jls"
+    @test persisted_machine_evidence["checksumSha256"] == repeat("2", 64)
+
+    artifact_evidence = deploy.deploy_artifact_evidence(
+        "wf-helper",
+        model_record,
+        "deploy-helper",
+        service_code,
+        repeat("c", 64),
+        repeat("d", 64),
+    )
+    @test length(artifact_evidence) == 5
+    @test artifact_evidence[1]["artifactRef"] == "local://workflows/wf-helper.toml"
+    @test artifact_evidence[2]["artifactRef"] == "local://deploy/packages/deploy-helper/service.jl"
+    @test artifact_evidence[end]["kind"] == "metrics"
+
+    package_record = deploy.deploy_package_record(
+        "wf-helper",
+        Dict{String,Any}("version" => "1.0.0"),
+        model_record,
+        Dict{String,Any}("projectId" => "project-helper", "splitPlanId" => "split-helper"),
+        "deploy-helper",
+        endpoint,
+        service_code,
+        artifact_evidence,
+        "2026-06-23T00:00:00Z",
+    )
+    @test package_record["workflowId"] == "wf-helper"
+    @test package_record["deploymentStatus"] == "local_ready"
+    @test package_record["localOnly"] == true
+    checksum_payload = deploy.deploy_package_checksum_payload(package_record)
+    @test !haskey(checksum_payload, "packageChecksumSha256")
+    @test checksum_payload["packageId"] == "deploy-helper"
+
+    execution = GatewayExecution(
+        execution_id = "exec-helper",
+        workflow_id = "wf-helper",
+        workflow_version = "1.0.0",
+        checkpoint_tag = "chk-helper",
+        status = "completed",
+        mode = "batch",
+        plan = String[],
+        stages = Vector{String}[],
+        node_count = 0,
+        connection_count = 0,
+        created_at = "2026-06-23T00:00:00Z",
+        metadata = Dict{String,Any}("deploy_package_records" => [package_record]),
+    )
+    records = deploy.deploy_package_records(execution)
+    @test length(records) == 1
+    @test records[1]["packageId"] == "deploy-helper"
+end
+
+@testset "Data science project tuning helpers" begin
+    tuning = JuliaFlowApiGateway.JuliaFlowDataScienceProjectTuning
+    mlj = JuliaFlowApiGateway.JuliaFlowDataScienceProjectMLJ
+    @test mlj.mlj_algorithm_requested("MLJ.LinearRegressor")
+    @test !mlj.mlj_algorithm_requested("local_csv_ols")
+    mlj_evidence = mlj.mlj_adapter_evidence(
+        "MLJ.LinearRegressor",
+        "local_csv_multi_feature_ols",
+        ["margin", "units"],
+        "amount",
+    )
+    @test mlj_evidence["modelKind"] == "mlj_compatible_linear_regressor"
+    @test mlj_evidence["nativeModelKind"] == "local_csv_multi_feature_ols"
+    @test mlj_evidence["modelFamily"] == "mlj_regression"
+    @test haskey(mlj_evidence, "mljPackageAvailable")
+    @test haskey(mlj_evidence, "mljLinearModelsPackageAvailable")
+    @test haskey(mlj_evidence, "mljPackageFitEnabled")
+    @test haskey(mlj_evidence, "mljPackageFitRouteWired")
+    @test haskey(mlj_evidence, "mljPackageFitExecuted")
+    @test mlj_evidence["mljPackageFitExecuted"] == false
+    @test mlj_evidence["mljPackageFitRouteWired"] == false
+    @test mlj_evidence["localFallbackUsed"] == true
+    @test mlj_evidence["mljPackageSupportStatus"] in ["packages_unavailable", "disabled_by_default"]
+    @test mlj_evidence["mljExecutionMode"] in ["mlj_unavailable_local_csv_fallback", "mlj_available_local_csv_adapter"]
+    available_evidence = withenv(
+        "JULIAFLOW_TEST_MLJ_AVAILABLE" => "true",
+        "JULIAFLOW_TEST_MLJLINEARMODELS_AVAILABLE" => "true",
+        "JULIAFLOW_TEST_MLJ_VERSION" => "test-mlj",
+        "JULIAFLOW_TEST_MLJLINEARMODELS_VERSION" => "test-linear",
+    ) do
+        mlj.mlj_adapter_evidence(
+            "MLJ.LinearRegressor",
+            "local_csv_multi_feature_ols",
+            ["margin", "units"],
+            "amount",
+        )
+    end
+    @test available_evidence["mljPackageAvailable"] == true
+    @test available_evidence["mljLinearModelsPackageAvailable"] == true
+    @test available_evidence["mljPackageVersion"] == "test-mlj"
+    @test available_evidence["mljPackageDetectionMode"] == "env_override"
+    @test available_evidence["mljPackageFitEnabled"] == false
+    @test available_evidence["mljPackageFitSupported"] == false
+    @test available_evidence["mljPackageExecutionStatus"] == "disabled_by_default"
+    @test available_evidence["mljExecutionMode"] == "mlj_available_local_csv_adapter"
+    @test available_evidence["mljPackageFitExecuted"] == false
+    @test available_evidence["localFallbackUsed"] == true
+    @test occursin("package-fit enablement", available_evidence["mljFallbackReason"])
+    enabled_evidence = withenv(
+        "JULIAFLOW_TEST_MLJ_AVAILABLE" => "true",
+        "JULIAFLOW_TEST_MLJLINEARMODELS_AVAILABLE" => "true",
+        "JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT" => "true",
+    ) do
+        mlj.mlj_adapter_evidence(
+            "MLJ.LinearRegressor",
+            "local_csv_multi_feature_ols",
+            ["margin", "units"],
+            "amount",
+        )
+    end
+    @test enabled_evidence["mljPackageFitEnabled"] == true
+    @test enabled_evidence["mljPackageFitSupported"] == true
+    @test enabled_evidence["mljPackageFitRouteWired"] == true
+    @test enabled_evidence["mljPackageExecutionStatus"] == "ready_missing_training_data"
+    @test enabled_evidence["mljPackageFitAttempted"] == false
+    @test enabled_evidence["mljPackageFitExecuted"] == false
+    route_wired_evidence = withenv(
+        "JULIAFLOW_TEST_MLJ_AVAILABLE" => "true",
+        "JULIAFLOW_TEST_MLJLINEARMODELS_AVAILABLE" => "true",
+        "JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT" => "true",
+    ) do
+        mlj.mlj_adapter_evidence(
+            "MLJ.LinearRegressor",
+            "local_csv_multi_feature_ols",
+            ["margin", "units"],
+            "amount";
+            train_feature_pairs = ["margin" => [1.0, 2.0, 3.0, 4.0], "units" => [1.0, 4.0, 2.0, 5.0]],
+            train_target = [3.0, 7.0, 8.0, 13.0],
+        )
+    end
+    @test route_wired_evidence["mljPackageFitRouteWired"] == true
+    @test route_wired_evidence["mljPackageFitAttempted"] == true
+    @test route_wired_evidence["mljPackageExecutionStatus"] in ["runtime_import_failed", "fit_failed", "fit_executed"]
+    if route_wired_evidence["mljPackageFitExecuted"]
+        @test route_wired_evidence["mljExecutionMode"] == "mlj_package_backed_local_cpu"
+        @test route_wired_evidence["mljPackageScoringExecuted"] == true
+        @test route_wired_evidence["localFallbackUsed"] == false
+        @test route_wired_evidence["mljPackageTrainingRowCount"] == 4
+    else
+        @test route_wired_evidence["mljExecutionMode"] == "mlj_available_local_csv_adapter"
+        @test route_wired_evidence["localFallbackUsed"] == true
+        @test occursin("fallback", lowercase(route_wired_evidence["mljFallbackReason"]))
+    end
+    package_regression_evidence = withenv(
+        "JULIAFLOW_TEST_MLJ_AVAILABLE" => nothing,
+        "JULIAFLOW_TEST_MLJLINEARMODELS_AVAILABLE" => nothing,
+        "JULIAFLOW_TEST_MLJ_VERSION" => nothing,
+        "JULIAFLOW_TEST_MLJLINEARMODELS_VERSION" => nothing,
+        "JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT" => "true",
+    ) do
+        mlj.mlj_adapter_evidence(
+            "MLJ.LinearRegressor",
+            "local_csv_multi_feature_ols",
+            ["margin", "units"],
+            "amount";
+            train_feature_pairs = ["margin" => [1.0, 2.0, 3.0, 4.0], "units" => [2.0, 4.0, 6.0, 8.0]],
+            train_target = [3.0, 6.0, 9.0, 12.0],
+        )
+    end
+    @test package_regression_evidence["mljPackageDetectionMode"] == "base_find_package"
+    @test package_regression_evidence["mljPackageAvailable"] == true
+    @test package_regression_evidence["mljLinearModelsPackageAvailable"] == true
+    @test package_regression_evidence["mljPackageFitRouteWired"] == true
+    @test package_regression_evidence["mljPackageExecutionStatus"] == "fit_executed"
+    @test package_regression_evidence["mljPackageFitExecuted"] == true
+    @test package_regression_evidence["mljPackageScoringExecuted"] == true
+    @test package_regression_evidence["mljExecutionMode"] == "mlj_package_backed_local_cpu"
+    @test package_regression_evidence["localFallbackUsed"] == false
+    @test package_regression_evidence["mljPackageModelType"] == "LinearRegressor"
+    @test package_regression_evidence["mljPackageTrainingRowCount"] == 4
+    @test package_regression_evidence["mljPackagePredictionCount"] == 4
+    package_classifier_evidence = withenv(
+        "JULIAFLOW_TEST_MLJ_AVAILABLE" => nothing,
+        "JULIAFLOW_TEST_MLJLINEARMODELS_AVAILABLE" => nothing,
+        "JULIAFLOW_TEST_MLJ_VERSION" => nothing,
+        "JULIAFLOW_TEST_MLJLINEARMODELS_VERSION" => nothing,
+        "JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT" => "true",
+    ) do
+        mlj.mlj_adapter_evidence(
+            "MLJ.LogisticClassifier",
+            "local_csv_binary_centroid_classifier",
+            ["age", "fare"],
+            "survived";
+            classifier_mode = true,
+            train_feature_pairs = ["age" => [20.0, 25.0, 60.0, 70.0], "fare" => [10.0, 11.0, 80.0, 90.0]],
+            train_target = [0.0, 0.0, 1.0, 1.0],
+        )
+    end
+    @test package_classifier_evidence["modelFamily"] == "mlj_binary_classification"
+    @test package_classifier_evidence["modelKind"] == "mlj_compatible_binary_classifier"
+    @test package_classifier_evidence["mljPackageDetectionMode"] == "base_find_package"
+    @test package_classifier_evidence["mljPackageFitRouteWired"] == true
+    @test package_classifier_evidence["mljPackageExecutionStatus"] == "fit_executed"
+    @test package_classifier_evidence["mljPackageFitExecuted"] == true
+    @test package_classifier_evidence["mljPackageScoringExecuted"] == true
+    @test package_classifier_evidence["mljExecutionMode"] == "mlj_package_backed_local_cpu"
+    @test package_classifier_evidence["localFallbackUsed"] == false
+    @test package_classifier_evidence["mljPackageModelType"] == "LogisticClassifier"
+    @test package_classifier_evidence["mljPackageTrainingRowCount"] == 4
+    @test package_classifier_evidence["mljPackagePredictionCount"] == 4
+    mktempdir() do artifact_root
+        regression_machine_path = joinpath(artifact_root, "regression-machine.jls")
+        regression_persistence = withenv("JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT" => "true") do
+            mlj.mlj_persist_machine_artifact(
+                "MLJ.LinearRegressor",
+                ["margin" => [1.0, 2.0, 3.0, 4.0], "units" => [1.0, 4.0, 2.0, 5.0]],
+                [3.0, 7.0, 8.0, 13.0],
+                regression_machine_path,
+            )
+        end
+        @test regression_persistence["mljMachinePersistenceStatus"] == "persisted"
+        @test regression_persistence["mljMachineModelType"] == "LinearRegressor"
+        @test regression_persistence["mljMachinePredictionMode"] == "continuous_prediction"
+        @test isfile(regression_machine_path)
+        @test filesize(regression_machine_path) > 0
+        regression_scoring = mlj.mlj_persisted_prediction_result(
+            regression_machine_path,
+            ["margin" => [5.0, 6.0], "units" => [3.0, 7.0]],
+        )
+        @test regression_scoring["status"] == "scored"
+        @test regression_scoring["scoringSource"] == "persisted_mlj_machine"
+        @test regression_scoring["predictionCount"] == 2
+        @test all(isfinite, Float64.(regression_scoring["predictions"]))
+
+        classifier_machine_path = joinpath(artifact_root, "classifier-machine.jls")
+        classifier_persistence = withenv("JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT" => "true") do
+            mlj.mlj_persist_machine_artifact(
+                "MLJ.LogisticClassifier",
+                ["age" => [20.0, 25.0, 60.0, 70.0], "fare" => [10.0, 11.0, 80.0, 90.0]],
+                [0.0, 0.0, 1.0, 1.0],
+                classifier_machine_path;
+                classifier_mode = true,
+            )
+        end
+        @test classifier_persistence["mljMachinePersistenceStatus"] == "persisted"
+        @test classifier_persistence["mljMachineModelType"] == "LogisticClassifier"
+        @test classifier_persistence["mljMachinePositiveLabel"] == "1.0"
+        classifier_scoring = mlj.mlj_persisted_prediction_result(
+            classifier_machine_path,
+            ["age" => [22.0, 68.0], "fare" => [10.5, 85.0]];
+            classifier_mode = true,
+            positive_label = classifier_persistence["mljMachinePositiveLabel"],
+        )
+        @test classifier_scoring["status"] == "scored"
+        @test classifier_scoring["predictionMode"] == "positive_class_probability"
+        @test all(value -> 0.0 <= value <= 1.0, Float64.(classifier_scoring["predictions"]))
+        @test mlj.mlj_persisted_prediction_result(joinpath(artifact_root, "missing.jls"), ["x" => [1.0]])["status"] == "artifact_missing"
+    end
+    mktempdir() do appliance_root
+        withenv(
+            "JULIAFLOW_DATA_ESTATE_ROOT" => appliance_root,
+            "JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT" => "true",
+        ) do
+            source_ref = "local://data/raw/mlj-route-training.csv"
+            source_path = joinpath(appliance_root, "raw", "mlj-route-training.csv")
+            mkpath(dirname(source_path))
+            write(source_path, "margin,units,amount\n1,1,3\n2,4,7\n3,2,8\n4,5,13\n5,3,14\n6,7,19\n7,8,22\n")
+            state = JuliaFlowApiGateway.load_state(mktempdir())
+            project = DataScienceProjectRecord(project_id = "mlj-route-project", name = "MLJ Route Project")
+            project.datasets = [
+                Dict{String,Any}(
+                    "datasetId" => "mlj-route-dataset",
+                    "name" => "MLJ route dataset", "role" => "train", "localOnly" => true,
+                    "sourceUri" => source_ref,
+                ),
+            ]
+            project.split_plans = [Dict("splitPlanId" => "split-mlj-route", "datasetId" => "mlj-route-dataset",
+                "strategy" => "random", "trainFraction" => 0.6, "validationFraction" => 0.2, "testFraction" => 0.2,
+                "seed" => 42, "locked" => true, "createdAt" => "2026-09-20T00:00:00Z")]
+            state.data_science_projects[project.project_id] = project
+            training_artifact = JuliaFlowApiGateway.local_csv_training_artifact!(
+                state,
+                Dict{String,Any}(
+                    "projectId" => project.project_id,
+                    "splitPlanId" => "split-mlj-route",
+                    "validationFraction" => 0.0,
+                    "testFraction" => 0.0,
+                ),
+                Dict{String,Any}(
+                    "datasetId" => "mlj-route-dataset",
+                    "target" => "amount",
+                    "modelKind" => "MLJ.LinearRegressor",
+                    "modelId" => "mlj-route-model",
+                ),
+                "2026-07-10T00:00:00Z",
+            )
+            @test training_artifact !== nothing
+            @test training_artifact["modelKind"] == "mlj_compatible_linear_regressor"
+            @test training_artifact["mljEvidence"]["mljMachinePersistenceStatus"] == "persisted"
+            @test startswith(training_artifact["mljMachineArtifactRef"], "local://models/mlj-route-project/mlj-route-model/")
+            machine_path = JuliaFlowApiGateway.local_data_ref_path_for_write(training_artifact["mljMachineArtifactRef"])
+            @test isfile(machine_path)
+            @test training_artifact["mljMachineArtifactChecksumSha256"] == JuliaFlowApiGateway.local_artifact_checksum(machine_path)
+            fallback_path = JuliaFlowApiGateway.local_data_ref_path_for_write(training_artifact["artifactRef"])
+            fallback_payload = JSON3.read(read(fallback_path, String), Dict{String,Any})
+            @test fallback_payload["mljEvidence"]["mljMachineArtifactRef"] == training_artifact["mljMachineArtifactRef"]
+            @test fallback_payload["nativeModelKind"] == "local_csv_multi_feature_ols"
+        end
+    end
+    unsupported_evidence = withenv(
+        "JULIAFLOW_TEST_MLJ_AVAILABLE" => "true",
+        "JULIAFLOW_TEST_MLJLINEARMODELS_AVAILABLE" => "true",
+        "JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT" => "true",
+    ) do
+        mlj.mlj_adapter_evidence(
+            "MLJ.EvoTreesRegressor",
+            "local_csv_multi_feature_ols",
+            ["margin", "units"],
+            "amount",
+        )
+    end
+    @test unsupported_evidence["mljPackageFitSupported"] == false
+    @test unsupported_evidence["mljPackageExecutionStatus"] == "unsupported_algorithm"
+    generated_code = mlj.mlj_generated_training_code("MLJ.LinearRegressor", "amount", ["margin", "units"])
+    @test occursin("MLJLinearModels", generated_code)
+    @test occursin("fit!(mach)", generated_code)
+    project = DataScienceProjectRecord(project_id = "tuning-helper", name = "Tuning Helper")
+    project.split_plans = [
+        Dict{String,Any}(
+            "splitPlanId" => "split-helper",
+            "datasetId" => "dataset-helper",
+            "strategy" => "random",
+            "trainFraction" => 0.6,
+            "locked" => true,
+            "validationFraction" => 0.2,
+            "testFraction" => 0.2,
+            "seed" => 99,
+        ),
     ]
-    config = { columns = ["amount"] }
+    split_plan = tuning.project_split_plan_for_request(project, Dict{String,Any}(), "dataset-helper", "tuning study")
+    @test split_plan["splitPlanId"] == "split-helper"
+    split_plan, validation_context = tuning.validate_tuning_split_context(
+        project,
+        Dict{String,Any}("finalTestPolicy" => "forbid_final_test"),
+        "dataset-helper",
+    )
+    @test validation_context["projectId"] == "tuning-helper"
+    @test validation_context["splitPlanId"] == "split-helper"
+    @test validation_context["validationFraction"] == 0.2
+    @test_throws ErrorException tuning.validate_tuning_split_context(
+        project,
+        Dict{String,Any}("finalTestPolicy" => "use_final_test"),
+        "dataset-helper",
+    )
+    @test tuning.tuning_metric_names(Dict{String,Any}()) == ["rmse", "mae"]
+    @test tuning.tuning_metric_names(Dict{String,Any}("metricNames" => ["Root Mean Square", "MAE"])) == ["root-mean-square", "mae"]
+    @test_throws ErrorException tuning.tuning_metric_names(Dict{String,Any}("metricNames" => []))
+    @test tuning.tuning_max_trials(Dict{String,Any}()) == 3
+    @test_throws ErrorException tuning.tuning_max_trials(Dict{String,Any}("maxTrials" => 0))
 
-    [[nodes]]
-    id = "catch-log"
-    name = "Catch Log"
-    type = "JuliaFlow.Base.AuditLog"
-    execution_hint = "cpu_only"
-    ports = []
-    config = { event = "recover" }
+    training_plan = tuning.tuning_training_plan_record(
+        "training-helper",
+        "target",
+        "regression",
+        ["rmse", "mae"],
+        split_plan,
+        "2026-06-23T00:00:00Z",
+    )
+    @test training_plan["seed"] == 99
+    tuning.upsert_training_plan!(project, training_plan)
+    @test length(project.training_plans) == 1
+    training_plan_updated = merge(training_plan, Dict{String,Any}("taskType" => "classification"))
+    tuning.upsert_training_plan!(project, training_plan_updated)
+    @test length(project.training_plans) == 1
+    @test project.training_plans[1]["taskType"] == "classification"
 
-    [[nodes]]
-    id = "catch-clean"
-    name = "Catch Clean"
-    type = "JuliaFlow.Base.CleanRows"
-    execution_hint = "cpu_only"
-    ports = [{ id = "out", direction = "output", type = "data_table" }]
-    config = { strategy = "safe" }
+    trials = tuning.tuning_trials("tuning-helper", "study-helper", "MLJ.EvoTreesRegressor", ["rmse", "mae"], 2, "2026-06-23T00:00:00Z")
+    @test length(trials) == 2
+    @test trials[1]["trialId"] == "study-helper-trial-1"
+    @test trials[1]["metrics"]["rmse"] == 0.5
+    @test trials[2]["artifactRefs"][1]["path"] == "local://tuning/tuning-helper/study-helper/trial-2.json"
+    mktempdir() do temp_dir
+        csv_path = joinpath(temp_dir, "tuning.csv")
+        write(csv_path, "row_id,amount,margin,units\n1,10,10,1\n2,20,20,2\n3,30,30,3\n4,40,0,4\n5,50,0,5\n")
+        local_trials = tuning.local_csv_validation_tuning_trials(
+            "tuning-helper",
+            "study-local",
+            "local_csv_ols",
+            ["rmse", "mae"],
+            2,
+            "2026-06-23T00:00:00Z",
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/tuning.csv"),
+            csv_path,
+            "amount",
+            split_plan,
+        )
+        @test local_trials !== nothing
+        @test length(local_trials) == 2
+        @test local_trials[1]["validationEvidence"]["executionMode"] == "local_csv_validation_tuning"
+        @test local_trials[2]["validationEvidence"]["featureColumns"] == ["units"]
+        @test local_trials[2]["metrics"]["rmse"] == 0.0
+        @test local_trials[2]["selected"] == true
+        @test local_trials[1]["validationEvidence"]["gpuTrialEvidence"]["gpuTrialExecutionStatus"] == "not_requested"
+        @test local_trials[1]["validationEvidence"]["gpuTrialEvidence"]["gpuTrialSkippedReason"] == "cpu_backend_selected"
+        simulated_gpu_capability = tuning.tuning_gpu_trial_capability("simulated_cuda")
+        @test simulated_gpu_capability["gpuTrialExecutionStatus"] == "not_requested"
+        @test simulated_gpu_capability["gpuTrialSkippedReason"] == "simulated_cuda_is_not_hardware_execution"
+        cuda_capability = tuning.tuning_gpu_trial_capability("cuda")
+        @test cuda_capability["gpuTrialRequested"] == true
+        @test cuda_capability["gpuTrialExecutionStatus"] in ("ready", "skipped")
+        if cuda_capability["gpuTrialExecutionStatus"] == "ready"
+            gpu_trials = tuning.local_csv_validation_tuning_trials(
+                "tuning-helper",
+                "study-cuda",
+                "local_csv_ols",
+                ["rmse", "mae"],
+                2,
+                "2026-06-23T00:00:00Z",
+                Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/tuning.csv"),
+                csv_path,
+                "amount",
+                split_plan,
+                "cuda",
+            )
+            @test gpu_trials !== nothing
+            gpu_trial_statuses = [String(trial["validationEvidence"]["gpuTrialEvidence"]["gpuTrialExecutionStatus"]) for trial in gpu_trials]
+            @test all(status -> status in ("executed", "skipped"), gpu_trial_statuses)
+            if all(==("executed"), gpu_trial_statuses)
+                @test all(trial -> trial["validationEvidence"]["gpuTrialEvidence"]["gpuTrialBackend"] == "cuda", gpu_trials)
+                @test all(trial -> "rmse" in trial["validationEvidence"]["gpuTrialEvidence"]["gpuTrialExecutedMetrics"], gpu_trials)
+            else
+                @test all(trial -> trial["validationEvidence"]["gpuTrialEvidence"]["gpuTrialSkippedReason"] == "gpu_metric_execution_failed", gpu_trials)
+                @test all(trial -> trial["validationEvidence"]["gpuTrialEvidence"]["gpuTrialBackend"] == "cpu_fallback", gpu_trials)
+                @test all(trial -> haskey(trial["validationEvidence"]["gpuTrialEvidence"], "gpuTrialFailureReason"), gpu_trials)
+            end
+        else
+            @test cuda_capability["gpuTrialBackend"] == "cpu_fallback"
+            @test cuda_capability["gpuTrialSkippedReason"] in (
+                "cuda_package_unavailable",
+                "cuda_runtime_or_hardware_unavailable",
+                "cuda_runtime_probe_failed",
+            )
+        end
+        regularized_trials = tuning.local_csv_validation_tuning_trials(
+            "tuning-helper",
+            "study-regularized",
+            "local_csv_ols",
+            ["rmse", "mae"],
+            5,
+            "2026-06-23T00:00:00Z",
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/tuning.csv"),
+            csv_path,
+            "amount",
+            split_plan,
+        )
+        @test regularized_trials !== nothing
+        @test any(trial -> Float64(trial["parameters"]["hyperparameters"]["regularizationStrength"]) > 0.0, regularized_trials)
+        @test all(trial -> trial["validationEvidence"]["searchMode"] == "feature_set_and_hyperparameter_grid", regularized_trials)
+        @test haskey(regularized_trials[end]["validationEvidence"], "hyperparameters")
+        classifier_csv_path = joinpath(temp_dir, "classification-tuning.csv")
+        write(classifier_csv_path, "row_id,survived,age,fare\n1,0,20,8\n2,0,25,9\n3,0,30,10\n4,1,60,80\n5,1,65,90\n6,1,70,100\n")
+        classifier_trials = tuning.local_csv_validation_tuning_trials(
+            "tuning-helper",
+            "study-classifier",
+            "MLJ.XGBoostClassifier",
+            ["accuracy", "f1", "auc"],
+            5,
+            "2026-06-23T00:00:00Z",
+            Dict{String,Any}("datasetId" => "dataset-classifier", "sourceUri" => "local://data/classification-tuning.csv"),
+            classifier_csv_path,
+            "survived",
+            merge(split_plan, Dict("strategy" => "stratified", "trainFraction" => 0.34, "validationFraction" => 0.33, "testFraction" => 0.33)),
+        )
+        @test classifier_trials !== nothing
+        @test classifier_trials[1]["parameters"]["modelFamily"] == "mlj_binary_classification"
+        @test classifier_trials[1]["parameters"]["modelKind"] == "mlj_compatible_binary_classifier"
+        @test classifier_trials[1]["parameters"]["nativeModelKind"] == "local_csv_binary_centroid_classifier"
+        @test classifier_trials[1]["validationEvidence"]["modelKind"] == "mlj_compatible_binary_classifier"
+        @test classifier_trials[1]["validationEvidence"]["nativeModelKind"] == "local_csv_binary_centroid_classifier"
+        @test classifier_trials[1]["validationEvidence"]["mljEvidence"]["mljRequested"] == true
+        @test classifier_trials[1]["validationEvidence"]["mljEvidence"]["mljPackageFitExecuted"] == false
+        @test classifier_trials[1]["validationEvidence"]["mljEvidence"]["localFallbackUsed"] == true
+        @test classifier_trials[1]["validationEvidence"]["mljEvidence"]["mljExecutionMode"] in ["mlj_unavailable_local_csv_fallback", "mlj_available_local_csv_adapter"]
+        @test occursin("using MLJ", classifier_trials[1]["validationEvidence"]["generatedJuliaCode"])
+        @test haskey(classifier_trials[1]["validationEvidence"]["coefficients"], "positiveMeans")
+        @test haskey(classifier_trials[1]["metrics"], "accuracy")
+        @test haskey(classifier_trials[1]["metrics"], "auc")
+        @test 0.0 <= classifier_trials[1]["metrics"]["auc"] <= 1.0
+        @test any(trial -> Float64(trial["parameters"]["hyperparameters"]["classificationThreshold"]) != 0.5, classifier_trials)
+        @test any(trial -> Bool(get(trial, "selected", false)), classifier_trials)
+        local_study = tuning.tuning_study_record("study-local", "training-helper", local_trials, validation_context, "2026-06-23T00:00:00Z")
+        @test local_study["bestTrialId"] == "study-local-trial-2"
+    end
+    study = tuning.tuning_study_record("study-helper", "training-helper", trials, validation_context, "2026-06-23T00:00:00Z")
+    @test study["validationOnly"] == true
+    @test study["bestTrialId"] == "study-helper-trial-1"
+    output_refs = tuning.tuning_output_refs(trials)
+    @test length(output_refs) == 2
+    @test output_refs[1]["kind"] == "tuning_trial"
+end
 
-    [[nodes]]
-    id = "catch-bi"
-    name = "Catch BI"
-    type = "JuliaFlow.BI.DataOutlet"
-    execution_hint = "cpu_only"
-    ports = [{ id = "in", direction = "input", type = "data_table" }]
-    config = { outlet = "catch-bi" }
+@testset "Data science project evaluation helpers" begin
+    evaluation = JuliaFlowApiGateway.JuliaFlowDataScienceProjectEvaluation
+    project = DataScienceProjectRecord(project_id = "evaluation-helper", name = "Evaluation Helper")
+    training_plan = Dict{String,Any}(
+        "trainingPlanId" => "training-helper",
+        "splitPlanId" => "split-helper",
+        "metricNames" => ["RMSE", "Mean Absolute"],
+    )
+    tuning_study = Dict{String,Any}(
+        "tuningStudyId" => "tuning-helper",
+        "trainingPlanId" => "training-helper",
+        "validationOnly" => true,
+        "validationEvidence" => Dict{String,Any}(
+            "splitPlanId" => "split-helper",
+            "finalTestPolicy" => "forbid_final_test",
+        ),
+    )
+    project.training_plans = [training_plan]
+    project.tuning_studies = [tuning_study]
+    split_plan = Dict{String,Any}(
+        "splitPlanId" => "split-helper",
+        "datasetId" => "dataset-helper",
+        "locked" => true,
+        "testFraction" => 0.2,
+    )
 
-    [[connections]]
-    source_node_id = "node-source"
-    source_port_id = "out"
-    target_node_id = "node-transform"
-    target_port_id = "in"
-    data_type = "data_table"
+    @test evaluation.project_training_plan_for_request(project, Dict{String,Any}("trainingPlanId" => "training-helper")) === training_plan
+    @test_throws ErrorException evaluation.project_training_plan_for_request(project, Dict{String,Any}("trainingPlanId" => "missing-training"))
+    @test evaluation.project_tuning_study_for_final_evaluation(project, Dict{String,Any}("tuningStudyId" => "tuning-helper"), "training-helper") === tuning_study
+    @test_throws ErrorException evaluation.project_tuning_study_for_final_evaluation(project, Dict{String,Any}("tuningStudyId" => "missing-tuning"), "training-helper")
+    @test evaluation.final_evaluation_metric_names(Dict{String,Any}(), training_plan) == ["rmse", "mean-absolute"]
+    @test evaluation.final_evaluation_metric_names(Dict{String,Any}("metricNames" => ["F1 Score"]), training_plan) == ["f1-score"]
+    @test_throws ErrorException evaluation.final_evaluation_metric_names(Dict{String,Any}("metricNames" => []), training_plan)
+    @test evaluation.final_evaluation_approval_threshold(Dict{String,Any}()) == 0.8
+    @test_throws ErrorException evaluation.final_evaluation_approval_threshold(Dict{String,Any}("approvalThreshold" => 1.2))
 
-    [[connections]]
-    source_node_id = "catch-clean"
-    source_port_id = "out"
-    target_node_id = "catch-bi"
-    target_port_id = "in"
-    data_type = "data_table"
-    """
+    validation_context = evaluation.final_evaluation_validation_context(
+        project,
+        Dict{String,Any}("finalTestPolicy" => "use_final_test"),
+        "dataset-helper",
+        split_plan,
+        training_plan,
+        tuning_study,
+    )
+    @test validation_context["validationOnlyTuning"] == true
+    @test validation_context["testFraction"] == 0.2
+    @test_throws ErrorException evaluation.final_evaluation_validation_context(
+        project,
+        Dict{String,Any}("finalTestPolicy" => "forbid_final_test"),
+        "dataset-helper",
+        split_plan,
+        training_plan,
+        tuning_study,
+    )
+
+    metrics = evaluation.final_evaluation_metrics(["rmse", "mae"])
+    @test metrics["rmse"] == 0.92
+    @test metrics["mae"] == 0.9
+    mktempdir() do temp_dir
+        csv_path = joinpath(temp_dir, "evaluation.csv")
+        write(csv_path, "row_id,amount,margin,units\n1,10,2,1\n2,20,4,2\n3,30,9,3\n4,40,11,4\n5,50,13,5\n")
+        # Independent validation row 5; seed 6 assigns train 1:3 and final test row 4.
+        eval_plan = Dict{String,Any}("strategy" => "random", "locked" => true, "trainFraction" => 0.6, "validationFraction" => 0.2, "testFraction" => 0.2, "seed" => 6)
+        csv_result = evaluation.final_evaluation_metrics_from_csv(
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
+            csv_path,
+            "amount",
+            ["rmse", "mae"],
+            eval_plan,
+        )
+        @test csv_result !== nothing
+        @test csv_result["metrics"]["rmse"] == 1.0
+        @test csv_result["metrics"]["mae"] == 1.0
+        @test csv_result["evidence"]["executionMode"] == "local_csv_baseline"
+        @test csv_result["evidence"]["baselineModel"] == "row_index_linear_baseline"
+        @test csv_result["evidence"]["rawMetrics"]["rmse"] == 0.0
+        @test csv_result["evidence"]["metricSemantics"]["rmse"] == "lower_is_better_normalized_quality_score"
+        @test csv_result["evidence"]["testRowCount"] == 1
+        model_result = evaluation.final_evaluation_metrics_from_csv(
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
+            csv_path,
+            "amount",
+            ["rmse", "mae"],
+            eval_plan,
+            Dict{String,Any}(
+                "modelKind" => "local_csv_single_feature_ols",
+                "artifactRef" => "local://models/model-helper/model.json",
+                "checksumSha256" => repeat("a", 64),
+                "targetColumn" => "amount",
+                "featureColumn" => "margin",
+                "trainRowCount" => 3,
+                "trainingRowIndices" => [1, 2, 3],
+                "coefficients" => Dict("intercept" => 6.538462, "slope" => 2.692308),
+            ),
+        )
+        @test model_result["evidence"]["executionMode"] == "local_csv_trained_artifact"
+        @test model_result["evidence"]["baselineModel"] == "trained_single_feature_ols"
+        @test model_result["evidence"]["modelArtifactRef"] == "local://models/model-helper/model.json"
+        @test model_result["evidence"]["featureColumn"] == "margin"
+        @test model_result["evidence"]["rawMetrics"]["rmse"] == 3.84615
+        multi_model_result = evaluation.final_evaluation_metrics_from_csv(
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
+            csv_path,
+            "amount",
+            ["rmse", "mae"],
+            eval_plan,
+            Dict{String,Any}(
+                "modelKind" => "local_csv_multi_feature_ols",
+                "artifactRef" => "local://models/model-helper/multi-model.json",
+                "checksumSha256" => repeat("b", 64),
+                "targetColumn" => "amount",
+                "featureColumn" => "margin",
+                "featureColumns" => ["margin", "units"],
+                "trainRowCount" => 3,
+                "trainingRowIndices" => [1, 2, 3],
+                "coefficients" => Dict("intercept" => 0.0, "slopes" => Dict("margin" => 0.0, "units" => 10.0)),
+            ),
+        )
+        @test multi_model_result["evidence"]["executionMode"] == "local_csv_trained_artifact"
+        @test multi_model_result["evidence"]["baselineModel"] == "trained_multi_feature_ols"
+        @test multi_model_result["evidence"]["featureColumns"] == ["margin", "units"]
+        @test multi_model_result["evidence"]["rawMetrics"]["rmse"] == 0.0
+        mlj_model_result = evaluation.final_evaluation_metrics_from_csv(
+            Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
+            csv_path,
+            "amount",
+            ["rmse", "mae"],
+            eval_plan,
+            Dict{String,Any}(
+                "modelKind" => "mlj_compatible_linear_regressor",
+                "nativeModelKind" => "local_csv_multi_feature_ols",
+                "modelFamily" => "mlj_regression",
+                "requestedAlgorithm" => "MLJ.LinearRegressor",
+                "artifactRef" => "local://models/model-helper/mlj-model.json",
+                "checksumSha256" => repeat("d", 64),
+                "targetColumn" => "amount",
+                "featureColumn" => "margin",
+                "featureColumns" => ["margin", "units"],
+                "trainRowCount" => 3,
+                "trainingRowIndices" => [1, 2, 3],
+                "coefficients" => Dict("intercept" => 0.0, "slopes" => Dict("margin" => 0.0, "units" => 10.0)),
+                "mljEvidence" => Dict("mljRequested" => true, "mljExecutionMode" => "mlj_unavailable_local_csv_fallback"),
+            ),
+        )
+        @test mlj_model_result["evidence"]["executionMode"] == "local_csv_trained_artifact"
+        @test mlj_model_result["evidence"]["modelKind"] == "mlj_compatible_linear_regressor"
+        @test mlj_model_result["evidence"]["nativeModelKind"] == "local_csv_multi_feature_ols"
+        @test mlj_model_result["evidence"]["modelFamily"] == "mlj_regression"
+        @test mlj_model_result["evidence"]["mljEvidence"]["mljRequested"] == true
+        @test mlj_model_result["evidence"]["rawMetrics"]["rmse"] == 0.0
+        runtime_evidence = JuliaFlowApiGateway.evaluation_model_runtime_evidence(
+            Dict{String,Any}(
+                "validationEvidence" => Dict{String,Any}(
+                    "evaluationDataEvidence" => mlj_model_result["evidence"],
+                ),
+            ),
+        )
+        @test runtime_evidence["modelKind"] == "mlj_compatible_linear_regressor"
+        @test runtime_evidence["nativeModelKind"] == "local_csv_multi_feature_ols"
+        @test runtime_evidence["mljEvidence"]["mljRequested"] == true
+        @test runtime_evidence["mljEvidence"]["mljExecutionMode"] == "mlj_unavailable_local_csv_fallback"
+        package_mlj_model_result = withenv(
+            "JULIAFLOW_TEST_MLJ_AVAILABLE" => nothing,
+            "JULIAFLOW_TEST_MLJLINEARMODELS_AVAILABLE" => nothing,
+            "JULIAFLOW_TEST_MLJ_VERSION" => nothing,
+            "JULIAFLOW_TEST_MLJLINEARMODELS_VERSION" => nothing,
+            "JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT" => "true",
+        ) do
+            evaluation.final_evaluation_metrics_from_csv(
+                Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
+                csv_path,
+                "amount",
+                ["rmse", "mae"],
+                eval_plan,
+                Dict{String,Any}(
+                    "modelKind" => "mlj_compatible_linear_regressor",
+                    "nativeModelKind" => "local_csv_multi_feature_ols",
+                    "modelFamily" => "mlj_regression",
+                    "requestedAlgorithm" => "MLJ.LinearRegressor",
+                    "artifactRef" => "local://models/model-helper/package-mlj-model.json",
+                    "checksumSha256" => repeat("e", 64),
+                    "targetColumn" => "amount",
+                    "featureColumn" => "margin",
+                    "featureColumns" => ["margin", "units"],
+                    "trainRowCount" => 3,
+                    "trainingRowIndices" => [1, 2, 3],
+                    "coefficients" => Dict("intercept" => 0.0, "slopes" => Dict("margin" => 0.0, "units" => 10.0)),
+                    "mljEvidence" => Dict(
+                        "mljRequested" => true,
+                        "mljExecutionMode" => "mlj_package_backed_local_cpu",
+                        "mljPackageFitExecuted" => true,
+                        "mljPackageScoringExecuted" => true,
+                    ),
+                ),
+            )
+        end
+        @test package_mlj_model_result["evidence"]["executionMode"] == "mlj_package_backed_final_evaluation"
+        @test package_mlj_model_result["evidence"]["baselineModel"] == "mlj_package_linear_regressor_refit"
+        @test package_mlj_model_result["evidence"]["packageScoringMode"] == "refit_from_train_scope_rows"
+        @test package_mlj_model_result["evidence"]["mljScoringEvidence"]["mljPackageExecutionStatus"] == "scoring_executed"
+        @test package_mlj_model_result["evidence"]["mljScoringEvidence"]["mljPackageScoringExecuted"] == true
+        @test package_mlj_model_result["evidence"]["mljScoringEvidence"]["mljPackagePredictionCount"] == 1
+        package_runtime_evidence = JuliaFlowApiGateway.evaluation_model_runtime_evidence(
+            Dict{String,Any}(
+                "validationEvidence" => Dict{String,Any}(
+                    "evaluationDataEvidence" => package_mlj_model_result["evidence"],
+                ),
+            ),
+        )
+        @test package_runtime_evidence["packageScoringMode"] == "refit_from_train_scope_rows"
+        @test package_runtime_evidence["mljScoringEvidence"]["mljPackageExecutionStatus"] == "scoring_executed"
+        mkpath(joinpath(temp_dir, "data"))
+        cp(csv_path, joinpath(temp_dir, "data", "evaluation.csv"); force = true)
+        withenv(
+            "JULIAFLOW_DATA_ESTATE_ROOT" => temp_dir,
+            "JULIAFLOW_ENABLE_MLJ_PACKAGE_FIT" => "true",
+            "JULIAFLOW_TEST_MLJ_AVAILABLE" => nothing,
+            "JULIAFLOW_TEST_MLJLINEARMODELS_AVAILABLE" => nothing,
+        ) do
+            package_report = Dict{String,Any}(
+                "evaluationReportId" => "package-eval-helper",
+                "validationEvidence" => Dict{String,Any}(
+                    "sourceChecksumSha256" => bytes2hex(sha256(read(csv_path))),
+                    "evaluationDataEvidence" => package_mlj_model_result["evidence"],
+                ),
+            )
+            package_predictions, package_scoring_mode = JuliaFlowApiGateway.local_csv_prediction_values_from_report(
+                Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
+                package_report,
+                4,
+            )
+            @test package_predictions !== nothing
+            @test length(package_predictions) == 4
+            @test package_scoring_mode == "mlj_package_backed_prediction_export"
+            export_ref = "local://predictions/package-mlj/predictions.csv"
+            export_path = JuliaFlowApiGateway.local_data_ref_path_for_write(export_ref)
+            mkpath(dirname(export_path))
+            write(export_path, "prediction\n" * join(string.(package_predictions), "\n") * "\n")
+            export_checksum = JuliaFlowApiGateway.local_artifact_checksum(export_path)
+            drift_result = JuliaFlowApiGateway.local_csv_drift_metric_result(
+                Dict{String,Any}("datasetId" => "dataset-helper", "sourceUri" => "local://data/evaluation.csv"),
+                Dict{String,Any}(
+                    "predictionExportId" => "package-pred-helper",
+                    "artifactRef" => export_ref,
+                    "format" => "csv",
+                    "artifactRefs" => [
+                        Dict{String,Any}(
+                            "path" => export_ref,
+                            "checksumSha256" => export_checksum,
+                        ),
+                    ],
+                ),
+                package_report,
+                ["psi", "ks"],
+            )
+            @test drift_result !== nothing
+            @test drift_result["evidence"]["executionMode"] == "mlj_package_backed_prediction_distribution"
+            @test drift_result["evidence"]["predictionScoringMode"] == "mlj_package_backed_prediction_export"
+        end
+        classifier_csv_path = joinpath(temp_dir, "classification.csv")
+        write(classifier_csv_path, "row_id,survived,age,fare\n1,0,20,8\n2,0,25,9\n3,1,60,80\n4,1,65,90\n5,0,35,11\n")
+        classifier_result = evaluation.final_evaluation_metrics_from_csv(
+            Dict{String,Any}("datasetId" => "classification-helper", "sourceUri" => "local://data/classification.csv"),
+            classifier_csv_path,
+            "survived",
+            ["accuracy", "f1"],
+            eval_plan,
+            Dict{String,Any}(
+                "modelKind" => "local_csv_binary_centroid_classifier",
+                "artifactRef" => "local://models/model-helper/classifier.json",
+                "checksumSha256" => repeat("c", 64),
+                "targetColumn" => "survived",
+                "featureColumns" => ["age", "fare"],
+                "trainRowCount" => 3,
+                "trainingRowIndices" => [1, 2, 3],
+                "coefficients" => Dict(
+                    "positiveLabel" => 1.0,
+                    "negativeLabel" => 0.0,
+                    "positivePrior" => 0.333333,
+                    "positiveMeans" => Dict("age" => 60.0, "fare" => 80.0),
+                    "negativeMeans" => Dict("age" => 22.5, "fare" => 8.5),
+                    "featureScales" => Dict("age" => 20.81666, "fare" => 41.2452),
+                ),
+            ),
+        )
+        @test classifier_result["evidence"]["executionMode"] == "local_csv_trained_artifact"
+        @test classifier_result["evidence"]["baselineModel"] == "trained_binary_centroid_classifier"
+        @test classifier_result["evidence"]["modelKind"] == "local_csv_binary_centroid_classifier"
+        @test classifier_result["evidence"]["rawMetrics"]["accuracy"] == 1.0
+        @test classifier_result["metrics"]["accuracy"] == 1.0
+    end
+    report = evaluation.final_evaluation_report_record(
+        "eval-helper",
+        project.project_id,
+        training_plan,
+        "split-helper",
+        metrics,
+        true,
+        validation_context,
+        "2026-06-23T00:00:00Z",
+    )
+    @test report["evaluationReportId"] == "eval-helper"
+    @test report["approved"] == true
+    @test report["finalTestOnly"] == true
+    @test report["artifactRefs"][1]["path"] == "local://evaluation/evaluation-helper/eval-helper/report.json"
+    @test evaluation.final_evaluation_output_refs(report)[1]["kind"] == "final_evaluation_report"
+end
+
+@testset "Data science project transform helpers" begin
+    transforms = JuliaFlowApiGateway.JuliaFlowDataScienceProjectTransforms
+    split_plan = Dict{String,Any}(
+        "splitPlanId" => "split-helper",
+        "validationFraction" => 0.2,
+        "testFraction" => 0.2,
+    )
+    @test transforms.transform_apply_splits(Dict{String,Any}(), split_plan) == ["validation", "test"]
+    @test transforms.transform_apply_splits(Dict{String,Any}("applySplits" => ["test", "test"]), split_plan) == ["test"]
+    @test_throws ErrorException transforms.transform_apply_splits(Dict{String,Any}("applySplits" => ["train"]), split_plan)
+    @test_throws ErrorException transforms.transform_apply_splits(
+        Dict{String,Any}("applySplits" => ["validation"]),
+        Dict{String,Any}("splitPlanId" => "split-no-validation", "validationFraction" => 0.0, "testFraction" => 0.2),
+    )
+    @test transforms.transform_ref_for_request(Dict{String,Any}(), "project-helper") == "local://transforms/project-helper/default-fit-apply.jl"
+    @test transforms.transform_ref_for_request(Dict{String,Any}("transformRef" => "local://transforms/project-helper/custom.jl"), "project-helper") == "local://transforms/project-helper/custom.jl"
+    @test_throws ErrorException transforms.transform_ref_for_request(Dict{String,Any}("transformRef" => "   "), "project-helper")
+
+    refs = transforms.transform_fit_apply_artifact_refs("project-helper", "run-helper", ["validation", "test"], "2026-06-23T00:00:00Z")
+    @test length(refs) == 3
+    @test refs[1]["kind"] == "transform_fit_state"
+    @test refs[2]["path"] == "local://transforms/project-helper/run-helper/validation.arrow"
+    record = transforms.transform_fit_apply_record(
+        "run-helper",
+        "dataset-helper",
+        split_plan,
+        ["validation", "test"],
+        "local://transforms/project-helper/custom.jl",
+        refs,
+        "2026-06-23T00:00:00Z",
+    )
+    @test record["transformRunId"] == "run-helper"
+    @test record["fitSplit"] == "train"
+    @test record["applySplits"] == ["validation", "test"]
+    @test length(record["leakageChecks"]) == 2
+    @test record["artifactRefs"][3]["kind"] == "transform_apply_output"
+end
+
+@testset "Data science project experiment helpers" begin
+    experiments = JuliaFlowApiGateway.JuliaFlowDataScienceProjectExperiments
+    project = DataScienceProjectRecord(project_id = "experiment-helper", name = "Experiment Helper")
+    project.datasets = [Dict{String,Any}("datasetId" => "dataset-helper")]
+    project.split_plans = [
+        Dict{String,Any}(
+            "splitPlanId" => "split-helper",
+            "datasetId" => "dataset-helper",
+            "strategy" => "stratified",
+            "validationFraction" => 0.2,
+            "testFraction" => 0.2,
+        ),
+    ]
+    projects = Dict{String,DataScienceProjectRecord}(project.project_id => project)
+    @test experiments.project_has_dataset(project, "dataset-helper")
+    @test !experiments.project_has_dataset(project, "missing-dataset")
+    @test experiments.ml_project_for_dataset(projects, Dict{String,Any}("projectId" => "experiment-helper"), "dataset-helper") === project
+    @test experiments.ml_project_for_dataset(projects, Dict{String,Any}(), "dataset-helper") === project
+    @test experiments.ml_project_for_dataset(projects, Dict{String,Any}(), "missing-dataset") === nothing
+    @test_throws ErrorException experiments.ml_project_for_dataset(projects, Dict{String,Any}("projectId" => "missing-project"), "dataset-helper")
+
+    second_project = DataScienceProjectRecord(project_id = "experiment-helper-2", name = "Experiment Helper 2")
+    second_project.datasets = [Dict{String,Any}("datasetId" => "dataset-helper")]
+    ambiguous_projects = Dict{String,DataScienceProjectRecord}(
+        project.project_id => project,
+        second_project.project_id => second_project,
+    )
+    @test_throws ErrorException experiments.ml_project_for_dataset(ambiguous_projects, Dict{String,Any}(), "dataset-helper")
+
+    split_plan = experiments.ml_split_plan_for_request(project, Dict{String,Any}("splitPlanId" => "split-helper"), "dataset-helper")
+    @test split_plan["splitPlanId"] == "split-helper"
+    @test_throws ErrorException experiments.ml_split_plan_for_request(project, Dict{String,Any}("splitPlanId" => "missing-split"), "dataset-helper")
+
+    validation_context = experiments.validate_ml_experiment_project_context(
+        projects,
+        Dict{String,Any}("projectId" => "experiment-helper", "splitPlanId" => "split-helper", "finalTestPolicy" => "forbid_final_test"),
+        "dataset-helper",
+    )
+    @test validation_context["projectId"] == "experiment-helper"
+    @test validation_context["splitPlanId"] == "split-helper"
+    @test validation_context["validationFraction"] == 0.2
+    @test_throws ErrorException experiments.validate_ml_experiment_project_context(
+        projects,
+        Dict{String,Any}("projectId" => "experiment-helper", "splitPlanId" => "split-helper", "finalTestPolicy" => "use_final_test"),
+        "dataset-helper",
+    )
+    project_missing_validation = DataScienceProjectRecord(project_id = "experiment-helper-missing-validation", name = "Missing Validation")
+    project_missing_validation.datasets = [Dict{String,Any}("datasetId" => "dataset-helper")]
+    project_missing_validation.split_plans = [Dict{String,Any}("splitPlanId" => "split-missing-validation", "datasetId" => "dataset-helper", "validationFraction" => 0.0, "testFraction" => 0.2)]
+    @test_throws ErrorException experiments.validate_ml_experiment_project_context(
+        Dict{String,DataScienceProjectRecord}(project_missing_validation.project_id => project_missing_validation),
+        Dict{String,Any}("projectId" => project_missing_validation.project_id),
+        "dataset-helper",
+    )
+end
+
+@testset "Data science project statistical helpers" begin
+    stats = JuliaFlowApiGateway.JuliaFlowDataScienceProjectStatistics
+    methods = stats.statistical_analysis_methods(
+        Dict{String,Any}("methods" => ["summary", "pearson correlation", "spearman_correlation", "ols", "anova", "t_test", "chi_square"]),
+    )
+    @test methods == ["summary", "pearson_correlation", "spearman_correlation", "ols", "anova", "t_test", "chi_square"]
+    @test_throws ErrorException stats.statistical_analysis_methods(Dict{String,Any}("methods" => ["remote_eval"]))
+
+    csv_path = joinpath(mktempdir(), "stats.csv")
+    write(
+        csv_path,
+        join(
+            [
+                "amount,margin,region,segment",
+                "10,1,East,A",
+                "20,2,East,B",
+                "30,3,West,A",
+                "40,4,West,B",
+            ],
+            "\n",
+        ),
+    )
+    dataset = Dict{String,Any}("datasetId" => "stats-sample", "sourceUri" => "local://data/stats.csv")
+    evidence = stats.local_csv_statistical_evidence_from_path(
+        dataset,
+        csv_path,
+        Dict{String,Any}(
+            "targetColumn" => "amount",
+            "featureColumns" => ["margin", "region", "segment"],
+        ),
+        methods,
+    )
+    @test evidence["executionMode"] == "local_csv"
+    @test evidence["rowCount"] == 4
+    @test evidence["numericColumns"] == ["amount", "margin"]
+    amount_summary = only(filter(summary -> summary["column"] == "amount", evidence["summaries"]))
+    @test amount_summary["mean"] == 25.0
+    @test evidence["inferentialTests"]["ols"]["featureColumn"] == "margin"
+    @test evidence["inferentialTests"]["ols"]["rSquared"] == 1.0
+    @test evidence["inferentialTests"]["anova"]["dfBetween"] == 1
+    @test evidence["inferentialTests"]["tTest"]["groups"] == ["East", "West"]
+    @test evidence["inferentialTests"]["chiSquare"]["degreesOfFreedom"] == 1
+    @test evidence["inferentialTests"]["spearmanCorrelation"]["columns"] == ["amount", "margin"]
+    @test stats.candidate_numeric_feature_columns(
+        Dict("row_id" => [1.0], "customer_id" => [2.0], "amount" => [3.0], "margin" => [4.0]),
+        "amount",
+    ) == ["margin"]
+    multi_ols = stats.simple_multi_linear_ols(
+        [15.0, 25.0, 35.0, 45.0],
+        ["margin" => [1.0, 2.0, 3.0, 4.0], "units" => [5.0, 6.0, 7.0, 8.0]],
+    )
+    @test multi_ols !== nothing
+    @test multi_ols["model"] == "simple_multi_linear_ols"
+    @test multi_ols["featureColumns"] == ["margin", "units"]
+    @test haskey(multi_ols["slopes"], "margin")
+    @test haskey(multi_ols["slopes"], "units")
+    @test multi_ols["rSquared"] > 0.99
+    classifier = stats.simple_binary_centroid_classifier(
+        [0.0, 0.0, 1.0, 1.0],
+        ["age" => [20.0, 25.0, 60.0, 65.0], "fare" => [8.0, 9.0, 80.0, 90.0]],
+    )
+    @test classifier !== nothing
+    @test classifier["model"] == "simple_binary_centroid_classifier"
+    @test classifier["featureColumns"] == ["age", "fare"]
+    @test classifier["positiveLabel"] == 1.0
+    @test classifier["trainAccuracy"] == 1.0
+    classifier_probabilities = stats.binary_centroid_probabilities(
+        classifier,
+        ["age" => [20.0, 65.0], "fare" => [8.0, 90.0]],
+        1:2,
+    )
+    @test classifier_probabilities[1] < 0.5
+    @test classifier_probabilities[2] > 0.5
+
+    code = stats.statistical_analysis_code_artifact(
+        "stats-sample",
+        methods,
+        Dict{String,Any}("targetColumn" => "amount", "featureColumns" => ["margin", "region"]),
+    )
+    @test occursin("# dataset: stats-sample", code)
+    @test occursin("# targetColumn: amount", code)
+    @test occursin("# featureColumns: margin, region", code)
+end
+
+@testset "Data science project registry helpers" begin
+    helper_project = DataScienceProjectRecord(
+        project_id = "project-registry-helper",
+        name = "Registry Helper Project",
+    )
+    helper_projects = Dict(helper_project.project_id => helper_project)
+    validation_context = Dict{String,Any}(
+        "projectId" => helper_project.project_id,
+        "evaluationReportId" => "eval-helper",
+    )
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.project_for_validation_context(
+        helper_projects,
+        validation_context,
+        "model registry",
+    ) === helper_project
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.project_for_validation_context(
+        helper_projects,
+        Dict{String,Any}(),
+        "model registry",
+    ) === nothing
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.project_for_validation_context(
+        helper_projects,
+        Dict{String,Any}("projectId" => "missing-project"),
+        "model registry",
+    )
+
+    first_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.upsert_model_registry_record!(
+        helper_project,
+        Dict{String,Any}(
+            "modelId" => "model-helper",
+            "status" => "registered",
+            "updatedAt" => "2026-06-22T00:00:00Z",
+        ),
+    )
+    @test first_record["status"] == "registered"
+    @test length(helper_project.model_registry_records) == 1
+    second_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.upsert_model_registry_record!(
+        helper_project,
+        Dict{String,Any}(
+            "modelId" => "model-helper",
+            "status" => "approved",
+            "updatedAt" => "2026-06-22T00:01:00Z",
+        ),
+    )
+    @test second_record["status"] == "approved"
+    @test length(helper_project.model_registry_records) == 1
+    @test helper_project.model_registry_records[1]["status"] == "approved"
+    other_project = DataScienceProjectRecord(
+        project_id = "project-registry-other",
+        name = "Registry Other Project",
+    )
+    other_project.model_registry_records = [
+        Dict{String,Any}("modelId" => "model-other", "workflowId" => "workflow-other", "updatedAt" => "2026-06-22T00:01:30Z"),
+    ]
+    helper_project.model_registry_records = [
+        Dict{String,Any}("modelId" => "model-helper", "workflowId" => "workflow-helper", "status" => "approved"),
+        Dict{String,Any}("modelId" => "model-sibling", "workflowId" => "workflow-helper", "status" => "registered"),
+        Dict{String,Any}("modelId" => "model-other-workflow", "workflowId" => "workflow-other", "status" => "registered"),
+    ]
+    workflow_records = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.project_model_registry_records_for_workflow(
+        Dict(helper_project.project_id => helper_project, other_project.project_id => other_project),
+        "workflow-helper",
+    )
+    @test [record["modelId"] for record in workflow_records] == ["model-helper", "model-sibling"]
+    deduped_records = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.dedupe_model_registry_records([
+        Dict{String,Any}("modelId" => "model-helper", "status" => "project"),
+        Dict{String,Any}("modelId" => "model-helper", "status" => "execution"),
+        Dict{String,Any}("status" => "missing-model"),
+        Dict{Symbol,Any}(:modelId => "model-sibling", :status => "execution"),
+    ])
+    @test length(deduped_records) == 2
+    @test deduped_records[1]["status"] == "project"
+    @test deduped_records[2]["modelId"] == "model-sibling"
+
+    lifecycle_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.upsert_model_lifecycle_record!(
+        helper_project,
+        validation_context,
+        "model-helper",
+        "validated";
+        updated_at = "2026-06-22T00:02:00Z",
+    )
+    @test lifecycle_record["evaluationReportId"] == "eval-helper"
+    deployed_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.upsert_model_lifecycle_record!(
+        helper_project,
+        validation_context,
+        "model-helper",
+        "deployed";
+        deployed_endpoint_id = "deploy-helper",
+        updated_at = "2026-06-22T00:03:00Z",
+    )
+    @test deployed_record["deployedEndpointId"] == "deploy-helper"
+    helper_project.model_lifecycle_records[1]["rollbackModelId"] = "model-helper-v0"
+    rolled_back_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.upsert_model_lifecycle_record!(
+        helper_project,
+        validation_context,
+        "model-helper",
+        "rolled_back";
+        updated_at = "2026-06-22T00:04:00Z",
+    )
+    @test rolled_back_record["deployedEndpointId"] == "deploy-helper"
+    @test rolled_back_record["rollbackModelId"] == "model-helper-v0"
+    @test length(helper_project.model_lifecycle_records) == 1
+    synced_registry_record = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.update_model_registry_lifecycle_status!(
+        helper_project,
+        "model-helper",
+        "approved",
+        "2026-06-22T00:05:00Z";
+        validation_evidence = Dict{String,Any}("lifecycleAction" => "approve_model"),
+    )
+    @test synced_registry_record["status"] == "approved"
+    @test synced_registry_record["validationEvidence"]["lifecycleAction"] == "approve_model"
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.update_model_registry_lifecycle_status!(
+        helper_project,
+        "missing-model",
+        "approved",
+        "2026-06-22T00:05:00Z",
+    )
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("approve_model") == "approved"
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("deprecate_model") == "deprecated"
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("archive_model") == "archived"
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("mark_rollback_ready") == "rollback_ready"
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("mark_rolled_back") == "rolled_back"
+    @test JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("request_retraining") == "retraining_requested"
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_state("delete_model")
+
+    action_project = DataScienceProjectRecord(
+        project_id = "project-lifecycle-action-helper",
+        name = "Lifecycle Action Helper",
+    )
+    action_project.model_lifecycle_records = [
+        Dict{String,Any}(
+            "modelId" => "model-action",
+            "state" => "deployed",
+            "deployedEndpointId" => "deploy-action",
+            "evaluationReportId" => "eval-action",
+        ),
+    ]
+    action_project.drift_reports = [Dict{String,Any}("driftReportId" => "drift-action")]
+    approval_project = DataScienceProjectRecord(
+        project_id = "project-lifecycle-approval-helper",
+        name = "Lifecycle Approval Helper",
+    )
+    approval_project.model_lifecycle_records = [
+        Dict{String,Any}(
+            "modelId" => "model-approval",
+            "state" => "validated",
+            "evaluationReportId" => "eval-approval",
+        ),
+    ]
+    approval_record, approval_index = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        approval_project,
+        Dict{String,Any}(
+            "modelId" => "model-approval",
+            "action" => "approve_model",
+            "reason" => "approved by validation board",
+        ),
+        "2026-06-25T00:00:00Z",
+    )
+    @test approval_index == 1
+    @test approval_record["state"] == "approved"
+    @test approval_record["validationEvidence"]["previousState"] == "validated"
+    @test approval_record["evaluationReportId"] == "eval-approval"
+    approval_project.model_lifecycle_records[1] = approval_record
+    deprecated_record, deprecated_index = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        approval_project,
+        Dict{String,Any}(
+            "modelId" => "model-approval",
+            "action" => "deprecate_model",
+            "reason" => "superseded",
+        ),
+        "2026-06-25T00:01:00Z",
+    )
+    @test deprecated_index == 1
+    @test deprecated_record["state"] == "deprecated"
+    @test deprecated_record["deprecationReason"] == "superseded"
+    approval_project.model_lifecycle_records[1] = deprecated_record
+    archived_record, archived_index = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        approval_project,
+        Dict{String,Any}(
+            "modelId" => "model-approval",
+            "action" => "archive_model",
+            "reason" => "retention period elapsed",
+        ),
+        "2026-06-25T00:02:00Z",
+    )
+    @test archived_index == 1
+    @test archived_record["state"] == "archived"
+    @test archived_record["archiveReason"] == "retention period elapsed"
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        action_project,
+        Dict{String,Any}(
+            "modelId" => "model-action",
+            "action" => "archive_model",
+        ),
+        "2026-06-25T00:00:00Z",
+    )
+    rollback_ready_record, rollback_ready_index = JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        action_project,
+        Dict{String,Any}(
+            "modelId" => "model-action",
+            "action" => "mark_rollback_ready",
+            "rollbackModelId" => "model-action-v0",
+            "driftReportId" => "drift-action",
+            "reason" => "validation drift",
+        ),
+        "2026-06-25T00:00:00Z",
+    )
+    @test rollback_ready_index == 1
+    @test rollback_ready_record["state"] == "rollback_ready"
+    @test rollback_ready_record["rollbackModelId"] == "model-action-v0"
+    @test rollback_ready_record["rollbackReason"] == "validation drift"
+    @test rollback_ready_record["evaluationReportId"] == "eval-action"
+    @test rollback_ready_record["validationEvidence"]["driftReportId"] == "drift-action"
+    @test rollback_ready_record["validationEvidence"]["previousState"] == "deployed"
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        action_project,
+        Dict{String,Any}(
+            "modelId" => "model-action",
+            "action" => "mark_rollback_ready",
+            "rollbackModelId" => "model-action",
+        ),
+        "2026-06-25T00:00:00Z",
+    )
+    @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowDataScienceProjectRegistry.model_lifecycle_action_record(
+        action_project,
+        Dict{String,Any}(
+            "modelId" => "model-action",
+            "action" => "request_retraining",
+            "driftReportId" => "missing-drift",
+        ),
+        "2026-06-25T00:00:00Z",
+    )
+end
+
+@testset "Data science project job helpers" begin
+    helper_project = DataScienceProjectRecord(
+        project_id = "project-job-helper",
+        name = "Job Helper Project",
+        schema_version = "1.0",
+    )
+    compute_settings = Dict{String,Any}(
+        "selectedBackend" => "cuda",
+        "schedulerPolicy" => "bounded_local",
+        "cpuWorkerConcurrency" => 2,
+        "cpuMemoryLimitBytes" => 4096,
+    )
+    empty_gpu_registry = Dict{String,Any}(
+        "device_count" => 0,
+        "devices" => Any[],
+    )
+    resource_evidence = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_resource_evidence(
+        compute_settings,
+        empty_gpu_registry;
+        execution_mode = "unit_test_job",
+        cpu_thread_count = 4,
+    )
+    @test resource_evidence["executionMode"] == "unit_test_job"
+    @test resource_evidence["requestedBackend"] == "cuda"
+    @test resource_evidence["selectedBackend"] == "cpu"
+    @test resource_evidence["dispatchLane"] == "cpu"
+    @test resource_evidence["workerPool"] == "local-cpu"
+    @test resource_evidence["gpuFallbackReason"] == "gpu_operation_not_implemented"
+    @test resource_evidence["evidenceVersion"] == 2
+    @test resource_evidence["actualExecutionBackend"] == "cpu"
+    @test resource_evidence["actualDeviceId"] == "cpu"
+    @test_throws "cuda_required" JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_resource_evidence(
+        merge(compute_settings, Dict("gpuPreference" => "cuda_required")),
+        empty_gpu_registry;
+        execution_mode = "unit_test_job",
+    )
+    @test resource_evidence["cpuThreadCount"] == 4
+
+    artifact_refs = [
+        Dict{String,Any}(
+            "refId" => "artifact-job-helper",
+            "kind" => "unit_test_artifact",
+            "localOnly" => true,
+        ),
+    ]
+    execution_evidence = Dict{String,Any}(
+        "executionId" => "dsjob-helper",
+        "workflowId" => "wf-helper",
+        "mode" => "local_project_job",
+        "status" => "completed",
+    )
+    job = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.record_project_job!(
+        helper_project,
+        "training";
+        dataset_id = "dataset-helper",
+        split_plan_id = "split-helper",
+        source_record_id = "source-helper",
+        output_refs = artifact_refs,
+        resource_evidence = resource_evidence,
+        execution_evidence = execution_evidence,
+        started_at = "2026-06-22T00:10:00Z",
+        finished_at = "2026-06-22T00:11:00Z",
+    )
+    @test length(helper_project.project_jobs) == 1
+    @test helper_project.project_jobs[1]["jobId"] == job["jobId"]
+    @test job["datasetId"] == "dataset-helper"
+    @test job["splitPlanId"] == "split-helper"
+    @test job["sourceRecordId"] == "source-helper"
+    @test job["outputRefs"][1]["kind"] == "unit_test_artifact"
+    @test job["resourceEvidence"]["selectedBackend"] == "cpu"
+    @test job["executionEvidence"]["executionId"] == "dsjob-helper"
+
+    execution, worker_id = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_execution_record(
+        helper_project,
+        "unit_test_job";
+        workflow_id = "wf-helper",
+        checkpoint_tag = "cp-helper",
+        dataset_id = "dataset-helper",
+        source_record_id = "source-helper",
+        output_refs = artifact_refs,
+        resource_evidence = resource_evidence,
+        started_at = "2026-06-22T00:12:00Z",
+        finished_at = "2026-06-22T00:13:00Z",
+        plan = ["validate_helper", "materialize_helper"],
+    )
+    @test startswith(execution.execution_id, "dsjob-")
+    @test execution.workflow_id == "wf-helper"
+    @test execution.checkpoint_tag == "cp-helper"
+    @test execution.mode == "local_project_job"
+    @test execution.plan == ["validate_helper", "materialize_helper"]
+    @test execution.metadata["data_science_project_job"]["project_id"] == helper_project.project_id
+    @test execution.metadata["data_science_project_job"]["job_type"] == "unit_test_job"
+    @test execution.metadata["data_science_project_job"]["dataset_id"] == "dataset-helper"
+    @test execution.metadata["data_science_project_job"]["source_record_id"] == "source-helper"
+    @test execution.metadata["artifact_refs"][1]["refId"] == "artifact-job-helper"
+    @test execution.metadata["resource_evidence"]["executionMode"] == "unit_test_job"
+    @test execution.metadata["worker_id"] == worker_id
+    @test execution.metadata["worker_dispatch"]["orchestrationMode"] == "gateway_worker_dispatch"
+    @test execution.metadata["worker_dispatch"]["dispatchStatus"] == "completed"
+    @test execution.metadata["worker_dispatch"]["workerPool"] == "local-cpu"
+    @test execution.metadata["worker_dispatch"]["dispatchLane"] == "cpu"
+    compact_evidence = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_execution_evidence(execution, worker_id)
+    @test compact_evidence["executionId"] == execution.execution_id
+    @test compact_evidence["workflowId"] == "wf-helper"
+    @test compact_evidence["workerId"] == worker_id
+    @test compact_evidence["orchestrationMode"] == "gateway_worker_dispatch"
+    @test compact_evidence["dispatchStatus"] == "completed"
+    @test compact_evidence["workerPool"] == "local-cpu"
+    @test compact_evidence["dispatchLane"] == "cpu"
+    @test compact_evidence["startedAt"] == "2026-06-22T00:12:00Z"
+    @test compact_evidence["finishedAt"] == "2026-06-22T00:13:00Z"
+
+    worker_execution, worker_backed_id = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_execution_record(
+        helper_project,
+        "unit_test_worker_job";
+        workflow_id = "wf-helper",
+        checkpoint_tag = "cp-helper",
+        source_record_id = "source-helper",
+        resource_evidence = resource_evidence,
+        started_at = "2026-06-22T00:14:00Z",
+        plan = ["validate_worker_helper", "materialize_worker_helper"],
+        worker_backed = true,
+    )
+    @test worker_execution.status == "accepted"
+    @test worker_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+    @test worker_execution.metadata["worker_dispatch"]["dispatchStatus"] == "accepted"
+    worker_service = JuliaFlowApiGateway.JuliaFlowWorkerService.WorkerServiceState()
+    worker_executions = Any[worker_execution]
+    first_worker_tick = JuliaFlowApiGateway.JuliaFlowWorkerService.process_data_science_project_job_tick!(
+        worker_service,
+        worker_executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = JuliaFlowApiGateway.JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test first_worker_tick[1].status == "queued"
+    second_worker_tick = JuliaFlowApiGateway.JuliaFlowWorkerService.process_data_science_project_job_tick!(
+        worker_service,
+        worker_executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = JuliaFlowApiGateway.JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test second_worker_tick[1].status == "running"
+    third_worker_tick = JuliaFlowApiGateway.JuliaFlowWorkerService.process_data_science_project_job_tick!(
+        worker_service,
+        worker_executions;
+        execution_record = JuliaFlowApiGateway.execution_record,
+        transition_execution_record = JuliaFlowApiGateway.JuliaFlowGatewayRepository.JuliaFlowExecutionService.transition_execution_record,
+        materialize_execution = JuliaFlowApiGateway.materialize_execution,
+    )
+    @test third_worker_tick[1].status == "completed"
+    @test third_worker_tick[1].metadata["worker_dispatch"]["dispatchStatus"] == "completed"
+    @test third_worker_tick[1].metadata["data_science_project_worker_state"]["job_type"] == "unit_test_worker_job"
+    worker_backed_evidence = JuliaFlowApiGateway.JuliaFlowDataScienceProjectJobs.project_job_execution_evidence(third_worker_tick[1], worker_backed_id)
+    @test worker_backed_evidence["status"] == "completed"
+    @test worker_backed_evidence["orchestrationMode"] == "worker_service_tick"
+    @test worker_backed_evidence["dispatchStatus"] == "completed"
 end
 
 @testset "Node SDK" begin
@@ -306,6 +2204,33 @@ end
             JuliaFlowApiGateway.JuliaFlowGatewayRepository.FileGatewayRepository(store_root),
         )
         run_gateway_repository_contract!(file_repo; label = "File")
+    end
+
+    @testset "PostgreSQL identifier guard" begin
+        repo = JuliaFlowApiGateway.JuliaFlowGatewayRepository.PostgreSQLGatewayRepository(
+            "postgres://user:pass@localhost/db";
+            schema = "juliaflow_lab_01",
+        )
+        @test repo.schema == "juliaflow_lab_01"
+        @test JuliaFlowApiGateway.JuliaFlowGatewayRepository.validate_postgres_identifier!("public", "PostgreSQL schema") == "public"
+        @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.PostgreSQLGatewayRepository(
+            "postgres://user:pass@localhost/db";
+            schema = "public;DROP SCHEMA public",
+        )
+        @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.PostgreSQLGatewayRepository(
+            "postgres://user:pass@localhost/db";
+            schema = "public.users",
+        )
+        @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.PostgreSQLGatewayRepository(
+            "postgres://user:pass@localhost/db";
+            schema = "juliaflow-lab",
+        )
+        @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.PostgreSQLGatewayRepository(
+            "postgres://user:pass@localhost/db";
+            schema = "1juliaflow",
+        )
+        @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.validate_postgres_identifier!("", "PostgreSQL schema")
+        @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.validate_postgres_identifier!(repeat("a", 64), "PostgreSQL schema")
     end
 
     @testset "PostgreSQL integration scaffold" begin
@@ -1106,6 +3031,10 @@ end
     )
     @test promoted_gpu.status == "running"
     @test promoted_gpu.execution_id in service.gpu_execution_ids
+    @test JuliaFlowWorkerService.cuda_failure_reason(ErrorException("CUDA.jl was precompiled for CUDA 13.2")) == "runtime_mismatch"
+    @test JuliaFlowWorkerService.cuda_failure_reason(ErrorException("insufficient driver")) == "driver_mismatch"
+    @test JuliaFlowWorkerService.cuda_failure_reason(ErrorException("out of memory")) == "insufficient_vram"
+    @test JuliaFlowWorkerService.cuda_failure_reason(ErrorException("device permission denied")) == "device_inaccessible"
 
     completed_gpu = process_gpu_compute_tick!(
         service,
@@ -1116,104 +3045,167 @@ end
         materialize_execution = JuliaFlowApiGateway.materialize_execution,
     )
     @test length(completed_gpu) == 1
-    @test completed_gpu[1].status == "completed"
-    @test completed_gpu[1].metadata["gpu_execution_path"] == "gpu"
-    @test completed_gpu[1].metadata["gpu_device_id"] == "nvidia0"
-    @test completed_gpu[1].metadata["gpu_requested_device"] == "nvidia0"
-    @test completed_gpu[1].metadata["gpu_selected_device"] == "nvidia0"
-    @test completed_gpu[1].metadata["gpu_fallback_reason"] == "none"
-    @test completed_gpu[1].metadata["gpu_placement_reason"] == "requested_device_match"
-    @test completed_gpu[1].metadata["gpu_scheduler_policy"] == "deterministic_device_id"
-    @test completed_gpu[1].metadata["gpu_worker_isolation_mode"] == "isolated"
-    @test completed_gpu[1].metadata["gpu_worker_capacity"]["device_count"] == 1
-    @test completed_gpu[1].metadata["gpu_workload_result"]["sum"] == 10.0
+    @test completed_gpu[1].status == "failed"
+    @test completed_gpu[1].metadata["gpu_execution_path"] == "unavailable"
+    @test completed_gpu[1].metadata["gpu_fallback_reason"] == "no_supported_gpu_workload"
+    @test completed_gpu[1].metadata["gpu_probe_status"] == "unprobed"
+    @test completed_gpu[1].metadata["gpu_actual_device"] == "none"
+    @test !haskey(completed_gpu[1].metadata, "gpu_workload_result")
 
-    requested_gpu_workflow = load_workflow_definition_text(replace(gpu_workflow_text, "gpuDevicePreference = \"nvidia0\"" => "gpuDevicePreference = \"nvidia1\""))
-    _, requested_completed = complete_gpu_workflow_once(requested_gpu_workflow; registry = "cuda:nvidia0,cuda:nvidia1")
-    @test requested_completed.metadata["gpu_execution_path"] == "gpu"
-    @test requested_completed.metadata["gpu_requested_device"] == "nvidia1"
-    @test requested_completed.metadata["gpu_selected_device"] == "nvidia1"
-    @test requested_completed.metadata["gpu_fallback_reason"] == "none"
-    @test requested_completed.metadata["gpu_request_satisfied"] == true
-    @test requested_completed.metadata["gpu_placement_fallback_used"] == false
-
-    requested_alias_gpu_workflow = load_workflow_definition_text(replace(gpu_workflow_text, "gpuDevicePreference = \"nvidia0\"" => "gpuDevicePreference = \"nvidia:1\""))
-    _, requested_alias_completed = complete_gpu_workflow_once(requested_alias_gpu_workflow; registry = "cuda:nvidia0,cuda:nvidia1")
-    @test requested_alias_completed.metadata["gpu_requested_device"] == "nvidia:1"
-    @test requested_alias_completed.metadata["gpu_selected_device"] == "nvidia1"
-    @test requested_alias_completed.metadata["gpu_fallback_reason"] == "none"
-    @test requested_alias_completed.metadata["gpu_request_satisfied"] == true
-
-    no_request_text = replace(gpu_workflow_text, ", gpuDevicePreference = \"nvidia0\"" => "")
-    no_request_workflow = load_workflow_definition_text(no_request_text)
-    no_request_queued, no_request_completed = complete_gpu_workflow_once(no_request_workflow; registry = "cuda:nvidia2,cuda:nvidia0")
-    @test !haskey(no_request_queued.metadata, "dispatch_requested_device")
-    @test no_request_completed.metadata["gpu_selected_device"] == "nvidia0"
-    @test !haskey(no_request_completed.metadata, "gpu_requested_device")
-    @test no_request_completed.metadata["gpu_placement_reason"] == "deterministic_default"
-    @test no_request_completed.metadata["gpu_worker_capacity"]["device_count"] == 2
-
-    invalid_gpu_workflow = load_workflow_definition_text(replace(gpu_workflow_text, "gpuDevicePreference = \"nvidia0\"" => "gpuDevicePreference = \"missing-device\""))
-    _, invalid_completed = complete_gpu_workflow_once(invalid_gpu_workflow; registry = "cuda:nvidia2,cuda:nvidia0")
-    @test invalid_completed.metadata["gpu_execution_path"] == "gpu"
-    @test invalid_completed.metadata["gpu_requested_device"] == "missing-device"
-    @test invalid_completed.metadata["gpu_selected_device"] == "nvidia0"
-    @test invalid_completed.metadata["gpu_fallback_used"] == false
-    @test invalid_completed.metadata["gpu_cpu_fallback_used"] == false
-    @test invalid_completed.metadata["gpu_placement_fallback_used"] == true
-    @test invalid_completed.metadata["gpu_request_satisfied"] == false
-    @test invalid_completed.metadata["gpu_fallback_reason"] == "requested_device_unavailable"
-    @test invalid_completed.metadata["gpu_placement_reason"] == "deterministic_default_after_request_miss"
-
-    withenv("JULIAFLOW_GPU_REGISTRY" => "") do
-        fallback_executions = GatewayExecution[]
-        push!(fallback_executions, JuliaFlowApiGateway.materialize_execution(execute_workflow(gpu_workflow; checkpoint_tag = "cp/03-alpha-gpu-bi")))
-        fallback_service = WorkerServiceState()
-        fallback_queued = activate_gpu_execution!(
-            fallback_service,
-            fallback_executions,
-            fallback_executions[1].execution_id;
-            execution_record = JuliaFlowApiGateway.execution_record,
-            transition_execution_record = transition_execution_record,
-            materialize_execution = JuliaFlowApiGateway.materialize_execution,
-        )
-        fallback_running = promote_gpu_execution!(
-            fallback_service,
-            fallback_executions,
-            fallback_queued.execution_id;
-            execution_record = JuliaFlowApiGateway.execution_record,
-            transition_execution_record = transition_execution_record,
-            materialize_execution = JuliaFlowApiGateway.materialize_execution,
-        )
-        fallback_completed = process_gpu_compute_tick!(
-            fallback_service,
-            workflows,
-            fallback_executions;
-            execution_record = JuliaFlowApiGateway.execution_record,
-            transition_execution_record = transition_execution_record,
-            materialize_execution = JuliaFlowApiGateway.materialize_execution,
-        )
-        @test fallback_running.status == "running"
-        @test length(fallback_completed) == 1
-        @test fallback_completed[1].metadata["gpu_execution_path"] == "cpu_fallback"
-        @test fallback_completed[1].metadata["gpu_fallback_used"] == true
-        @test fallback_completed[1].metadata["gpu_cpu_fallback_used"] == true
-        @test fallback_completed[1].metadata["gpu_placement_fallback_used"] == true
-        @test fallback_completed[1].metadata["gpu_request_satisfied"] == false
-        @test fallback_completed[1].metadata["gpu_selected_device"] == "cpu-fallback"
-        @test fallback_completed[1].metadata["gpu_fallback_reason"] == "registry_empty"
-        @test fallback_completed[1].metadata["gpu_placement_reason"] == "no_matching_gpu_device"
-        @test fallback_completed[1].metadata["gpu_worker_capacity"]["device_count"] == 0
+    # Registry strings are fixtures, even when they spell "cuda". A preferred
+    # mock runs on CPU and cannot record hardware-executed GPU evidence.
+    preferred_text = replace(gpu_workflow_text, "execution_hint = \"gpu_required\"" => "execution_hint = \"gpu_preferred\"")
+    preferred = load_workflow_definition_text(preferred_text)
+    _, preferred_completed = complete_gpu_workflow_once(preferred; registry = "cuda:nvidia0,cuda:nvidia1")
+    @test preferred_completed.status == "completed"
+    @test preferred_completed.metadata["gpu_execution_path"] == "cpu_fallback"
+    @test preferred_completed.metadata["gpu_actual_device"] == "cpu"
+    @test preferred_completed.metadata["gpu_evidence_version"] == 2
+    @test preferred_completed.metadata["gpu_registry"]["device_count"] == 0
+    @test preferred_completed.metadata["gpu_registry"]["simulated_device_count"] == 2
+    @test preferred_completed.metadata["gpu_workload_result"]["sum"] == 10.0
+    @test preferred_completed.metadata["gpu_fallback_reason"] == "mock_workload_cpu_only"
+    preferred_payload = JuliaFlowApiGateway.execution_payload(preferred_completed)
+    @test preferred_payload["gpuEvidenceVersion"] == 2
+    @test preferred_payload["gpuProbeStatus"] == "unprobed"
+    @test preferred_payload["gpuActualDevice"] == "cpu"
+    restored_preferred = JuliaFlowApiGateway.JuliaFlowGatewayRepository.gateway_execution(preferred_payload)
+    @test restored_preferred.metadata["gpu_actual_device"] == "cpu"
+    @test restored_preferred.metadata["gpu_evidence_version"] == 2
+    mktempdir() do root
+        repo = JuliaFlowApiGateway.JuliaFlowGatewayRepository.FileGatewayRepository(root)
+        JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_execution!(repo, preferred_completed)
+        loaded = only(JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_executions(repo))
+        @test loaded.metadata["gpu_actual_device"] == "cpu"
+        @test loaded.metadata["gpu_evidence_version"] == 2
+        @test loaded.metadata["gpu_execution_path"] == "cpu_fallback"
     end
+
+    # A real CUDA workload on a machine with probing disabled is a controlled
+    # missing-device scenario, independent of this test host's GPU.
+    cuda_text = replace(gpu_workflow_text, "mock_vector_sum" => "cuda_ka_vector_affine")
+    required_cuda = load_workflow_definition_text(cuda_text)
+    preferred_cuda = load_workflow_definition_text(replace(cuda_text, "execution_hint = \"gpu_required\"" => "execution_hint = \"gpu_preferred\""))
+    withenv("JULIAFLOW_DISABLE_HARDWARE_PROBE" => "1") do
+        disabled_registry = JuliaFlowWorkerService.gpu_registry_health(; probe = true)
+        @test disabled_registry["probe_status"] == "skipped"
+        @test all(device -> device["probe_status"] == "skipped", filter(device -> device["mode"] == "hardware", disabled_registry["devices"]))
+        _, required_result = complete_gpu_workflow_once(required_cuda; registry = "cuda:invented")
+        @test required_result.status == "failed"
+        @test required_result.metadata["gpu_execution_path"] == "unavailable"
+        @test required_result.metadata["gpu_fallback_reason"] == "probe_disabled"
+        @test !haskey(required_result.metadata, "gpu_workload_result")
+
+        _, preferred_result = complete_gpu_workflow_once(preferred_cuda; registry = "cuda:invented")
+        @test preferred_result.status == "completed"
+        @test preferred_result.metadata["gpu_execution_path"] == "cpu_fallback"
+        @test preferred_result.metadata["gpu_workload_result"]["kind"] == "cpu_vector_affine"
+        @test preferred_result.metadata["gpu_workload_result"]["sum"] == 24.0
+        @test preferred_result.metadata["gpu_actual_device"] == "cpu"
+        @test preferred_result.metadata["gpu_fallback_reason"] == "probe_disabled"
+    end
+
+    if get(ENV, "JULIAFLOW_CUDA_SMOKE", "0") == "1"
+        live_registry = JuliaFlowWorkerService.gpu_registry_health(; probe = true)
+        @test live_registry["probe_status"] == "passed"
+        live_devices = filter(device -> get(device, "usable", false), live_registry["devices"])
+        @test !isempty(live_devices)
+        if !isempty(live_devices)
+            _, live_result = complete_gpu_workflow_once(required_cuda; registry = "")
+            @test live_result.status == "completed"
+            @test live_result.metadata["gpu_execution_path"] == "gpu"
+            @test live_result.metadata["gpu_actual_device"] == live_result.metadata["gpu_selected_device"]
+            @test live_result.metadata["gpu_actual_device"] == live_result.metadata["gpu_workload_result"]["actual_device_id"]
+            @test live_result.metadata["gpu_workload_result"]["sum"] == 24.0
+        end
+    end
+
+    bad_text = replace(preferred_text, "mock_vector_sum" => "unsupported_kernel")
+    _, bad_result = complete_gpu_workflow_once(load_workflow_definition_text(bad_text); registry = "mock:invented")
+    @test bad_result.status == "failed"
+    @test bad_result.metadata["gpu_fallback_reason"] == "gpu_execution_error"
+    @test bad_result.metadata["gpu_fallback_used"] == false
 end
 
 @testset "API Gateway" begin
     foundation_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "foundation.workflow.toml")
     parallel_path = joinpath(@__DIR__, "..", "contracts", "fixtures", "parallel.workflow.toml")
 
+    mktempdir() do home
+        withenv("JULIAFLOW_HOME" => home, "JULIAFLOW_METADATA_MODE" => "file") do
+            required_state = foundation_state(foundation_path; store_root = joinpath(home, "store"))
+            JuliaFlowApiGateway.save_compute_settings!(required_state,
+                merge(JuliaFlowApiGateway.default_compute_settings(), Dict("gpuPreference" => "cuda_required")))
+            before_projects = length(required_state.data_science_projects)
+            @test_throws "cuda_required" JuliaFlowApiGateway.data_import_profile_response!(required_state, Dict{String,Any}())
+            @test length(required_state.data_science_projects) == before_projects
+        end
+    end
+
     mktempdir() do store_root
         state = foundation_state(foundation_path; store_root = store_root)
         reloaded = load_state(store_root)
+        import_root = mktempdir()
+        import_source_path = joinpath(import_root, "foundation-profile.csv")
+        json_import_path = joinpath(import_root, "foundation-profile.json")
+        symlink_source_path = joinpath(import_root, "foundation-profile-link.csv")
+        secret_source_path = joinpath(import_root, "secrets.csv")
+        large_source_path = joinpath(import_root, "large-profile.csv")
+        unsupported_source_path = joinpath(import_root, "profile.exe")
+        credential_content_path = joinpath(import_root, "profile-with-auth-column.csv")
+        pii_content_path = joinpath(import_root, "profile-with-pii.csv")
+        file_output_contract_path = joinpath(import_root, "foundation-file-submission.json")
+        data_estate_root = mktempdir()
+        foundation_raw_data_dir = joinpath(data_estate_root, "raw")
+        foundation_contract_dir = joinpath(data_estate_root, "contracts")
+        mkpath(foundation_raw_data_dir)
+        mkpath(foundation_contract_dir)
+        foundation_dataset_path = joinpath(foundation_raw_data_dir, "foundation-sales-sample.csv")
+        managed_sensitive_dataset_path = joinpath(foundation_raw_data_dir, "managed-sensitive.csv")
+        foundation_output_contract_path = joinpath(foundation_contract_dir, "foundation-submission.json")
+        write(import_source_path, "region,amount,window\nnorth,12.5,2026-Q2\nsouth,9.5,2026-Q2\n")
+        write(json_import_path, "[{\"region\":\"north\"}]")
+        symlink_source_available = try
+            symlink(import_source_path, symlink_source_path)
+            isfile(symlink_source_path)
+        catch
+            false
+        end
+        write(secret_source_path, "api_key,value\nredacted,1\n")
+        write(large_source_path, repeat("x", 2048))
+        write(unsupported_source_path, "not,a,dataset\n")
+        write(credential_content_path, "region,amount,access_token\nnorth,12.5,redacted\n")
+        write(pii_content_path, "customer_id,ssn,amount\n1,000-00-0000,12.5\n")
+        write(
+            file_output_contract_path,
+            JSON3.write(
+                Dict(
+                    "contractId" => "contract://outputs/file-foundation-submission",
+                    "columns" => [
+                        Dict("name" => "row_id", "sourceColumn" => "prediction_id", "required" => true),
+                        Dict("name" => "score", "sourceColumn" => "prediction", "type" => "float64", "required" => true),
+                    ],
+                ),
+            ),
+        )
+        write(foundation_dataset_path, "region,segment,amount,margin\nnorth,retail,10,2\nsouth,enterprise,20,4\nnorth,retail,30,9\nsouth,enterprise,40,11\n")
+        write(managed_sensitive_dataset_path, "customer_id,ssn,amount\n1,000-00-0000,12.5\n")
+        write(
+            foundation_output_contract_path,
+            JSON3.write(
+                Dict(
+                    "contractId" => "contract://outputs/imported-foundation-submission",
+                    "columns" => [
+                        Dict("name" => "row_id", "sourceColumn" => "prediction_id", "required" => true),
+                        Dict("name" => "score", "sourceColumn" => "prediction", "type" => "float64", "required" => true),
+                    ],
+                    "primaryKey" => ["row_id"],
+                ),
+            ),
+        )
+        ENV["JULIAFLOW_IMPORT_ROOTS"] = import_root
+        ENV["JULIAFLOW_IMPORT_MAX_BYTES"] = "1024"
+        ENV["JULIAFLOW_DATA_ESTATE_ROOT"] = data_estate_root
         updated_toml = replace(read(foundation_path, String), "Foundation PoC" => "Foundation PoC Updated")
         foundation_workflow_payload = Dict{String,Any}(
             "workflow" => Dict(
@@ -1357,10 +3349,15 @@ end
         ENV["JULIAFLOW_LOCAL_PROFILE"] = "single-user"
         ENV["JULIAFLOW_HOME"] = store_root
         ENV["JULIAFLOW_DATA_ESTATE_ROOT"] = joinpath(store_root, "data-estate")
+        runtime_raw_data_dir = joinpath(ENV["JULIAFLOW_DATA_ESTATE_ROOT"], "raw")
+        mkpath(runtime_raw_data_dir)
+        cp(foundation_dataset_path, joinpath(runtime_raw_data_dir, basename(foundation_dataset_path)); force = true)
+        cp(managed_sensitive_dataset_path, joinpath(runtime_raw_data_dir, basename(managed_sensitive_dataset_path)); force = true)
         ENV["JULIAFLOW_APPLIANCE_BOOTSTRAP"] = "1"
         @test occursin("\"status\":\"ok\"", healthcheck(state))
         @test occursin("\"localProfile\":\"single-user\"", healthcheck(state))
         health_payload = JSON3.read(healthcheck(state), Dict{String,Any})
+        @test health_payload["juliaVersion"] == string(VERSION)
         @test health_payload["runtimeMode"] == "development"
         @test health_payload["runtime"]["mode"] == "development"
         @test health_payload["runtime"]["fixtureProvenance"] == "backend"
@@ -1396,6 +3393,11 @@ end
         @test health_payload["dataEstateCleanupStatus"] == "ready"
         @test health_payload["dataEstateBackupStatus"] == "ready"
         @test health_payload["dataEstateDuckdbStatus"] == "ready"
+        duckdb_query = read(String(health_payload["dataEstateDuckdbQueryPath"]), String)
+        @test occursin(replace(String(health_payload["dataEstateRoot"]), "\\" => "/"), duckdb_query)
+        @test !occursin("read_parquet('processed/**/*.parquet')", duckdb_query)
+        @test health_payload["workspaceSummary"]["diskUsedBytes"] == health_payload["dataEstateUsedBytes"]
+        @test all(!occursin("churn_model_v1", String(artifact["path"])) for artifact in health_payload["workspaceSummary"]["artifacts"])
         @test health_payload["hardwareProfileStatus"] == "ready"
         @test health_payload["hardwareSelectedBackend"] in ["cpu", "cuda", "simulated_cuda"]
         @test health_payload["cpuSchedulerPolicy"] == "bounded_threads"
@@ -1406,11 +3408,15 @@ end
         @test health_payload["computeSettings"]["selectedBackend"] in ["cpu", "cuda", "simulated_cuda"]
         @test health_payload["computeSettings"]["cpuWorkerConcurrency"] == health_payload["cpuWorkerConcurrency"]
         @test health_payload["computeSettings"]["cpuMemoryLimitBytes"] == health_payload["cpuMemoryLimitBytes"]
-        @test health_payload["gpuCudaStatus"] in ["not_requested", "requested", "ready", "unavailable"]
+        @test health_payload["gpuCudaStatus"] in ["not_requested", "requested", "ready", "unavailable", "unprobed", "passed", "failed", "skipped"]
         @test health_payload["gpuHardwareDeviceCount"] >= 0
+        @test health_payload["gpuCudaInstalled"] isa Bool
+        @test health_payload["gpuVisibleDeviceCount"] >= health_payload["gpuHardwareDeviceCount"]
         @test health_payload["gpuSimulatedDeviceCount"] >= 0
         @test health_payload["gpuTotalVramBytes"] >= 0
-        @test length(health_payload["gpuDeviceSummaries"]) == health_payload["gpuHardwareDeviceCount"] + health_payload["gpuSimulatedDeviceCount"]
+        @test length(health_payload["gpuDeviceSummaries"]) >= health_payload["gpuHardwareDeviceCount"] + health_payload["gpuSimulatedDeviceCount"]
+        @test health_payload["hardwareSelectedBackend"] == "cpu"
+        @test health_payload["hardwareRequestedBackend"] in ["cpu", "cuda", "simulated_cuda"]
         @test health_payload["explainabilityEvidence"]["status"] == "ready"
         @test health_payload["explainabilityEvidence"]["datasetCard"]["datasetId"] == "foundation-sales-sample"
         @test health_payload["explainabilityEvidence"]["modelCard"]["kind"] == "deterministic_linear_baseline"
@@ -1635,9 +3641,895 @@ end
                 JSON3.write(
                     Dict(
                         "datasetId" => "Foundation Profile",
+                        "sourceUri" => import_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_json_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "JSON Profile", "sourceUri" => json_import_path, "format" => "json")),
+            ),
+        )
+        data_import_named_response = route_request(
+            state,
+            HTTP.Request("POST", "/api/v1/local-data/import", ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "Superstore", "sourceUri" => import_source_path, "format" => "csv"))),
+        )
+        data_import_managed_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Managed Foundation Profile",
+                        "sourceUri" => "local://data/raw/foundation-sales-sample.csv",
+                        "connector" => "managed_local",
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_missing_managed_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "Missing Managed", "sourceUri" => "local://data/raw/missing.csv", "connector" => "managed_local")),
+            ),
+        )
+        data_import_sensitive_managed_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "Sensitive Managed", "sourceUri" => "local://data/raw/managed-sensitive.csv", "connector" => "managed_local")),
+            ),
+        )
+        data_import_managed_connector_mismatch_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "Managed Mismatch", "sourceUri" => import_source_path, "connector" => "managed_local")),
+            ),
+        )
+        data_import_file_connector_mismatch_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "File Mismatch", "sourceUri" => "local://data/raw/foundation-sales-sample.csv", "connector" => "local_file")),
+            ),
+        )
+        data_import_duckdb_connector_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "DuckDB Source", "sourceUri" => import_source_path, "connector" => "duckdb")),
+            ),
+        )
+        data_import_postgres_unavailable_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict(
+                    "datasetId" => "PostgreSQL Source",
+                    "sourceUri" => import_source_path,
+                    "connector" => "postgresql",
+                    "databaseSchema" => "analytics",
+                    "databaseTable" => "orders",
+                )),
+            ),
+        )
+        data_import_remote_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Remote Profile",
+                        "sourceUri" => "https://example.com/profile.csv",
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_symlink_source_response = symlink_source_available ? route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Symlink Profile",
+                        "sourceUri" => symlink_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        ) : nothing
+        data_import_escape_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Escaped Profile",
                         "sourceUri" => foundation_path,
                         "format" => "csv",
                         "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_secret_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Secret Profile",
+                        "sourceUri" => secret_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_large_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Large Profile",
+                        "sourceUri" => large_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_unsupported_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Unsupported Profile",
+                        "sourceUri" => unsupported_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_bad_postgres_table_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Bad Postgres Table Profile",
+                        "sourceUri" => import_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                        "connector" => "postgresql",
+                        "databaseSchema" => "analytics",
+                        "databaseTable" => "orders;drop_table",
+                    ),
+                ),
+            ),
+        )
+        data_import_credential_content_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "Credential Content Profile",
+                        "sourceUri" => credential_content_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_import_pii_content_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "PII Content Profile",
+                        "sourceUri" => pii_content_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        data_science_project_create_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "wellbore-geology",
+                        "name" => "Wellbore Geology",
+                        "description" => "Local workstation project",
+                        "datasets" => [
+                            Dict(
+                                "datasetId" => "wellbore-train",
+                                "name" => "Wellbore train",
+                                "role" => "train",
+                                "sourceUri" => "local://data/raw/wellbore/train.csv",
+                                "localOnly" => true,
+                                "rowCount" => 100,
+                                "columnCount" => 8,
+                            ),
+                        ],
+                        "schemaContracts" => [
+                            Dict(
+                                "schemaId" => "schema-wellbore",
+                                "datasetId" => "wellbore-train",
+                                "updatedAt" => "2026-06-21T00:00:00Z",
+                                "columns" => [
+                                    Dict("name" => "depth", "inferredType" => "Float64", "logicalType" => "continuous", "role" => "depth", "nullable" => false),
+                                    Dict("name" => "lithology", "inferredType" => "String", "logicalType" => "categorical", "role" => "target", "nullable" => false),
+                                ],
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
+        data_science_project_list_response = route_request(state, HTTP.Request("GET", "/api/v1/data-science-projects"))
+        data_science_project_get_response = route_request(state, HTTP.Request("GET", "/api/v1/data-science-projects/wellbore-geology"))
+        data_science_project_update_response = route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/data-science-projects/wellbore-geology",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "name" => "Wellbore Geology Updated",
+                        "splitPlans" => [
+                            Dict(
+                                "splitPlanId" => "split-wellbore-depth",
+                                "datasetId" => "wellbore-train",
+                                "strategy" => "depth",
+                                "locked" => true,
+                                "createdAt" => "2026-06-21T00:00:00Z",
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
+        data_science_project_missing_name_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("description" => "Missing required name")),
+            ),
+        )
+        data_science_project_duplicate_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("projectId" => "wellbore-geology", "name" => "Duplicate Wellbore Geology")),
+            ),
+        )
+        data_science_project_bad_schema_version_response = route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/data-science-projects/wellbore-geology",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("schemaVersion" => "2.0")),
+            ),
+        )
+        data_science_project_bad_child_shape_response = route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/data-science-projects/wellbore-geology",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("splitPlans" => Dict("splitPlanId" => "not-an-array"))),
+            ),
+        )
+        data_science_project_id_mismatch_response = route_request(
+            state,
+            HTTP.Request(
+                "PUT",
+                "/api/v1/data-science-projects/wellbore-geology",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("projectId" => "other-project")),
+            ),
+        )
+        data_science_project_remote_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "remote-source-project",
+                        "name" => "Remote Source Project",
+                        "datasets" => [
+                            Dict(
+                                "datasetId" => "remote-source",
+                                "name" => "Remote source",
+                                "role" => "train",
+                                "sourceUri" => "https://example.com/data.csv",
+                                "localOnly" => true,
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
+        data_science_project_traversal_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "traversal-source-project",
+                        "name" => "Traversal Source Project",
+                        "datasets" => [
+                            Dict(
+                                "datasetId" => "traversal-source",
+                                "name" => "Traversal source",
+                                "role" => "train",
+                                "sourceUri" => "local://data/raw/../secrets.csv",
+                                "localOnly" => true,
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
+        data_science_project_nonlocal_source_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "nonlocal-source-project",
+                        "name" => "Nonlocal Source Project",
+                        "datasets" => [
+                            Dict(
+                                "datasetId" => "nonlocal-source",
+                                "name" => "Nonlocal source",
+                                "role" => "train",
+                                "sourceUri" => "local://data/raw/nonlocal.csv",
+                                "localOnly" => false,
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
+        data_science_project_missing_response = route_request(state, HTTP.Request("GET", "/api/v1/data-science-projects/missing-project"))
+        ENV["JULIAFLOW_DATA_ESTATE_ROOT"] = data_estate_root
+        data_science_project_foundation_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "foundation-ml-project",
+                        "name" => "Foundation ML Project",
+                        "datasets" => [
+                            Dict(
+                                "datasetId" => "foundation-sales-sample",
+                                "name" => "Foundation sales sample",
+                                "role" => "train",
+                                "sourceUri" => "local://data/raw/foundation-sales-sample.csv",
+                                "localOnly" => true,
+                            ),
+                        ],
+                        "schemaContracts" => [
+                            Dict(
+                                "schemaId" => "schema-foundation-sales",
+                                "datasetId" => "foundation-sales-sample",
+                                "updatedAt" => "2026-06-21T00:00:00Z",
+                                "columns" => [
+                                    Dict("name" => "amount", "inferredType" => "Float64", "logicalType" => "continuous", "role" => "target", "nullable" => false),
+                                    Dict("name" => "region", "inferredType" => "String", "logicalType" => "categorical", "role" => "group", "nullable" => false),
+                                    Dict("name" => "margin", "inferredType" => "Float64", "logicalType" => "continuous", "role" => "feature", "nullable" => false),
+                                ],
+                            ),
+                        ],
+                        "splitPlans" => [
+                            Dict(
+                                "splitPlanId" => "split-foundation-random",
+                                "datasetId" => "foundation-sales-sample",
+                                "strategy" => "random",
+                                # Train rows 1/4, validation row 2, final-test row 3.
+                                "seed" => 3,
+                                "trainFraction" => 0.7,
+                                "validationFraction" => 0.15,
+                                "testFraction" => 0.15,
+                                "groupColumn" => "region",
+                                "locked" => true,
+                                "createdAt" => "2026-06-21T00:00:00Z",
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+        )
+        project_data_profile_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/local-data/import",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "projectId" => "foundation-ml-project",
+                        "datasetId" => "Foundation Profile",
+                        "datasetName" => "Foundation Profile",
+                        "datasetRole" => "train",
+                        "sourceUri" => import_source_path,
+                        "format" => "csv",
+                        "targetZone" => "raw",
+                    ),
+                ),
+            ),
+        )
+        transform_fit_apply_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/transforms/fit-apply",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-random",
+                        "transformRef" => "local://transforms/foundation-ml-project/default-fit-apply.jl",
+                        "fitSplit" => "train",
+                        "applySplits" => ["validation", "test"],
+                    ),
+                ),
+            ),
+        )
+        transform_fit_apply_bad_fit_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/transforms/fit-apply",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-random",
+                        "fitSplit" => "validation",
+                        "applySplits" => ["test"],
+                    ),
+                ),
+            ),
+        )
+        transform_fit_apply_train_apply_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/transforms/fit-apply",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-random",
+                        "applySplits" => ["train", "validation"],
+                    ),
+                ),
+            ),
+        )
+        statistical_analysis_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/statistical-analysis/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "methods" => ["summary", "pearson_correlation", "spearman_correlation", "ols", "anova", "t_test", "chi_square"],
+                        "targetColumn" => "amount",
+                        "featureColumns" => ["margin", "region", "segment"],
+                    ),
+                ),
+            ),
+        )
+        statistical_analysis_bad_method_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/statistical-analysis/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "foundation-sales-sample", "methods" => ["unsupported_method"])),
+            ),
+        )
+        model_register_without_validation_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/models/register",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("modelId" => "unvalidated-foundation-model")),
+            ),
+        )
+        deploy_package_without_validation_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/deploy/package",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("modelId" => "unvalidated-foundation-model")),
+            ),
+        )
+        ml_experiment_run_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/ml/experiments/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "executionMode" => "cpu_only",
+                        "projectId" => "foundation-ml-project",
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-random",
+                        "finalTestPolicy" => "forbid_final_test",
+                        "target" => "amount",
+                        "algorithm" => "deterministic_linear_baseline",
+                    ),
+                ),
+            ),
+        )
+        tuning_study_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/tuning/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-random",
+                        "trainingPlanId" => "training-foundation-eval",
+                        "targetColumn" => "amount",
+                        "taskType" => "regression",
+                        "algorithm" => "MLJ.EvoTreesRegressor",
+                        "metricNames" => ["rmse", "mae"],
+                        "maxTrials" => 3,
+                        "finalTestPolicy" => "forbid_final_test",
+                    ),
+                ),
+            ),
+        )
+        final_evaluation_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/evaluation/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-random",
+                        "trainingPlanId" => "training-foundation-eval",
+                        "metricNames" => ["rmse", "mae"],
+                        "approvalThreshold" => 0.4,
+                        "finalTestPolicy" => "use_final_test",
+                    ),
+                ),
+            ),
+        )
+        final_evaluation_bad_policy_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/evaluation/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-random",
+                        "trainingPlanId" => "training-foundation-eval",
+                        "finalTestPolicy" => "forbid_final_test",
+                    ),
+                ),
+            ),
+        )
+        tuning_study_final_test_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/tuning/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-random",
+                        "targetColumn" => "amount",
+                        "finalTestPolicy" => "use_final_test",
+                    ),
+                ),
+            ),
+        )
+        final_evaluation_missing_training_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/evaluation/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-random",
+                        "trainingPlanId" => "missing-training-plan",
+                        "finalTestPolicy" => "use_final_test",
+                    ),
+                ),
+            ),
+        )
+        prediction_export_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/foundation-predictions",
+                        "format" => "csv",
+                        "rowCount" => 4,
+                        "outputColumns" => [
+                            "prediction_id",
+                            "dataset_id",
+                            "evaluation_report_id",
+                            "output_contract_ref",
+                            "prediction",
+                        ],
+                    ),
+                ),
+            ),
+        )
+        drift_report_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/drift/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "baselineId" => "baseline-foundation-drift",
+                        "metricNames" => ["psi", "ks"],
+                        "threshold" => 0.2,
+                    ),
+                ),
+            ),
+        )
+        drift_report_bad_threshold_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/drift/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "metricNames" => ["psi"],
+                        "threshold" => 2.0,
+                    ),
+                ),
+            ),
+        )
+        prediction_export_bad_format_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/foundation-predictions",
+                        "format" => "xlsx",
+                    ),
+                ),
+            ),
+        )
+        prediction_export_missing_contract_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("datasetId" => "foundation-sales-sample")),
+            ),
+        )
+        prediction_export_bad_columns_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/foundation-predictions",
+                        "outputColumns" => ["prediction_id", "unknown_column"],
+                    ),
+                ),
+            ),
+        )
+        prediction_export_mapped_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/scored-foundation-submission",
+                        "outputContract" => Dict(
+                            "contractId" => "contract://outputs/scored-foundation-submission",
+                            "columns" => [
+                                Dict("name" => "row_id", "sourceColumn" => "prediction_id", "required" => true),
+                                Dict("name" => "score", "sourceColumn" => "prediction", "type" => "float64", "required" => true),
+                            ],
+                        ),
+                        "outputColumns" => ["row_id", "score"],
+                        "outputMappings" => [
+                            Dict("outputColumn" => "score", "sourceColumn" => "prediction"),
+                        ],
+                        "format" => "csv",
+                        "rowCount" => 3,
+                    ),
+                ),
+            ),
+        )
+        prediction_export_bad_mapping_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/bad-foundation-submission",
+                        "outputContract" => Dict(
+                            "contractId" => "contract://outputs/bad-foundation-submission",
+                            "columns" => [
+                                Dict("name" => "row_id", "sourceColumn" => "prediction_id", "required" => true),
+                                Dict("name" => "score", "sourceColumn" => "not_a_scoring_column", "required" => true),
+                            ],
+                        ),
+                        "outputColumns" => ["row_id", "score"],
+                    ),
+                ),
+            ),
+        )
+        prediction_export_imported_contract_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/imported-foundation-submission",
+                        "outputContractImport" => Dict(
+                            "sourceUri" => "local://contracts/foundation-submission.json",
+                            "connector" => "managed_local",
+                            "format" => "json",
+                        ),
+                        "outputColumns" => ["row_id", "score"],
+                        "format" => "jsonl",
+                        "rowCount" => 2,
+                    ),
+                ),
+            ),
+        )
+        prediction_export_conflicting_contract_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/conflicting-foundation-submission",
+                        "outputContract" => Dict(
+                            "contractId" => "contract://outputs/conflicting-foundation-submission",
+                            "columns" => [Dict("name" => "row_id", "sourceColumn" => "prediction_id")],
+                        ),
+                        "outputContractImport" => Dict("sourceUri" => "local://contracts/foundation-submission.json"),
+                    ),
+                ),
+            ),
+        )
+        prediction_export_file_contract_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/predictions/export",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "datasetId" => "foundation-sales-sample",
+                        "outputContractRef" => "contract://outputs/file-foundation-submission",
+                        "outputContractImport" => Dict(
+                            "sourceUri" => file_output_contract_path,
+                            "connector" => "local_file",
+                            "format" => "json",
+                        ),
+                        "outputColumns" => ["row_id", "score"],
+                        "format" => "csv",
+                        "rowCount" => 2,
                     ),
                 ),
             ),
@@ -1655,7 +4547,7 @@ end
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/transforms/history"),
         )
-        ml_experiment_run_response = route_request(
+        ml_experiment_missing_split_response = route_request(
             state,
             HTTP.Request(
                 "POST",
@@ -1664,9 +4556,28 @@ end
                 JSON3.write(
                     Dict(
                         "executionMode" => "cpu_only",
+                        "projectId" => "foundation-ml-project",
                         "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "missing-split",
                         "target" => "amount",
-                        "algorithm" => "deterministic_linear_baseline",
+                    ),
+                ),
+            ),
+        )
+        ml_experiment_final_test_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/ml/experiments/run",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "executionMode" => "cpu_only",
+                        "projectId" => "foundation-ml-project",
+                        "datasetId" => "foundation-sales-sample",
+                        "splitPlanId" => "split-foundation-random",
+                        "finalTestPolicy" => "use_final_test",
+                        "target" => "amount",
                     ),
                 ),
             ),
@@ -1674,6 +4585,10 @@ end
         ml_experiment_history_response = route_request(
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/ml/experiments"),
+        )
+        ml_experiment_project_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/data-science-projects/foundation-ml-project"),
         )
         model_register_response = route_request(
             state,
@@ -1695,6 +4610,25 @@ end
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/models"),
         )
+        model_lifecycle_after_register_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/data-science-projects/foundation-ml-project"),
+        )
+        model_lifecycle_approval_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "approve_model",
+                        "reason" => "final evaluation evidence accepted",
+                    ),
+                ),
+            ),
+        )
         deploy_package_response = route_request(
             state,
             HTTP.Request(
@@ -1715,6 +4649,121 @@ end
         deploy_package_history_response = route_request(
             state,
             HTTP.Request("GET", "/api/v1/workflows/wf-foundation/deploy/packages"),
+        )
+        model_lifecycle_after_deploy_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/data-science-projects/foundation-ml-project"),
+        )
+        model_lifecycle_rolled_back_too_early_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "mark_rolled_back",
+                        "rollbackModelId" => "foundation-linear-baseline-v0",
+                        "reason" => "rollback requires an explicit ready state first",
+                    ),
+                ),
+            ),
+        )
+        model_lifecycle_rollback_ready_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "mark_rollback_ready",
+                        "rollbackModelId" => "foundation-linear-baseline-v0",
+                        "reason" => "local drift review approved fallback model",
+                    ),
+                ),
+            ),
+        )
+        model_lifecycle_rolled_back_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "mark_rolled_back",
+                        "reason" => "operator executed local rollback",
+                    ),
+                ),
+            ),
+        )
+        deploy_package_history_after_rollback_response = route_request(
+            state,
+            HTTP.Request("GET", "/api/v1/workflows/wf-foundation/deploy/packages"),
+        )
+        model_lifecycle_retraining_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "request_retraining",
+                        "reason" => "post-rollback retraining requested",
+                    ),
+                ),
+            ),
+        )
+        model_lifecycle_archive_too_early_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "archive_model",
+                        "reason" => "archive requires deprecation first",
+                    ),
+                ),
+            ),
+        )
+        model_lifecycle_deprecated_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "deprecate_model",
+                        "reason" => "superseded by retraining review",
+                    ),
+                ),
+            ),
+        )
+        model_lifecycle_archived_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/data-science-projects/foundation-ml-project/models/lifecycle",
+                ["Content-Type" => "application/json"],
+                JSON3.write(
+                    Dict(
+                        "modelId" => "foundation-linear-baseline",
+                        "action" => "archive_model",
+                        "reason" => "local archive after deprecation",
+                    ),
+                ),
+            ),
         )
         hub_list_response = route_request(state, HTTP.Request("GET", "/api/v1/hub/extensions"))
         hub_install_response = route_request(
@@ -2551,6 +5600,17 @@ end
                 ),
             )
         end
+        auth_viewer_backup_export_response = withenv("JULIAFLOW_DEV_AUTH_TOKEN" => "dev-secret") do
+            route_request(
+                state,
+                HTTP.Request(
+                    "POST",
+                    "/api/v1/local-backups",
+                    ["Authorization" => "Bearer dev-secret", "X-JuliaFlow-Workspace-Role" => "viewer", "Content-Type" => "application/json"],
+                    JSON3.write(Dict("notes" => "viewer should not export backups")),
+                ),
+            )
+        end
         hub_enable_registered_response = route_request(
             state,
             HTTP.Request(
@@ -2631,6 +5691,7 @@ end
             ),
         )
         local_backup_export_payload = JSON3.read(String(local_backup_export_response.body), Dict{String,Any})
+        haskey(local_backup_export_payload, "backup") || error("backup export failed: $(get(local_backup_export_payload, "error", "missing backup payload"))")
         imported_backup_home = mktempdir()
         imported_backup_state = withenv(
             "JULIAFLOW_HOME" => imported_backup_home,
@@ -2667,6 +5728,17 @@ end
         )
         execute_payload = JSON3.read(String(execute_response.body), Dict{String,Any})
         execute_payload_id = get(execute_payload, "executionId", "missing-execution-id")
+        cors_execute_response = route_request(
+            state,
+            HTTP.Request(
+                "POST",
+                "/api/v1/workflows/wf-foundation/execute",
+                ["Content-Type" => "application/json"],
+                JSON3.write(Dict("executionMode" => "cpu_only")),
+            ),
+        )
+        cors_execute_payload = JSON3.read(String(cors_execute_response.body), Dict{String,Any})
+        cors_execute_payload_id = get(cors_execute_payload, "executionId", "missing-cors-execution-id")
         gpu_execute_response = route_request(
             state,
             HTTP.Request(
@@ -2681,13 +5753,71 @@ end
             state,
             HTTP.Request(
                 "OPTIONS",
-                "/api/v1/executions/$(execute_payload_id)/status",
+                "/api/v1/executions/$(cors_execute_payload_id)/status",
                 [
                     "Origin" => "http://127.0.0.1:5173",
                     "Access-Control-Request-Method" => "POST",
                 ],
             ),
         )
+        cors_allowed_preflight = withenv("JULIAFLOW_CORS_ALLOW_ORIGIN" => "http://127.0.0.1:5173") do
+            route_request(
+                state,
+                HTTP.Request(
+                    "OPTIONS",
+                    "/api/v1/executions/$(cors_execute_payload_id)/status",
+                    [
+                        "Origin" => "http://127.0.0.1:5173",
+                        "Access-Control-Request-Method" => "POST",
+                    ],
+                ),
+            )
+        end
+        cors_rejected_preflight = withenv("JULIAFLOW_CORS_ALLOW_ORIGIN" => "http://127.0.0.1:5173") do
+            route_request(
+                state,
+                HTTP.Request(
+                    "OPTIONS",
+                    "/api/v1/executions/$(cors_execute_payload_id)/status",
+                    [
+                        "Origin" => "https://evil.example",
+                        "Access-Control-Request-Method" => "POST",
+                    ],
+                ),
+            )
+        end
+        cors_allowed_mutation_response = withenv("JULIAFLOW_CORS_ALLOW_ORIGIN" => "http://127.0.0.1:5173", "JULIAFLOW_DEV_AUTH_TOKEN" => "dev-secret") do
+            route_request(
+                state,
+                HTTP.Request(
+                    "POST",
+                    "/api/v1/executions/$(cors_execute_payload_id)/status",
+                    [
+                        "Origin" => "http://127.0.0.1:5173",
+                        "Authorization" => "Bearer dev-secret",
+                        "X-JuliaFlow-Workspace-Role" => "owner",
+                        "Content-Type" => "application/json",
+                    ],
+                    JSON3.write(Dict("status" => "queued", "message" => "cors allowed mutation")),
+                ),
+            )
+        end
+        cors_rejected_mutation_response = withenv("JULIAFLOW_CORS_ALLOW_ORIGIN" => "http://127.0.0.1:5173", "JULIAFLOW_DEV_AUTH_TOKEN" => "dev-secret") do
+            route_request(
+                state,
+                HTTP.Request(
+                    "POST",
+                    "/api/v1/executions/$(cors_execute_payload_id)/status",
+                    [
+                        "Origin" => "https://evil.example",
+                        "Authorization" => "Bearer dev-secret",
+                        "X-JuliaFlow-Workspace-Role" => "owner",
+                        "Content-Type" => "application/json",
+                    ],
+                    JSON3.write(Dict("status" => "completed", "message" => "cors rejected mutation")),
+                ),
+            )
+        end
         missing_route = route_request(state, HTTP.Request("GET", "/missing"))
         traced_health_route = route_request(
             state,
@@ -2894,6 +6024,8 @@ end
         @test auth_editor_execute_response.status == 202
         @test auth_editor_hub_install_response.status == 403
         @test occursin("permission denied: hub:install", String(auth_editor_hub_install_response.body))
+        @test auth_viewer_backup_export_response.status == 403
+        @test occursin("permission denied: backup:write", String(auth_viewer_backup_export_response.body))
         @test hub_enable_registered_response.status == 200
         @test occursin("\"installState\":\"enabled\"", String(hub_enable_registered_response.body))
         @test create_response.status == 201
@@ -2904,6 +6036,8 @@ end
         @test occursin("\"status\":\"updated\"", String(update_response.body))
         @test execute_response.status == 202
         @test haskey(execute_payload, "executionId")
+        @test cors_execute_response.status == 202
+        @test haskey(cors_execute_payload, "executionId")
         @test haskey(execute_payload, "observabilityTrace")
         @test length(execute_payload["observabilityTrace"]["trace_id"]) == 32
         @test execute_payload["observabilityTrace"]["spans"][1]["name"] == "execution.dispatch_plan"
@@ -2912,20 +6046,509 @@ end
         @test occursin("\"flow_variables\":{\"JULIAFLOW_GPU_DEVICE\":\"nvidia:0\"}", String(execute_response.body))
         @test occursin("\"resourcePlan\":[", String(execute_response.body))
         @test data_import_response.status == 201
+        @test data_import_named_response.status == 201
+        named_profile = JSON3.read(String(data_import_named_response.body), Dict{String,Any})["profile"]
+        @test named_profile["rowCount"] == 2
+        @test named_profile["schemaSummary"] == JSON3.read(String(data_import_response.body), Dict{String,Any})["profile"]["schemaSummary"]
+        @test data_import_json_response.status == 400
+        @test occursin("real-file profiling currently supports CSV files only", String(data_import_json_response.body))
         data_import_payload = JSON3.read(String(data_import_response.body), Dict{String,Any})
         @test data_import_payload["status"] == "profiled"
         @test data_import_payload["profile"]["datasetId"] == "foundation-profile"
+        @test data_import_payload["profile"]["sourceUri"] == realpath(import_source_path)
+        @test data_import_payload["profile"]["sourceConnector"] == "local_file"
         @test data_import_payload["profile"]["targetZone"] == "raw"
-        @test startswith(data_import_payload["profile"]["artifactRef"], "local://data/raw/foundation-profile")
         @test data_import_payload["profile"]["localOnly"] == true
         @test data_import_payload["profile"]["activeReadMode"] == "csv"
-        @test length(data_import_payload["profile"]["sourceOptions"]) == 4
+        @test length(data_import_payload["profile"]["sourceOptions"]) == 7
         @test any(option -> option["mode"] == "duckdb", data_import_payload["profile"]["sourceOptions"])
-        @test length(data_import_payload["profile"]["lineageArtifacts"]) == 4
+        @test all(
+            option -> option["status"] == "unavailable",
+            filter(option -> option["mode"] in ["s3", "gcs", "azure_blob"], data_import_payload["profile"]["sourceOptions"]),
+        )
+        @test any(
+            option -> option["mode"] == "s3" && occursin("disabled", String(option["semantics"])),
+            data_import_payload["profile"]["sourceOptions"],
+        )
+        @test length(data_import_payload["profile"]["lineageArtifacts"]) == 1
+        @test data_import_payload["profile"]["rowCount"] == 2
+        @test data_import_payload["profile"]["checksumSha256"] == bytes2hex(sha256(read(import_source_path)))
+        @test data_import_payload["profile"]["artifactRef"] == realpath(import_source_path)
+        @test data_import_payload["profile"]["profileScope"] == "complete_unquoted_csv_1000_rows"
+        @test all(option -> option["status"] == "unavailable", filter(option -> option["mode"] in ["arrow_ipc", "parquet", "duckdb"], data_import_payload["profile"]["sourceOptions"]))
         @test length(data_import_payload["profile"]["qualityChecks"]) >= 1
-        @test data_import_payload["profile"]["workflowReadiness"]["downstreamReady"] == true
+        @test data_import_payload["profile"]["workflowReadiness"]["downstreamReady"] == false
         @test length(data_import_payload["profile"]["quickPlots"]) >= 1
         @test length(data_import_payload["profile"]["previewRows"]) >= 1
+        @test data_import_managed_response.status == 201
+        data_import_managed_payload = JSON3.read(String(data_import_managed_response.body), Dict{String,Any})
+        @test data_import_managed_payload["profile"]["sourceConnector"] == "managed_local"
+        @test data_import_managed_payload["profile"]["sourceUri"] == "local://data/raw/foundation-sales-sample.csv"
+        @test data_import_missing_managed_response.status == 400
+        @test occursin("must reference an existing local://data artifact", String(data_import_missing_managed_response.body))
+        @test data_import_sensitive_managed_response.status == 400
+        @test occursin("appears to contain sensitive PII columns", String(data_import_sensitive_managed_response.body))
+        @test data_import_managed_connector_mismatch_response.status == 400
+        @test occursin("managed_local connector requires a local:// sourceUri", String(data_import_managed_connector_mismatch_response.body))
+        @test data_import_file_connector_mismatch_response.status == 400
+        @test occursin("local_file connector requires a filesystem sourceUri", String(data_import_file_connector_mismatch_response.body))
+        @test data_import_duckdb_connector_response.status == 400
+        @test occursin("DuckDB source import is unavailable", String(data_import_duckdb_connector_response.body))
+        @test data_import_postgres_unavailable_response.status == 400
+        @test occursin("PostgreSQL local source import is unavailable", String(data_import_postgres_unavailable_response.body))
+        @test project_data_profile_response.status == 201
+        project_data_profile_payload = JSON3.read(String(project_data_profile_response.body), Dict{String,Any})
+        @test project_data_profile_payload["status"] == "profiled"
+        @test project_data_profile_payload["profile"]["projectId"] == "foundation-ml-project"
+        @test project_data_profile_payload["profile"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test project_data_profile_payload["profile"]["executionEvidence"]["dispatchStatus"] == "completed"
+        profile_project_dataset = first(filter(dataset -> dataset["datasetId"] == "foundation-profile", project_data_profile_payload["project"]["datasets"]))
+        @test startswith(profile_project_dataset["sourceUri"], "local://data/raw/imports/")
+        @test profile_project_dataset["importSourceUri"] == realpath(import_source_path)
+        @test read(JuliaFlowApiGateway.resolve_local_data_ref_path(profile_project_dataset["sourceUri"])) == read(import_source_path)
+        @test profile_project_dataset["artifactRef"] == project_data_profile_payload["profile"]["artifactRef"]
+        @test profile_project_dataset["checksumSha256"] == project_data_profile_payload["profile"]["checksumSha256"]
+        profile_schema = first(filter(schema -> schema["schemaId"] == "schema-foundation-profile-profile", project_data_profile_payload["project"]["schemaContracts"]))
+        @test profile_schema["datasetId"] == "foundation-profile"
+        @test length(profile_schema["columns"]) >= 1
+        data_profile_job = first(filter(job -> job["jobType"] == "data_profile", project_data_profile_payload["project"]["projectJobs"]))
+        @test data_profile_job["datasetId"] == "foundation-profile"
+        @test data_profile_job["resourceEvidence"]["executionMode"] == "data_profile"
+        @test data_profile_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test data_profile_job["executionEvidence"]["dispatchStatus"] == "completed"
+        profile_execution = first(filter(execution -> execution.execution_id == data_profile_job["executionEvidence"]["executionId"], state.executions))
+        @test profile_execution.metadata["data_science_project_worker_state"]["job_type"] == "data_profile"
+        @test [entry["status"] for entry in profile_execution.status_history] == ["accepted", "queued", "running", "completed"]
+        @test data_import_remote_source_response.status == 400
+        @test occursin("local_file connector requires a filesystem sourceUri", String(data_import_remote_source_response.body))
+        if symlink_source_available
+            @test data_import_symlink_source_response.status == 400
+            @test occursin("source cannot be a symlink or junction", String(data_import_symlink_source_response.body))
+        else
+            @test_skip "local filesystem symlink creation unavailable"
+        end
+        @test data_import_escape_source_response.status == 400
+        @test occursin("source escapes allowed import roots", String(data_import_escape_source_response.body))
+        @test data_import_secret_source_response.status == 400
+        @test occursin("appears to contain credentials or secrets", String(data_import_secret_source_response.body))
+        @test data_import_large_source_response.status == 400
+        @test occursin("source file exceeds size limit", String(data_import_large_source_response.body))
+        @test data_import_unsupported_source_response.status == 400
+        @test occursin("source extension is not supported", String(data_import_unsupported_source_response.body))
+        @test data_import_bad_postgres_table_response.status == 400
+        @test occursin("PostgreSQL source table must use only letters, numbers, and underscores", String(data_import_bad_postgres_table_response.body))
+        @test data_import_credential_content_response.status == 400
+        @test occursin("appears to contain credential content", String(data_import_credential_content_response.body))
+        @test data_import_pii_content_response.status == 400
+        @test occursin("appears to contain sensitive PII columns", String(data_import_pii_content_response.body))
+        local_import_audit_events = filter(
+            event -> event.event_type == "audit.action" && startswith(String(event.payload["action"]), "local.data.import"),
+            JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_events(state.repository),
+        )
+        @test any(
+            event ->
+                event.payload["action"] == "local.data.import" &&
+                event.payload["targetId"] == "Foundation Profile" &&
+                event.payload["details"]["outcome"] == "accepted" &&
+                event.payload["details"]["sourceKind"] == "file" &&
+                event.payload["details"]["sourceBasename"] == basename(import_source_path),
+            local_import_audit_events,
+        )
+        @test any(
+            event ->
+                event.payload["action"] == "local.data.import" &&
+                event.payload["targetId"] == "Foundation Profile" &&
+                event.payload["details"]["redactionPreview"]["fullPathRedacted"] == true &&
+                event.payload["details"]["redactionPreview"]["sampleValuesRedacted"] == true &&
+                event.payload["details"]["redactionPreview"]["sourceRefPolicy"] == "filesystem-path-redacted",
+            local_import_audit_events,
+        )
+        @test any(
+            event ->
+                event.payload["action"] == "local.data.import.rejected" &&
+                event.payload["targetId"] == "Bad Postgres Table Profile" &&
+                event.payload["details"]["connector"] == "postgresql" &&
+                occursin("PostgreSQL source table", String(event.payload["details"]["reason"])) &&
+                !occursin(import_root, JSON3.write(event.payload)),
+            local_import_audit_events,
+        )
+        @test any(
+            event ->
+                event.payload["action"] == "local.data.import.rejected" &&
+                event.payload["targetId"] == "Credential Content Profile" &&
+                event.payload["details"]["outcome"] == "rejected" &&
+                occursin("credential content", String(event.payload["details"]["reason"])) &&
+                !occursin(import_root, JSON3.write(event.payload)),
+            local_import_audit_events,
+        )
+        @test any(
+            event ->
+                event.payload["action"] == "local.data.import.rejected" &&
+                event.payload["targetId"] == "PII Content Profile" &&
+                event.payload["details"]["outcome"] == "rejected" &&
+                occursin("sensitive PII columns", String(event.payload["details"]["reason"])) &&
+                !occursin("000-00-0000", JSON3.write(event.payload)),
+            local_import_audit_events,
+        )
+        @test data_science_project_create_response.status == 201
+        data_science_project_create_payload = JSON3.read(String(data_science_project_create_response.body), Dict{String,Any})
+        @test data_science_project_create_payload["schemaVersion"] == "1.0"
+        @test data_science_project_create_payload["projectId"] == "wellbore-geology"
+        @test data_science_project_create_payload["localOnly"] == true
+        @test data_science_project_create_payload["datasets"][1]["role"] == "train"
+        @test data_science_project_create_payload["schemaContracts"][1]["columns"][1]["role"] == "depth"
+        data_science_project_list_payload = JSON3.read(String(data_science_project_list_response.body), Dict{String,Any})
+        @test data_science_project_list_response.status == 200
+        @test length(data_science_project_list_payload["items"]) == 1
+        @test data_science_project_get_response.status == 200
+        @test occursin("\"projectId\":\"wellbore-geology\"", String(data_science_project_get_response.body))
+        @test data_science_project_update_response.status == 200
+        data_science_project_update_payload = JSON3.read(String(data_science_project_update_response.body), Dict{String,Any})
+        @test data_science_project_update_payload["name"] == "Wellbore Geology Updated"
+        @test data_science_project_update_payload["splitPlans"][1]["strategy"] == "depth"
+        @test data_science_project_missing_name_response.status == 400
+        @test occursin("data science project missing name", String(data_science_project_missing_name_response.body))
+        @test data_science_project_duplicate_response.status == 409
+        @test occursin("data science project already exists", String(data_science_project_duplicate_response.body))
+        @test data_science_project_bad_schema_version_response.status == 400
+        @test occursin("schemaVersion must be 1.0", String(data_science_project_bad_schema_version_response.body))
+        @test data_science_project_bad_child_shape_response.status == 400
+        @test occursin("project child records must be arrays", String(data_science_project_bad_child_shape_response.body))
+        @test data_science_project_id_mismatch_response.status == 400
+        @test occursin("project id mismatch", String(data_science_project_id_mismatch_response.body))
+        @test data_science_project_remote_source_response.status == 400
+        @test occursin("dataset sourceUri must use local://", String(data_science_project_remote_source_response.body))
+        @test data_science_project_traversal_source_response.status == 400
+        @test occursin("dataset sourceUri cannot contain path traversal", String(data_science_project_traversal_source_response.body))
+        @test data_science_project_nonlocal_source_response.status == 400
+        @test occursin("dataset localOnly must be true", String(data_science_project_nonlocal_source_response.body))
+        @test data_science_project_missing_response.status == 404
+        @test data_science_project_foundation_response.status == 201
+        @test isfile(joinpath(store_root, "data-science-projects.json"))
+        @test haskey(load_state(store_root).data_science_projects, "wellbore-geology")
+        @test haskey(load_state(store_root).data_science_projects, "foundation-ml-project")
+        @test transform_fit_apply_response.status == 201
+        transform_fit_apply_payload = JSON3.read(String(transform_fit_apply_response.body), Dict{String,Any})
+        @test transform_fit_apply_payload["status"] == "completed"
+        @test transform_fit_apply_payload["transformRun"]["fitSplit"] == "train"
+        @test "validation" in transform_fit_apply_payload["transformRun"]["applySplits"]
+        @test "test" in transform_fit_apply_payload["transformRun"]["applySplits"]
+        @test length(transform_fit_apply_payload["transformRun"]["leakageChecks"]) >= 2
+        @test startswith(String(transform_fit_apply_payload["transformRun"]["executionEvidence"]["executionId"]), "dsjob-")
+        @test transform_fit_apply_payload["transformRun"]["executionEvidence"]["mode"] == "local_project_job"
+        transform_fit_apply_execution_id = String(transform_fit_apply_payload["transformRun"]["executionEvidence"]["executionId"])
+        transform_fit_apply_execution = first(filter(execution -> execution.execution_id == transform_fit_apply_execution_id, state.executions))
+        @test transform_fit_apply_payload["transformRun"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test transform_fit_apply_payload["transformRun"]["executionEvidence"]["dispatchStatus"] == "completed"
+        @test transform_fit_apply_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test transform_fit_apply_execution.metadata["data_science_project_worker_state"]["job_type"] == "transform_fit_apply"
+        @test [entry["status"] for entry in transform_fit_apply_execution.status_history] == ["accepted", "queued", "running", "completed"]
+        @test length(transform_fit_apply_payload["project"]["transformFitApplyRecords"]) >= 1
+        @test transform_fit_apply_bad_fit_response.status == 400
+        @test occursin("fitSplit must be train", String(transform_fit_apply_bad_fit_response.body))
+        @test transform_fit_apply_train_apply_response.status == 400
+        @test occursin("can only apply to validation", String(transform_fit_apply_train_apply_response.body))
+        @test statistical_analysis_response.status == 201
+        statistical_analysis_payload = JSON3.read(String(statistical_analysis_response.body), Dict{String,Any})
+        @test statistical_analysis_payload["status"] == "completed"
+        @test statistical_analysis_payload["analysisRun"]["datasetId"] == "foundation-sales-sample"
+        @test occursin("pearson_correlation", statistical_analysis_payload["analysisRun"]["method"])
+        @test length(statistical_analysis_payload["analysisRun"]["charts"]) >= 1
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["executionMode"] == "local_csv"
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["rowCount"] == 4
+        @test "amount" in statistical_analysis_payload["analysisRun"]["resultSummary"]["numericColumns"]
+        amount_summary = only(filter(summary -> summary["column"] == "amount", statistical_analysis_payload["analysisRun"]["resultSummary"]["summaries"]))
+        @test amount_summary["mean"] == 25.0
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["ols"]["featureColumn"] == "margin"
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["ols"]["rSquared"] > 0.9
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["anova"]["groupColumn"] == "region"
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["anova"]["dfBetween"] == 1
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["tTest"]["groupColumn"] == "region"
+        @test haskey(statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"], "chiSquare")
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["chiSquare"]["degreesOfFreedom"] == 1
+        @test statistical_analysis_payload["analysisRun"]["resultSummary"]["inferentialTests"]["spearmanCorrelation"]["columns"] == statistical_analysis_payload["analysisRun"]["resultSummary"]["numericColumns"]
+        @test length(statistical_analysis_payload["analysisRun"]["artifactRefs"]) == 2
+        @test startswith(String(statistical_analysis_payload["analysisRun"]["executionEvidence"]["executionId"]), "dsjob-")
+        @test statistical_analysis_payload["analysisRun"]["executionEvidence"]["status"] == "completed"
+        statistical_analysis_execution_id = String(statistical_analysis_payload["analysisRun"]["executionEvidence"]["executionId"])
+        statistical_analysis_execution = first(filter(execution -> execution.execution_id == statistical_analysis_execution_id, state.executions))
+        @test statistical_analysis_payload["analysisRun"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test statistical_analysis_payload["analysisRun"]["executionEvidence"]["dispatchStatus"] == "completed"
+        @test statistical_analysis_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test statistical_analysis_execution.metadata["data_science_project_worker_state"]["job_type"] == "statistical_analysis"
+        @test [entry["status"] for entry in statistical_analysis_execution.status_history] == ["accepted", "queued", "running", "completed"]
+        stats_result_ref = String(statistical_analysis_payload["analysisRun"]["resultRef"])
+        stats_code_ref = String(statistical_analysis_payload["analysisRun"]["generatedCodeRef"])
+        stats_result_path = joinpath(data_estate_root, split(replace(stats_result_ref, "local://" => ""), '/')...)
+        stats_code_path = joinpath(data_estate_root, split(replace(stats_code_ref, "local://" => ""), '/')...)
+        @test isfile(stats_result_path)
+        @test isfile(stats_code_path)
+        @test occursin("\"executionMode\":\"local_csv\"", read(stats_result_path, String))
+        @test all(ref -> haskey(ref, "checksumSha256") && haskey(ref, "sizeBytes"), statistical_analysis_payload["analysisRun"]["artifactRefs"])
+        @test all(ref -> ref["checksumMode"] == "streaming_file_sha256", statistical_analysis_payload["analysisRun"]["artifactRefs"])
+        @test length(statistical_analysis_payload["project"]["statisticalAnalysisRuns"]) >= 1
+        @test statistical_analysis_bad_method_response.status == 400
+        @test occursin("statistical analysis unsupported methods", String(statistical_analysis_bad_method_response.body))
+        @test tuning_study_response.status == 201
+        tuning_study_payload = JSON3.read(String(tuning_study_response.body), Dict{String,Any})
+        @test tuning_study_payload["status"] == "completed"
+        @test tuning_study_payload["tuningStudy"]["validationOnly"] == true
+        @test tuning_study_payload["tuningStudy"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test tuning_study_payload["tuningStudy"]["validationEvidence"]["tuningExecutionMode"] == "local_csv_validation_tuning"
+        @test startswith(String(tuning_study_payload["tuningStudy"]["bestTrialId"]), "tuning-")
+        @test startswith(String(tuning_study_payload["tuningStudy"]["executionEvidence"]["executionId"]), "dsjob-")
+        @test tuning_study_payload["tuningStudy"]["validationEvidence"]["executionId"] == tuning_study_payload["tuningStudy"]["executionEvidence"]["executionId"]
+        tuning_study_execution_id = String(tuning_study_payload["tuningStudy"]["executionEvidence"]["executionId"])
+        tuning_study_execution = first(filter(execution -> execution.execution_id == tuning_study_execution_id, state.executions))
+        @test tuning_study_payload["tuningStudy"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test tuning_study_payload["tuningStudy"]["executionEvidence"]["dispatchStatus"] == "completed"
+        @test tuning_study_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test tuning_study_execution.metadata["data_science_project_worker_state"]["job_type"] == "tuning_study"
+        @test [entry["status"] for entry in tuning_study_execution.status_history] == ["accepted", "queued", "running", "completed"]
+        @test length(tuning_study_payload["tuningStudy"]["trials"]) >= 1
+        @test any(trial -> Bool(get(trial, "selected", false)), tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> haskey(trial, "resourceEvidence"), tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> trial["resourceEvidence"]["executionMode"] == "validation_only_tuning_trial", tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> haskey(trial["resourceEvidence"], "selectedBackend"), tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> haskey(trial["resourceEvidence"], "gpuFallbackReason"), tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> trial["validationEvidence"]["dispatchLane"] == trial["resourceEvidence"]["dispatchLane"], tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> haskey(trial["validationEvidence"], "gpuTrialEvidence"), tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> trial["validationEvidence"]["gpuTrialEvidence"]["gpuTrialExecutionStatus"] == "not_requested", tuning_study_payload["tuningStudy"]["trials"])
+        @test all(trial -> trial["validationEvidence"]["gpuTrialEvidence"]["gpuTrialSkippedReason"] == "cpu_backend_selected", tuning_study_payload["tuningStudy"]["trials"])
+        @test all(
+            trial -> all(ref -> haskey(ref, "checksumSha256") && haskey(ref, "sizeBytes"), trial["artifactRefs"]),
+            tuning_study_payload["tuningStudy"]["trials"],
+        )
+        tuning_trial_artifact_ref = String(tuning_study_payload["tuningStudy"]["trials"][1]["artifactRefs"][1]["path"])
+        tuning_trial_artifact_path = joinpath(data_estate_root, split(replace(tuning_trial_artifact_ref, "local://" => ""), '/')...)
+        @test isfile(tuning_trial_artifact_path)
+        tuning_trial_artifact_payload = JSON3.read(read(tuning_trial_artifact_path, String), Dict{String,Any})
+        @test tuning_trial_artifact_payload["validationEvidence"]["executionMode"] == "local_csv_validation_tuning"
+        @test tuning_trial_artifact_payload["resourceEvidence"]["executionMode"] == "validation_only_tuning_trial"
+        @test tuning_trial_artifact_payload["resourceEvidence"]["workerPool"] == tuning_study_payload["tuningStudy"]["trials"][1]["resourceEvidence"]["workerPool"]
+        @test tuning_trial_artifact_payload["validationEvidence"]["gpuTrialEvidence"]["gpuTrialExecutionStatus"] == "not_requested"
+        @test length(tuning_study_payload["project"]["tuningStudies"]) >= 1
+        @test length(tuning_study_payload["project"]["trainingPlans"]) >= 1
+        @test tuning_study_final_test_response.status == 400
+        @test occursin("final test data cannot be used", String(tuning_study_final_test_response.body))
+        @test final_evaluation_response.status == 201
+        final_evaluation_payload = JSON3.read(String(final_evaluation_response.body), Dict{String,Any})
+        @test final_evaluation_payload["status"] == "completed"
+        @test final_evaluation_payload["evaluationReport"]["approved"] == true
+        @test final_evaluation_payload["evaluationReport"]["finalTestOnly"] == true
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["finalTestPolicy"] == "use_final_test"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["validationOnlyTuning"] == true
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["tuningBestTrialId"] == tuning_study_payload["tuningStudy"]["bestTrialId"]
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["tuningExecutionMode"] == "local_csv_validation_tuning"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationExecutionMode"] == "local_csv_trained_artifact"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["targetColumn"] == "amount"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["baselineModel"] == "trained_single_feature_ols"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["modelKind"] == "local_csv_single_feature_ols"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["featureColumn"] == "margin"
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["trainingRowIndices"] == [1, 4]
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["validationRowIndices"] == [2]
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["testRowIndices"] == [3]
+        @test startswith(String(final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["modelArtifactRef"]), "local://models/foundation-ml-project/foundation-linear-baseline/model.json")
+        @test haskey(final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"], "modelArtifactChecksumSha256")
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"]["metricSemantics"]["rmse"] == "lower_is_better_normalized_quality_score"
+        @test haskey(final_evaluation_payload["evaluationReport"]["validationEvidence"]["evaluationDataEvidence"], "rawMetrics")
+        @test all(ref -> haskey(ref, "checksumSha256") && haskey(ref, "sizeBytes"), final_evaluation_payload["evaluationReport"]["artifactRefs"])
+        final_evaluation_artifact_ref = String(final_evaluation_payload["evaluationReport"]["artifactRefs"][1]["path"])
+        final_evaluation_artifact_path = joinpath(data_estate_root, split(replace(final_evaluation_artifact_ref, "local://" => ""), '/')...)
+        @test isfile(final_evaluation_artifact_path)
+        final_evaluation_artifact_content = read(final_evaluation_artifact_path, String)
+        @test occursin("local_csv_trained_artifact", final_evaluation_artifact_content)
+        @test occursin("modelArtifactRef", final_evaluation_artifact_content)
+        @test occursin("rawMetrics", final_evaluation_artifact_content)
+        @test startswith(String(final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"]), "dsjob-")
+        @test final_evaluation_payload["evaluationReport"]["validationEvidence"]["executionId"] == final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"]
+        final_evaluation_execution_id = String(final_evaluation_payload["evaluationReport"]["executionEvidence"]["executionId"])
+        final_evaluation_execution = first(filter(execution -> execution.execution_id == final_evaluation_execution_id, state.executions))
+        @test final_evaluation_payload["evaluationReport"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test final_evaluation_payload["evaluationReport"]["executionEvidence"]["dispatchStatus"] == "completed"
+        @test final_evaluation_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test final_evaluation_execution.metadata["data_science_project_worker_state"]["job_type"] == "final_evaluation"
+        @test [entry["status"] for entry in final_evaluation_execution.status_history] == ["accepted", "queued", "running", "completed"]
+        @test length(final_evaluation_payload["project"]["evaluationReports"]) >= 1
+        @test final_evaluation_bad_policy_response.status == 400
+        @test occursin("finalTestPolicy must be use_final_test", String(final_evaluation_bad_policy_response.body))
+        @test final_evaluation_missing_training_response.status == 409
+        @test occursin("training plan not found", String(final_evaluation_missing_training_response.body))
+        @test prediction_export_response.status == 201
+        prediction_export_payload = JSON3.read(String(prediction_export_response.body), Dict{String,Any})
+        @test prediction_export_payload["status"] == "completed"
+        @test prediction_export_payload["predictionExport"]["outputContractRef"] == "contract://outputs/foundation-predictions"
+        @test prediction_export_payload["predictionExport"]["format"] == "csv"
+        prediction_export_output_columns = String.(collect(prediction_export_payload["predictionExport"]["outputColumns"]))
+        @test prediction_export_output_columns == [
+            "prediction_id",
+            "dataset_id",
+            "evaluation_report_id",
+            "output_contract_ref",
+            "prediction",
+        ]
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["finalEvaluationApproved"] == true
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["predictionScoringMode"] == "local_csv_trained_artifact"
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["sourceEvaluationMode"] == "local_csv_trained_artifact"
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["outputContractRef"] == "contract://outputs/foundation-predictions"
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["outputSchemaValidated"] == true
+        @test String.(collect(prediction_export_payload["predictionExport"]["validationEvidence"]["outputColumns"])) == prediction_export_output_columns
+        @test length(prediction_export_payload["predictionExport"]["artifactRefs"]) == 1
+        @test all(ref -> haskey(ref, "checksumSha256") && haskey(ref, "sizeBytes"), prediction_export_payload["predictionExport"]["artifactRefs"])
+        @test prediction_export_payload["predictionExport"]["artifactRefs"][1]["checksumMode"] == "streaming_file_sha256"
+        prediction_artifact_ref = String(prediction_export_payload["predictionExport"]["artifactRef"])
+        prediction_artifact_path = joinpath(data_estate_root, split(replace(prediction_artifact_ref, "local://" => ""), '/')...)
+        @test isfile(prediction_artifact_path)
+        prediction_artifact_content = read(prediction_artifact_path, String)
+        @test startswith(prediction_artifact_content, "prediction_id,dataset_id,evaluation_report_id,output_contract_ref,prediction")
+        # Persisted OLS intercept/slope are rounded to six decimals: 3.333333 each.
+        @test occursin(",9.999999\n", prediction_artifact_content)
+        @test occursin(",39.999996\n", prediction_artifact_content)
+        @test occursin("contract://outputs/foundation-predictions", prediction_artifact_content)
+        @test occursin(String(prediction_export_payload["predictionExport"]["evaluationReportId"]), prediction_artifact_content)
+        prediction_export_execution_id = String(prediction_export_payload["predictionExport"]["executionEvidence"]["executionId"])
+        @test startswith(prediction_export_execution_id, "dsjob-")
+        @test prediction_export_payload["predictionExport"]["executionEvidence"]["status"] == "completed"
+        @test prediction_export_payload["predictionExport"]["executionEvidence"]["mode"] == "local_project_job"
+        @test prediction_export_payload["predictionExport"]["validationEvidence"]["executionId"] == prediction_export_execution_id
+        persisted_prediction_execution_index = findfirst(execution -> execution.execution_id == prediction_export_execution_id, state.executions)
+        @test persisted_prediction_execution_index !== nothing
+        persisted_prediction_execution = state.executions[persisted_prediction_execution_index]
+        @test haskey(state.workflows, persisted_prediction_execution.workflow_id)
+        @test persisted_prediction_execution.status == "completed"
+        @test persisted_prediction_execution.metadata["data_science_project_job"]["job_type"] == "prediction_export"
+        @test persisted_prediction_execution.metadata["data_science_project_job"]["source_record_id"] == prediction_export_payload["predictionExport"]["predictionExportId"]
+        @test persisted_prediction_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test persisted_prediction_execution.metadata["worker_dispatch"]["dispatchStatus"] == "completed"
+        @test persisted_prediction_execution.metadata["data_science_project_worker_state"]["job_type"] == "prediction_export"
+        @test persisted_prediction_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
+        @test [entry["status"] for entry in persisted_prediction_execution.status_history] == ["accepted", "queued", "running", "completed"]
+        @test length(prediction_export_payload["project"]["predictionExports"]) >= 1
+        @test prediction_export_payload["project"]["predictionExports"][1]["artifactRefs"][1]["checksumSha256"] == prediction_export_payload["predictionExport"]["artifactRefs"][1]["checksumSha256"]
+        prediction_export_job = first(filter(job -> job["jobType"] == "prediction_export", prediction_export_payload["project"]["projectJobs"]))
+        @test prediction_export_job["outputRefs"][1]["sizeBytes"] == prediction_export_payload["predictionExport"]["artifactRefs"][1]["sizeBytes"]
+        @test prediction_export_job["resourceEvidence"]["executionMode"] == "prediction_export"
+        @test prediction_export_job["resourceEvidence"]["dispatchLane"] in ["cpu", "gpu"]
+        @test prediction_export_job["resourceEvidence"]["cpuWorkerConcurrency"] >= 1
+        @test prediction_export_job["executionEvidence"]["executionId"] == prediction_export_execution_id
+        @test prediction_export_job["executionEvidence"]["workerId"] == persisted_prediction_execution.metadata["worker_id"]
+        @test prediction_export_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test prediction_export_job["executionEvidence"]["dispatchStatus"] == "completed"
+        @test prediction_export_bad_format_response.status == 400
+        @test occursin("format must be csv", String(prediction_export_bad_format_response.body))
+        @test prediction_export_missing_contract_response.status == 400
+        @test occursin("outputContractRef required", String(prediction_export_missing_contract_response.body))
+        @test prediction_export_bad_columns_response.status == 400
+        @test occursin("outputColumns unsupported", String(prediction_export_bad_columns_response.body))
+        @test prediction_export_mapped_response.status == 201
+        prediction_export_mapped_payload = JSON3.read(String(prediction_export_mapped_response.body), Dict{String,Any})
+        @test prediction_export_mapped_payload["predictionExport"]["outputContractRef"] == "contract://outputs/scored-foundation-submission"
+        @test String.(collect(prediction_export_mapped_payload["predictionExport"]["outputColumns"])) == ["row_id", "score"]
+        @test String.(collect(prediction_export_mapped_payload["predictionExport"]["validationEvidence"]["outputContractColumns"])) == ["row_id", "score"]
+        mapped_pairs = Dict(String(mapping["outputColumn"]) => String(mapping["sourceColumn"]) for mapping in prediction_export_mapped_payload["predictionExport"]["outputMappings"])
+        @test mapped_pairs["row_id"] == "prediction_id"
+        @test mapped_pairs["score"] == "prediction"
+        @test prediction_export_mapped_payload["predictionExport"]["validationEvidence"]["contractRequiredColumnsSatisfied"] == true
+        mapped_artifact_ref = String(prediction_export_mapped_payload["predictionExport"]["artifactRef"])
+        mapped_artifact_path = joinpath(data_estate_root, split(replace(mapped_artifact_ref, "local://" => ""), '/')...)
+        @test startswith(read(mapped_artifact_path, String), "row_id,score")
+        @test prediction_export_bad_mapping_response.status == 400
+        @test occursin("outputMappings unsupported sourceColumn", String(prediction_export_bad_mapping_response.body))
+        @test prediction_export_imported_contract_response.status == 201
+        prediction_export_imported_contract_payload = JSON3.read(String(prediction_export_imported_contract_response.body), Dict{String,Any})
+        @test prediction_export_imported_contract_payload["predictionExport"]["outputContractRef"] == "contract://outputs/imported-foundation-submission"
+        @test String.(collect(prediction_export_imported_contract_payload["predictionExport"]["outputColumns"])) == ["row_id", "score"]
+        imported_contract_evidence = prediction_export_imported_contract_payload["predictionExport"]["validationEvidence"]["outputContractImport"]
+        @test imported_contract_evidence["sourceKind"] == "managed"
+        @test imported_contract_evidence["sourceRef"] == "local://contracts/foundation-submission.json"
+        @test imported_contract_evidence["connector"] == "managed_local"
+        @test haskey(imported_contract_evidence, "checksumSha256")
+        imported_contract_artifact_ref = String(prediction_export_imported_contract_payload["predictionExport"]["artifactRef"])
+        imported_contract_artifact_path = joinpath(data_estate_root, split(replace(imported_contract_artifact_ref, "local://" => ""), '/')...)
+        @test occursin("\"row_id\"", read(imported_contract_artifact_path, String))
+        @test prediction_export_conflicting_contract_response.status == 400
+        @test occursin("outputContract and outputContractImport cannot both be provided", String(prediction_export_conflicting_contract_response.body))
+        @test prediction_export_file_contract_response.status == 201
+        prediction_export_file_contract_payload = JSON3.read(String(prediction_export_file_contract_response.body), Dict{String,Any})
+        file_contract_evidence = prediction_export_file_contract_payload["predictionExport"]["validationEvidence"]["outputContractImport"]
+        @test file_contract_evidence["sourceKind"] == "file"
+        @test file_contract_evidence["sourceBasename"] == "foundation-file-submission.json"
+        @test file_contract_evidence["connector"] == "local_file"
+        @test !haskey(file_contract_evidence, "sourceUri")
+        @test drift_report_response.status == 201
+        drift_report_payload = JSON3.read(String(drift_report_response.body), Dict{String,Any})
+        @test drift_report_payload["status"] == "completed"
+        @test drift_report_payload["monitoringBaseline"]["baselineId"] == "baseline-foundation-drift"
+        @test drift_report_payload["driftReport"]["validationEvidence"]["outputContractRef"] == "contract://outputs/foundation-predictions"
+        @test drift_report_payload["driftReport"]["validationEvidence"]["driftExecutionMode"] == "local_csv_prediction_distribution"
+        @test drift_report_payload["driftReport"]["validationEvidence"]["driftDataEvidence"]["predictionScoringMode"] == "local_csv_trained_artifact"
+        @test drift_report_payload["driftReport"]["validationEvidence"]["driftDataEvidence"]["baselinePredictionCount"] == prediction_export_payload["predictionExport"]["rowCount"]
+        @test drift_report_payload["driftReport"]["validationEvidence"]["featureDriftExecutionMode"] == "local_csv_feature_distribution"
+        @test drift_report_payload["driftReport"]["validationEvidence"]["featureDriftEvidence"]["baselineSplit"] == "train"
+        @test drift_report_payload["driftReport"]["featureDrift"]["featureCount"] >= 1
+        @test haskey(drift_report_payload["driftReport"]["featureDrift"], "metricsByColumn")
+        @test drift_report_payload["driftReport"]["featureDrift"]["status"] in ["low", "moderate", "high"]
+        @test haskey(drift_report_payload["driftReport"]["metrics"], "psi")
+        @test haskey(drift_report_payload["driftReport"]["metrics"], "ks")
+        @test startswith(String(drift_report_payload["driftReport"]["executionEvidence"]["executionId"]), "dsjob-")
+        @test drift_report_payload["driftReport"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test drift_report_payload["driftReport"]["executionEvidence"]["dispatchStatus"] == "completed"
+        @test drift_report_payload["driftReport"]["validationEvidence"]["executionId"] == drift_report_payload["driftReport"]["executionEvidence"]["executionId"]
+        @test length(drift_report_payload["driftReport"]["artifactRefs"]) == 1
+        @test haskey(drift_report_payload["driftReport"]["artifactRefs"][1], "checksumSha256")
+        @test haskey(drift_report_payload["driftReport"]["artifactRefs"][1], "sizeBytes")
+        @test drift_report_payload["driftReport"]["artifactRefs"][1]["checksumMode"] == "streaming_file_sha256"
+        drift_artifact_ref = String(drift_report_payload["driftReport"]["artifactRefs"][1]["path"])
+        drift_artifact_path = joinpath(data_estate_root, split(replace(drift_artifact_ref, "local://" => ""), '/')...)
+        @test isfile(drift_artifact_path)
+        drift_artifact_payload = JSON3.read(read(drift_artifact_path, String), Dict{String,Any})
+        @test drift_artifact_payload["driftReportId"] == drift_report_payload["driftReport"]["driftReportId"]
+        @test drift_artifact_payload["predictionExportId"] == prediction_export_payload["predictionExport"]["predictionExportId"]
+        @test drift_artifact_payload["validationEvidence"]["driftExecutionMode"] == "local_csv_prediction_distribution"
+        @test drift_artifact_payload["validationEvidence"]["featureDriftExecutionMode"] == "local_csv_feature_distribution"
+        @test drift_artifact_payload["featureDrift"]["featureCount"] >= 1
+        @test length(drift_report_payload["project"]["monitoringBaselines"]) >= 1
+        @test length(drift_report_payload["project"]["driftReports"]) >= 1
+        @test length(drift_report_payload["project"]["projectJobs"]) >= 7
+        project_job_types = Set(String(job["jobType"]) for job in drift_report_payload["project"]["projectJobs"])
+        @test issubset(
+            Set(["data_profile", "transform_fit_apply", "statistical_analysis", "tuning_study", "final_evaluation", "prediction_export", "drift_report"]),
+            project_job_types,
+        )
+        @test all(job -> String(job["status"]) == "completed", drift_report_payload["project"]["projectJobs"])
+        @test all(job -> haskey(job, "outputRefs"), drift_report_payload["project"]["projectJobs"])
+        @test all(job -> haskey(job, "resourceEvidence"), drift_report_payload["project"]["projectJobs"])
+        @test all(job -> haskey(job["resourceEvidence"], "selectedBackend"), drift_report_payload["project"]["projectJobs"])
+        @test all(job -> haskey(job["resourceEvidence"], "gpuFallbackReason"), drift_report_payload["project"]["projectJobs"])
+        drift_job = first(filter(job -> job["jobType"] == "drift_report", drift_report_payload["project"]["projectJobs"]))
+        @test drift_job["resourceEvidence"]["executionMode"] == "drift_report"
+        @test drift_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test drift_job["executionEvidence"]["dispatchStatus"] == "completed"
+        drift_execution = first(filter(
+            execution -> execution.execution_id == drift_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test drift_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test drift_execution.metadata["data_science_project_worker_state"]["job_type"] == "drift_report"
+        @test drift_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
+        execution_backed_job_types = Set(["data_profile", "transform_fit_apply", "statistical_analysis", "tuning_study", "final_evaluation", "prediction_export", "drift_report"])
+        execution_backed_jobs = filter(job -> String(job["jobType"]) in execution_backed_job_types, drift_report_payload["project"]["projectJobs"])
+        @test issubset(execution_backed_job_types, Set(String(job["jobType"]) for job in execution_backed_jobs))
+        @test all(job -> haskey(job, "executionEvidence"), execution_backed_jobs)
+        for job in execution_backed_jobs
+            job_execution_id = String(job["executionEvidence"]["executionId"])
+            @test startswith(job_execution_id, "dsjob-")
+            @test job["executionEvidence"]["status"] == "completed"
+            @test job["executionEvidence"]["mode"] == "local_project_job"
+            persisted_index = findfirst(execution -> execution.execution_id == job_execution_id, state.executions)
+            @test persisted_index !== nothing
+            persisted_execution = state.executions[persisted_index]
+            @test haskey(state.workflows, persisted_execution.workflow_id)
+            @test persisted_execution.metadata["data_science_project_job"]["job_type"] == job["jobType"]
+            @test persisted_execution.metadata["data_science_project_job"]["source_record_id"] == job["sourceRecordId"]
+        end
+        @test drift_report_bad_threshold_response.status == 400
+        @test occursin("threshold must be between 0 and 1", String(drift_report_bad_threshold_response.body))
         @test transform_run_response.status == 202
         transform_run_payload = JSON3.read(String(transform_run_response.body), Dict{String,Any})
         @test transform_run_payload["status"] == "accepted"
@@ -2936,6 +6559,10 @@ end
         transform_history_payload = JSON3.read(String(transform_history_response.body), Dict{String,Any})
         @test transform_history_payload["count"] >= 1
         @test transform_history_payload["items"][1]["workflowId"] == "wf-foundation"
+        @test model_register_without_validation_response.status == 409
+        @test occursin("model registration validation evidence required", String(model_register_without_validation_response.body))
+        @test deploy_package_without_validation_response.status == 409
+        @test occursin("deploy package validation evidence required", String(deploy_package_without_validation_response.body))
         @test ml_experiment_run_response.status == 202
         ml_experiment_payload = JSON3.read(String(ml_experiment_run_response.body), Dict{String,Any})
         @test ml_experiment_payload["status"] == "accepted"
@@ -2943,14 +6570,57 @@ end
         @test ml_experiment_payload["experiment"]["datasetId"] == "foundation-sales-sample"
         @test ml_experiment_payload["experiment"]["modelId"] == "foundation-linear-baseline"
         @test ml_experiment_payload["experiment"]["target"] == "amount"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["projectId"] == "foundation-ml-project"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["splitPlanId"] == "split-foundation-random"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["trainingExecutionId"] == ml_experiment_payload["experiment"]["executionEvidence"]["executionId"]
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["trainingExecutionMode"] == "local_csv_single_feature_ols"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["trainingFeatureColumn"] == "margin"
+        @test ml_experiment_payload["experiment"]["validationEvidence"]["trainingRowCount"] >= 2
+        @test haskey(ml_experiment_payload["experiment"]["metrics"], "trainR2")
+        @test ml_experiment_payload["experiment"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test ml_experiment_payload["experiment"]["executionEvidence"]["dispatchStatus"] == "completed"
         @test haskey(ml_experiment_payload["experiment"]["metrics"], "mae")
         @test length(ml_experiment_payload["experiment"]["featureImportance"]) >= 1
-        @test length(ml_experiment_payload["experiment"]["artifactEvidence"]) >= 3
+        @test length(ml_experiment_payload["experiment"]["artifactEvidence"]) >= 4
+        trained_model_artifact = only(filter(artifact -> String(get(artifact, "kind", "")) == "trained_model", ml_experiment_payload["experiment"]["artifactEvidence"]))
+        @test trained_model_artifact["modelKind"] == "local_csv_single_feature_ols"
+        @test trained_model_artifact["featureColumn"] == "margin"
+        @test haskey(trained_model_artifact, "checksumSha256")
+        trained_model_path = joinpath(data_estate_root, split(replace(String(trained_model_artifact["artifactRef"]), "local://" => ""), '/')...)
+        @test isfile(trained_model_path)
+        trained_model_payload = JSON3.read(read(trained_model_path, String), Dict{String,Any})
+        @test trained_model_payload["modelKind"] == "local_csv_single_feature_ols"
+        @test trained_model_payload["targetColumn"] == "amount"
+        @test trained_model_payload["featureColumn"] == "margin"
         @test ml_experiment_payload["experiment"]["localOnly"] == true
+        @test ml_experiment_missing_split_response.status == 400
+        @test occursin("ml experiment split plan not found", String(ml_experiment_missing_split_response.body))
+        @test ml_experiment_final_test_response.status == 400
+        @test occursin("final test data cannot be used", String(ml_experiment_final_test_response.body))
         @test ml_experiment_history_response.status == 200
         ml_experiment_history_payload = JSON3.read(String(ml_experiment_history_response.body), Dict{String,Any})
         @test ml_experiment_history_payload["count"] >= 1
         @test ml_experiment_history_payload["items"][1]["workflowId"] == "wf-foundation"
+        @test ml_experiment_history_payload["items"][1]["executionEvidence"]["executionId"] == ml_experiment_payload["experiment"]["executionEvidence"]["executionId"]
+        @test ml_experiment_project_response.status == 200
+        ml_experiment_project_payload = JSON3.read(String(ml_experiment_project_response.body), Dict{String,Any})
+        training_job = first(filter(job -> job["jobType"] == "training", ml_experiment_project_payload["projectJobs"]))
+        @test training_job["datasetId"] == "foundation-sales-sample"
+        @test training_job["splitPlanId"] == "split-foundation-random"
+        @test training_job["sourceRecordId"] == ml_experiment_payload["experiment"]["experimentId"]
+        @test any(ref -> String(get(ref, "kind", "")) == "training_trained_model", training_job["outputRefs"])
+        @test training_job["resourceEvidence"]["executionMode"] == "training"
+        @test training_job["executionEvidence"]["executionId"] == ml_experiment_payload["experiment"]["executionEvidence"]["executionId"]
+        @test training_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test training_job["executionEvidence"]["dispatchStatus"] == "completed"
+        training_execution = first(filter(
+            execution -> execution.execution_id == training_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test training_execution.workflow_id == "wf-foundation"
+        @test training_execution.metadata["data_science_project_worker_state"]["job_type"] == "training"
+        @test training_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
         @test model_register_response.status == 201
         model_register_payload = JSON3.read(String(model_register_response.body), Dict{String,Any})
         @test model_register_payload["status"] == "registered"
@@ -2960,11 +6630,48 @@ end
         @test "reviewed" in model_register_payload["model"]["tags"]
         @test model_register_payload["model"]["primaryMetricName"] == "mae"
         @test length(model_register_payload["model"]["artifactEvidence"]) >= 3
+        registered_model_artifact = only(filter(artifact -> String(get(artifact, "kind", "")) == "model", model_register_payload["model"]["artifactEvidence"]))
+        @test registered_model_artifact["artifactRef"] == trained_model_artifact["artifactRef"]
+        @test registered_model_artifact["checksumSha256"] == trained_model_artifact["checksumSha256"]
+        @test registered_model_artifact["modelKind"] == "local_csv_single_feature_ols"
+        @test model_register_payload["model"]["validationEvidence"]["projectId"] == "foundation-ml-project"
+        @test model_register_payload["model"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test model_register_payload["model"]["validationEvidence"]["trainingArtifactRef"] == trained_model_artifact["artifactRef"]
         @test model_register_payload["model"]["localOnly"] == true
         @test model_registry_response.status == 200
         model_registry_payload = JSON3.read(String(model_registry_response.body), Dict{String,Any})
         @test model_registry_payload["count"] >= 1
         @test model_registry_payload["items"][1]["modelId"] == "foundation-linear-baseline"
+        @test model_lifecycle_after_register_response.status == 200
+        model_lifecycle_after_register_payload = JSON3.read(String(model_lifecycle_after_register_response.body), Dict{String,Any})
+        register_registry_match = findfirst(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            model_lifecycle_after_register_payload["modelRegistryRecords"],
+        )
+        @test register_registry_match !== nothing
+        registered_registry_record = model_lifecycle_after_register_payload["modelRegistryRecords"][register_registry_match]
+        @test registered_registry_record["status"] == "registered"
+        @test registered_registry_record["deploymentStatus"] == "not_deployed"
+        @test registered_registry_record["validationEvidence"]["projectId"] == "foundation-ml-project"
+        register_lifecycle_match = findfirst(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            model_lifecycle_after_register_payload["modelLifecycleRecords"],
+        )
+        @test register_lifecycle_match !== nothing
+        registered_lifecycle_record = model_lifecycle_after_register_payload["modelLifecycleRecords"][register_lifecycle_match]
+        @test registered_lifecycle_record["state"] == "validated"
+        @test haskey(registered_lifecycle_record, "updatedAt")
+        @test !haskey(registered_lifecycle_record, "deployedEndpointId")
+        @test model_lifecycle_approval_response.status == 201
+        approval_payload = JSON3.read(String(model_lifecycle_approval_response.body), Dict{String,Any})
+        @test approval_payload["lifecycleRecord"]["state"] == "approved"
+        @test approval_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "validated"
+        approved_registry_record = first(filter(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            approval_payload["project"]["modelRegistryRecords"],
+        ))
+        @test approved_registry_record["status"] == "approved"
+        @test approved_registry_record["validationEvidence"]["lifecycleAction"] == "approve_model"
         @test deploy_package_response.status == 201
         deploy_package_payload = JSON3.read(String(deploy_package_response.body), Dict{String,Any})
         @test deploy_package_payload["status"] == "packaged"
@@ -2974,11 +6681,194 @@ end
         @test deploy_package_payload["package"]["deploymentStatus"] == "local_ready"
         @test length(deploy_package_payload["package"]["packageChecksumSha256"]) == 64
         @test length(deploy_package_payload["package"]["artifactEvidence"]) >= 5
+        deploy_model_artifact = only(filter(artifact -> String(get(artifact, "kind", "")) == "model", deploy_package_payload["package"]["artifactEvidence"]))
+        @test deploy_model_artifact["artifactRef"] == trained_model_artifact["artifactRef"]
+        @test deploy_package_payload["package"]["validationEvidence"]["projectId"] == "foundation-ml-project"
+        @test deploy_package_payload["package"]["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test deploy_package_payload["package"]["validationEvidence"]["deployRuntimeInferenceMode"] == "local_csv_single_feature_ols"
+        @test deploy_package_payload["package"]["validationEvidence"]["deployRuntimeModelArtifactRef"] == trained_model_artifact["artifactRef"]
+        @test deploy_package_payload["package"]["validationEvidence"]["deployRuntimeModelArtifactChecksumSha256"] == trained_model_artifact["checksumSha256"]
+        @test deploy_package_payload["package"]["validationEvidence"]["deployPackageExecutionId"] == deploy_package_payload["package"]["executionEvidence"]["executionId"]
+        @test deploy_package_payload["package"]["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test deploy_package_payload["package"]["executionEvidence"]["dispatchStatus"] == "completed"
         @test occursin("Genie", deploy_package_payload["package"]["serviceCode"])
+        @test occursin(String(trained_model_artifact["artifactRef"]), deploy_package_payload["package"]["serviceCode"])
+        @test occursin("function load_model()", deploy_package_payload["package"]["serviceCode"])
+        @test occursin("function score(payload)", deploy_package_payload["package"]["serviceCode"])
+        @test occursin("\"prediction\" => prediction", deploy_package_payload["package"]["serviceCode"])
+        @test occursin("\"inferenceMode\" => \"local_csv_single_feature_ols\"", deploy_package_payload["package"]["serviceCode"])
         @test deploy_package_history_response.status == 200
         deploy_package_history_payload = JSON3.read(String(deploy_package_history_response.body), Dict{String,Any})
         @test deploy_package_history_payload["count"] >= 1
         @test deploy_package_history_payload["items"][1]["packageId"] == deploy_package_payload["package"]["packageId"]
+        @test deploy_package_history_payload["items"][1]["executionEvidence"]["executionId"] == deploy_package_payload["package"]["executionEvidence"]["executionId"]
+        @test model_lifecycle_after_deploy_response.status == 200
+        model_lifecycle_after_deploy_payload = JSON3.read(String(model_lifecycle_after_deploy_response.body), Dict{String,Any})
+        deploy_package_job = first(filter(job -> job["jobType"] == "deploy_package", model_lifecycle_after_deploy_payload["projectJobs"]))
+        @test deploy_package_job["sourceRecordId"] == deploy_package_payload["package"]["packageId"]
+        @test deploy_package_job["resourceEvidence"]["executionMode"] == "deploy_package"
+        @test deploy_package_job["executionEvidence"]["executionId"] == deploy_package_payload["package"]["executionEvidence"]["executionId"]
+        @test deploy_package_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test deploy_package_job["executionEvidence"]["dispatchStatus"] == "completed"
+        @test deploy_package_job["executionEvidence"]["workerPool"] == deploy_package_job["resourceEvidence"]["workerPool"]
+        deploy_package_execution = first(filter(
+            execution -> execution.execution_id == deploy_package_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test deploy_package_execution.metadata["data_science_project_worker_state"]["job_type"] == "deploy_package"
+        @test deploy_package_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
+        deploy_registry_match = findfirst(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            model_lifecycle_after_deploy_payload["modelRegistryRecords"],
+        )
+        @test deploy_registry_match !== nothing
+        deployed_registry_record = model_lifecycle_after_deploy_payload["modelRegistryRecords"][deploy_registry_match]
+        @test deployed_registry_record["deploymentStatus"] == "local_ready"
+        @test length(model_lifecycle_after_deploy_payload["modelRegistryRecords"]) == length(model_lifecycle_after_register_payload["modelRegistryRecords"])
+        deploy_lifecycle_match = findfirst(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            model_lifecycle_after_deploy_payload["modelLifecycleRecords"],
+        )
+        @test deploy_lifecycle_match !== nothing
+        deployed_lifecycle_record = model_lifecycle_after_deploy_payload["modelLifecycleRecords"][deploy_lifecycle_match]
+        @test deployed_lifecycle_record["state"] == "deployed"
+        @test deployed_lifecycle_record["deployedEndpointId"] == deploy_package_payload["package"]["packageId"]
+        @test length(model_lifecycle_after_deploy_payload["modelLifecycleRecords"]) == length(model_lifecycle_after_register_payload["modelLifecycleRecords"])
+        @test model_lifecycle_rolled_back_too_early_response.status == 400
+        @test occursin("rollback requires rollback_ready", String(model_lifecycle_rolled_back_too_early_response.body))
+        @test model_lifecycle_rollback_ready_response.status == 201
+        rollback_ready_payload = JSON3.read(String(model_lifecycle_rollback_ready_response.body), Dict{String,Any})
+        @test rollback_ready_payload["status"] == "completed"
+        @test rollback_ready_payload["lifecycleRecord"]["state"] == "rollback_ready"
+        @test rollback_ready_payload["lifecycleRecord"]["rollbackModelId"] == "foundation-linear-baseline-v0"
+        @test rollback_ready_payload["lifecycleRecord"]["rollbackReason"] == "local drift review approved fallback model"
+        @test rollback_ready_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "deployed"
+        @test rollback_ready_payload["lifecycleRecord"]["validationEvidence"]["deployedEndpointId"] == deploy_package_payload["package"]["packageId"]
+        rollback_lifecycle_job = first(filter(job -> job["jobType"] == "model_lifecycle", rollback_ready_payload["project"]["projectJobs"]))
+        @test rollback_lifecycle_job["sourceRecordId"] == "foundation-linear-baseline"
+        @test rollback_lifecycle_job["resourceEvidence"]["executionMode"] == "model_lifecycle_action"
+        @test rollback_lifecycle_job["resourceEvidence"]["cpuThreadCount"] >= 1
+        @test rollback_lifecycle_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test rollback_lifecycle_job["executionEvidence"]["dispatchStatus"] == "completed"
+        @test rollback_lifecycle_job["executionEvidence"]["workerPool"] == rollback_lifecycle_job["resourceEvidence"]["workerPool"]
+        @test rollback_lifecycle_job["executionEvidence"]["dispatchLane"] == rollback_lifecycle_job["resourceEvidence"]["dispatchLane"]
+        rollback_lifecycle_execution = first(filter(
+            execution -> execution.execution_id == rollback_lifecycle_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test rollback_lifecycle_execution.metadata["worker_dispatch"]["orchestrationMode"] == "worker_service_tick"
+        @test rollback_lifecycle_execution.metadata["worker_dispatch"]["dispatchStatus"] == "completed"
+        @test rollback_lifecycle_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
+        @test [entry["status"] for entry in rollback_lifecycle_execution.status_history] == ["accepted", "queued", "running", "completed"]
+        @test model_lifecycle_rolled_back_response.status == 201
+        rolled_back_payload = JSON3.read(String(model_lifecycle_rolled_back_response.body), Dict{String,Any})
+        @test rolled_back_payload["lifecycleRecord"]["state"] == "rolled_back"
+        @test rolled_back_payload["lifecycleRecord"]["rollbackModelId"] == "foundation-linear-baseline-v0"
+        @test rolled_back_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "rollback_ready"
+        @test startswith(rolled_back_payload["lifecycleRecord"]["rollbackPackageId"], "rollback-")
+        @test rolled_back_payload["lifecycleRecord"]["deployedEndpointId"] == rolled_back_payload["lifecycleRecord"]["rollbackPackageId"]
+        @test rolled_back_payload["lifecycleRecord"]["validationEvidence"]["rollbackSourcePackageId"] == deploy_package_payload["package"]["packageId"]
+        @test rolled_back_payload["lifecycleRecord"]["validationEvidence"]["rollbackPackageId"] == rolled_back_payload["lifecycleRecord"]["rollbackPackageId"]
+        rolled_back_registry_record = first(filter(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            rolled_back_payload["project"]["modelRegistryRecords"],
+        ))
+        @test rolled_back_registry_record["status"] == "rolled_back"
+        @test rolled_back_registry_record["deploymentStatus"] == "rolled_back"
+        @test rolled_back_registry_record["rollbackModelId"] == "foundation-linear-baseline-v0"
+        deploy_package_history_after_rollback_payload = JSON3.read(String(deploy_package_history_after_rollback_response.body), Dict{String,Any})
+        rollback_package = first(filter(
+            package -> String(get(package, "packageId", "")) == rolled_back_payload["lifecycleRecord"]["rollbackPackageId"],
+            deploy_package_history_after_rollback_payload["items"],
+        ))
+        @test rollback_package["deploymentStatus"] == "rolled_back"
+        @test rollback_package["modelId"] == "foundation-linear-baseline-v0"
+        @test rollback_package["rollbackFromModelId"] == "foundation-linear-baseline"
+        @test rollback_package["rollbackTargetModelId"] == "foundation-linear-baseline-v0"
+        @test rollback_package["rollbackSourcePackageId"] == deploy_package_payload["package"]["packageId"]
+        @test occursin("foundation-linear-baseline-v0", rollback_package["serviceCode"])
+        @test length(rollback_package["packageChecksumSha256"]) == 64
+        @test model_lifecycle_retraining_response.status == 201
+        retraining_payload = JSON3.read(String(model_lifecycle_retraining_response.body), Dict{String,Any})
+        @test retraining_payload["lifecycleRecord"]["state"] == "retraining_requested"
+        @test retraining_payload["lifecycleRecord"]["retrainingReason"] == "post-rollback retraining requested"
+        @test retraining_payload["lifecycleRecord"]["validationEvidence"]["previousState"] == "rolled_back"
+        @test startswith(retraining_payload["lifecycleRecord"]["retrainingTrainingPlanId"], "retraining-")
+        @test startswith(retraining_payload["lifecycleRecord"]["retrainingTuningStudyId"], "retraining-tuning-")
+        @test startswith(retraining_payload["lifecycleRecord"]["retrainingJobId"], "job-")
+        @test retraining_payload["lifecycleRecord"]["validationEvidence"]["retrainingTrainingPlanId"] == retraining_payload["lifecycleRecord"]["retrainingTrainingPlanId"]
+        @test retraining_payload["lifecycleRecord"]["validationEvidence"]["retrainingTuningStudyId"] == retraining_payload["lifecycleRecord"]["retrainingTuningStudyId"]
+        @test retraining_payload["lifecycleRecord"]["validationEvidence"]["retrainingJobId"] == retraining_payload["lifecycleRecord"]["retrainingJobId"]
+        @test length(retraining_payload["project"]["modelLifecycleRecords"]) == length(model_lifecycle_after_deploy_payload["modelLifecycleRecords"])
+        retraining_training_plan = first(filter(
+            plan -> String(get(plan, "trainingPlanId", "")) == retraining_payload["lifecycleRecord"]["retrainingTrainingPlanId"],
+            retraining_payload["project"]["trainingPlans"],
+        ))
+        @test retraining_training_plan["targetColumn"] == "amount"
+        @test retraining_training_plan["splitPlanId"] == "split-foundation-random"
+        @test retraining_training_plan["sourceModelId"] == "foundation-linear-baseline"
+        retraining_tuning_study = first(filter(
+            study -> String(get(study, "tuningStudyId", "")) == retraining_payload["lifecycleRecord"]["retrainingTuningStudyId"],
+            retraining_payload["project"]["tuningStudies"],
+        ))
+        @test retraining_tuning_study["trainingPlanId"] == retraining_training_plan["trainingPlanId"]
+        @test retraining_tuning_study["validationOnly"] == true
+        @test retraining_tuning_study["validationEvidence"]["finalTestPolicy"] == "forbid_final_test"
+        @test retraining_tuning_study["validationEvidence"]["lifecycleAction"] == "request_retraining"
+        @test retraining_tuning_study["validationEvidence"]["retrainingOfModelId"] == "foundation-linear-baseline"
+        @test retraining_tuning_study["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        retraining_job = first(filter(job -> job["jobType"] == "retraining", retraining_payload["project"]["projectJobs"]))
+        @test retraining_job["jobId"] == retraining_payload["lifecycleRecord"]["retrainingJobId"]
+        @test retraining_job["datasetId"] == "foundation-sales-sample"
+        @test retraining_job["splitPlanId"] == "split-foundation-random"
+        @test retraining_job["sourceRecordId"] == "foundation-linear-baseline"
+        @test retraining_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test retraining_job["executionEvidence"]["dispatchStatus"] == "completed"
+        @test retraining_payload["lifecycleRecord"]["validationEvidence"]["retrainingExecutionId"] == retraining_job["executionEvidence"]["executionId"]
+        retraining_registry_record = first(filter(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            retraining_payload["project"]["modelRegistryRecords"],
+        ))
+        @test retraining_registry_record["status"] == "retraining_requested"
+        @test retraining_registry_record["retrainingTrainingPlanId"] == retraining_training_plan["trainingPlanId"]
+        @test retraining_registry_record["retrainingTuningStudyId"] == retraining_tuning_study["tuningStudyId"]
+        retraining_lifecycle_job = first(filter(job -> job["jobType"] == "model_lifecycle", retraining_payload["project"]["projectJobs"]))
+        @test retraining_lifecycle_job["executionEvidence"]["orchestrationMode"] == "worker_service_tick"
+        @test retraining_lifecycle_job["executionEvidence"]["dispatchStatus"] == "completed"
+        @test retraining_lifecycle_job["executionEvidence"]["workerPool"] == retraining_lifecycle_job["resourceEvidence"]["workerPool"]
+        retraining_execution = first(filter(
+            execution -> execution.execution_id == retraining_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test retraining_execution.metadata["data_science_project_worker_state"]["job_type"] == "retraining"
+        @test retraining_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
+        retraining_lifecycle_execution = first(filter(
+            execution -> execution.execution_id == retraining_lifecycle_job["executionEvidence"]["executionId"],
+            state.executions,
+        ))
+        @test retraining_lifecycle_execution.metadata["data_science_project_worker_state"]["job_type"] == "model_lifecycle"
+        @test retraining_lifecycle_execution.metadata["data_science_project_worker_state"]["status"] == "completed"
+        @test model_lifecycle_archive_too_early_response.status == 400
+        @test occursin("archive requires deprecated", String(model_lifecycle_archive_too_early_response.body))
+        @test model_lifecycle_deprecated_response.status == 201
+        deprecated_payload = JSON3.read(String(model_lifecycle_deprecated_response.body), Dict{String,Any})
+        @test deprecated_payload["lifecycleRecord"]["state"] == "deprecated"
+        @test deprecated_payload["lifecycleRecord"]["deprecationReason"] == "superseded by retraining review"
+        deprecated_registry_record = first(filter(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            deprecated_payload["project"]["modelRegistryRecords"],
+        ))
+        @test deprecated_registry_record["status"] == "deprecated"
+        @test model_lifecycle_archived_response.status == 201
+        archived_payload = JSON3.read(String(model_lifecycle_archived_response.body), Dict{String,Any})
+        @test archived_payload["lifecycleRecord"]["state"] == "archived"
+        @test archived_payload["lifecycleRecord"]["archiveReason"] == "local archive after deprecation"
+        archived_registry_record = first(filter(
+            record -> String(get(record, "modelId", "")) == "foundation-linear-baseline",
+            archived_payload["project"]["modelRegistryRecords"],
+        ))
+        @test archived_registry_record["status"] == "archived"
+        @test archived_registry_record["validationEvidence"]["lifecycleAction"] == "archive_model"
         @test gpu_execute_response.status == 202
         @test gpu_execute_payload["status"] == "queued"
         @test gpu_execute_payload["dispatchLane"] == "gpu"
@@ -3077,6 +6967,8 @@ end
         @test local_backup_export_payload["backup"]["workflows"][1]["workflowId"] == "wf-foundation"
         @test any(item -> item["tag"] == "cp/02-alpha-core", local_backup_export_payload["backup"]["checkpoints"])
         @test any(item -> item["dashboardId"] == "dashboard-foundation", local_backup_export_payload["backup"]["publishedDashboards"])
+        @test local_backup_export_payload["backup"]["authMetadataRedacted"]["sensitiveFieldsRedacted"] == true
+        @test !occursin("workspace-secret", JSON3.write(local_backup_export_payload["backup"]["authMetadataRedacted"]))
         @test length(local_backup_export_payload["backup"]["backupChecksumSha256"]) == 64
         @test local_backup_import_response.status == 201
         local_backup_import_payload = JSON3.read(String(local_backup_import_response.body), Dict{String,Any})
@@ -3093,11 +6985,173 @@ end
         @test import_post.status == 201
         @test occursin("wf-parallel", String(import_post.body))
         @test preflight.status == 204
-        @test any(header -> header.first == "Access-Control-Allow-Origin" && header.second == "*", preflight.headers)
+        @test any(header -> header.first == "Access-Control-Allow-Origin" && header.second == "http://127.0.0.1:5173", preflight.headers)
         @test any(header -> header.first == "Access-Control-Allow-Methods" && occursin("OPTIONS", header.second), preflight.headers)
+        @test any(header -> header.first == "Access-Control-Allow-Headers" && occursin("X-JuliaFlow-Workspace-Role", header.second), preflight.headers)
+        @test cors_allowed_preflight.status == 204
+        @test any(header -> header.first == "Access-Control-Allow-Origin" && header.second == "http://127.0.0.1:5173", cors_allowed_preflight.headers)
+        @test cors_rejected_preflight.status == 403
+        @test occursin("CORS origin not allowed", String(cors_rejected_preflight.body))
+        @test cors_allowed_mutation_response.status == 200
+        @test occursin("\"status\":\"queued\"", String(cors_allowed_mutation_response.body))
+        @test cors_rejected_mutation_response.status == 403
+        @test occursin("CORS origin not allowed", String(cors_rejected_mutation_response.body))
         @test missing_route.status == 404
-        @test any(header -> header.first == "Access-Control-Allow-Origin" && header.second == "*", health_response.headers)
+        @test !any(header -> header.first == "Access-Control-Allow-Origin", health_response.headers)
     end
+end
+
+@testset "Gateway resolved project policy boundary" begin
+    mktempdir() do home
+        data_root = joinpath(home, "data")
+        mkpath(joinpath(data_root, "raw"))
+        source = joinpath(home, "input.csv")
+        write(source, "amount,margin\n10,2\n20,4\n30,9\n40,11\n")
+        write(joinpath(data_root, "raw", "policy-dataset.csv"), read(source))
+        marker_path = "raw/private-inventory-marker.csv"
+        write(joinpath(data_root, marker_path), repeat("x", 12345))
+        withenv("JULIAFLOW_HOME" => home, "JULIAFLOW_DATA_ESTATE_ROOT" => data_root,
+            "JULIAFLOW_IMPORT_ROOTS" => home, "JULIAFLOW_METADATA_MODE" => "file",
+            "JULIAFLOW_RUNTIME_MODE" => "demo", "JULIAFLOW_AUTH_MODE" => "required",
+            "JULIAFLOW_DEV_AUTH_TOKEN" => "policy-test-token") do
+            gateway = JuliaFlowApiGateway
+            repo = gateway.JuliaFlowGatewayRepository
+            state = foundation_state(joinpath(@__DIR__, "..", "contracts", "fixtures", "foundation.workflow.toml"); store_root = joinpath(home, "store"))
+            headers = ["Authorization" => "Bearer policy-test-token", "X-JuliaFlow-Workspace" => "workspace-a", "Content-Type" => "application/json"]
+            request(method, path, body = Dict{String,Any}()) = route_request(state, HTTP.Request(method, path, headers, JSON3.write(body)))
+            project_body(id, dataset) = Dict{String,Any}(
+                "projectId" => id, "name" => id,
+                "datasets" => [Dict("datasetId" => dataset, "name" => dataset, "role" => "train", "sourceUri" => "local://data/raw/policy-dataset.csv", "localOnly" => true)],
+                "splitPlans" => [Dict("splitPlanId" => "split-$(id)", "datasetId" => dataset, "strategy" => "random", "seed" => 3,
+                    "trainFraction" => 0.5, "validationFraction" => 0.25, "testFraction" => 0.25, "locked" => true,
+                    "createdAt" => "2026-10-02T00:00:00Z")])
+            for (id, dataset) in [("policy-denied", "policy-dataset"), ("policy-allowed", "allowed-dataset"), ("policy-foreign", "foreign-dataset")]
+                created = request("POST", "/api/v1/data-science-projects", project_body(id, dataset))
+                @test created.status == 201
+                created.status == 201 || error("policy fixture project creation failed: $(String(created.body))")
+            end
+            function save_project_policies(deny_write)
+                repo.save_auth_policy!(state.repository, repo.GatewayAuthPolicy(resource_policies = [
+                    repo.GatewayResourcePolicy(resource_type = "data_science_project", resource_id = "policy-denied", workspace_id = "workspace-a",
+                        permissions_by_role = Dict("owner" => (deny_write ? String[] : ["workflow:read", "workflow:write"]))),
+                    repo.GatewayResourcePolicy(resource_type = "data_science_project", resource_id = "policy-allowed", workspace_id = "workspace-a",
+                        permissions_by_role = Dict("owner" => ["workflow:read", "workflow:write"])),
+                    repo.GatewayResourcePolicy(resource_type = "data_science_project", resource_id = "policy-foreign", workspace_id = "workspace-b",
+                        permissions_by_role = Dict("owner" => ["workflow:read", "workflow:write"])),
+                ]))
+            end
+            save_project_policies(true)
+            listed = JSON3.read(request("GET", "/api/v1/data-science-projects").body, Dict{String,Any})
+            @test [item["projectId"] for item in listed["items"]] == ["policy-allowed"]
+            @test_throws KeyError gateway.list_data_science_projects_response(state; auth_context = Dict{String,Any}("workspaceId" => "workspace-a"))
+            @test request("GET", "/api/v1/data-science-projects/policy-denied").status == 403
+            @test request("GET", "/api/v1/data-science-projects/policy-foreign").status == 403
+            # Compare only product state/files: audit and observability may record rejections.
+            function product_snapshot()
+                projects = Dict(id => repo.data_science_project_payload(project) for (id, project) in state.data_science_projects)
+                executions = [Dict("id" => item.execution_id, "status" => item.status, "metadata" => deepcopy(item.metadata)) for item in state.executions]
+                files = Dict{String,String}()
+                for (root, _, names) in walkdir(data_root), name in names
+                    path = joinpath(root, name)
+                    files[relpath(path, data_root)] = bytes2hex(sha256(read(path)))
+                end
+                persisted = load_state(state.repository)
+                persisted_projects = Dict(id => repo.data_science_project_payload(project) for (id, project) in persisted.data_science_projects)
+                persisted_executions = [Dict("id" => item.execution_id, "status" => item.status, "metadata" => deepcopy(item.metadata)) for item in persisted.executions]
+                return deepcopy((projects, executions, files, persisted_projects, persisted_executions, repo.load_model_registry_records(state.repository)))
+            end
+            before = product_snapshot()
+            import_body = Dict("projectId" => "policy-denied", "datasetId" => "policy-dataset", "sourceUri" => source,
+                "connector" => "local_file", "format" => "csv", "targetZone" => "raw")
+            @test request("POST", "/api/v1/local-data/import", import_body).status == 403
+            @test product_snapshot() == before
+            run_path = "/api/v1/workflows/wf-foundation/ml/experiments/run"
+            run_body = Dict{String,Any}("datasetId" => "policy-dataset", "executionMode" => "cpu_only", "target" => "amount", "algorithm" => "deterministic_linear_baseline")
+            @test request("POST", run_path, merge(run_body, Dict("projectId" => "policy-denied"))).status == 403
+            @test product_snapshot() == before
+            @test request("POST", run_path, run_body).status == 403
+            @test product_snapshot() == before
+            save_project_policies(false)
+            @test request("POST", "/api/v1/local-data/import", import_body).status == 201
+            # Unique project inference remains a supported training entry point.
+            trained = request("POST", run_path, run_body)
+            @test trained.status == 202
+            @test JSON3.read(trained.body, Dict{String,Any})["experiment"]["validationEvidence"]["projectId"] == "policy-denied"
+            @test request("POST", run_path, merge(run_body, Dict("projectId" => "policy-denied"))).status == 202
+            model_execution = gateway.latest_model_execution(state, "wf-foundation")
+            status_path = "/api/v1/executions/$(model_execution.execution_id)/status"
+            before_metadata = product_snapshot()
+            for (key, forged) in [("ml_validation_context", Dict("projectId" => "policy-allowed")),
+                ("ml_training_artifact_evidence", nothing), ("ml_training_execution_evidence", Dict()),
+                ("ml_training_metrics", Dict("rmse" => 0.0)), ("model_registry_record", Dict()),
+                ("deploy_package_records", Any[]), ("data_science_project_job", Dict("project_id" => "policy-allowed")),
+                ("artifact_refs", [Dict("path" => "local://models/forged.json")]), ("executorState", Dict()),
+                ("workflow_id", "another-workflow"), ("executionId", "another-execution"), ("status", "completed")]
+                rejected = request("POST", status_path, Dict("status" => "queued", "metadata" => Dict(key => forged)))
+                @test rejected.status == 400
+                @test occursin("server owned", String(rejected.body))
+                @test product_snapshot() == before_metadata
+            end
+            echo = deepcopy(model_execution.metadata["ml_validation_context"])
+            @test request("POST", status_path, Dict("status" => "queued", "metadata" => Dict("mlValidationContext" => echo, "customNote" => "allowed", "workerId" => "policy-worker"))).status == 200
+            echoed_execution = state.executions[gateway.find_execution_index(state, model_execution.execution_id)]
+            @test echoed_execution.metadata["ml_validation_context"] == echo
+            @test !haskey(echoed_execution.metadata, "mlValidationContext")
+            @test echoed_execution.metadata["customNote"] == "allowed"
+            @test echoed_execution.metadata["workerId"] == "policy-worker"
+            @test request("POST", status_path, Dict("status" => "running")).status == 200
+            save_project_policies(true)
+            before_model_actions = product_snapshot()
+            for path in ["/api/v1/workflows/wf-foundation/models/register", "/api/v1/workflows/wf-foundation/deploy/package"]
+                # A permitted body project must not replace execution provenance.
+                @test request("POST", path, Dict("projectId" => "policy-allowed")).status == 403
+                @test product_snapshot() == before_model_actions
+            end
+            save_project_policies(false)
+            @test request("POST", "/api/v1/workflows/wf-foundation/models/register").status == 201
+            @test request("POST", "/api/v1/workflows/wf-foundation/deploy/package").status == 201
+            # A global model-ID upsert must authorize the old record's project.
+            collision = deepcopy(gateway.latest_model_execution(state, "wf-foundation").metadata["model_registry_record"])
+            collision["modelId"] = "foreign-collision"
+            collision["registryId"] = "model-foreign-collision"
+            collision["datasetId"] = "foreign-dataset"
+            collision["validationEvidence"]["projectId"] = "policy-foreign"
+            collision["validationEvidence"]["datasetId"] = "foreign-dataset"
+            repo.save_model_registry_record!(state.repository, collision)
+            before_collision = product_snapshot()
+            for path in ["/api/v1/workflows/wf-foundation/models/register", "/api/v1/workflows/wf-foundation/deploy/package"]
+                @test request("POST", path, Dict("modelId" => "foreign-collision")).status == 403
+                @test product_snapshot() == before_collision
+            end
+            @test request("POST", "/api/v1/data-science-projects", project_body("policy-ambiguous", "policy-dataset")).status == 201
+            before_ambiguous = product_snapshot()
+            ambiguous = request("POST", run_path, run_body)
+            # Preserve the existing mapper's status for ambiguous project inference.
+            @test ambiguous.status == 500
+            @test JSON3.read(ambiguous.body, Dict{String,Any})["error"] == "ml experiment projectId required for dataset with multiple projects: policy-dataset"
+            @test product_snapshot() == before_ambiguous
+            internal_health = JSON3.read(healthcheck(state), Dict{String,Any})
+            @test any(replace(item["path"], '\\' => '/') == marker_path for item in internal_health["workspaceSummary"]["artifacts"])
+            for health_headers in [Pair{String,String}[], headers]
+                health_response = route_request(state, HTTP.Request("GET", "/health", health_headers))
+                @test health_response.status == 200
+                health = JSON3.read(health_response.body, Dict{String,Any})
+                @test isempty(health["workspaceSummary"]["artifacts"])
+                @test !occursin(marker_path, String(health_response.body))
+                @test !occursin("12.1 KB", String(health_response.body))
+                @test all(haskey(health, key) for key in ["dataEstateReady", "metadataReady", "hardwareProfileStatus"])
+                @test [chart["chartId"] for chart in health["charts"]] == ["workspace-cpu-trend", "workspace-ram-trend", "workspace-disk-trend"]
+            end
+        end
+    end
+end
+
+@testset "Final metric and generated code boundary" begin
+    include(joinpath(@__DIR__, "final_metric_codegen_tests.jl"))
+end
+
+@testset "Server-owned project evidence boundary" begin
+    include(joinpath(@__DIR__, "server_owned_evidence_tests.jl"))
 end
 
 @testset "API Gateway Realtime" begin
@@ -3293,9 +7347,10 @@ end
         changed_gpu_complete = JuliaFlowApiGateway.sync_external_execution_updates!(state)
         @test any(execution.execution_id == gpu_execute_reply["result"]["jobId"] for execution in changed_gpu_complete)
         completed_gpu_record = JSON3.read(execution_detail_response(state, gpu_execute_reply["result"]["jobId"]), Dict{String,Any})
-        @test completed_gpu_record["status"] == "completed"
-        @test completed_gpu_record["gpuExecutionPath"] == "gpu"
-        @test completed_gpu_record["gpuWorkloadResult"]["sum"] == 10.0
+        @test completed_gpu_record["status"] == "failed"
+        @test completed_gpu_record["gpuExecutionPath"] == "unavailable"
+        @test completed_gpu_record["gpuFallbackReason"] == "no_supported_gpu_workload"
+        @test !haskey(completed_gpu_record, "gpuWorkloadResult")
 
         stream_execute_response, stream_execute_notifications = JuliaFlowApiGateway.handle_realtime_request!(
             state,
@@ -3949,4 +8004,55 @@ end
     @test occursin("wf-foundation", String(valid_response.body))
     @test tampered_response.status == 401
     @test occursin("invalid OIDC token signature", String(tampered_response.body))
+end
+
+@testset "Gateway local browser boundary" begin
+    include(joinpath(@__DIR__, "local_browser_boundary_tests.jl"))
+end
+
+@testset "Gateway realtime cleanup" begin
+    state = load_state(mktempdir())
+    closed_socket = FakeRealtimeSocket(String[])
+    active_socket = FakeRealtimeSocket(String[])
+    for (id, socket) in [("closed", closed_socket), ("active", active_socket)]
+        JuliaFlowApiGateway.register_canvas_subscription!(state, id, "wf-foundation", socket)
+        JuliaFlowApiGateway.register_dashboard_subscription!(state, id, "dashboard-foundation", String[], socket)
+    end
+    JuliaFlowApiGateway.drop_socket_subscriptions!(state, closed_socket)
+    @test Set(keys(state.canvas_subscriptions)) == Set(["active"])
+    @test Set(keys(state.dashboard_subscriptions)) == Set(["active"])
+    JuliaFlowApiGateway.drop_socket_subscriptions!(state, closed_socket)
+    @test haskey(state.canvas_subscriptions, "active")
+    JuliaFlowApiGateway.drop_socket_subscriptions!(state, active_socket)
+    @test isempty(state.canvas_subscriptions)
+    @test isempty(state.dashboard_subscriptions)
+end
+
+@testset "Gateway managed path boundary" begin
+    include(joinpath(@__DIR__, "managed_path_boundary_tests.jl"))
+end
+
+@testset "Project payload contract boundary" begin
+    include(joinpath(@__DIR__, "project_payload_contract_tests.jl"))
+end
+
+@testset "Project real evidence boundary" begin
+    include(joinpath(@__DIR__, "project_evidence_tests.jl"))
+end
+
+@testset "Project split membership boundary" begin
+    include(joinpath(@__DIR__, "split_membership_tests.jl"))
+end
+
+@testset "Local CSV profiling boundary" begin
+    include(joinpath(@__DIR__, "local_csv_profile_tests.jl"))
+end
+
+@testset "Real file profile route boundary" begin
+    include(joinpath(@__DIR__, "real_file_profile_gateway_tests.jl"))
+end
+
+@testset "Durable scoped analysis boundary" begin
+    include(joinpath(@__DIR__, "durable_analysis_tests.jl"))
+    include(joinpath(@__DIR__, "statistics_alignment_tests.jl"))
 end

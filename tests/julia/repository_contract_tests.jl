@@ -28,6 +28,62 @@ function sample_execution(execution_id::String; workflow_id::String = "wf-founda
     )
 end
 
+function sample_data_science_project(project_id::String = "wellbore-geology-project")
+    return JuliaFlowApiGateway.JuliaFlowGatewayRepository.DataScienceProjectRecord(
+        project_id = project_id,
+        name = "Wellbore Geology Project",
+        description = "Repository contract fixture",
+        datasets = [
+            Dict{String,Any}(
+                "datasetId" => "wellbore-train",
+                "name" => "Well logs train",
+                "role" => "train",
+                "sourceUri" => "local://data/raw/wellbore/train.csv",
+                "localOnly" => true,
+                "rowCount" => 100,
+                "columnCount" => 8,
+            ),
+        ],
+        schema_contracts = [
+            Dict{String,Any}(
+                "schemaId" => "schema-wellbore",
+                "datasetId" => "wellbore-train",
+                "updatedAt" => "2026-06-21T00:00:00Z",
+                "columns" => [
+                    Dict(
+                        "name" => "depth",
+                        "inferredType" => "Float64",
+                        "logicalType" => "continuous",
+                        "role" => "depth",
+                        "nullable" => false,
+                    ),
+                    Dict(
+                        "name" => "lithology",
+                        "inferredType" => "String",
+                        "logicalType" => "categorical",
+                        "role" => "target",
+                        "nullable" => false,
+                    ),
+                ],
+            ),
+        ],
+    )
+end
+
+function sample_registry_record(model_id::String, status::String)
+    return Dict{String,Any}(
+        "registryId" => "registry-$(model_id)", "modelId" => model_id,
+        "workflowId" => "wf-foundation", "workflowVersion" => "0.1.0",
+        "checkpointTag" => "cp/01-contracts-frozen", "modelKind" => "classification",
+        "target" => "lithology", "status" => status, "tags" => String[], "owner" => "test-owner",
+        "primaryMetricName" => "accuracy", "primaryMetricValue" => 0.5,
+        "datasetId" => "wellbore-train", "datasetChecksumSha256" => repeat("0", 64),
+        "artifactEvidence" => Any[], "registeredAt" => "2026-06-21T00:00:00Z",
+        "updatedAt" => "2026-06-21T00:10:00Z", "deploymentStatus" => "not_deployed", "localOnly" => true,
+        "validationEvidence" => Dict{String,Any}("projectId" => "wellbore-geology-project"),
+    )
+end
+
 function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGatewayRepository.AbstractGatewayRepository; label::AbstractString)
     foundation_toml = read(FOUNDATION_PATH, String)
     parallel_toml = read(PARALLEL_PATH, String)
@@ -136,6 +192,63 @@ function run_gateway_repository_contract!(repo::JuliaFlowApiGateway.JuliaFlowGat
         @test persisted_dashboards[1].dashboard_id == "dashboard-foundation"
         @test persisted_dashboards[1].version == 1
 
+        data_science_project = JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_data_science_project!(
+            repo,
+            sample_data_science_project(),
+        )
+        @test data_science_project.project_id == "wellbore-geology-project"
+        updated_project = sample_data_science_project()
+        updated_project.name = "Wellbore Geology Project Updated"
+        updated_project.split_plans = [
+            Dict{String,Any}(
+                "splitPlanId" => "split-wellbore",
+                "datasetId" => "wellbore-train",
+                "strategy" => "depth",
+                "locked" => true,
+                "createdAt" => "2026-06-21T00:00:00Z",
+            ),
+        ]
+        updated_project.model_registry_records = [
+            sample_registry_record("wellbore-legacy-model", "legacy"),
+        ]
+        JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_data_science_project!(repo, updated_project)
+        persisted_projects = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_data_science_projects(repo)
+        @test length(persisted_projects) == 1
+        @test persisted_projects[1].name == "Wellbore Geology Project Updated"
+        @test persisted_projects[1].datasets[1]["role"] == "train"
+        @test persisted_projects[1].schema_contracts[1]["columns"][1]["role"] == "depth"
+        @test persisted_projects[1].split_plans[1]["strategy"] == "depth"
+        legacy_registry_records = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-foundation")
+        @test any(record -> record["modelId"] == "wellbore-legacy-model", legacy_registry_records)
+
+        registry_record = JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
+            repo,
+            sample_registry_record("wellbore-model-v1", "registered"),
+        )
+        @test registry_record["modelId"] == "wellbore-model-v1"
+        registry_records = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-foundation")
+        @test length(registry_records) >= 2
+        @test any(record -> record["modelId"] == "wellbore-legacy-model", registry_records)
+        @test only(filter(record -> record["modelId"] == "wellbore-model-v1", registry_records))["status"] == "registered"
+        if repo isa JuliaFlowApiGateway.JuliaFlowGatewayRepository.FileGatewayRepository
+            @test isfile(JuliaFlowApiGateway.JuliaFlowGatewayRepository.model_registry_file(repo))
+        end
+        JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
+            repo,
+            merge(sample_registry_record("wellbore-model-v1", "approved"), Dict("updatedAt" => "2026-06-21T00:11:00Z")),
+        )
+        updated_registry_records = JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-foundation")
+        @test only(filter(record -> record["modelId"] == "wellbore-model-v1", updated_registry_records))["status"] == "approved"
+        @test isempty(JuliaFlowApiGateway.JuliaFlowGatewayRepository.load_model_registry_records(repo; workflow_id = "wf-missing"))
+        @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_model_registry_record!(
+            repo,
+            Dict{String,Any}(
+                "modelId" => "missing-project-model",
+                "workflowId" => "wf-foundation",
+                "validationEvidence" => Dict{String,Any}("projectId" => "missing-project"),
+            ),
+        )
+
         invalid_toml = replace(foundation_toml, "wf-foundation" => "wf-invalid", count = 1)
         invalid_toml = replace(invalid_toml, "direction = \"input\"" => "direction = \"output\"", count = 1)
         @test_throws ErrorException JuliaFlowApiGateway.JuliaFlowGatewayRepository.save_workflow!(repo, invalid_toml)
@@ -158,9 +271,9 @@ function with_postgres_repository(f::Function)
         return f(repo)
     finally
         try
-            JuliaFlowApiGateway.JuliaFlowGatewayRepository.LibPQ.execute(conn, "DROP SCHEMA IF EXISTS $(repo.schema) CASCADE;")
+            JuliaFlowApiGateway.JuliaFlowGatewayRepository.execute(conn, "DROP SCHEMA IF EXISTS $(repo.schema) CASCADE;")
         finally
-            close(conn)
+            JuliaFlowApiGateway.JuliaFlowGatewayRepository.close_connection(conn)
         end
     end
 end

@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { postgresReadiness } from "./ci/postgres.mjs";
+import { redactStartup } from "./lib/startup-diagnostics.mjs";
+const postgresProbe = postgresReadiness();
 
 const ROOT_DIR = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const LOCAL_JULIA = join(ROOT_DIR, ".juliaup", "bin", "julia");
@@ -19,7 +22,7 @@ function withJuliaEnv(env) {
   return {
     ...env,
     JULIAUP_DEPOT_PATH: env.JULIAUP_DEPOT_PATH ?? join(ROOT_DIR, ".juliaup"),
-    JULIA_DEPOT_PATH: env.JULIA_DEPOT_PATH ?? join(ROOT_DIR, ".julia-depot")
+    JULIA_DEPOT_PATH: env.JULIA_DEPOT_PATH ?? process.env.JULIA_DEPOT_PATH ?? join(ROOT_DIR, ".julia-depot")
   };
 }
 
@@ -36,7 +39,7 @@ function run(command, args, env) {
     stdio: "inherit"
   });
   if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(" ")} exited with ${result.status}`);
+    throw new Error(redactStartup(`${command} ${args.join(" ")} exited with ${result.status}`, { ...process.env, ...env }));
   }
 }
 
@@ -58,7 +61,7 @@ function runDevLocalSmoke(profile, home, gatewayPort, extraArgs = [], extraEnv =
 }
 
 function runRepositorySmoke(backend, home, storeName, extraEnv = {}) {
-  run(juliaCommand(), ["--project=.", "scripts/smoke-local-metadata.jl"], withJuliaEnv({
+  run(juliaCommand(), ["--compiled-modules=no", "--project=.", "scripts/smoke-local-metadata.jl"], withJuliaEnv({
     JULIAFLOW_HOME: home,
     JULIAFLOW_STORE_ROOT: join(home, "metadata", storeName),
     JULIAFLOW_METADATA_SMOKE_BACKEND: backend,
@@ -68,7 +71,7 @@ function runRepositorySmoke(backend, home, storeName, extraEnv = {}) {
 
 function cleanupPostgresSchema(schemaName) {
   assertSafeSchemaName(schemaName);
-  run(juliaCommand(), ["--project=.", "scripts/smoke-local-metadata.jl"], withJuliaEnv({
+  run(juliaCommand(), ["--compiled-modules=no", "--project=.", "scripts/smoke-local-metadata.jl"], withJuliaEnv({
     JULIAFLOW_METADATA_SMOKE_BACKEND: "postgres-cleanup",
     JULIAFLOW_DATABASE_URL: postgresUrl,
     JULIAFLOW_DATABASE_SCHEMA: schemaName,
@@ -87,7 +90,11 @@ try {
   runDevLocalSmoke("single-user", singleUserHome, 20000 + (process.pid % 1000), ["--no-deps"]);
   runRepositorySmoke("file", singleUserHome, "repository-contract-store");
 
-  run("docker", ["compose", "-f", "infra/docker/compose.dev.yml", "up", "-d", "postgres"], {});
+  if (postgresProbe.external) {
+    run(postgresProbe.command, postgresProbe.args, {});
+  } else {
+    run("docker", ["compose", "-f", "infra/docker/compose.dev.yml", "up", "-d", "postgres"], {});
+  }
   runDevLocalSmoke("lab-team", labTeamHome, 21000 + (process.pid % 1000), ["--no-deps"], {
     JULIAFLOW_DATABASE_URL: postgresUrl,
     JULIAFLOW_DATABASE_SCHEMA: schema,

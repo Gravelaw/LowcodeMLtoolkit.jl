@@ -1,5 +1,6 @@
 import type {
   DashboardDatasetRow,
+  DataScienceProject,
   GatewayCheckpointRecord,
   GatewayDataImportProfile,
   GatewayDeployPackageRecord,
@@ -444,7 +445,10 @@ export const dataProfile: GatewayDataImportProfile = {
     { mode: "csv", label: "CSV raw source", path: "data/raw/churn.csv", status: "active", semantics: "Raw local file read for ingest and reproducible source checks." },
     { mode: "arrow_ipc", label: "Arrow IPC artifact", path: "data/raw/customer-churn-local.arrow", status: "ready", semantics: "Fast local columnar boundary used between JuliaFlow nodes." },
     { mode: "parquet", label: "Parquet managed artifact", path: "data/processed/customer-churn-local.parquet", status: "ready", semantics: "Durable local analytics artifact for processed and feature zones." },
-    { mode: "duckdb", label: "DuckDB query view", path: "data/_duckdb/local-data-estate.sql", status: "ready", semantics: "Persistent local SQL view for profiling, joins, and aggregate reads." }
+    { mode: "duckdb", label: "DuckDB query view", path: "data/_duckdb/local-data-estate.sql", status: "ready", semantics: "Persistent local SQL view for profiling, joins, and aggregate reads." },
+    { mode: "s3", label: "S3-compatible object store", path: "s3://", status: "unavailable", semantics: "Object-store connectors are disabled for the local appliance until explicit local compatibility is enabled." },
+    { mode: "gcs", label: "Google Cloud Storage", path: "gs://", status: "unavailable", semantics: "Cloud object stores are optional compatibility work and are not enabled in local-appliance mode." },
+    { mode: "azure_blob", label: "Azure Blob Storage", path: "az://", status: "unavailable", semantics: "Cloud object stores are optional compatibility work and are not enabled in local-appliance mode." }
   ],
   lineageArtifacts: [
     { stage: "raw", artifactRef: "data/raw/churn.csv", format: "csv", checksumSha256: "b".repeat(64), rowCount: 12500 },
@@ -470,6 +474,90 @@ export const dataProfile: GatewayDataImportProfile = {
   ],
   previewRows: churnRows.map(({ churn_risk: _risk, label, ...row }) => ({ ...row, churn: label === "churned" })),
   charts: churnProfileCharts
+};
+
+export const dataScienceProject: DataScienceProject = {
+  schemaVersion: "1.0",
+  projectId: "customer-churn-project",
+  name: "Customer Churn Local Project",
+  description: "Local project aggregate for schema diagnostics, validation discipline, and downstream ML evidence.",
+  localOnly: true,
+  createdAt: "2026-06-21T00:00:00Z",
+  updatedAt: "2026-06-21T00:00:00Z",
+  datasets: [
+    {
+      datasetId: dataProfile.datasetId,
+      name: "Customer Churn",
+      role: "train",
+      sourceUri: dataProfile.sourceUri,
+      localOnly: true,
+      rowCount: dataProfile.rowCount,
+      columnCount: dataProfile.schemaSummary.length,
+      checksumSha256: dataProfile.checksumSha256,
+      artifactRef: dataProfile.artifactRef
+    }
+  ],
+  schemaContracts: [
+    {
+      schemaId: "schema-customer-churn-local",
+      datasetId: dataProfile.datasetId,
+      updatedAt: "2026-06-21T00:00:00Z",
+      columns: [
+        { name: "customer_id", inferredType: "String", logicalType: "identifier", role: "id", nullable: false, description: "Stable customer identifier used for row tracing." },
+        { name: "tenure_months", inferredType: "Int64", logicalType: "continuous", role: "feature", nullable: true, unit: "months", description: "Customer tenure; nullable until imputation is configured." },
+        { name: "monthly_charges", inferredType: "Float64", logicalType: "continuous", role: "feature", nullable: false, unit: "USD", description: "Monthly billing charge." },
+        { name: "contract_type", inferredType: "String", logicalType: "categorical", role: "group", nullable: false, description: "Contract category, also suitable for grouped validation checks." },
+        { name: "churn", inferredType: "Bool", logicalType: "binary", role: "target", nullable: false, description: "Binary churn target." }
+      ]
+    }
+  ],
+  splitPlans: [
+    {
+      splitPlanId: "split-customer-churn-validation",
+      datasetId: dataProfile.datasetId,
+      strategy: "stratified",
+      trainFraction: 0.7,
+      validationFraction: 0.15,
+      testFraction: 0.15,
+      groupColumn: "contract_type",
+      seed: 42,
+      locked: false,
+      createdAt: "2026-06-21T00:00:00Z"
+    }
+  ],
+  splitAssignments: [],
+  validationFolds: [
+    {
+      foldId: "fold-customer-churn-001",
+      splitPlanId: "split-customer-churn-validation",
+      strategy: "stratified",
+      index: 1,
+      trainRef: "data/splits/customer-churn/train-fold-001.arrow",
+      validationRef: "data/splits/customer-churn/validation-fold-001.arrow"
+    }
+  ],
+  finalTestLocks: [],
+  projectJobs: [],
+  transformFitApplyRecords: [],
+  statisticalAnalysisRuns: [],
+  trainingPlans: [],
+  tuningStudies: [],
+  evaluationReports: [],
+  predictionExports: [],
+  modelRegistryRecords: [],
+  modelLifecycleRecords: [],
+  monitoringBaselines: [],
+  driftReports: [],
+  reproducibilityEvidence: [
+    {
+      refId: "schema-contract-customer-churn-local",
+      kind: "schema_contract",
+      localOnly: true,
+      checksumSha256: dataProfile.checksumSha256,
+      path: "data/contracts/schema-customer-churn-local.json",
+      generatedAt: "2026-06-21T00:00:00Z"
+    }
+  ]
 };
 
 export const superstoreDataProfile: GatewayDataImportProfile = {
@@ -507,7 +595,10 @@ export const superstoreDataProfile: GatewayDataImportProfile = {
     { mode: "csv", label: "CSV raw source", path: "data/raw/global_superstore.csv", status: "ready", semantics: "Raw local file read for ingest and reproducible source checks." },
     { mode: "arrow_ipc", label: "Arrow IPC artifact", path: "data/raw/global-superstore-local.arrow", status: "ready", semantics: "Fast local columnar boundary used between JuliaFlow nodes." },
     { mode: "parquet", label: "Parquet managed artifact", path: "data/processed/global-superstore-local.parquet", status: "ready", semantics: "Durable local analytics artifact for processed and feature zones." },
-    { mode: "duckdb", label: "DuckDB query view", path: "data/_duckdb/local-data-estate.sql", status: "active", semantics: "Persistent local SQL view for profiling, joins, and aggregate reads." }
+    { mode: "duckdb", label: "DuckDB query view", path: "data/_duckdb/local-data-estate.sql", status: "active", semantics: "Persistent local SQL view for profiling, joins, and aggregate reads." },
+    { mode: "s3", label: "S3-compatible object store", path: "s3://", status: "unavailable", semantics: "Object-store connectors are disabled for the local appliance until explicit local compatibility is enabled." },
+    { mode: "gcs", label: "Google Cloud Storage", path: "gs://", status: "unavailable", semantics: "Cloud object stores are optional compatibility work and are not enabled in local-appliance mode." },
+    { mode: "azure_blob", label: "Azure Blob Storage", path: "az://", status: "unavailable", semantics: "Cloud object stores are optional compatibility work and are not enabled in local-appliance mode." }
   ],
   lineageArtifacts: [
     { stage: "raw", artifactRef: "data/raw/global_superstore.csv", format: "csv", checksumSha256: "9".repeat(64), rowCount: 9800 },
@@ -659,6 +750,14 @@ export const modelRegistry: GatewayModelRegistryRecord[] = [
     primaryMetricValue: 0.912,
     datasetId: "customer-churn-local",
     datasetChecksumSha256: "b".repeat(64),
+    validationEvidence: {
+      projectId: "customer-churn-project",
+      splitPlanId: "split-churn-stratified",
+      splitStrategy: "stratified",
+      finalTestPolicy: "forbid_final_test",
+      validationFraction: 0.15,
+      testFraction: 0.15
+    },
     artifactEvidence: [
       { kind: "model", artifactRef: "data/models/churn_model_v1.jls", checksumSha256: "c".repeat(64) },
       { kind: "config", artifactRef: "data/models/training_config.toml", checksumSha256: "e".repeat(64) }

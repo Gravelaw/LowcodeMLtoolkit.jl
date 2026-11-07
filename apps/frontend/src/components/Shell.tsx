@@ -47,6 +47,9 @@ export function viewFromPath(pathname: string): AppView {
 
 export function Shell({
   activeView,
+  juliaVersion,
+  runtimeStale,
+  theme, onToggleTheme,
   children,
   onNavigate,
   onPrimaryAction,
@@ -56,6 +59,10 @@ export function Shell({
   onProfileAction
 }: {
   activeView: AppView;
+  juliaVersion?: string;
+  runtimeStale?: boolean;
+  theme?: "light" | "dark";
+  onToggleTheme?: () => void;
   children: React.ReactNode;
   onNavigate: (view: AppView) => void;
   onPrimaryAction: () => void;
@@ -99,7 +106,9 @@ export function Shell({
           <p>100% local. Your data stays on your device. Always.</p>
         </div>
         <div className="sidebar-foot">
-          <StatusPill tone="green">Julia 1.10.2 Local</StatusPill>
+          <StatusPill tone={juliaVersion && !runtimeStale ? "green" : "purple"}>
+            {juliaVersion ? `Julia ${juliaVersion}${runtimeStale ? " (last reported)" : " Local"}` : "Julia version unavailable"}
+          </StatusPill>
           <StatusPill tone="purple">Offline Mode</StatusPill>
         </div>
       </aside>
@@ -112,6 +121,7 @@ export function Shell({
             <span>All data stays on this device</span>
           </div>
           <div className="top-actions">
+            <Button ariaLabel="Toggle color theme" onClick={onToggleTheme}>{theme === "dark" ? "Light theme" : "Dark theme"}</Button>
             <Button variant="primary" onClick={onPrimaryAction}>+ New Project</Button>
             <Button ariaLabel="Open grid menu" onClick={onGridAction}><Grid3X3 size={17} aria-hidden="true" /></Button>
             <Button ariaLabel="Open share panel" onClick={onShareAction}><Share2 size={17} aria-hidden="true" /></Button>

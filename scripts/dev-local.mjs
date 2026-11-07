@@ -1,9 +1,13 @@
 #!/usr/bin/env node
+import { postgresReadiness } from "./ci/postgres.mjs";
 import { existsSync, mkdirSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
+import { localAuthEnv } from "./lib/local-auth.mjs";
+import { startDiagnosticProcess, waitForStartupJson, startupFailure } from "./lib/startup-diagnostics.mjs";
+import { prepareJuliaRuntime } from "./lib/julia-runtime-bootstrap.mjs";
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PROFILES = new Set(["single-user", "lab-team", "s3-compatible-local", "developer"]);
@@ -211,7 +215,7 @@ function baseEnv(config, options) {
     JULIAFLOW_EVENT_BACKBONE_MODE: process.env.JULIAFLOW_EVENT_BACKBONE_MODE ?? "dual_write",
     JULIAFLOW_STREAM_WORKER_MODE: process.env.JULIAFLOW_STREAM_WORKER_MODE ?? "process",
     JULIAFLOW_GPU_WORKER_MODE: process.env.JULIAFLOW_GPU_WORKER_MODE ?? "process",
-    JULIAFLOW_AUTH_MODE: process.env.JULIAFLOW_AUTH_MODE ?? "disabled",
+    ...localAuthEnv(process.env, config.serviceUrls.frontend),
     VITE_JULIAFLOW_GATEWAY_BASE_URL: config.serviceUrls.gateway
   };
 
@@ -242,6 +246,7 @@ function ensureJuliaDependencies(env, options) {
     console.log("[dev:local] skipping Julia dependency instantiation");
     return;
   }
+  // Install declared dependencies before the separately bounded preparation phase.
   console.log("[dev:local] ensuring Julia dependencies");
   const result = spawnSync(
     juliaCommand(),
@@ -265,35 +270,66 @@ function startDeps(profile, startDeps) {
   const services = profile === "lab-team" ? ["postgres"] : ["minio"];
   const child = spawnProcess("compose", "docker", ["compose", "-f", "infra/docker/compose.dev.yml", "up", "-d", ...services], process.env);
   return new Promise((resolvePromise, rejectPromise) => {
-    child.on("exit", (code) => (code === 0 ? resolvePromise() : rejectPromise(new Error(`docker compose exited with ${code}`))));
+    child.on("exit", async (code) => {
+      if (code !== 0) {
+        rejectPromise(new Error(`docker compose exited with ${code}`));
+        return;
+      }
+      try {
+        if (profile === "lab-team") {
+          await waitForPostgres();
+        }
+        resolvePromise();
+      } catch (error) {
+        rejectPromise(error);
+      }
+    });
   });
 }
 
-async function waitForJson(url, timeoutMs) {
+async function waitForPostgres(timeoutMs = 30000) {
+  const probe = postgresReadiness();
   const started = Date.now();
   let lastError = null;
   while (Date.now() - started < timeoutMs) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        return await response.json();
-      }
-      lastError = new Error(`${url} returned ${response.status}`);
-    } catch (error) {
-      lastError = error;
+    const result = spawnSync(
+      probe.command,
+      probe.args,
+      { cwd: ROOT_DIR, env: process.env, stdio: "pipe", shell: false }
+    );
+    if (result.status === 0) {
+      console.log("[dev:local] postgres ready");
+      return;
     }
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 300));
+    lastError = new Error(String(result.stderr || result.stdout || `pg_isready exited with ${result.status}`).trim());
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 500));
   }
-  throw lastError ?? new Error(`Timed out waiting for ${url}`);
+  throw new Error(`Timed out waiting for Postgres readiness: ${lastError?.message ?? "pg_isready did not succeed"}`);
 }
 
 async function runSmoke(config, env) {
   const julia = juliaCommand();
-  const gateway = spawnProcess("api-gateway", julia, ["--project=.", "scripts/run-api-gateway.jl"], withJuliaEnv(env));
-  const stop = () => gateway.kill("SIGTERM");
+  console.log("[dev:local] starting api-gateway");
+  // Match the compiled-module policy used by normal dev:local startup.
+  const gateway = startDiagnosticProcess(
+    julia,
+    ["--project=.", "scripts/run-api-gateway.jl"],
+    { cwd: ROOT_DIR, env: withJuliaEnv(env) }
+  );
+  let failure;
+  let stateAtFailure;
+  let cleanupError;
   try {
-    const health = await waitForJson(`${config.serviceUrls.gateway}/health`, 30000);
-    const workflows = await waitForJson(`${config.serviceUrls.gateway}/api/v1/workflows`, 30000);
+    const startupTimeoutMs = config.profile === "lab-team" ? 90000 : 60000;
+    const health = await waitForStartupJson(`${config.serviceUrls.gateway}/health`, startupTimeoutMs, {
+      process: gateway, ready: (payload) => payload?.status === "ok" && payload?.metadataReady === true
+    });
+    console.log(`[dev:local] listener ready endpoint=${config.serviceUrls.gateway}/health elapsedMs=${gateway.snapshot().elapsedMs}`);
+    const token = env.JULIAFLOW_AUTH_MODE === "oidc" ? env.VITE_JULIAFLOW_OIDC_ACCESS_TOKEN : env.JULIAFLOW_DEV_AUTH_TOKEN;
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const workflows = await waitForStartupJson(`${config.serviceUrls.gateway}/api/v1/workflows`, 30000, {
+      headers, process: gateway, ready: (payload) => Array.isArray(payload?.items)
+    });
     if (health.localProfile !== config.profile) {
       throw new Error(`Expected localProfile ${config.profile}, got ${health.localProfile}`);
     }
@@ -384,9 +420,13 @@ async function runSmoke(config, env) {
     }
     console.log("[dev:local] smoke passed");
     console.log(JSON.stringify({ profile: config.profile, home: config.home, workflowCount: workflows.items.length }, null, 2));
+  } catch (error) {
+    failure = error;
+    stateAtFailure = gateway.snapshot();
   } finally {
-    stop();
+    try { await gateway.stop(); } catch (error) { cleanupError = error; }
   }
+  if (failure || cleanupError) throw startupFailure(failure ?? cleanupError, gateway, stateAtFailure, cleanupError);
 }
 
 async function main() {
@@ -401,6 +441,17 @@ async function main() {
 
   await startDeps(options.profile, options.startDeps);
   ensureJuliaDependencies(env, options);
+  console.log("[dev:local] preparing Julia runtime before service startup");
+  const preparation = new AbortController();
+  const cancelPreparation = () => preparation.abort();
+  process.once("SIGINT", cancelPreparation);
+  process.once("SIGTERM", cancelPreparation);
+  try {
+    await prepareJuliaRuntime({ command: juliaCommand(), cwd: ROOT_DIR, env: withJuliaEnv(env), signal: preparation.signal });
+  } finally {
+    process.removeListener("SIGINT", cancelPreparation);
+    process.removeListener("SIGTERM", cancelPreparation);
+  }
 
   if (options.smoke) {
     await runSmoke(config, env);
@@ -412,10 +463,11 @@ async function main() {
     spawnProcess("execution-service", juliaCommand(), ["--project=.", "scripts/run-execution-service.jl"], withJuliaEnv(env)),
     spawnProcess("stream-worker", juliaCommand(), ["--project=.", "scripts/run-stream-worker.jl"], withJuliaEnv(env)),
     spawnProcess("gpu-worker", juliaCommand(), ["--project=.", "scripts/run-gpu-worker.jl"], withJuliaEnv(env)),
-    spawnProcess("frontend", "npm", ["--workspace", "@juliaflow/frontend", "run", "dev", "--", "--host", options.host, "--port", numberOption(options.frontendPort, "frontend port")], env)
+    spawnProcess("frontend", process.execPath, ["scripts/run-local-frontend.mjs"], env)
   ];
 
   console.log(`[dev:local] profile=${config.profile}`);
+  console.log(`[dev:local] runtime=${env.JULIAFLOW_RUNTIME_MODE} auth=${env.JULIAFLOW_AUTH_MODE}`);
   console.log(`[dev:local] home=${config.home}`);
   console.log(`[dev:local] gateway=${config.serviceUrls.gateway}`);
   console.log(`[dev:local] frontend=${config.serviceUrls.frontend}`);
@@ -448,5 +500,5 @@ async function main() {
 
 main().catch((error) => {
   console.error(`[dev:local] ${error.message}`);
-  process.exit(1);
+  process.exitCode = 1;
 });

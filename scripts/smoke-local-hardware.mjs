@@ -54,12 +54,23 @@ try {
     JULIAFLOW_CPU_WORKER_MEMORY_LIMIT_BYTES: String(512 * 1024 * 1024)
   });
 
-  const cudaSmoke = run("julia", ["--project=.", "scripts/smoke-cuda-kernel.jl"], {
+  const cudaSmoke = run(process.execPath, ["scripts/run-julia.mjs", "--project=.", "scripts/smoke-cuda-kernel.jl"], {
     JULIAFLOW_CUDA_SMOKE: "0"
   }, { capture: true });
   const cudaStatus = parseLastJsonLine(cudaSmoke.stdout);
   if (cudaStatus.status !== "skipped") {
     throw new Error(`Expected CUDA smoke skip without JULIAFLOW_CUDA_SMOKE=1, got ${cudaStatus.status}`);
+  }
+
+  let hardwareProbe = { status: "skipped", reason: "not_requested" };
+  if (process.env.JULIAFLOW_CUDA_SMOKE === "1") {
+    const operationProbe = run(process.execPath, ["scripts/run-julia.mjs", "--project=.", "scripts/smoke-hardware-evidence.jl"], {
+      JULIAFLOW_REQUIRE_CUDA_PROBE: "1"
+    }, { capture: true });
+    hardwareProbe = parseLastJsonLine(operationProbe.stdout);
+    if (hardwareProbe.status !== "passed" || hardwareProbe.usableDeviceCount < 1) {
+      throw new Error(`Physical CUDA operation probe did not pass: ${hardwareProbe.reason}`);
+    }
   }
 
   console.log(JSON.stringify({
@@ -68,7 +79,8 @@ try {
     home,
     gatewayPort,
     gpuRegistry: "cpu-fallback",
-    cudaSmoke: cudaStatus
+    cudaSmoke: cudaStatus,
+    hardwareProbe
   }, null, 2));
   console.log("[smoke:local-hardware] passed");
 } finally {

@@ -5,6 +5,7 @@ import {
   checkpoints,
   dashboardId,
   dataProfile,
+  dataScienceProject,
   deployPackages,
   executionRecords,
   localHealth,
@@ -35,6 +36,12 @@ test.beforeEach(async ({ page }) => {
   await mockGateway(page);
   await page.goto("/");
   await expect(page.getByRole("status", { name: /100% local status/i })).toContainText("100% Local");
+  await page.getByRole("button", { name: "Data", exact: true }).click();
+  await page.getByLabel("Dataset ID", { exact: true }).fill(dataProfile.datasetId);
+  await page.getByLabel("Approved local CSV path", { exact: true }).fill(dataProfile.sourceUri);
+  await page.getByRole("button", { name: "Import Local Data", exact: true }).click();
+  await expect(page.getByText("Gateway action completed locally.")).toBeVisible();
+  await page.getByRole("button", { name: "Explorer", exact: true }).click();
 });
 
 test.afterEach(async ({ page }) => {
@@ -86,6 +93,8 @@ test("sidebar navigation reaches every redesigned local-only route", async ({ pa
 
 test("backend-backed local actions use mocked gateway fixtures", async ({ page }) => {
   await page.getByRole("button", { name: "Data" }).click();
+  await page.getByLabel("Dataset ID", { exact: true }).fill(dataProfile.datasetId);
+  await page.getByLabel("Approved local CSV path", { exact: true }).fill(dataProfile.sourceUri);
   await page.getByRole("button", { name: /import local data/i }).click();
   await expect(page.getByText("Gateway action completed locally.")).toBeVisible();
 
@@ -110,6 +119,50 @@ test("backend-backed local actions use mocked gateway fixtures", async ({ page }
   await expect(page.getByText("Gateway action completed locally.")).toBeVisible();
 });
 
+test("dataset onboarding and keyboard accessibility persist through the project aggregate", async ({ page }) => {
+  await page.getByRole("button", { name: "Data" }).click();
+  await expect(page.getByRole("heading", { name: "Local Dataset Wizard" })).toBeVisible();
+  await page.getByLabel("Dataset role").selectOption("validation");
+  await expect(page.getByText("validation", { exact: true }).first()).toBeVisible();
+  await page.getByLabel("Validation strategy").selectOption("grouped");
+  await page.getByRole("button", { name: "Lock Wizard Split" }).click();
+  await expect(page.getByRole("button", { name: "Final Test Locked" }).first()).toBeDisabled();
+  await expect(page.locator(".source-row:disabled")).not.toHaveCount(0);
+
+  const tableTab = page.getByRole("tab", { name: "table" });
+  await tableTab.focus();
+  await tableTab.press("ArrowRight");
+  await expect(page.getByRole("tab", { name: "schema" })).toHaveAttribute("aria-selected", "true");
+
+  await page.getByRole("button", { name: "Transform", exact: true }).click();
+  const transformOutline = page.getByRole("list", { name: "Keyboard-accessible transform nodes" });
+  const firstNode = transformOutline.getByRole("listitem").first();
+  await firstNode.focus();
+  await firstNode.press("Enter");
+  await expect(firstNode).toHaveAttribute("aria-pressed", "true");
+});
+
+test("dialogs trap focus, close with Escape, and restore their trigger", async ({ page }, testInfo) => {
+  const newProject = page.getByRole("button", { name: "+ New Project" });
+  await newProject.focus();
+  await newProject.click();
+  const projectDialog = page.getByRole("dialog", { name: "Create New Project" });
+  await expect(projectDialog).toBeVisible();
+  await expect(projectDialog.locator(":focus")).toHaveCount(1);
+  await projectDialog.press("Escape");
+  await expect(projectDialog).toBeHidden();
+  await expect(newProject).toBeFocused();
+
+  if (testInfo.project.name === "chromium-desktop") {
+    const helpTrigger = page.getByRole("button", { name: "Open help" });
+    await helpTrigger.click();
+    const helpDialog = page.getByRole("dialog", { name: "Workspace Help" });
+    await expect(helpDialog).toBeVisible();
+    await helpDialog.press("Escape");
+    await expect(helpTrigger).toBeFocused();
+  }
+});
+
 test("Explorer Data Transform mock parity screenshots and interactions", async ({ page }, testInfo) => {
   const screenshotDir = join("artifacts", "mock-parity", testInfo.project.name);
   mkdirSync(screenshotDir, { recursive: true });
@@ -122,14 +175,14 @@ test("Explorer Data Transform mock parity screenshots and interactions", async (
   await page.getByRole("button", { name: "Data" }).click();
   await expect(page.getByRole("heading", { name: "Data", exact: true })).toBeVisible();
   await expect(page.locator('[data-chart-id="data-churn-balance"] .svg-container')).toBeVisible({ timeout: 10_000 });
-  await page.getByRole("button", { name: "filters" }).click();
-  await page.locator(".control-panel-grid select").nth(1).selectOption("monthly");
-  await page.getByRole("button", { name: "table" }).click();
+  await page.getByRole("tab", { name: "filters" }).click();
+  await page.getByRole("combobox", { name: "Value", exact: true }).selectOption("monthly");
+  await page.getByRole("tab", { name: "table" }).click();
   await expect(page.getByText("C-1001")).toBeVisible();
   await expect(page.getByText("C-1002")).not.toBeVisible();
-  await page.getByRole("button", { name: "sampling" }).click();
+  await page.getByRole("tab", { name: "sampling" }).click();
   await page.getByLabel("Preview sample").selectOption("2");
-  await page.getByRole("button", { name: "table" }).click();
+  await page.getByRole("tab", { name: "table" }).click();
   await expect(page.getByText("C-1003")).not.toBeVisible();
   await page.screenshot({ path: join(screenshotDir, "data.png"), fullPage: true });
 
@@ -147,6 +200,7 @@ test("Explorer Data Transform mock parity screenshots and interactions", async (
 });
 
 async function mockGateway(page: Page) {
+  let project = structuredClone(dataScienceProject);
   await page.route("http://127.0.0.1:8088/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -156,6 +210,12 @@ async function mockGateway(page: Page) {
     if (path === "/health") return route.fulfill(json(localHealth));
     if (path === "/api/v1/workflows") return route.fulfill(json({ items: [workflowSummary] }));
     if (path === "/api/v1/executions") return route.fulfill(json({ items: executionRecords }));
+    if (path === "/api/v1/data-science-projects" && method === "GET") return route.fulfill(json({ items: [project], count: 1 }));
+    if (path === `/api/v1/data-science-projects/${project.projectId}` && method === "GET") return route.fulfill(json(project));
+    if (path === `/api/v1/data-science-projects/${project.projectId}` && method === "PUT") {
+      project = { ...project, ...(request.postDataJSON() as object), updatedAt: new Date().toISOString() };
+      return route.fulfill(json(project));
+    }
     if (path === `/api/v1/workflows/${workflowId}`) return route.fulfill(json(localWorkflow));
     if (path === `/api/v1/workflows/${workflowId}/dashboards`) return route.fulfill(json({ items: [publishedDashboard] }));
     if (path === `/api/v1/workflows/${workflowId}/transforms/history`) return route.fulfill(json({ items: transformRuns, count: transformRuns.length }));

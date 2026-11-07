@@ -1,7 +1,7 @@
 import { Card, MetricCard, StatusPill } from "../components/ui";
 import { InteractiveChart } from "../components/InteractiveChart";
 import type { ActionFeedback, AppData, LocalProjectArtifact } from "../types";
-import type { GatewayLocalArtifactSummary } from "@juliaflow/contracts";
+import type { DataScienceProject, GatewayLocalArtifactSummary } from "@juliaflow/contracts";
 
 function formatBytes(value: number | undefined): string {
   if (!Number.isFinite(value) || !value || value <= 0) return "n/a";
@@ -55,7 +55,9 @@ export function ExplorerView({
   onSave,
   onRun,
   onCopyArtifactPath,
-  onOpenSettings
+  onOpenSettings,
+  projects = [], inventoryLoading = false, projectLoading = false, inventoryError = "",
+  onCreateProject, onOpenProject, onRefreshProjects, onCreateFolder
 }: {
   data: AppData;
   feedback?: ActionFeedback;
@@ -63,6 +65,14 @@ export function ExplorerView({
   onRun: () => void;
   onCopyArtifactPath: (path: string) => void;
   onOpenSettings: () => void;
+  projects?: DataScienceProject[];
+  inventoryLoading?: boolean;
+  projectLoading?: boolean;
+  inventoryError?: string;
+  onCreateProject?: () => void;
+  onOpenProject?: (id: string) => void;
+  onRefreshProjects?: () => void;
+  onCreateFolder?: () => void;
 }) {
   const health = data.health;
   const workspaceSummary = health.workspaceSummary;
@@ -78,7 +88,7 @@ export function ExplorerView({
   const artifactGroups = groupArtifacts(artifacts);
   const activity = workspaceSummary?.activities?.length
     ? workspaceSummary.activities
-    : [
+    : data.runtimeMode !== "demo" ? [] : [
         { label: "Pipeline completed", detail: "Customer Churn Analysis Pipeline", occurredAt: "2m ago", status: "completed" },
         { label: "Model trained", detail: "churn_model_v1.jls", occurredAt: "18m ago", status: "completed" },
         { label: "Dataset loaded", detail: "churn.csv", occurredAt: "42m ago", status: "ready" },
@@ -95,8 +105,8 @@ export function ExplorerView({
           <p>Everything runs on your machine. No data leaves your device.</p>
         </div>
         <div className="button-row">
-          <button type="button" className="jf-button secondary" onClick={onSave}>Save Workflow</button>
-          <button type="button" className="jf-button primary" onClick={onRun}>Run Workflow</button>
+          <button type="button" className="jf-button secondary" disabled={!data.workflowSummary.workflowId} onClick={onSave}>Save Workflow</button>
+          <button type="button" className="jf-button primary" disabled={!data.workflowSummary.workflowId} onClick={onRun}>Run Workflow</button>
         </div>
       </section>
       {feedback ? <p className={`feedback ${feedback.tone}`}>{feedback.label}</p> : null}
@@ -158,8 +168,23 @@ export function ExplorerView({
       </Card>
 
       <Card title="Local Project Browser" eyebrow={workspaceSummary?.projectRoot ?? health.dataEstateRoot}>
+        <div className="button-row project-opening-controls">
+          <label>Open saved project
+            <select aria-label="Open saved project" value={data.dataScienceProject.projectId} onChange={(event) => onOpenProject?.(event.target.value)}>
+              <option value="">{projectLoading ? "Opening project…" : "Select a saved project"}</option>
+              {projects.map((project) => <option key={project.projectId} value={project.projectId}>{project.name} · {project.projectId}</option>)}
+            </select>
+          </label>
+          <button type="button" className="jf-button primary" onClick={onCreateProject}>Create project</button>
+          <button type="button" className="jf-button secondary" onClick={onRefreshProjects}>Refresh projects</button>
+          <button type="button" className="jf-button secondary" disabled={!data.dataScienceProject.projectId || projectLoading} onClick={onCreateFolder}>Write optional folder</button>
+        </div>
+        {inventoryError ? <p role="alert" className="feedback error">{inventoryError}</p> : null}
+        {inventoryLoading ? <p role="status">Loading saved projects…</p> : null}
+        {projects.length === 0 && !inventoryError && !inventoryLoading ? <p className="empty-state">No saved projects. Create a project to begin.</p> : null}
+        {data.dataScienceProject.projectId ? <p role="status">Active project: <strong>{data.dataScienceProject.name}</strong> · {data.dataScienceProject.projectId}</p> : null}
         <p className="workspace-state-line">
-          Source: <strong>{workspaceSummary ? "gateway workspace summary" : "local fixture fallback"}</strong> | Artifacts: <strong>{artifacts.length}</strong>
+          Source: <strong>{workspaceSummary ? "gateway workspace summary" : data.runtimeMode === "demo" ? "local fixture fallback" : "workspace inventory unavailable"}</strong> | Artifacts: <strong>{artifacts.length}</strong>
         </p>
         <div className="artifact-tree" aria-label="Local project artifact hierarchy">
           {artifactGroups.length > 0 ? artifactGroups.map((group) => (
@@ -194,12 +219,15 @@ export function ExplorerView({
 
       <Card title="Recent Local Activity">
         <ol className="activity-list">
-          {activity.map((item) => (
-            <li key={`${item.label}-${item.detail}`}>
+          {activity.length === 0 ? <li>No recorded local activity.</li> : null}
+          {activity.map((item, index) => (
+            <li key={`${item.label}-${item.detail}-${item.occurredAt}-${item.status}-${index}`}>
               <span className="activity-dot" />
-              <strong>{item.label}</strong>
-              <span>{item.detail}</span>
-              <small>{item.occurredAt}</small>
+              <div className="activity-content">
+                <strong>{item.label}</strong>
+                <span>{item.detail}</span>
+                <small>{item.occurredAt}</small>
+              </div>
             </li>
           ))}
         </ol>
@@ -234,8 +262,8 @@ export function ExplorerView({
 
       <Card title="Local Packages">
         <div className="key-values">
-          <span>Installed</span><strong>{workspaceSummary?.packageInstalledCount ?? 142}</strong>
-          <span>Outdated</span><strong>{workspaceSummary?.packageOutdatedCount ?? 2}</strong>
+          <span>Installed</span><strong>{workspaceSummary?.packageInstalledCount ?? (data.runtimeMode === "demo" ? 142 : "unavailable")}</strong>
+          <span>Outdated</span><strong>{workspaceSummary?.packageOutdatedCount ?? (data.runtimeMode === "demo" ? 2 : "unavailable")}</strong>
           <span>Runtime Uptime</span><strong>{workspaceSummary?.runtimeUptimeLabel ?? "local process"}</strong>
           <span>Active Jobs</span><strong>{workspaceSummary?.activeJobCount ?? health.runningExecutionsTotal}</strong>
           <span>Hub Mode</span><strong>{health.hubCacheStatus}</strong>

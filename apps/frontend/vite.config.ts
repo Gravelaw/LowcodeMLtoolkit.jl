@@ -7,6 +7,9 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: "./src/test-setup.ts",
+    // Node 26's process storage shadows jsdom unless disabled in test workers.
+    execArgv: process.allowedNodeEnvironmentFlags.has("--no-experimental-webstorage")
+      ? ["--no-experimental-webstorage"] : [],
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary"],

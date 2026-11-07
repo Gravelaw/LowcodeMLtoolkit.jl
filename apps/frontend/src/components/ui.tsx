@@ -70,19 +70,22 @@ export function StatusPill({
 export function DataTable<TItem extends object>({
   columns,
   rows = [],
-  getRowKey
+  getRowKey,
+  caption
 }: {
   columns: Array<{ key: keyof TItem | string; label: string; render?: (row: TItem) => ReactNode }>;
   rows?: TItem[];
   getRowKey: (row: TItem, index: number) => string;
+  caption?: string;
 }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0} role="region" aria-label={caption ?? `Data table: ${columns.map((column) => column.label).join(", ")}`}>
       <table>
+        {caption ? <caption>{caption}</caption> : null}
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={String(column.key)}>{column.label}</th>
+              <th scope="col" key={String(column.key)}>{column.label}</th>
             ))}
           </tr>
         </thead>
