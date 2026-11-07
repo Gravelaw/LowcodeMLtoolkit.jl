@@ -1,5 +1,11 @@
 # JuliaFlow checkpoint log
 
+2026-11-08 - Dependency security (untracked in Linear): replace conflicting
+Dependabot PR #62 with a fresh bump of `vite` to ^8.3.6 (resolved 8.3.6) on
+current `main`; #61 `source-map-js` 1.2.2 merged as 3f0da7d. Frontend build and
+72 frontend tests passed. Remaining moderate advisories (`vitest`/`@vitest/mocker`
+<= 4.1.11, `smol-toml` <= 1.8.0) are open follow-up. No product behavior change.
+
 2026-11-07 - Repository sync and hygiene (untracked in Linear): adopt
 `codex/aks-69-consolidated-candidate` (03f19e1) as the single proposed `main`
 state via branch `claude/sync-consolidated-main`. Every `codex/*` branch and
