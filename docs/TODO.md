@@ -1,5 +1,16 @@
 # JuliaFlow TODO
 
+2026-11-07 - Repository sync and hygiene (untracked in Linear): adopt
+`codex/aks-69-consolidated-candidate` (03f19e1) as the single proposed `main`
+state via branch `claude/sync-consolidated-main`. Every `codex/*` branch and
+open Codex PR head is an ancestor of it. Hygiene only: remove the accidental
+1-byte `mockdesigns/juliaflow` web commit file, replace 15 machine-specific
+`known_hosts` paths in brd-traceability with `%USERPROFILE%`, enable the
+project-scoped `caveman` Claude Code plugin in `.claude/settings.json`, and add
+the [restart audit](restart-audit-2026-11-07.md) plus the previously untracked GPU runtime
+assessment. No product behavior, requirement or acceptance status changes.
+Hosted CI remains in local execution mode; no release readiness follows.
+
 2026-10-14 - Windows verification follow-up: preserve 941f6fb's failed PostgreSQL
 aggregate and live-browser hydration trace. Dataset controls now share the existing
 mutation readiness/identity guard, so project hydration cannot enable schema/split
