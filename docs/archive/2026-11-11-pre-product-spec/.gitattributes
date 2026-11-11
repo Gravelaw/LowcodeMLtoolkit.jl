@@ -1,0 +1,2 @@
+# Snapshot bytes are hash-verified; never convert line endings.
+*.md -text

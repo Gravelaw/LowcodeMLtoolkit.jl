@@ -53,21 +53,20 @@ Extension packs provide actual node implementations.
 
 ## Key Files To Read First
 
-- [README.md](/home/akshayrj00/my_project/README.md)
-- [docs/architecture.md](/home/akshayrj00/my_project/docs/architecture.md)
-- [docs/architecture-overview.md](/home/akshayrj00/my_project/docs/architecture-overview.md)
-- [docs/project-tracker.md](/home/akshayrj00/my_project/docs/project-tracker.md)
-- [docs/checkpoint-log.md](/home/akshayrj00/my_project/docs/checkpoint-log.md)
+- [README.md](../README.md)
+- [docs/architecture.md](architecture.md)
+- [docs/architecture-overview.md](architecture-overview.md)
+- [docs/spec/PRODUCT.md](spec/PRODUCT.md)
 
 Code entrypoints:
 
-- [src/JuliaFlowMonorepo.jl](/home/akshayrj00/my_project/src/JuliaFlowMonorepo.jl)
-- [apps/frontend/src/App.tsx](/home/akshayrj00/my_project/apps/frontend/src/App.tsx)
-- [services/api-gateway/src/JuliaFlowApiGateway.jl](/home/akshayrj00/my_project/services/api-gateway/src/JuliaFlowApiGateway.jl)
-- [services/api-gateway/src/JuliaFlowGatewayRepository.jl](/home/akshayrj00/my_project/services/api-gateway/src/JuliaFlowGatewayRepository.jl)
-- [services/execution-service/src/JuliaFlowExecutionService.jl](/home/akshayrj00/my_project/services/execution-service/src/JuliaFlowExecutionService.jl)
-- [services/node-sdk/src/JuliaFlowNodeSDK.jl](/home/akshayrj00/my_project/services/node-sdk/src/JuliaFlowNodeSDK.jl)
-- [extensions/base/src/JuliaFlowBaseExtension.jl](/home/akshayrj00/my_project/extensions/base/src/JuliaFlowBaseExtension.jl)
+- [src/JuliaFlowMonorepo.jl](../src/JuliaFlowMonorepo.jl)
+- [apps/frontend/src/App.tsx](../apps/frontend/src/App.tsx)
+- [services/api-gateway/src/JuliaFlowApiGateway.jl](../services/api-gateway/src/JuliaFlowApiGateway.jl)
+- [services/api-gateway/src/JuliaFlowGatewayRepository.jl](../services/api-gateway/src/JuliaFlowGatewayRepository.jl)
+- [services/execution-service/src/JuliaFlowExecutionService.jl](../services/execution-service/src/JuliaFlowExecutionService.jl)
+- [services/node-sdk/src/JuliaFlowNodeSDK.jl](../services/node-sdk/src/JuliaFlowNodeSDK.jl)
+- [extensions/base/src/JuliaFlowBaseExtension.jl](../extensions/base/src/JuliaFlowBaseExtension.jl)
 
 ## Frontend Today
 
@@ -197,7 +196,7 @@ Default local store:
 
 Gateway bootstrap script:
 
-- [scripts/run-api-gateway.jl](/home/akshayrj00/my_project/scripts/run-api-gateway.jl)
+- [scripts/run-api-gateway.jl](../scripts/run-api-gateway.jl)
 
 Default boot behavior:
 
@@ -269,7 +268,7 @@ Local compose file defines dependency stack for future/full local platform:
 
 See:
 
-- [infra/docker/compose.dev.yml](/home/akshayrj00/my_project/infra/docker/compose.dev.yml)
+- [infra/docker/compose.dev.yml](../infra/docker/compose.dev.yml)
 
 Deployment direction:
 
@@ -281,7 +280,7 @@ Deployment direction:
 
 Good quick sample:
 
-- [tests/contracts/fixtures/foundation.workflow.toml](/home/akshayrj00/my_project/tests/contracts/fixtures/foundation.workflow.toml)
+- [tests/contracts/fixtures/foundation.workflow.toml](../tests/contracts/fixtures/foundation.workflow.toml)
 
 It shows current runtime model:
 
@@ -327,5 +326,5 @@ Big gaps still open:
 
 See:
 
-- `docs/TODO.md`
+- `docs/spec/PRODUCT.md`
 - `.omx/plans/brd-gap-review-2026-04-24.md`

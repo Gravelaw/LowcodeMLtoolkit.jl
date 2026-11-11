@@ -1,7 +1,7 @@
 {
   "version": 1,
   "workflows": {
-    ".github/workflows/ci.yml": "35f12ec4d0bb542e2d158f96fe7f691508ff2b95c3e55a9700c6ccf5b69d9cce",
+    ".github/workflows/ci.yml": "3eec88579b7cba75924b1402387af1d1f53ced0c98abf746b41a99622016641e",
     ".github/workflows/release-candidate.yml": "f8d4936a252d6ee7badd956f0f592e2bc7fbcffd1174329d09eb06d9da92fdd3"
   },
   "profiles": {
@@ -29,8 +29,6 @@
         "npm run validate:contracts",
         "npm run build",
         "npm run test",
-        "npm run validate:control-doc-sync",
-        "npm run validate:brd-traceability",
         "git diff --check"
       ]
     },

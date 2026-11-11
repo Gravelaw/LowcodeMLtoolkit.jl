@@ -10,11 +10,12 @@ JuliaFlow is a monorepo for a visual low-code analytics platform built in Julia.
 
 ## Repository Layout
 
-Current work and acceptance gaps live in [Plan.md](Plan.md) and
-[docs/TODO.md](docs/TODO.md). Agent/tooling procedures are documented in
+The product spec is [docs/spec/PRODUCT.md](docs/spec/PRODUCT.md); tasks are
+tracked in GitHub Issues and the repository GitHub Project. Agent/tooling procedures are documented in
 [docs/agent-tooling.md](docs/agent-tooling.md). Superseded concept BRDs and
-historical control documents are preserved in the
-[indexed archive](docs/archive/2026-09-20/README.md); their readiness statements
+historical control documents are preserved in indexed archives
+([2026-09-20](docs/archive/2026-09-20/README.md),
+[2026-11-11](docs/archive/2026-11-11-pre-product-spec/README.md)); their readiness statements
 refer to their recorded versions, not the current checkout.
 
 - `apps/frontend/` React + Vite application shell
@@ -80,7 +81,7 @@ Use checkpoint script to capture tagged milestones with release note stubs:
 ./scripts/create-checkpoint.sh cp/00-foundation
 ```
 
-See [docs/checkpoint-log.md](docs/checkpoint-log.md) for current checkpoint evidence and next implementation items.
+See [docs/spec/PRODUCT.md](docs/spec/PRODUCT.md) for the roadmap and next implementation items.
 
 ## Gateway
 
@@ -104,7 +105,7 @@ JULIAFLOW_OIDC_ALLOWED_ALGORITHMS=HS256 \
 julia --project=. scripts/run-api-gateway.jl
 ```
 
-OIDC discovery/JWKS support is mockable and tested for key rotation. Live IdP RSA/JWKS hardening and admin UI surfaces remain tracked in `docs/TODO.md` and `docs/risk-register.md`.
+OIDC discovery/JWKS support is mockable and tested for key rotation. Live IdP RSA/JWKS hardening and admin UI surfaces remain open; track them as GitHub issues.
 
 Live Keycloak + PostgreSQL auth smoke evidence:
 

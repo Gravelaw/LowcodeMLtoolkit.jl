@@ -1,0 +1,199 @@
+{
+  "capturedAt": "2026-11-11",
+  "sourceCommit": "019f15ce3b5fa5fc2971f381b5ce40565a194401",
+  "reason": "Retired by docs/spec/PRODUCT.md v1.0",
+  "files": [
+    {
+      "originalPath": "Plan.md",
+      "archivePath": "Plan.md",
+      "bytes": 28829,
+      "sha256": "ec78785d6884a4d1469bff3fd9247b24fa7cd84e58f9e2ce4c755467f7bac020"
+    },
+    {
+      "originalPath": "docs/TODO.md",
+      "archivePath": "TODO.md",
+      "bytes": 29416,
+      "sha256": "1e137fb96411a3325809241670bbba30892a09af919fcccafe290d9cb86ec83f"
+    },
+    {
+      "originalPath": "docs/acceptance-v0.5.0.md",
+      "archivePath": "acceptance-v0.5.0.md",
+      "bytes": 24844,
+      "sha256": "39e41545632131f515f38b7e63a8e0845bd34370c6489da35abbee5d297ba4c7"
+    },
+    {
+      "originalPath": "docs/aks-30-35-implementation-plan.md",
+      "archivePath": "aks-30-35-implementation-plan.md",
+      "bytes": 4233,
+      "sha256": "f266735dca5a32f685ed854d55704921f2f6933fe3d85488917f3a47cd5ae3d6"
+    },
+    {
+      "originalPath": "docs/blocker-remediation-2026-09-20.md",
+      "archivePath": "blocker-remediation-2026-09-20.md",
+      "bytes": 22758,
+      "sha256": "51f126f2d76c772c5bbc77a325de3457b0078dfac554d4b0b4b60acfe8f0ea1a"
+    },
+    {
+      "originalPath": "docs/brd-traceability.md",
+      "archivePath": "brd-traceability.md",
+      "bytes": 136620,
+      "sha256": "1ac60945e2b553ff287e76cf8ecf40e76c27923c5e91d845cdae2fa6e30db19f"
+    },
+    {
+      "originalPath": "business-requirements-v0.3.0.md",
+      "archivePath": "business-requirements-v0.3.0.md",
+      "bytes": 28939,
+      "sha256": "38fe389b6fdb91c5f576989648a88f0e7a6f796bd9072c23d639e0203f55a926"
+    },
+    {
+      "originalPath": "docs/checkpoint-log.md",
+      "archivePath": "checkpoint-log.md",
+      "bytes": 57189,
+      "sha256": "1712aab02bf553cc67d157fd7c80d6a39319d3542158bd777c0496e1c79d06d5"
+    },
+    {
+      "originalPath": "docs/data-scientist-persona-competition-readiness-report.md",
+      "archivePath": "data-scientist-persona-competition-readiness-report.md",
+      "bytes": 43328,
+      "sha256": "25505983d95772b4fb7093bf014c78467ddbc4f685dcbe68a85a6cdc97fbc6f4"
+    },
+    {
+      "originalPath": "docs/dependency-remediation-2026-09-20.md",
+      "archivePath": "dependency-remediation-2026-09-20.md",
+      "bytes": 4510,
+      "sha256": "ee539ffcae17e58d9dff66ded1c3416bc9cfc8681c6d783f938ef645ce2c5f4a"
+    },
+    {
+      "originalPath": "docs/gpu-runtime-assessment-2026-09-20.md",
+      "archivePath": "gpu-runtime-assessment-2026-09-20.md",
+      "bytes": 22087,
+      "sha256": "8f96a6b1e44b90b16d3cd061d45e1488e77c8b0fd1d7e4a324abfd09be6120b5"
+    },
+    {
+      "originalPath": "docs/integration-consolidation-2026-10-11.md",
+      "archivePath": "integration-consolidation-2026-10-11.md",
+      "bytes": 10125,
+      "sha256": "ef26de69195298f7f25a3b1e7f0ca786259771365da0786e6264c015187a15b6"
+    },
+    {
+      "originalPath": "docs/manual-ui-review-backlog.md",
+      "archivePath": "manual-ui-review-backlog.md",
+      "bytes": 20436,
+      "sha256": "a651603745c0fbf60ea2939522bb708697d960b6f79c585b4921695e7391990e"
+    },
+    {
+      "originalPath": "docs/next-steps.md",
+      "archivePath": "next-steps.md",
+      "bytes": 7618,
+      "sha256": "5626085f9d32f69a574354aec385f1ac1834029959e0d4abea67731293060e22"
+    },
+    {
+      "originalPath": "docs/next-two-milestones.md",
+      "archivePath": "next-two-milestones.md",
+      "bytes": 13814,
+      "sha256": "1764c55748f128f7dbfccbd635f88685a6d15232177860cbaad7921cbd7c9958"
+    },
+    {
+      "originalPath": "docs/persona-architecture-review.md",
+      "archivePath": "persona-architecture-review.md",
+      "bytes": 21443,
+      "sha256": "467a438bdaad12ac3418b174ca3a627abdf0baa9c305b618767a5a3cccbd05eb"
+    },
+    {
+      "originalPath": "docs/principal-persona-readiness-review.md",
+      "archivePath": "principal-persona-readiness-review.md",
+      "bytes": 12155,
+      "sha256": "32b6779f733d41befae952c40f250acd6b835a2f9c52ddedc405dfd5b502d226"
+    },
+    {
+      "originalPath": "docs/product-roadmap.md",
+      "archivePath": "product-roadmap.md",
+      "bytes": 13150,
+      "sha256": "b21062e3284734e0fd94e8e87802eefd5a40c8956fcbeff006f0838214102073"
+    },
+    {
+      "originalPath": "docs/project-tracker.md",
+      "archivePath": "project-tracker.md",
+      "bytes": 40415,
+      "sha256": "e04ed994bcb504af2bf07db147293e4207d6643f1f93c30b392801f6f4115328"
+    },
+    {
+      "originalPath": "docs/restart-audit-2026-11-07.md",
+      "archivePath": "restart-audit-2026-11-07.md",
+      "bytes": 9622,
+      "sha256": "f3839aa4754dfb0a8515145e9f27c25425cdd975213fa15ad2e3dbd92ea9f38b"
+    },
+    {
+      "originalPath": "docs/restart-review-2026-09-20.md",
+      "archivePath": "restart-review-2026-09-20.md",
+      "bytes": 17185,
+      "sha256": "abf0575599795c5c4daa0cfaeff7a427234ef4f7c456131f4437f7b5cd84dd73"
+    },
+    {
+      "originalPath": "docs/restart-threat-model-2026-09-20.md",
+      "archivePath": "restart-threat-model-2026-09-20.md",
+      "bytes": 8339,
+      "sha256": "5e9d76f043fa4521472b8030c525261dc067ed084d6b88550185071cdc275175"
+    },
+    {
+      "originalPath": "docs/risk-register.md",
+      "archivePath": "risk-register.md",
+      "bytes": 31386,
+      "sha256": "8500e24f959779e7de939ed02df2ab4f70c193ea2011e4caff1aac35c4aac7f7"
+    },
+    {
+      "originalPath": "docs/source-reconciliation-2026-09-20.md",
+      "archivePath": "source-reconciliation-2026-09-20.md",
+      "bytes": 16929,
+      "sha256": "db5ddeeb2b9081e9c3e42d3dfbed5dcfcfb0c7d88b9434125e7a06f02fdd6d7b"
+    },
+    {
+      "originalPath": "docs/verification-brd-v0.5.0.md",
+      "archivePath": "verification-brd-v0.5.0.md",
+      "bytes": 5451,
+      "sha256": "659f752efc34eb80e8ad07ed45bef1e8a509238d5f3ada4f0dea08e7d1e30582"
+    },
+    {
+      "originalPath": "docs/verification-create-project.md",
+      "archivePath": "verification-create-project.md",
+      "bytes": 5689,
+      "sha256": "97529e186b47b58dfc08ce6523d1291858f52736bc5ba690ea9dfd658d38dc93"
+    },
+    {
+      "originalPath": "docs/verification-design-r3.md",
+      "archivePath": "verification-design-r3.md",
+      "bytes": 2330,
+      "sha256": "0968079afb65ab8675819b024926632d76a21939a73cfd2137d3f5b7ac832841"
+    },
+    {
+      "originalPath": "docs/verification-durable-analysis.md",
+      "archivePath": "verification-durable-analysis.md",
+      "bytes": 17214,
+      "sha256": "d031c7c65f75997974e90a449c59a45452ef81dba0deee0f844555959ab2d600"
+    },
+    {
+      "originalPath": "docs/verification-local-ci-aks69.md",
+      "archivePath": "verification-local-ci-aks69.md",
+      "bytes": 7123,
+      "sha256": "c96d4c649fd8da1219094748133d04622d39b32855c86e2924b4d7aaa3dffb0c"
+    },
+    {
+      "originalPath": "docs/verification-m1-integration.md",
+      "archivePath": "verification-m1-integration.md",
+      "bytes": 10355,
+      "sha256": "cf7639a34020b2d6e39dd133b1d94b1bfdad32f76f10bb31ec84268ad6c4d280"
+    },
+    {
+      "originalPath": "docs/verification-m2-hardware.md",
+      "archivePath": "verification-m2-hardware.md",
+      "bytes": 5394,
+      "sha256": "6b64bbae4bc391f7a06816c48be168f12218ccf1ef33e41bcedd8beea5cfa0c3"
+    },
+    {
+      "originalPath": "docs/verification-windows-runtime-2026-10-14.md",
+      "archivePath": "verification-windows-runtime-2026-10-14.md",
+      "bytes": 7168,
+      "sha256": "23a54f83020d5965473d63d29f70a6356712d2282d0ed0a620b8934b6bea0025"
+    }
+  ]
+}
