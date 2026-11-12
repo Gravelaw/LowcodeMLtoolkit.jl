@@ -1,6 +1,6 @@
 # JuliaFlow product spec
 
-Version 1.0 · 2026-11-11 · Owner: Akshay (Gravelaw) · Status: **approved direction, not yet implemented**
+Version 1.1 · 2026-11-12 · Owner: Akshay (Gravelaw) · Status: **approved direction, not yet implemented**
 
 This file is the single canonical product spec. It replaces BRD v0.5.0
 (`business-requirements-v0.3.0.md`), `Plan.md`, `docs/TODO.md`,
@@ -96,6 +96,7 @@ data shape and cold/warm state.
 | NFR-08 Memory | Peak RSS during NFR-01 workload | ≤ 12 GB, with a clear error before the OS kills the process |
 | NFR-09 Offline | Network access after install | none required; no telemetry |
 | NFR-10 Accessibility | Core journey | keyboard-only operable; WCAG 2.1 AA contrast; charts have tables |
+| NFR-11 Pinned dependencies | Package downloads during a CI run or app start, for an unchanged lockfile | none; every build resolves the versions recorded in the lockfile |
 
 ## 6. Non-goals and deferred work
 
@@ -121,6 +122,11 @@ Deferred (on the roadmap, not in the MVP):
 - Local I/O: approved roots, real-path confinement, symlink/junction policy, checksums and redaction.
 - CPU is the only required compute path. Any later GPU path must report the actual device and fall back to CPU with a reason.
 - Release and local-appliance modes never substitute demo or fixture data for missing state.
+- Dependencies and binaries:
+  - A per-platform lockfile pins the resolved Julia environment (a Manifest for Windows and for Linux).
+  - CI uses a prebuilt, read-only Julia depot (registry, packages, artifacts, compiled cache). The depot is keyed by the lockfile hash, Julia version and OS, and is rebuilt only when that key changes.
+  - The app ships a PackageCompiler system image built from the same lockfile, so it starts offline (NFR-05, NFR-09).
+  - A system-image build (about 10–20 min) runs once per lockfile change and per OS, never on every run.
 
 ## 8. Risks
 
@@ -132,6 +138,7 @@ Deferred (on the roadmap, not in the MVP):
 | Large single files (gateway ~8 k lines, `runtests.jl` ~8 k lines) | Slow change, merge pain | Split by module while touching each area; no big-bang refactor |
 | Solo developer bandwidth | Scope creep stalls the MVP | Only items in §3 and §4 enter Phase 1; everything else waits |
 | Hosted CI cost | Slow feedback | Local CI through EasyCI; hosted CI runs only the release gate |
+| Unpinned dependencies and per-run downloads | CI takes 30 min or more; builds can't be reproduced (NFR-07) | Per-platform lockfile; prebuilt CI depot and system image keyed by its hash (§7, NFR-11) |
 | Dependency advisories (vitest, smol-toml) | Security exposure in dev tooling | Track as GitHub issues; update with Dependabot PRs |
 
 ## 9. Roadmap
@@ -141,7 +148,7 @@ Phases are ordered by dependency, not dated.
 | Phase | Scope | Exit |
 | --- | --- | --- |
 | 0 Reset | This spec; lean governance; Linear → GitHub Project migration | Spec merged; backlog lives in GitHub |
-| 1 Data core | PR-01–PR-07: full-file CSV/Parquet import, roles/types, profile, leakage warnings, train-only preparation, splits | Titanic and House Prices data load, profile and split within NFR-01–04 |
+| 1 Data core | PR-01–PR-07: full-file CSV/Parquet import, roles/types, profile, leakage warnings, train-only preparation, splits; per-platform lockfile and prebuilt CI depot | Titanic and House Prices data load, profile and split within NFR-01–04; CI meets NFR-11 |
 | 2 Model core | PR-08–PR-16: test lock, training, tuning, compare, explain, predict, export | MVP done (§3) on the reference machine |
 | 3 Differentiators | Domain persona (grouped/sequential), GPU paths with measured benefit, system-image packaging | Wellbore acceptance run; published CPU vs GPU numbers |
 | 4 Lifecycle | Models, Deploy, Monitor routes; installers | Defined when Phase 2 ships |
@@ -168,3 +175,6 @@ Phases are ordered by dependency, not dated.
 1. Parquet in Phase 1 or Phase 2 (adds a dependency; CSV alone meets Titanic/House Prices).
 2. Whether to ship the Julia system image in Phase 2 to meet NFR-05, or accept a slower first start until Phase 3.
 3. Whether the second persona's template is wellbore (ROGII) or a simpler grouped dataset.
+4. Where the lockfile lives:
+   - as a release artifact; or
+   - committed under a release path, with an explicit exception to the `AGENTS.md` rule against committing `Manifest.toml`.
