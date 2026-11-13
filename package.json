@@ -52,7 +52,7 @@
     "smoke:local-reproducibility": "node scripts/smoke-local-reproducibility.mjs",
     "smoke:local-migration": "node scripts/smoke-local-migration.mjs",
     "test:local-ci": "node --test tests/ci/*.test.mjs",
-    "cd:local": "node scripts/ci/delivery.mjs",
+    "package:release": "node scripts/package-release.mjs",
     "ci:hosted-policy": "node scripts/ci/hosted-policy.mjs",
     "smoke:create-project": "node scripts/smoke-create-project.mjs",
     "smoke:durable-analysis": "node scripts/smoke-durable-analysis.mjs"
