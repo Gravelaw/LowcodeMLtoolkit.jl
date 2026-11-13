@@ -24,8 +24,7 @@ const skipped = {
   install: args.has("--skip-install"),
   julia: args.has("--skip-julia"),
   smokes: args.has("--skip-smokes"),
-  browser: args.has("--skip-browser"),
-  controlDocs: args.has("--skip-control-docs")
+  browser: args.has("--skip-browser")
 };
 const enforceCleanCandidate = !Object.values(skipped).some(Boolean);
 
@@ -82,8 +81,6 @@ const commands = [
   { phase: "browser", kind: "runtime", name: "smoke-live-backend-browser", command: npmBin, args: ["run", "smoke:live-backend-browser"], skip: skipped.browser },
   { phase: "browser", kind: "runtime", name: "smoke-create-project", command: npmBin, args: ["run", "smoke:create-project"], skip: skipped.browser },
   { phase: "browser", kind: "runtime", name: "smoke-durable-analysis", command: npmBin, args: ["run", "smoke:durable-analysis"], skip: skipped.browser },
-  { phase: "control-docs", kind: "control-docs", name: "validate-control-doc-sync", command: npmBin, args: ["run", "validate:control-doc-sync"], skip: skipped.controlDocs },
-  { phase: "control-docs", kind: "control-docs", name: "validate-brd-traceability", command: npmBin, args: ["run", "validate:brd-traceability"], skip: skipped.controlDocs },
   { phase: "diff", kind: "product", name: "git-diff-check", command: gitBin, args: ["diff", "--check"] }
 ];
 

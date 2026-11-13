@@ -53,4 +53,4 @@ Candidate directions:
 Acceptance for post-150 growth:
 - New official packs keep tier labels and output-inspecting tests.
 - Runtime docs map node families to BRD requirements and quality tier.
-- `docs/brd-traceability.md` links evidence before TODO completion.
+- The linked GitHub issue records evidence before it is closed.

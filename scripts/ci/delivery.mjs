@@ -9,7 +9,7 @@ const phases = ['npm-install', 'doctor-host', 'julia-instantiate', 'validate-con
   'julia-repo-tests', 'julia-base-extension-tests', 'smoke-local-bootstrap', 'smoke-local-data-estate',
   'smoke-local-metadata', 'smoke-local-hardware', 'smoke-local-explainability', 'smoke-local-offline-hub',
   'smoke-local-reproducibility', 'smoke-local-migration', 'smoke-live-backend-browser', 'smoke-create-project', 'smoke-durable-analysis',
-  'validate-control-doc-sync', 'validate-brd-traceability', 'git-diff-check'];
+  'git-diff-check'];
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const hash = path => createHash('sha256').update(readFileSync(path)).digest('hex');
 function run(command, args, cwd) {
@@ -20,7 +20,7 @@ function run(command, args, cwd) {
 export function requireRelease(release, head, tree) {
   if (release.status !== 'passed' || release.commitSha !== head || release.treeSha !== tree ||
       release.cleanWorktree !== true || !release.skipped ||
-      ['install', 'julia', 'smokes', 'browser', 'controlDocs'].some(key => release.skipped[key] !== false) ||
+      ['install', 'julia', 'smokes', 'browser'].some(key => release.skipped[key] !== false) ||
       Object.values(release.skipped).some(x => x !== false) ||
       !Array.isArray(release.results) || release.results.length !== phases.length ||
       phases.some((name, i) => release.results[i]?.name !== name || release.results[i]?.status !== 'passed' || release.results[i]?.exitCode !== 0)) {

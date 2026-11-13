@@ -12,7 +12,7 @@ const head = 'a'.repeat(40), tree = 'b'.repeat(40), id = 'jfci-12345678-abcdef12
 const temp = () => mkdtempSync(join(tmpdir(), 'juliaflow-delivery-test-'));
 const phases = [...readFileSync('scripts/verify-release.mjs', 'utf8').matchAll(/kind: "[^"]+", name: "([^"]+)"/g)].map(m => m[1]);
 function release() { return { status: 'passed', commitSha: head, treeSha: tree, cleanWorktree: true,
-  skipped: { install: false, julia: false, smokes: false, browser: false, controlDocs: false },
+  skipped: { install: false, julia: false, smokes: false, browser: false },
   results: phases.map(name => ({ name, status: 'passed', exitCode: 0 })) }; }
 function fixture() {
   const root = temp(), out = join(root, 'artifacts/local-ci', id), delivery = join(out, 'release-candidate/delivery');
