@@ -40,9 +40,15 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run verify:release
+      - run: npm run package:release
       - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: debian-release-verification
           path: artifacts/release-verification/latest
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: juliaflow-release-package
+          path: artifacts/release-package
           if-no-files-found: error

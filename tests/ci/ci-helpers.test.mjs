@@ -6,7 +6,6 @@ import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { runProcess } from '../../scripts/ci/process.mjs';
-import { inventory, retainTree, writeJson, pruneCompletedRuns, finishRunEvidence } from '../../scripts/ci/evidence.mjs';
 const temp = () => mkdtempSync(join(tmpdir(), 'juliaflow-ci-test-'));
 
 test('streaming retains output on command failure and split secrets are redacted', async () => {
@@ -32,10 +31,6 @@ test('POSIX descendants retaining pipes are bounded', {skip:process.platform==='
  const code=`require('child_process').spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'inherit'});setTimeout(()=>process.exit(0),200)`;
  const started=Date.now();const r=await runProcess(process.execPath,['-e',code],{timeoutMs:2000,graceMs:50,echo:false});assert.equal(r.status,'passed');assert.ok(Date.now()-started<1800);
 });
-test('artifact retention is checksummed and text credentials redacted',()=>{
- const source=temp(),dest=temp(); writeFileSync(join(source,'output.log'),'Bearer private-test-value\n');retainTree(source,dest);assert.ok(!readFileSync(join(dest,'output.log'),'utf8').includes('private-test-value'));
- const hashes=inventory(dest);assert.match(hashes['output.log'],/^[a-f0-9]{64}$/);writeJson(join(dest,'summary.json'),{status:'cancelled'});assert.equal(JSON.parse(readFileSync(join(dest,'summary.json'))).status,'cancelled');
-});
 test('external PostgreSQL requires a valid explicit endpoint; default remains Compose', async()=>{
  const {postgresReadiness}=await import('../../scripts/ci/postgres.mjs');
  assert.equal(postgresReadiness({}).command,'docker');
@@ -44,70 +39,6 @@ test('external PostgreSQL requires a valid explicit endpoint; default remains Co
  assert.throws(()=>postgresReadiness({JULIAFLOW_CI_EXTERNAL_POSTGRES:'1',JULIAFLOW_DATABASE_URL:'file:///tmp/db'}),/Invalid/);
  const p=postgresReadiness({JULIAFLOW_CI_EXTERNAL_POSTGRES:'1',JULIAFLOW_DATABASE_URL:'postgresql://tester:secret@postgres/db'});
  assert.equal(p.command,'pg_isready');assert.equal(p.external,true);
-});
-
-test('three-run retention keeps the latest completed pass, failure and partial run',()=>{
- const root=temp(), ids=Array.from({length:5},(_,i)=>`jfci-${1000+i}-abcdef12`);
- ids.forEach((id,i)=>{
-  const dir=join(root,id);mkdirSync(dir);
-  writeJson(join(dir,'summary.json'),{id,status:['passed','failed','passed','failed','partial'][i],finishedAt:new Date(100000+i*1000).toISOString()});
-  writeFileSync(join(dir,'step.log'),`run ${i}`);
- });
- const running='jfci-2000-abcdef12', orphan=join(root,running);mkdirSync(orphan);
- writeJson(join(orphan,'summary.json'),{id:running,status:'running'});
- const other='jfci-2001-abcdef12', unowned=join(root,other);mkdirSync(unowned);
- writeJson(join(unowned,'summary.json'),{id:'not-owned',status:'failed',finishedAt:new Date().toISOString()});
- const incomplete='jfci-2002-abcdef12', incompleteDir=join(root,incomplete);mkdirSync(incompleteDir);
- writeJson(join(incompleteDir,'summary.json'),{id:incomplete,status:'failed',finishedAt:new Date().toISOString()});
- writeJson(join(incompleteDir,'finalization-error.json'),{error:'manifest failed'});
- const result=pruneCompletedRuns(root,ids[4]);
- assert.deepEqual(result.retained,[ids[4],ids[3],ids[2]]);
- assert.deepEqual(result.recent.map(run=>run.status),['partial','failed','passed']);
- assert.deepEqual(result.purged,[ids[1],ids[0]]);
- assert.deepEqual(result.unverified.sort(),[running,other,incomplete].sort());
- for(const id of ids.slice(0,2)) assert.equal(existsSync(join(root,id)),false);
- for(const id of [...ids.slice(2),running,other,incomplete]) assert.equal(existsSync(join(root,id)),true);
- assert.throws(()=>pruneCompletedRuns(root,running),/no completed/);
-});
-test('finalization records pruning and checksums the retained summary',()=>{
- const root=temp(), id='jfci-3000-abcdef12', out=join(root,id);mkdirSync(out);
- const report={id,status:'failed',jobs:[{name:'web',status:'failed'}]};
- finishRunEvidence(out,report);
- const saved=JSON.parse(readFileSync(join(out,'summary.json'),'utf8'));
- assert.equal(saved.status,'failed');assert.deepEqual(saved.retention.retained,[id]);
- assert.equal(inventory(out)['summary.json'],JSON.parse(readFileSync(join(out,'sha256.json'),'utf8'))['summary.json']);
-});
-test('simultaneous finalizers preserve three complete manifests', async()=>{
- const root=temp(), ids=Array.from({length:6},(_,i)=>`jfci-${5000+i}-abcdef12`);
- const moduleUrl=pathToFileURL(join(process.cwd(),'scripts/ci/evidence.mjs')).href;
- for (const id of ids) {
-  const out=join(root,id);mkdirSync(out);
-  writeJson(join(out,'summary.json'),{id,status:'running'});
-  writeFileSync(join(out,'step.log'),id);
- }
- const results=await Promise.all(ids.map(id=>new Promise(resolve=>{
-  const child=spawn(process.execPath,['--input-type=module','-e',`import {finishRunEvidence} from ${JSON.stringify(moduleUrl)}; finishRunEvidence(${JSON.stringify(join(root,id))},{id:${JSON.stringify(id)},status:'passed'});`],{stdio:['ignore','pipe','pipe']});
-  let error='';child.stderr.on('data',chunk=>error+=chunk);child.on('close',code=>resolve({code,error}));
- })));
- assert.deepEqual(results.map(result=>result.code),Array(6).fill(0),JSON.stringify(results));
- const retained=ids.filter(id=>existsSync(join(root,id)));
- assert.equal(retained.length,3);
- for (const id of retained) {
-  const out=join(root,id), summary=JSON.parse(readFileSync(join(out,'summary.json')));
-  assert.equal(summary.evidenceFinalization,'passed');
-  assert.equal(inventory(out)['summary.json'],JSON.parse(readFileSync(join(out,'sha256.json')))['summary.json']);
- }
-});
-test('retention never traverses a link to evidence outside its root', {skip:process.platform==='win32'},()=>{
- const root=temp(), outside=temp(), old='jfci-4000-abcdef12', current='jfci-4001-abcdef12';
- writeFileSync(join(outside,'keep.txt'),'outside');
- for(const [id,time] of [[old,100000],[current,200000]]){
-  const dir=join(root,id);mkdirSync(dir);
-  writeJson(join(dir,'summary.json'),{id,status:'failed',finishedAt:new Date(time).toISOString()});
- }
- symlinkSync(outside,join(root,old,'external'),'dir');
- const result=pruneCompletedRuns(root,current,1);
- assert.deepEqual(result.purged,[old]);assert.equal(readFileSync(join(outside,'keep.txt'),'utf8'),'outside');
 });
 
 test('Windows descendants are removed after their parent exits', {skip:process.platform!=='win32'}, async()=>{

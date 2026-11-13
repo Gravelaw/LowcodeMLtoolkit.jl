@@ -45,9 +45,24 @@ python -m easyci wait <run-id>
   the distro, so later runs reuse them.
 - **Failures:** `python -m easyci explain <run-id>` gives the reason for a
   failure, and `python -m easyci logs` shows a job log.
-- **Evidence:** EasyCI keeps run evidence with checksums. `python -m easyci verify`
-  checks it is unchanged, and `python -m easyci promote` copies a passed
-  release-candidate artifact to a release folder with a receipt.
+- **Evidence:** EasyCI keeps run evidence with checksums, and `python -m easyci verify`
+  checks it is unchanged.
+
+## Release package
+
+The release-candidate profile runs `npm run verify:release`, then `npm run package:release`
+(`scripts/package-release.mjs`). That script builds
+`juliaflow-<version>-<sha>-<platform>.tar.gz` from the committed source, the built frontend and
+the resolved `Manifest.toml`, with a `package.json` that records its SHA-256. It refuses to
+build unless every release phase passed for the same commit and tree in a clean worktree. The
+workflow uploads it as the `juliaflow-release-package` artifact. Promote a passed run with:
+
+```sh
+python -m easyci promote <run-id> --artifact juliaflow-release-package --to <release folder>
+```
+
+The package needs Node 25, Julia 1.12 and PostgreSQL 16 on the target machine. It is not an
+offline installer.
 
 ## Memory in the 4 GiB WSL VM
 
@@ -78,6 +93,3 @@ in the requested profile.
 
 - A Linux WSL pass proves neither Windows-native behavior nor hosted GitHub
   check success.
-- `npm run cd:local` (`scripts/ci/delivery.mjs`) promoted evidence written by
-  the retired runner, so it has no producer now. Its future is tracked
-  separately.
