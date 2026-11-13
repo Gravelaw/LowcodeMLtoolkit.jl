@@ -1,2 +1,2 @@
-// Keep local CI lifecycle/parity protection inside the existing contracts gate.
-import '../ci/runner.test.mjs';
+// Keep local CI helper protection (process, evidence, PostgreSQL) inside the existing contracts gate.
+import '../ci/ci-helpers.test.mjs';

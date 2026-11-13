@@ -66,5 +66,5 @@ Run through `npm run`. `npm run test` excludes Julia, browser, extension, smoke 
 | Release/readiness claim | Full `verify:release`, no skipped product/runtime phases |
 | Every change | `git diff --check`; report exact pass/fail/skip |
 
-Local CI runs through EasyCI or `scripts/ci/`; see [docs/local-ci.md](docs/local-ci.md).
+Local CI runs through EasyCI native profiles; see [docs/local-ci.md](docs/local-ci.md).
 Do not revive inbound workstation webhooks or custom GitHub CI monitors.
